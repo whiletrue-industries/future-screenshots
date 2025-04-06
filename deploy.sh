@@ -1,5 +1,5 @@
 #!/bin/sh
-git checkout master && \
+git checkout main && \
 (git branch -D dist || true) && \
 git checkout -b dist && \
 rm .gitignore && \
@@ -10,7 +10,7 @@ git commit -m dist && \
 (git branch -D gh-pages || true) && \
 git subtree split --prefix dist/ingress/browser -b gh-pages && \
 git push -f origin gh-pages:gh-pages && \
-git checkout master && \
+git checkout main && \
 git branch -D gh-pages && \
 git branch -D dist && \
 git checkout . && \
