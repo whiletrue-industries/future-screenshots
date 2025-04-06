@@ -34,6 +34,7 @@ export class ScannerComponent implements AfterViewInit {
   COUNTDOWN_INITIAL = 30;
   countDown = this.COUNTDOWN_INITIAL;
   scanState = null;
+  stream: MediaStream | null = null;
 
   constructor(
     private el: ElementRef, 
@@ -66,7 +67,13 @@ export class ScannerComponent implements AfterViewInit {
   }
 
   startScanner() {
-    navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+    navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: 'environment'
+      }
+    }).then((stream) => {
+      this.stream = stream;
       this.videoEl.nativeElement.srcObject = stream;
     });
   }
@@ -173,8 +180,13 @@ export class ScannerComponent implements AfterViewInit {
           this.resultEl.nativeElement.width = result.width;
           this.resultEl.nativeElement.height = result.height;
           this.resultCtx?.drawImage(result, 0, 0, result.width, result.height);
+          this.stream?.getTracks().forEach((track) => {
+            if (track.readyState == 'live') {
+                track.stop();
+            }
+          });
           this.videoEl.nativeElement.pause();
-
+          this.stream = null;
           // Convert the result to a JPEG image
           result.toBlob((blob: Blob) => {
             if (blob) {
