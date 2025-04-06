@@ -3,7 +3,7 @@ git checkout main && \
 (git branch -D dist || true) && \
 git checkout -b dist && \
 rm .gitignore && \
-npm run build ingress --base-href=ingress/ && \
+npm run build ingress --base-href=/ingress/ && \
 (cp CNAME-INGRESS dist/ingress/browser/CNAME || true) && \
 git add dist/ingress && \
 git commit -m dist && \
