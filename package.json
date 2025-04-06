@@ -4,7 +4,8 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build",
+    "build": "ng build" ,
+    "build:ingress": "ng build ingress --base-href=/ingress/",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "serve:ssr:ingress": "node dist/ingress/server/server.mjs",
