@@ -168,9 +168,10 @@ export class ScannerComponent implements AfterViewInit {
         return null;
       })
     ).subscribe((shape: {valid: boolean, cornerPoints: CornerPoints} | null) => {
+      // console.log('GOT', shape?.valid, shape?.cornerPoints);
       if (shape?.cornerPoints) {
         const resultCanvas = scanner.highlightPaper(this.canvasEl.nativeElement, {
-          "color": shape.valid ? "#00FF00" : "#FF0000",
+          "color": shape?.valid ? "#00FF00" : "#FF0000",
           "thickness": 5
         });
         // console.log('Drawing video frame to canvas', displayWidth, displayHeight);
@@ -201,7 +202,7 @@ export class ScannerComponent implements AfterViewInit {
         }
       } else {
         this.countDown = this.COUNTDOWN_INITIAL;
-        this.resultCtx?.clearRect(0, 0, displayWidth, displayHeight);
+        // this.resultCtx?.clearRect(0, 0, displayWidth, displayHeight);
       }
     });
   }
