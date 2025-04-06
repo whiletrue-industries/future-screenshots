@@ -150,8 +150,11 @@ export class ScannerComponent implements AfterViewInit {
           const frame = cv.imread(this.canvasEl.nativeElement);
           const maxContour = scanner.findPaperContour(frame);
           if (maxContour) {
-            const cornerPoints = scanner.getCornerPoints(maxContour, frame);
-            return this.checkDimensions(cornerPoints, videoWidth, videoHeight);
+            const cornerPoints = scanner.getCornerPoints(maxContour, frame) as CornerPoints;
+            return {
+              valid: !!this.checkDimensions(cornerPoints, videoWidth, videoHeight),
+              cornerPoints
+            };
             // console.log('cornerPoints', cornerPoints);  
           }
         } catch (e) {
@@ -164,18 +167,19 @@ export class ScannerComponent implements AfterViewInit {
         }
         return null;
       })
-    ).subscribe((cornerPoints: CornerPoints | null) => {
-      if (cornerPoints) {
-        this.countDown -= 1;
+    ).subscribe((shape: {valid: boolean, cornerPoints: CornerPoints} | null) => {
+      if (shape?.cornerPoints) {
         const resultCanvas = scanner.highlightPaper(this.canvasEl.nativeElement, {
-          "color": "#FF0000",
+          "color": shape.valid ? "#00FF00" : "#FF0000",
           "thickness": 5
         });
         // console.log('Drawing video frame to canvas', displayWidth, displayHeight);
         this.resultCtx?.drawImage(resultCanvas, 0, 0, displayWidth, displayHeight);  
-
+      }
+      if (shape?.valid) {
+        this.countDown -= 1;
         if (this.countDown === 0) {
-          const result = scanner.extractPaper(this.canvasEl.nativeElement, 1060, 2000, cornerPoints);
+          const result = scanner.extractPaper(this.canvasEl.nativeElement, 1060, 2000, shape.cornerPoints);
           console.log('Extraction result:', result);
           this.resultEl.nativeElement.width = result.width;
           this.resultEl.nativeElement.height = result.height;
