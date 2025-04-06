@@ -72,8 +72,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       audio: false,
       video: {
         facingMode: 'environment',
-        height: { ideal: 2160 },
-        width: { ideal: 4096 },
+        height: { ideal: 2000 },
+        width: { ideal: 1080 },
       }
     }).then((stream) => {
       this.stream = stream;
