@@ -131,8 +131,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     return cornerPoints;
   }
   
-  checkBlurry(frame: any): boolean {
-    let src = cv.imread(frame);
+  checkBlurry(src: any): boolean {
     let dst = new cv.Mat();
     let men = new cv.Mat();
     let menO = new cv.Mat();
@@ -140,11 +139,10 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     // You can try more different parameters
     cv.Laplacian(src, dst, cv.CV_64F, 1, 1, 0, cv.BORDER_DEFAULT);
     cv.meanStdDev(dst, menO, men);
-    console.log('menO', menO.data64F);
-    const blurry = menO.data64F[0] < 0;
+    const blurry = menO.data64F[0] < 10;
+    console.log('menO', blurry, menO.data64F);
     // Release memory
     // cv.imshow(frame, dst);
-    src.delete();
     dst.delete();
     men.delete();
     menO.delete();
@@ -159,45 +157,52 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     this.canvasEl.nativeElement.width = videoWidth;
     this.canvasEl.nativeElement.height = videoHeight;
     const ratio = Math.min(this.el.nativeElement.clientWidth / videoWidth, this.el.nativeElement.clientHeight / videoHeight);
+    const sampleRatio = Math.floor(Math.min(videoHeight / 640, videoWidth / 480));
+    console.log('SAMPLE RATIO', sampleRatio);
     const displayWidth = videoWidth * ratio;
     const displayHeight = videoHeight * ratio;
     this.resultEl.nativeElement.width = displayWidth;
-    this.resultEl.nativeElement.height = displayHeight;  
+    this.resultEl.nativeElement.height = displayHeight;
 
     interval(33).pipe(
       takeUntilDestroyed(this.destroyRef),
       takeUntil(this.stopScannerSubject),
       filter(() => this.countDown > 0),
       map(() => {
+        let frame: any = null;
+        let resampledFrame: any = null;
+        let ret: any = null;
+        let blurry: any = null;
         try {
           this.canvasCtx?.drawImage(this.videoEl.nativeElement, 0, 0);
-          const frame = cv.imread(this.canvasEl.nativeElement);
-          const maxContour = scanner.findPaperContour(frame);
-          frame.delete();
+          frame = cv.imread(this.canvasEl.nativeElement);
+          resampledFrame = new cv.Mat();
+          // resize the frame by sampleRatio
+          const width = Math.floor(frame.cols / sampleRatio);
+          const height = Math.floor(frame.rows / sampleRatio);
+          const dsize = new cv.Size(width, height);
+          cv.resize(frame, resampledFrame, dsize, 0, 0, cv.INTER_NEAREST);      
+          blurry = this.checkBlurry(resampledFrame);    
+          const maxContour = scanner.findPaperContour(resampledFrame);
           if (maxContour) {
-            const cornerPoints = scanner.getCornerPoints(maxContour, frame) as CornerPoints;
+            const cornerPoints = scanner.getCornerPoints(maxContour, resampledFrame) as CornerPoints;
             const valid = !!this.checkDimensions(cornerPoints, videoWidth, videoHeight);
-            return {valid, cornerPoints};
-            // console.log('cornerPoints', cornerPoints);  
+            ret = {valid, blurry, cornerPoints};
           }
         } catch (e) {
           console.error('Error processing video frame', e);
           this.restartScanner();
         }
-        return null;
+        frame?.delete();
+        return ret;
       })
-    ).subscribe((shape: {valid: boolean, cornerPoints: CornerPoints} | null) => {
+    ).subscribe((shape: {valid: boolean, blurry: boolean, cornerPoints: CornerPoints} | null) => {
       // console.log('GOT', shape?.valid, shape?.cornerPoints);
-      let blurry = false;
       let frame = null;
-      if (shape?.valid) {
-        frame = scanner.extractPaper(this.canvasEl.nativeElement, 1060, 2000, shape.cornerPoints);        
-        blurry = this.checkBlurry(frame);
-      }
 
       if (shape?.cornerPoints) {
         const options = {
-          "color": shape?.valid ? (blurry ? "#FFA500" : "#00FF00") : "#FF0000",
+          "color": shape?.valid ? (shape.blurry ? "#FFA500" : "#00FF00") : "#FF0000",
           "thickness": 5
         };
         // console.log('Drawing video frame to canvas', displayWidth, displayHeight);
@@ -207,18 +212,19 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
           ctx.strokeStyle = options.color;
           ctx.lineWidth = options.thickness;
           ctx.beginPath();
-          ctx.moveTo(shape.cornerPoints.topLeftCorner.x*ratio, shape.cornerPoints.topLeftCorner.y*ratio);
-          ctx.lineTo(shape.cornerPoints.topRightCorner.x*ratio, shape.cornerPoints.topRightCorner.y*ratio);
-          ctx.lineTo(shape.cornerPoints.bottomRightCorner.x*ratio, shape.cornerPoints.bottomRightCorner.y*ratio);
-          ctx.lineTo(shape.cornerPoints.bottomLeftCorner.x*ratio, shape.cornerPoints.bottomLeftCorner.y*ratio);
-          ctx.lineTo(shape.cornerPoints.topLeftCorner.x*ratio, shape.cornerPoints.topLeftCorner.y*ratio);
+          ctx.moveTo(shape.cornerPoints.topLeftCorner.x*ratio*sampleRatio, shape.cornerPoints.topLeftCorner.y*ratio*sampleRatio);
+          ctx.lineTo(shape.cornerPoints.topRightCorner.x*ratio*sampleRatio, shape.cornerPoints.topRightCorner.y*ratio*sampleRatio);
+          ctx.lineTo(shape.cornerPoints.bottomRightCorner.x*ratio*sampleRatio, shape.cornerPoints.bottomRightCorner.y*ratio*sampleRatio);
+          ctx.lineTo(shape.cornerPoints.bottomLeftCorner.x*ratio*sampleRatio, shape.cornerPoints.bottomLeftCorner.y*ratio*sampleRatio);
+          ctx.lineTo(shape.cornerPoints.topLeftCorner.x*ratio*sampleRatio, shape.cornerPoints.topLeftCorner.y*ratio*sampleRatio);
           ctx.stroke();
         }
         // this.resultCtx?.drawImage(resultCanvas, 0, 0, displayWidth, displayHeight);  
       }
       if (shape?.valid) {
         this.countDown -= 1;
-        if (this.countDown === 0 || !blurry) {          
+        if (this.countDown === 0 || !shape.blurry) {         
+          frame = scanner.extractPaper(this.canvasEl.nativeElement, 1060, 2000, shape.cornerPoints);        
           console.log('Extraction result:', frame);
           this.resultEl.nativeElement.width = frame.width;
           this.resultEl.nativeElement.height = frame.height;
