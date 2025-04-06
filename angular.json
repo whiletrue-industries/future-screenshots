@@ -1,0 +1,214 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "newProjectRoot": "projects",
+  "projects": {
+    "ingress": {
+      "projectType": "application",
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "less",
+          "skipTests": true
+        },
+        "@schematics/angular:service": {
+          "skipTests": true
+        },
+      },
+      "root": "projects/ingress",
+      "sourceRoot": "projects/ingress/src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-angular:application",
+          "options": {
+            "outputPath": "dist/ingress",
+            "index": "projects/ingress/src/index.html",
+            "browser": "projects/ingress/src/main.ts",
+            "polyfills": [
+              "zone.js"
+            ],
+            "tsConfig": "projects/ingress/tsconfig.app.json",
+            "inlineStyleLanguage": "less",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/ingress/public"
+              }
+            ],
+            "styles": [
+              "projects/ingress/src/styles.less"
+            ],
+            "scripts": [],
+            "server": "projects/ingress/src/main.server.ts",
+            "prerender": true,
+            "ssr": {
+              "entry": "projects/ingress/src/server.ts"
+            }
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kB",
+                  "maximumError": "1MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular-devkit/build-angular:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "ingress:build:production"
+            },
+            "development": {
+              "buildTarget": "ingress:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "extract-i18n": {
+          "builder": "@angular-devkit/build-angular:extract-i18n"
+        },
+        "test": {
+          "builder": "@angular-devkit/build-angular:karma",
+          "options": {
+            "polyfills": [
+              "zone.js",
+              "zone.js/testing"
+            ],
+            "tsConfig": "projects/ingress/tsconfig.spec.json",
+            "inlineStyleLanguage": "less",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/ingress/public"
+              }
+            ],
+            "styles": [
+              "projects/ingress/src/styles.less"
+            ],
+            "scripts": []
+          }
+        }
+      }
+    },
+    "showcase": {
+      "projectType": "application",
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "less"
+        }
+      },
+      "root": "projects/showcase",
+      "sourceRoot": "projects/showcase/src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-angular:application",
+          "options": {
+            "outputPath": "dist/showcase",
+            "index": "projects/showcase/src/index.html",
+            "browser": "projects/showcase/src/main.ts",
+            "polyfills": [
+              "zone.js"
+            ],
+            "tsConfig": "projects/showcase/tsconfig.app.json",
+            "inlineStyleLanguage": "less",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/showcase/public"
+              }
+            ],
+            "styles": [
+              "projects/showcase/src/styles.less"
+            ],
+            "scripts": [],
+            "server": "projects/showcase/src/main.server.ts",
+            "prerender": true,
+            "ssr": {
+              "entry": "projects/showcase/src/server.ts"
+            }
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kB",
+                  "maximumError": "1MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular-devkit/build-angular:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "showcase:build:production"
+            },
+            "development": {
+              "buildTarget": "showcase:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "extract-i18n": {
+          "builder": "@angular-devkit/build-angular:extract-i18n"
+        },
+        "test": {
+          "builder": "@angular-devkit/build-angular:karma",
+          "options": {
+            "polyfills": [
+              "zone.js",
+              "zone.js/testing"
+            ],
+            "tsConfig": "projects/showcase/tsconfig.spec.json",
+            "inlineStyleLanguage": "less",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/showcase/public"
+              }
+            ],
+            "styles": [
+              "projects/showcase/src/styles.less"
+            ],
+            "scripts": []
+          }
+        }
+      }
+    }
+  },
+  "cli": {
+    "analytics": false
+  }
+}

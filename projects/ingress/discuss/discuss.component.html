@@ -1,0 +1,22 @@
+<div class='messages'>
+    @for (message of messages(); track $index) {
+        <div class='message'>
+            <div class='message-who'>{{ message.dir }}</div>
+            <div class='message-text'>{{ message.message }}</div>
+        </div>
+    }
+    @if (thinking()) {
+        <div class='message'>
+            <div class='message-who'>AI</div>
+            <div class='message-text'>Thinking...</div>
+        </div>
+    }
+</div>
+<div class='input'>
+    <textarea
+        [(ngModel)]="inputMessage"
+        (keyup.enter)="submitMessage()"
+        [disabled]='inputDisabled()'
+        lines="2"
+        placeholder="Type your message here..."></textarea>
+</div>
