@@ -15,6 +15,10 @@ export const routes: Routes = [
         'component': ConfirmComponent
     },
     {
+        'path': 'discuss/:item-id',
+        'component': DiscussComponent
+    },
+    {
         'path': 'discuss',
         'component': DiscussComponent
     },

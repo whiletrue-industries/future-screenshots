@@ -1,6 +1,6 @@
 import { isPlatformBrowser } from '@angular/common';
-import { AfterViewInit, Component, DestroyRef, ElementRef, Inject, PLATFORM_ID, ViewChild } from '@angular/core';
-import { animationFrameScheduler, filter, interval, map, max, take, takeUntil, timer } from 'rxjs';
+import { AfterViewInit, Component, DestroyRef, ElementRef, Inject, OnDestroy, PLATFORM_ID, ViewChild } from '@angular/core';
+import { animationFrameScheduler, filter, interval, map, max, Subject, take, takeUntil, timer } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { time } from 'console';
 import { StateService } from '../state.service';
@@ -23,7 +23,7 @@ type CornerPoints = {
   templateUrl: './scanner.component.html',
   styleUrl: './scanner.component.less'
 })
-export class ScannerComponent implements AfterViewInit {
+export class ScannerComponent implements AfterViewInit, OnDestroy {
   
   @ViewChild('video', { static: true }) videoEl!: ElementRef<HTMLVideoElement>;
   @ViewChild('canvas', { static: true }) canvasEl!: ElementRef<HTMLCanvasElement>;
@@ -35,6 +35,7 @@ export class ScannerComponent implements AfterViewInit {
   countDown = this.COUNTDOWN_INITIAL;
   scanState = null;
   stream: MediaStream | null = null;
+  stopScannerSubject = new Subject<void>();
 
   constructor(
     private el: ElementRef, 
@@ -70,7 +71,9 @@ export class ScannerComponent implements AfterViewInit {
     navigator.mediaDevices.getUserMedia({
       audio: false,
       video: {
-        facingMode: 'environment'
+        facingMode: 'environment',
+        height: { ideal: 2160 },
+        width: { ideal: 4096 },
       }
     }).then((stream) => {
       this.stream = stream;
@@ -128,6 +131,26 @@ export class ScannerComponent implements AfterViewInit {
     return cornerPoints;
   }
   
+  checkBlurry(frame: any): boolean {
+    let src = cv.imread(frame);
+    let dst = new cv.Mat();
+    let men = new cv.Mat();
+    let menO = new cv.Mat();
+    cv.cvtColor(src, src, cv.COLOR_RGB2GRAY, 0);
+    // You can try more different parameters
+    cv.Laplacian(src, dst, cv.CV_64F, 1, 1, 0, cv.BORDER_DEFAULT);
+    cv.meanStdDev(dst, menO, men);
+    console.log('menO', menO.data64F);
+    const blurry = menO.data64F[0] < 0;
+    // Release memory
+    // cv.imshow(frame, dst);
+    src.delete();
+    dst.delete();
+    men.delete();
+    menO.delete();
+    return blurry;
+  }
+
   playing() {
     this.videoEl.nativeElement.play();
     const scanner = new jscanify();
@@ -141,50 +164,65 @@ export class ScannerComponent implements AfterViewInit {
     this.resultEl.nativeElement.width = displayWidth;
     this.resultEl.nativeElement.height = displayHeight;  
 
-    interval(30, animationFrameScheduler).pipe(
+    interval(33).pipe(
       takeUntilDestroyed(this.destroyRef),
+      takeUntil(this.stopScannerSubject),
       filter(() => this.countDown > 0),
       map(() => {
         try {
           this.canvasCtx?.drawImage(this.videoEl.nativeElement, 0, 0);
           const frame = cv.imread(this.canvasEl.nativeElement);
           const maxContour = scanner.findPaperContour(frame);
+          frame.delete();
           if (maxContour) {
             const cornerPoints = scanner.getCornerPoints(maxContour, frame) as CornerPoints;
-            return {
-              valid: !!this.checkDimensions(cornerPoints, videoWidth, videoHeight),
-              cornerPoints
-            };
+            const valid = !!this.checkDimensions(cornerPoints, videoWidth, videoHeight);
+            return {valid, cornerPoints};
             // console.log('cornerPoints', cornerPoints);  
           }
         } catch (e) {
           console.error('Error processing video frame', e);
-          this.videoEl.nativeElement.pause();
-          timer(1000).subscribe(() => {
-            console.log('Retrying video playback');
-            this.videoEl.nativeElement.play();
-          });
+          this.restartScanner();
         }
         return null;
       })
     ).subscribe((shape: {valid: boolean, cornerPoints: CornerPoints} | null) => {
       // console.log('GOT', shape?.valid, shape?.cornerPoints);
+      let blurry = false;
+      let frame = null;
+      if (shape?.valid) {
+        frame = scanner.extractPaper(this.canvasEl.nativeElement, 1060, 2000, shape.cornerPoints);        
+        blurry = this.checkBlurry(frame);
+      }
+
       if (shape?.cornerPoints) {
-        const resultCanvas = scanner.highlightPaper(this.canvasEl.nativeElement, {
-          "color": shape?.valid ? "#00FF00" : "#FF0000",
+        const options = {
+          "color": shape?.valid ? (blurry ? "#FFA500" : "#00FF00") : "#FF0000",
           "thickness": 5
-        });
+        };
         // console.log('Drawing video frame to canvas', displayWidth, displayHeight);
-        this.resultCtx?.drawImage(resultCanvas, 0, 0, displayWidth, displayHeight);  
+        if (this.resultCtx) {
+          this.resultCtx.clearRect(0, 0, displayWidth, displayHeight);
+          const ctx = this.resultCtx;
+          ctx.strokeStyle = options.color;
+          ctx.lineWidth = options.thickness;
+          ctx.beginPath();
+          ctx.moveTo(shape.cornerPoints.topLeftCorner.x*ratio, shape.cornerPoints.topLeftCorner.y*ratio);
+          ctx.lineTo(shape.cornerPoints.topRightCorner.x*ratio, shape.cornerPoints.topRightCorner.y*ratio);
+          ctx.lineTo(shape.cornerPoints.bottomRightCorner.x*ratio, shape.cornerPoints.bottomRightCorner.y*ratio);
+          ctx.lineTo(shape.cornerPoints.bottomLeftCorner.x*ratio, shape.cornerPoints.bottomLeftCorner.y*ratio);
+          ctx.lineTo(shape.cornerPoints.topLeftCorner.x*ratio, shape.cornerPoints.topLeftCorner.y*ratio);
+          ctx.stroke();
+        }
+        // this.resultCtx?.drawImage(resultCanvas, 0, 0, displayWidth, displayHeight);  
       }
       if (shape?.valid) {
         this.countDown -= 1;
-        if (this.countDown === 0) {
-          const result = scanner.extractPaper(this.canvasEl.nativeElement, 1060, 2000, shape.cornerPoints);
-          console.log('Extraction result:', result);
-          this.resultEl.nativeElement.width = result.width;
-          this.resultEl.nativeElement.height = result.height;
-          this.resultCtx?.drawImage(result, 0, 0, result.width, result.height);
+        if (this.countDown === 0 || !blurry) {          
+          console.log('Extraction result:', frame);
+          this.resultEl.nativeElement.width = frame.width;
+          this.resultEl.nativeElement.height = frame.height;
+          this.resultCtx?.drawImage(frame, 0, 0, frame.width, frame.height);
           this.stream?.getTracks().forEach((track) => {
             if (track.readyState == 'live') {
                 track.stop();
@@ -193,17 +231,43 @@ export class ScannerComponent implements AfterViewInit {
           this.videoEl.nativeElement.pause();
           this.stream = null;
           // Convert the result to a JPEG image
-          result.toBlob((blob: Blob) => {
+          frame.toBlob((blob: Blob) => {
             if (blob) {
               this.state.setImage(blob);
               this.router.navigateByUrl('/confirm');
             }
-          }, 'image/jpeg', 0.95); 
+          }, 'image/jpeg', 0.95);
         }
       } else {
         this.countDown = this.COUNTDOWN_INITIAL;
         // this.resultCtx?.clearRect(0, 0, displayWidth, displayHeight);
       }
+    });
+  }
+
+  ngOnDestroy() {
+    this.stopScanner();
+  }
+
+  stopScanner() {
+    this.stopScannerSubject.next();
+    if (this.stream) {
+      this.stream.getTracks().forEach((track) => {
+        track.stop();
+      });
+      this.stream = null;
+    }
+    if (isPlatformBrowser(this.platformId)) {
+      this.videoEl?.nativeElement?.pause();
+    }
+  }
+
+  restartScanner() {
+    this.stopScanner();
+    this.countDown = this.COUNTDOWN_INITIAL;
+    console.log('RESTARTING SCANNER');
+    timer(500).subscribe(() => {
+      this.startScanner();
     });
   }
 }

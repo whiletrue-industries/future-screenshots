@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, signal } from '@angular/core';
-import { map, Observable, switchMap } from 'rxjs';
+import { map, Observable, switchMap, tap } from 'rxjs';
 
 export type DiscussResult = {
   complete: boolean;
@@ -13,6 +13,7 @@ export type DiscussResult = {
 })
 export class ApiService {
 
+  CHRONOMAPS_API_URL = 'https://chronomaps-api-qjzuw7ypfq-ez.a.run.app';
   SCREENSHOT_HANDLER_URL = 'https://screenshot-handler-qjzuw7ypfq-ez.a.run.app';
   ITEM_INGRES_AGENT_URL = 'https://item-ingress-agent-qjzuw7ypfq-ez.a.run.app';
 
@@ -23,19 +24,31 @@ export class ApiService {
 
   constructor(private http: HttpClient) { }
 
-  startDiscussion(image: Blob): Observable<DiscussResult> {
+  fetchItem(item_id: string, item_key: string): Observable<any> { 
+    const params = {
+      item_key: item_key,
+    };
+    const headers = {
+      'Authorization': this.API_KEY
+    };
+    return this.http.get(`${this.CHRONOMAPS_API_URL}/${this.WORKSPACE}/${item_id}`, {params, headers}).pipe(
+      map((response: any) => {
+        response.item_id = item_id;
+        response.item_key = item_key;
+        this.item.set(response);
+        return response;
+      })
+    );
+  }
+
+  startDiscussion(image: Blob): Observable<any> {
     const formData = new FormData();
     formData.append('image', image);
     const params = {
       workspace: this.WORKSPACE,
       api_key: this.API_KEY,
     };
-    return this.http.post(this.SCREENSHOT_HANDLER_URL, formData, { params }).pipe(
-      switchMap((response: any) => {
-        this.item.set(response);
-        return this.sendMessage('initial');
-      })
-    );
+    return this.http.post(this.SCREENSHOT_HANDLER_URL, formData, { params });
   }
 
   sendMessage(message: string): Observable<DiscussResult> {
