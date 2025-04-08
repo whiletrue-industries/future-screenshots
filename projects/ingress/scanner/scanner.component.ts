@@ -1,5 +1,5 @@
 import { isPlatformBrowser } from '@angular/common';
-import { AfterViewInit, Component, DestroyRef, ElementRef, Inject, OnDestroy, PLATFORM_ID, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, DestroyRef, ElementRef, Inject, OnDestroy, PLATFORM_ID, signal, ViewChild } from '@angular/core';
 import { animationFrameScheduler, filter, interval, map, max, Subject, take, takeUntil, timer } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { time } from 'console';
@@ -36,6 +36,9 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   scanState = null;
   stream: MediaStream | null = null;
   stopScannerSubject = new Subject<void>();
+  msg = signal<string>('');
+  videoHeightM = signal<number>(0);
+  videoWidthM = signal<number>(0);
 
   constructor(
     private el: ElementRef, 
@@ -72,8 +75,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       audio: false,
       video: {
         facingMode: 'environment',
-        height: { ideal: 1920, min: 1280 },
-        width: { ideal: 1080, min: 720 },
+        height: { min: 1280 },
+        width: { min: 720 },
       }
     }).then((stream) => {
       this.stream = stream;
@@ -105,10 +108,12 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     const topBottomRatio = Math.max(topWidth, bottomWidth) / Math.min(topWidth, bottomWidth);
     const leftRightRatio = Math.max(leftHeight, rightHeight) / Math.min(leftHeight, rightHeight);
     if (topBottomRatio > 1.1 || topBottomRatio < 0.9) {
+      this.msg.set('topBottomRatio is not in range: ' + topBottomRatio);
       console.log('topBottomRatio is not in range');
       return null;
     }
     if (leftRightRatio > 1.1 || leftRightRatio < 0.9) {
+      this.msg.set('leftRightRatio is not in range: ' + leftRightRatio);
       console.log('leftRightRatio is not in range');
       return null;
     }
@@ -118,6 +123,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     // ensure the ratio between averageWidth and averageHeight is 0.53 to 5% margin
     const averageRatio = (topBottomAverage / leftRightAverage) / 0.53;
     if (averageRatio > 1.05 || averageRatio < 0.95) {
+      this.msg.set('averageRatio is not in range: ' + averageRatio);
       console.log('averageRatio is not in range');
       return null;
     }
@@ -126,8 +132,12 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     const averageHeight = (leftRightAverage > 0.66 * videoHeight);
     if (!averageWidth && !averageHeight) {
       console.log('Neither averageWidth nor averageHeight is above 66% of video dimensions');
+      this.msg.set('Neither averageWidth nor averageHeight is above 66% of video dimensions: ' + 
+        topBottomAverage + '<0.66*' + videoWidth + ' ' + 
+        leftRightAverage + '<0.66*' + videoHeight);
       return null;
-    }    
+    }
+    this.msg.set('Dimensions are valid: ' + averageWidth + ' ' + averageHeight);
     return cornerPoints;
   }
   
@@ -154,6 +164,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     const scanner = new jscanify();
     const videoWidth = this.videoEl.nativeElement.videoWidth;
     const videoHeight = this.videoEl.nativeElement.videoHeight;
+    this.videoHeightM.set(videoHeight);
+    this.videoWidthM.set(videoWidth);
     this.canvasEl.nativeElement.width = videoWidth;
     this.canvasEl.nativeElement.height = videoHeight;
     const ratio = Math.min(this.el.nativeElement.clientWidth / videoWidth, this.el.nativeElement.clientHeight / videoHeight);
@@ -186,7 +198,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
           const maxContour = scanner.findPaperContour(resampledFrame);
           if (maxContour) {
             const cornerPoints = scanner.getCornerPoints(maxContour, resampledFrame) as CornerPoints;
-            const valid = !!this.checkDimensions(cornerPoints, videoWidth, videoHeight);
+            const valid = !!this.checkDimensions(cornerPoints, width, height);
             ret = {valid, blurry, cornerPoints};
           }
         } catch (e) {
@@ -201,6 +213,14 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       let frame = null;
 
       if (shape?.cornerPoints) {
+        shape.cornerPoints.topLeftCorner.x *= sampleRatio;
+        shape.cornerPoints.topLeftCorner.y *= sampleRatio;
+        shape.cornerPoints.topRightCorner.x *= sampleRatio;
+        shape.cornerPoints.topRightCorner.y *= sampleRatio;
+        shape.cornerPoints.bottomLeftCorner.x *= sampleRatio;
+        shape.cornerPoints.bottomLeftCorner.y *= sampleRatio;
+        shape.cornerPoints.bottomRightCorner.x *= sampleRatio;
+        shape.cornerPoints.bottomRightCorner.y *= sampleRatio;
         const options = {
           "color": shape?.valid ? (shape.blurry ? "#FFA500" : "#00FF00") : "#FF0000",
           "thickness": 5
@@ -212,11 +232,11 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
           ctx.strokeStyle = options.color;
           ctx.lineWidth = options.thickness;
           ctx.beginPath();
-          ctx.moveTo(shape.cornerPoints.topLeftCorner.x*ratio*sampleRatio, shape.cornerPoints.topLeftCorner.y*ratio*sampleRatio);
-          ctx.lineTo(shape.cornerPoints.topRightCorner.x*ratio*sampleRatio, shape.cornerPoints.topRightCorner.y*ratio*sampleRatio);
-          ctx.lineTo(shape.cornerPoints.bottomRightCorner.x*ratio*sampleRatio, shape.cornerPoints.bottomRightCorner.y*ratio*sampleRatio);
-          ctx.lineTo(shape.cornerPoints.bottomLeftCorner.x*ratio*sampleRatio, shape.cornerPoints.bottomLeftCorner.y*ratio*sampleRatio);
-          ctx.lineTo(shape.cornerPoints.topLeftCorner.x*ratio*sampleRatio, shape.cornerPoints.topLeftCorner.y*ratio*sampleRatio);
+          ctx.moveTo(shape.cornerPoints.topLeftCorner.x*ratio, shape.cornerPoints.topLeftCorner.y*ratio);
+          ctx.lineTo(shape.cornerPoints.topRightCorner.x*ratio, shape.cornerPoints.topRightCorner.y*ratio);
+          ctx.lineTo(shape.cornerPoints.bottomRightCorner.x*ratio, shape.cornerPoints.bottomRightCorner.y*ratio);
+          ctx.lineTo(shape.cornerPoints.bottomLeftCorner.x*ratio, shape.cornerPoints.bottomLeftCorner.y*ratio);
+          ctx.lineTo(shape.cornerPoints.topLeftCorner.x*ratio, shape.cornerPoints.topLeftCorner.y*ratio);
           ctx.stroke();
         }
         // this.resultCtx?.drawImage(resultCanvas, 0, 0, displayWidth, displayHeight);  
