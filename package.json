@@ -6,7 +6,7 @@
     "start": "ng serve",
     "build": "ng build",
     "build:ingress": "ng build ingress --base-href=/future-screenshots/in/",
-    "build:showcase": "ng build ingress --base-href=/future-screenshots/show/",
+    "build:showcase": "ng build showcase --base-href=/future-screenshots/show/",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "serve:ssr:ingress": "node dist/ingress/server/server.mjs",
