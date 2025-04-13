@@ -1,0 +1,10 @@
+numpy
+lapjv
+scikit-learn
+scipy
+# tensorflow==2.2.0
+lapjv
+Pillow
+boto3
+scikit-image
+Pillow

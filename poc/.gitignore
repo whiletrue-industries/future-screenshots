@@ -1,0 +1,7 @@
+AIRTABLE_KEY
+OPENAI_KEY
+out.json
+__pycache__
+.venv/
+sample/
+tsne.png
