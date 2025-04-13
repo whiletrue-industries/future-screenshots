@@ -7,8 +7,13 @@
     }
     @if (thinking()) {
         <div class='message'>
-            <div class='message-who'>AI</div>
+            <div class='message-who'>ai</div>
             <div class='message-text'>Thinking...</div>
+        </div>
+    } @else if (reply()) {
+        <div class='message'>
+            <div class='message-who'>ai</div>
+            <div class='message-text'>{{ reply() }}</div>
         </div>
     }
 </div>

@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, signal } from '@angular/core';
+import { Injectable, NgZone, signal } from '@angular/core';
 import { map, Observable, switchMap, tap } from 'rxjs';
 
 export type DiscussResult = {
@@ -22,7 +22,7 @@ export class ApiService {
 
   item = signal<any>(null);
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient, private zone: NgZone) { }
 
   fetchItem(item_id: string, item_key: string): Observable<any> { 
     const params = {
@@ -51,7 +51,7 @@ export class ApiService {
     return this.http.post(this.SCREENSHOT_HANDLER_URL, formData, { params });
   }
 
-  sendMessage(message: string): Observable<DiscussResult> {
+  sendMessage(message: string): Observable<any> {
     const params = {
       workspace: this.WORKSPACE,
       api_key: this.API_KEY,
@@ -59,10 +59,34 @@ export class ApiService {
       item_key: this.item().item_key,
       message: message,
     };
-    return this.http.get(`${this.ITEM_INGRES_AGENT_URL}`, {params}).pipe(
-      map((response: any) => {
-        return response as DiscussResult;
-      })
-    );
+    // return this.http.get(`${this.ITEM_INGRES_AGENT_URL}`, {params}).pipe(
+    //   map((response: any) => {
+    //     return response as DiscussResult;
+    //   })
+    // );
+    return new Observable(observer => {
+      const url = `${this.ITEM_INGRES_AGENT_URL}?${new URLSearchParams(params).toString()}`;
+      const eventSource = new EventSource(url);
+      eventSource.onmessage = (event) => {
+        // console.log('EVENT', event);
+        try {
+          this.zone.run(() => {
+            observer.next(JSON.parse(event.data));
+          });
+        } catch (error) {
+          console.error('PARSE ERROR', error);
+          observer.error(error);
+        }
+      };
+      eventSource.onerror = (error) => {
+        console.error('EVENTSOURCE ERROR', error);
+        eventSource.close(); //
+        observer.complete();
+        // observer.error(error);
+      };
+      return () => {
+        eventSource.close();
+      };
+    });    
   }
 }

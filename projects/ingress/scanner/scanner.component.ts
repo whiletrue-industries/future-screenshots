@@ -5,6 +5,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { time } from 'console';
 import { StateService } from '../state.service';
 import { Router } from '@angular/router';
+import { PlatformService } from '../platform.service';
 
 declare const jscanify: any;
 declare const cv: any;
@@ -42,7 +43,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
 
   constructor(
     private el: ElementRef, 
-    @Inject(PLATFORM_ID) private platformId: Object, 
+    private platform: PlatformService,
     private destroyRef: DestroyRef, 
     private state: StateService,
     private router: Router
@@ -50,7 +51,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   }
   
   ngAfterViewInit(): void {
-    if (!isPlatformBrowser(this.platformId)) {
+    if (!this.platform.browser()) {
       console.log('Not in browser, skipping scanner initialization');
       return;
     }
@@ -283,7 +284,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       });
       this.stream = null;
     }
-    if (isPlatformBrowser(this.platformId)) {
+    if (this.platform.browser()) {
       this.videoEl?.nativeElement?.pause();
     }
   }
