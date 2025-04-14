@@ -31,6 +31,10 @@ export class ApiService {
   updateFromRoute(route: ActivatedRouteSnapshot) {
     const workspace = route.queryParams['workspace'] || this.workspace();
     const api_key = route.queryParams['api_key'] || this.api_key();
+    const automatic = route.queryParams['automatic'] || this.automatic();
+    if (automatic) {
+      this.automatic.set(automatic === 'true');
+    }
     if (workspace) {
       this.workspace.set(workspace);
     }
