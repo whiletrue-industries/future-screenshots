@@ -84,7 +84,7 @@ export class DiscussComponent {
         this.reply.update(value => {
           value += ret.value;
           if (value.slice(0,10).indexOf('DONE') >= 0) {
-            this.router.navigate(['/complete']);
+            this.router.navigate(['/complete'], { queryParamsHandling: 'preserve' });
             return '';
           }
           return value;

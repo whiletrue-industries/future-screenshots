@@ -76,14 +76,18 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   }
 
   startScanner() {
-    navigator.mediaDevices.getUserMedia({
+    const constraints: any = {
       audio: false,
-      video: {
+      video: true
+    };
+    if (this.platform.browser()) {
+      constraints.video = {        
         facingMode: 'environment',
-        height: { min: 1280 },
-        width: { min: 720 },
-      }
-    }).then((stream) => {
+        width: { min: 1280 },
+        height: { min: 720 }
+      };
+    }
+    navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
       this.stream = stream;
       this.videoEl.nativeElement.srcObject = stream;
     });
