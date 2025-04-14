@@ -4,8 +4,9 @@ import { animationFrameScheduler, filter, interval, map, max, Subject, take, tak
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { time } from 'console';
 import { StateService } from '../state.service';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { PlatformService } from '../platform.service';
+import { ApiService } from '../api.service';
 
 declare const jscanify: any;
 declare const cv: any;
@@ -46,8 +47,11 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     private platform: PlatformService,
     private destroyRef: DestroyRef, 
     private state: StateService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute,
+    private api: ApiService,
   ) {
+    this.api.updateFromRoute(this.route.snapshot);
   }
   
   ngAfterViewInit(): void {
@@ -261,7 +265,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
           frame.toBlob((blob: Blob) => {
             if (blob) {
               this.state.setImage(blob);
-              this.router.navigateByUrl('/confirm');
+              this.router.navigate(['/confirm'], { queryParamsHandling: 'merge' });
             }
           }, 'image/jpeg', 0.95);
         }

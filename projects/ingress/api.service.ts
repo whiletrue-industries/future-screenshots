@@ -1,5 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, NgZone, signal } from '@angular/core';
+import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
 import { map, Observable, switchMap, tap } from 'rxjs';
 
 export type DiscussResult = {
@@ -17,21 +18,35 @@ export class ApiService {
   SCREENSHOT_HANDLER_URL = 'https://screenshot-handler-qjzuw7ypfq-ez.a.run.app';
   ITEM_INGRES_AGENT_URL = 'https://item-ingress-agent-qjzuw7ypfq-ez.a.run.app';
 
-  WORKSPACE = '4d2c04b0-51b7-4aa2-a234-0e4be53447de';
-  API_KEY = 'f290c30a-8819-42a0-aa0b-77f5582b4a2f';
+  // WORKSPACE = '4d2c04b0-51b7-4aa2-a234-0e4be53447de';
+  // API_KEY = 'f290c30a-8819-42a0-aa0b-77f5582b4a2f';
 
   item = signal<any>(null);
+  api_key = signal<string>('');
+  workspace = signal<string>('');
+  automatic = signal<boolean>(false);
 
   constructor(private http: HttpClient, private zone: NgZone) { }
+
+  updateFromRoute(route: ActivatedRouteSnapshot) {
+    const workspace = route.queryParams['workspace'] || this.workspace();
+    const api_key = route.queryParams['api_key'] || this.api_key();
+    if (workspace) {
+      this.workspace.set(workspace);
+    }
+    if (api_key) {
+      this.api_key.set(api_key);
+    }
+  }
 
   fetchItem(item_id: string, item_key: string): Observable<any> { 
     const params = {
       item_key: item_key,
     };
     const headers = {
-      'Authorization': this.API_KEY
+      'Authorization': this.api_key(),
     };
-    return this.http.get(`${this.CHRONOMAPS_API_URL}/${this.WORKSPACE}/${item_id}`, {params, headers}).pipe(
+    return this.http.get(`${this.CHRONOMAPS_API_URL}/${this.workspace()}/${item_id}`, {params, headers}).pipe(
       map((response: any) => {
         response.item_id = item_id;
         response.item_key = item_key;
@@ -44,17 +59,20 @@ export class ApiService {
   startDiscussion(image: Blob): Observable<any> {
     const formData = new FormData();
     formData.append('image', image);
-    const params = {
-      workspace: this.WORKSPACE,
-      api_key: this.API_KEY,
+    const params: any = {
+      workspace: this.workspace(),
+      api_key: this.api_key(),
     };
+    if (this.automatic()) {
+      params['automatic'] = 'true';
+    }
     return this.http.post(this.SCREENSHOT_HANDLER_URL, formData, { params });
   }
 
   sendMessage(message: string): Observable<any> {
     const params = {
-      workspace: this.WORKSPACE,
-      api_key: this.API_KEY,
+      workspace: this.workspace(),
+      api_key: this.api_key(),
       item_id: this.item().item_id,
       item_key: this.item().item_key,
       message: message,

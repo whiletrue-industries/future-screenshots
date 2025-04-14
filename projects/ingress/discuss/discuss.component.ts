@@ -39,7 +39,12 @@ export class DiscussComponent {
           this.api.startDiscussion(currentImage).subscribe((ret: any) => {
             const item_key = ret.item_key;
             const item_id = ret.item_id;
-            this.router.navigate(['/discuss', item_id], { queryParams: {'key': item_key} });
+            const automatic = ret.automatic;
+            if (automatic) {
+              this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
+            } else {
+              this.router.navigate(['/discuss', item_id], { queryParams: {'key': item_key} });
+            }
           });
         }
       }

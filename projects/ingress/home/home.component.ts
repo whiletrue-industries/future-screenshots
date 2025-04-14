@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ApiService } from '../api.service';
 
 @Component({
   selector: 'app-home',
@@ -10,5 +11,7 @@ import { RouterLink } from '@angular/router';
   styleUrl: './home.component.less'
 })
 export class HomeComponent {
-
+  constructor(private route: ActivatedRoute, private api: ApiService) {    
+    this.api.updateFromRoute(this.route.snapshot);
+  }
 }

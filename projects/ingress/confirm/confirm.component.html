@@ -2,6 +2,6 @@
     <img [src]="state.currentImageUrl()" alt="Confirmation Image">
 </div>
 <div class="confirmation">  
-  <a [routerLink]="['/scan']" class="btn btn-primary">Scan Again</a>
-  <a [routerLink]="['/discuss']" class="btn btn-secondary">Confirm</a>
+  <a [routerLink]="['/scan']" queryParamsHandling="merge" class="btn btn-primary">Scan Again</a>
+  <a [routerLink]="['/discuss']" queryParamsHandling="merge" class="btn btn-secondary">Confirm</a>
 </div>

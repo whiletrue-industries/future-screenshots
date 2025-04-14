@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { StateService } from '../state.service';
+import { ApiService } from '../api.service';
 
 @Component({
   selector: 'app-confirm',
@@ -12,9 +13,10 @@ import { StateService } from '../state.service';
 })
 export class ConfirmComponent {
 
-  constructor(public state: StateService, router: Router) { 
+  constructor(public state: StateService, private router: Router, private api: ApiService, private route: ActivatedRoute) { 
+    this.api.updateFromRoute(this.route.snapshot);
     if (!this.state.currentImageUrl()) {
-      router.navigate(['/scan']);
+      this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
     }
   }
 }
