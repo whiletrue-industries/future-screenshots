@@ -107,7 +107,7 @@ export class OutputMapComponent implements OnInit {
           maxZoom: 8,
           // minZoom: configuration.min_zoom,
           // bounds: [[-configuration.dim - 1, 0], [-1, configuration.dim]],
-          errorTileUrl: '/empty.png'
+          errorTileUrl: 'empty.png'
       });
       this.tileLayers.addTo(this.map);
       // this.normalityLayer = new NormalityLayer(this.map, this.grid);
