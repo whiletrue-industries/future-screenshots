@@ -75,28 +75,42 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     });
   }
 
+  getVideoConstraints() {
+    if (this.platform.ios) {
+      return {
+        facingMode: 'environment',
+        width: { min: 640, ideal: 1920 },
+        height: { min: 480, ideal: 1080 }
+      }
+    } else {
+      return {
+        facingMode: {
+          ideal: 'environment',
+        },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      };
+    }
+  }
+
   startScanner() {
     const constraints: any = {
       audio: false,
       video: true
     };
+    constraints.video = this.getVideoConstraints();
     if (this.platform.browser()) {
-      constraints.video = {        
-        facingMode: 'environment',
-        width: { min: 1280 },
-        height: { min: 720 }
-      };
+      navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
+        this.stream = stream;
+        this.videoEl.nativeElement.srcObject = stream;
+      });
     }
-    navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
-      this.stream = stream;
-      this.videoEl.nativeElement.srcObject = stream;
-    });
   }
 
-  checkDimensions(cornerPoints: any, videoWidth: number, videoHeight: number): CornerPoints | null {
+  checkCornerPoints(cornerPoints: any): CornerPoints | null {
     // Check if all the coordinates and x y values are valid
     if (!cornerPoints || !cornerPoints.topLeftCorner || !cornerPoints.topRightCorner || !cornerPoints.bottomLeftCorner || !cornerPoints.bottomRightCorner) {
-      console.log('Invalid corner points');
+      // console.log('Invalid corner points');
       return null;
     }
     // Ensure all x, y values are numbers >= 0
@@ -104,9 +118,16 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     for (const key of cornerPointKeys) {
       const cornerPoint = cornerPoints[key];
       if (typeof cornerPoint.x !== 'number' || typeof cornerPoint.y !== 'number' || cornerPoint.x < 0 || cornerPoint.y < 0) {
-        console.log(`Invalid coordinates for ${key}`);
+        // console.log(`Invalid coordinates for ${key}`);
         return null;
       }
+    }
+    return cornerPoints;    
+  }
+
+  checkDimensions(cornerPoints: any, videoWidth: number, videoHeight: number): boolean {
+    if (!cornerPoints) {
+      return false;
     }
     // calculate the top-width and bottom-width, left-height and right-height
     const topWidth = Math.sqrt(Math.pow(cornerPoints.topLeftCorner.x - cornerPoints.topRightCorner.x, 2) + Math.pow(cornerPoints.topLeftCorner.y - cornerPoints.topRightCorner.y, 2));
@@ -118,13 +139,13 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     const leftRightRatio = Math.max(leftHeight, rightHeight) / Math.min(leftHeight, rightHeight);
     if (topBottomRatio > 1.1 || topBottomRatio < 0.9) {
       this.msg.set('topBottomRatio is not in range: ' + topBottomRatio);
-      console.log('topBottomRatio is not in range');
-      return null;
+      // console.log('topBottomRatio is not in range');
+      return false;
     }
     if (leftRightRatio > 1.1 || leftRightRatio < 0.9) {
       this.msg.set('leftRightRatio is not in range: ' + leftRightRatio);
-      console.log('leftRightRatio is not in range');
-      return null;
+      // console.log('leftRightRatio is not in range');
+      return false;
     }
     // calculate the average of the top-width and bottom-width, left-height and right-height
     const topBottomAverage = (topWidth + bottomWidth) / 2;
@@ -133,21 +154,21 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     const averageRatio = (topBottomAverage / leftRightAverage) / 0.53;
     if (averageRatio > 1.05 || averageRatio < 0.95) {
       this.msg.set('averageRatio is not in range: ' + averageRatio);
-      console.log('averageRatio is not in range');
-      return null;
+      // console.log('averageRatio is not in range');
+      return false;
     }
     // ensure that at least one of averageWidth and averageHeight is more than 66% of the video width and height    
     const averageWidth = (topBottomAverage > 0.66 * videoWidth);
     const averageHeight = (leftRightAverage > 0.66 * videoHeight);
     if (!averageWidth && !averageHeight) {
-      console.log('Neither averageWidth nor averageHeight is above 66% of video dimensions');
+      // console.log('Neither averageWidth nor averageHeight is above 66% of video dimensions');
       this.msg.set('Neither averageWidth nor averageHeight is above 66% of video dimensions: ' + 
         topBottomAverage + '<0.66*' + videoWidth + ' ' + 
         leftRightAverage + '<0.66*' + videoHeight);
-      return null;
+      return false;
     }
     this.msg.set('Dimensions are valid: ' + averageWidth + ' ' + averageHeight);
-    return cornerPoints;
+    return true;
   }
   
   checkBlurry(src: any): boolean {
@@ -159,7 +180,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     cv.Laplacian(src, dst, cv.CV_64F, 1, 1, 0, cv.BORDER_DEFAULT);
     cv.meanStdDev(dst, menO, men);
     const blurry = menO.data64F[0] < 10;
-    console.log('menO', blurry, menO.data64F);
+    // console.log('menO', blurry, menO.data64F);
     // Release memory
     // cv.imshow(frame, dst);
     dst.delete();
@@ -169,6 +190,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   }
 
   playing() {
+    console.log('PLAYING');
     this.videoEl.nativeElement.play();
     const scanner = new jscanify();
     const videoWidth = this.videoEl.nativeElement.videoWidth;
@@ -185,6 +207,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     this.resultEl.nativeElement.width = displayWidth;
     this.resultEl.nativeElement.height = displayHeight;
 
+    let count = 0;
     interval(33).pipe(
       takeUntilDestroyed(this.destroyRef),
       takeUntil(this.stopScannerSubject),
@@ -194,6 +217,10 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
         let resampledFrame: any = null;
         let ret: any = null;
         let blurry: any = null;
+        count += 1;
+        if (count % 100 === 0) {
+          console.log('Scanning...', count);
+        }
         try {
           this.canvasCtx?.drawImage(this.videoEl.nativeElement, 0, 0);
           frame = cv.imread(this.canvasEl.nativeElement);
@@ -206,15 +233,17 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
           blurry = this.checkBlurry(resampledFrame);    
           const maxContour = scanner.findPaperContour(resampledFrame);
           if (maxContour) {
-            const cornerPoints = scanner.getCornerPoints(maxContour, resampledFrame) as CornerPoints;
-            const valid = !!this.checkDimensions(cornerPoints, width, height);
+            const cornerPoints = this.checkCornerPoints(scanner.getCornerPoints(maxContour, resampledFrame) as CornerPoints);          
+            const valid = this.checkDimensions(cornerPoints, width, height);
             ret = {valid, blurry, cornerPoints};
           }
         } catch (e) {
-          console.error('Error processing video frame', e);
+          console.error('Error processing video frame', count, e);
           this.restartScanner();
+        } finally {
+          frame?.delete();
+          resampledFrame?.delete();
         }
-        frame?.delete();
         return ret;
       })
     ).subscribe((shape: {valid: boolean, blurry: boolean, cornerPoints: CornerPoints} | null) => {
