@@ -152,7 +152,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     const leftRightAverage = (leftHeight + rightHeight) / 2;
     // ensure the ratio between averageWidth and averageHeight is 0.53 to 5% margin
     const averageRatio = (topBottomAverage / leftRightAverage);
-    if (averageRatio > 0.4845 || averageRatio < 0.5565) {
+    if (averageRatio < 0.4845 || averageRatio > 0.5565) {
       this.msg.set('averageRatio is not in range: ' + averageRatio);
       // console.log('averageRatio is not in range');
       return false;
