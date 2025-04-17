@@ -61,7 +61,12 @@ export class OutputMapComponent implements OnInit {
       this.map.remove();
       this.map = null;
     }
-    const bounds = [[-config.dim[1] * config.conversion_ratio[1], 0], [0, config.dim[0] * config.conversion_ratio[0]]];
+    const w = config.dim[0] * config.conversion_ratio[0];
+    const h = config.dim[1] * config.conversion_ratio[1];
+    const bounds = [[-h, 0], [0, w]];
+    const expandRatio = 0.333;
+    const maxBounds = [[-h * (1 + expandRatio), -w * expandRatio], [h * expandRatio, w * (1 + expandRatio)]];
+    console.log('BOUNDS', config.dim, config.conversion_ratio, bounds, maxBounds);
     config.clusters.forEach((cluster: any) => {
       cluster.x = (cluster.bounds[0][0] + cluster.bounds[1][0]) / config.dim[0] * 50;
       cluster.y = (cluster.bounds[0][1] + cluster.bounds[1][1]) / config.dim[1] * 50;
@@ -70,7 +75,7 @@ export class OutputMapComponent implements OnInit {
     if (!this.map) {
       this.map = L.map(this.mapElement.nativeElement, {
         crs: L.CRS.Simple,
-        maxBounds: bounds,
+        maxBounds: maxBounds,
         center: [bounds[0][0] / 2, bounds[1][1] / 2],
         zoom: 2,
         maxZoom: 8,
