@@ -4,6 +4,6 @@
 </div>
 <div class='action'>
     <canvas #canvas></canvas>
-    <video #video autoplay (loadeddata)='playing()'></video>
+    <video #video autoplay playsinline muted volume='0' (loadeddata)='playing()'></video>
     <canvas #result></canvas>
 </div>
