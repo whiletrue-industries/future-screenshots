@@ -179,8 +179,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     // You can try more different parameters
     cv.Laplacian(src, dst, cv.CV_64F, 1, 1, 0, cv.BORDER_DEFAULT);
     cv.meanStdDev(dst, menO, men);
-    const blurry = menO.data64F[0] < 10;
-    this.msg.set('Blurriness is ' + blurry + ' ' + menO.data64F[0]);
+    const blurry = men.data64F[0] < 10;
+    this.msg.set('Blurriness is ' + blurry + ' ' + men.data64F[0]);
     // console.log('menO', blurry, menO.data64F);
     // Release memory
     // cv.imshow(frame, dst);
