@@ -33,7 +33,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   canvasCtx: CanvasRenderingContext2D | null;
   resultCtx: CanvasRenderingContext2D | null;
 
-  COUNTDOWN_INITIAL = 30;
+  COUNTDOWN_INITIAL = 300;
   countDown = this.COUNTDOWN_INITIAL;
   scanState = null;
   stream: MediaStream | null = null;
@@ -183,7 +183,6 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     this.msg.set('Blurriness is ' + blurry + ' ' + men.data64F[0]);
     // console.log('menO', blurry, menO.data64F);
     // Release memory
-    // cv.imshow(frame, dst);
     dst.delete();
     men.delete();
     menO.delete();
@@ -284,7 +283,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       }
       if (shape?.valid) {
         this.countDown -= 1;
-        if (this.countDown === 0 || !shape.blurry) {         
+        if (this.countDown === 0) { //} || !shape.blurry) {         
           frame = scanner.extractPaper(this.canvasEl.nativeElement, 1060, 2000, shape.cornerPoints);        
           console.log('Extraction result:', frame);
           this.resultEl.nativeElement.width = frame.width;
