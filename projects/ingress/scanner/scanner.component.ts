@@ -231,11 +231,13 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
           const height = Math.floor(frame.rows / sampleRatio);
           const dsize = new cv.Size(width, height);
           cv.resize(frame, resampledFrame, dsize, 0, 0, cv.INTER_NEAREST);      
-          blurry = this.checkBlurry(resampledFrame);    
           const maxContour = scanner.findPaperContour(resampledFrame);
           if (maxContour) {
             const cornerPoints = this.checkCornerPoints(scanner.getCornerPoints(maxContour, resampledFrame) as CornerPoints);          
             const valid = this.checkDimensions(cornerPoints, width, height);
+            if (valid) {
+              blurry = this.checkBlurry(resampledFrame);
+            }
             ret = {valid, blurry, cornerPoints};
           }
         } catch (e) {
