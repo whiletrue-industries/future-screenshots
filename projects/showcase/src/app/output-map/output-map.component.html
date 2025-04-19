@@ -2,8 +2,8 @@
 @if (config && showClusters) {
     <div class='clusters'>
         <div class='container'
-            [style.width.%]="100"
-            [style.height.vw]="config.dim[1]*config.conversion_ratio[1] / config.dim[0] / config.conversion_ratio[0] * 100"
+            [style.height.%]="100"
+            [style.width.vh]="config.dim[0]*config.conversion_ratio[0] / config.dim[1] / config.conversion_ratio[1] * 100"
         >
             @for (cluster of config.clusters; track $index) {
                 <div class='cluster'

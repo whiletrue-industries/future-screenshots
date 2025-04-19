@@ -62,7 +62,7 @@ export class OutputMapComponent implements OnInit {
       this.map = null;
     }
     const w = config.dim[0] * config.conversion_ratio[0];
-    const h = config.dim[1] * config.conversion_ratio[1];
+    const h = (config.dim[1] + 0.285) * config.conversion_ratio[1];
     const bounds = [[-h, 0], [0, w]];
     const expandRatio = 0.333;
     const maxBounds = [[-h * (1 + expandRatio), -w * expandRatio], [h * expandRatio, w * (1 + expandRatio)]];
