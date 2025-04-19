@@ -33,12 +33,13 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   canvasCtx: CanvasRenderingContext2D | null;
   resultCtx: CanvasRenderingContext2D | null;
 
-  COUNTDOWN_INITIAL = 300;
+  COUNTDOWN_INITIAL = 30;
   countDown = this.COUNTDOWN_INITIAL;
   scanState = null;
   stream: MediaStream | null = null;
   stopScannerSubject = new Subject<void>();
   msg = signal<string>('');
+  displayMsg = signal<string>('');
   videoHeightM = signal<number>(0);
   videoWidthM = signal<number>(0);
 
@@ -127,6 +128,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
 
   checkDimensions(cornerPoints: any, videoWidth: number, videoHeight: number): boolean {
     if (!cornerPoints) {
+      this.displayMsg.set('Point the camera at the paper, use a flat surface, good light and clear background');
       return false;
     }
     // calculate the top-width and bottom-width, left-height and right-height
@@ -139,11 +141,13 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     const leftRightRatio = Math.max(leftHeight, rightHeight) / Math.min(leftHeight, rightHeight);
     if (topBottomRatio > 1.1 || topBottomRatio < 0.9) {
       this.msg.set('topBottomRatio is not in range: ' + topBottomRatio);
+      this.displayMsg.set('Make sure to hold the camera straight above the paper');
       // console.log('topBottomRatio is not in range');
       return false;
     }
     if (leftRightRatio > 1.1 || leftRightRatio < 0.9) {
       this.msg.set('leftRightRatio is not in range: ' + leftRightRatio);
+      this.displayMsg.set('Make sure to hold the camera straight above the paper');
       // console.log('leftRightRatio is not in range');
       return false;
     }
@@ -154,6 +158,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     const averageRatio = (topBottomAverage / leftRightAverage);
     if (averageRatio < 0.4845 || averageRatio > 0.5565) {
       this.msg.set('averageRatio is not in range: ' + averageRatio);
+      this.displayMsg.set("Can't detect a proper screenshot.");
       // console.log('averageRatio is not in range');
       return false;
     }
@@ -165,6 +170,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       this.msg.set('Neither averageWidth nor averageHeight is above 66% of video dimensions: ' + 
         topBottomAverage + '<0.66*' + videoWidth + ' ' + 
         leftRightAverage + '<0.66*' + videoHeight);
+      this.displayMsg.set('Move the camera closer to the paper');
       return false;
     }
     this.msg.set('Dimensions are valid: ' + averageWidth + ' ' + averageHeight);
@@ -181,6 +187,9 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     cv.meanStdDev(dst, menO, men);
     const blurry = men.data64F[0] < 10;
     this.msg.set('Blurriness is ' + blurry + ' ' + men.data64F[0]);
+    if (blurry) {
+      this.displayMsg.set('Make sure the paper is in focus and hold still');
+    }
     // console.log('menO', blurry, menO.data64F);
     // Release memory
     dst.delete();
@@ -283,7 +292,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       }
       if (shape?.valid) {
         this.countDown -= 1;
-        if (this.countDown === 0) { //} || !shape.blurry) {         
+        if (this.countDown === 0 || !shape.blurry) {
           frame = scanner.extractPaper(this.canvasEl.nativeElement, 1060, 2000, shape.cornerPoints);        
           console.log('Extraction result:', frame);
           this.resultEl.nativeElement.width = frame.width;
