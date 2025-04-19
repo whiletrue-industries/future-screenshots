@@ -1,3 +1,5 @@
+@import '../../common.less';
+
 :host {
     display: block;
     position: relative;
@@ -5,7 +7,7 @@
     height: 100%;
     z-index: 0;
 
-    > div {
+    .map {
         width: 100%;
         height: 100%;    
         position: absolute;
@@ -14,24 +16,49 @@
         z-index: 1;
     }
 
-    .clusters {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        pointer-events: none;
-        .container {
-            position: relative;
-            .cluster {
-                position: absolute;
-                transform: translate(-50%, -50%);
-                font-family: sans-serif;
-                font-size: 22px;
-                text-align: center;
-                font-weight: 700;
-                color: black;
-                -webkit-text-stroke: 0.5px #ccc;
-            }    
+    // .clusters {
+    //     display: flex;
+    //     flex-direction: column;
+    //     justify-content: center;
+    //     align-items: center;
+    //     pointer-events: none;
+    //     .container {
+    //         position: relative;
+    //         .cluster {
+    //             position: absolute;
+    //             transform: translate(-50%, -50%);
+    //             font-family: sans-serif;
+    //             font-size: 22px;
+    //             text-align: center;
+    //             font-weight: 700;
+    //             color: black;
+    //             -webkit-text-stroke: 0.5px #ccc;
+    //         }    
+    //     }
+    // }
+
+    .cluster-labels {
+        opacity: 0;
+        transition: opacity 0.5s ease-in-out;
+
+        &.visible {
+            opacity: 1;
+        }
+
+        ::ng-deep {
+            text {
+                .noto-serif;
+            }
+            .positive {
+                text {
+                    fill: #F73C3C;
+                }
+            }
+            .negative {
+                text {
+                    fill: #0D46FF;
+                }
+            }
         }
     }
 }

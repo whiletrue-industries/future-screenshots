@@ -1,18 +1,41 @@
-<div #map class='map'></div>
-@if (config && showClusters) {
-    <div class='clusters'>
-        <div class='container'
-            [style.height.%]="100"
-            [style.width.vh]="config.dim[0]*config.conversion_ratio[0] / config.dim[1] / config.conversion_ratio[1] * 100"
-        >
-            @for (cluster of config.clusters; track $index) {
-                <div class='cluster'
-                    [style.left.%]="cluster.x"
-                    [style.top.%]="cluster.y"
-                >
-                    <div class='cluster-name'>{{ cluster.title }}</div>
-                </div>
-            }
-        </div>
-    </div>
-}
+<div #mapEl class='map'></div>
+<div #clusterLabelsEl style='display:none'>
+    @if (map()) {
+        <svg xmlns="http://www.w3.org/2000/svg" class='cluster-labels' [attr.width]='w()' [attr.height]='h()' [attr.viewBox]='"0 0 " + w() + " " + h()' [class.visible]='clusterLabelsVisible()'>
+            <g transform="translate(0,0)">
+                <rect [attr.x]='0' [attr.y]='0' [attr.width]='w()' [attr.height]='h()' fill='white' opacity='0.5'></rect>
+                @for (cluster of config().clusters; track $index) {
+                    <!-- <path [attr.id]="'cluster-' + cluster.id" [attr.d]="
+                        'M' + (cluster.x - cluster.w / 2) + ' ' + (cluster.y) +
+                        ' C' + (cluster.x) + ' ' + (cluster.y + cluster.w * (cluster.y - h()/2) / h() / 3) +
+                        ' ' + (cluster.x) + ' ' + (cluster.y + cluster.w * (cluster.y - h()/2) / h() / 3) +
+                        ' ' + (cluster.x + cluster.w / 2) + ' ' + (cluster.y)"
+                        fill='none' stroke='none' stroke-width='0'>
+                    </path> -->
+
+                    <g [attr.transform]='"translate(" + cluster.x + "," + cluster.y + ")"'  [class.positive]='cluster.average_rotation <= 0' [class.negative]='cluster.average_rotation > 0'>
+                        <g [style.transform]='"rotate(" + (-cluster.average_rotation*2) + "deg)"'>
+                        
+                        <!-- text-anchor="middle" alignment-baseline="middle"  -->
+
+                        <path [attr.id]="'cluster-' + $index" [attr.d]="
+                            'M' + (- cluster.w / 3) + ' ' + (0) +
+                            ' C' + (0) + ' ' + (cluster.w * (cluster.y - h()/2) / h() / 4) +
+                            ' ' + (0) + ' ' + (cluster.w * (cluster.y - h()/2) / h() / 4) +
+                            ' ' + (cluster.w / 3) + ' ' + (0)"
+                            fill='none' stroke='none' stroke-width='0'>
+                        </path>
+                        <text x='0' y='0' 
+                            [attr.font-size]="cluster.fontSize"
+                        >
+                            <textPath [attr.href]="'#cluster-' + $index" method='stretch' lengthAdjust="spacing" 
+                                      [attr.textLength]="cluster.w*0.66" side='left' spacing='auto'>
+                                {{ cluster.title }}
+                            </textPath>
+                        </text>
+                    </g></g>
+                }
+            </g>
+        </svg>
+    }    
+</div>

@@ -1,7 +1,7 @@
-import { AfterViewInit, Component, ElementRef, Input, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, computed, effect, ElementRef, Input, OnInit, signal, ViewChild } from '@angular/core';
 
 import { PlatformService } from '../../platform.service';
-import { filter, interval, map, max, switchMap, take, timer } from 'rxjs';
+import { delay, filter, interval, map, max, switchMap, take, tap, timer } from 'rxjs';
 import { ApiService } from '../api.service';
 
 // import { type Map } from 'leaflet';
@@ -24,100 +24,133 @@ export class OutputMapComponent implements OnInit {
 
   @Input() clean = true;
   // @Input() grid: Observable<GridItem[]>;
-  @ViewChild('map') mapElement: ElementRef;
-  map: any = null;
-  // map: L.Map | null = null;
-  // L: any;
-  tileLayers: any = null;
+  @ViewChild('mapEl') mapElement: ElementRef;
+  @ViewChild('clusterLabelsEl') clusterLabelsElement: ElementRef;
+  map = signal<any>(null);
+  tileLayer: any = null;
+  svgLayer: any = null;
   showClusters = true;
-  config: any = null;
+  config = signal<any>(null);
+  L = signal<any>(null);
+  viewInit = signal(false);
+  currentZoom = signal(0);
+  clusterLabelsVisible = computed(() => {
+    return this.currentZoom() < 4;
+  });
+
+  w = computed(() => {
+    if (this.config()) {
+      return this.config().dim[0] * this.config().conversion_ratio[0];
+    }
+    return 0;
+  });
+  h = computed(() => {
+    if (this.config()) {
+      return (this.config().dim[1] + 0.285) * this.config().conversion_ratio[1];
+    }
+    return 0;
+  });
   
-  constructor(private api: ApiService, private platform: PlatformService) {}
+  constructor(private api: ApiService, private platform: PlatformService) {
+    if (platform.browser()) {
+      interval(100).pipe(
+        filter(() => !!window['L']),
+        take(1),
+        map(() => window['L'])
+      ).subscribe((L) => {
+        this.L.set(L);
+        console.log('L', L);
+      });
+    }
+    this.api.config.pipe(
+      filter(config => !!config),
+      take(1)
+    ).subscribe((config) => {
+      this.config.set(config);
+    });
+    effect(() => {
+      if (this.viewInit() && this.config() && this.L()) {
+        console.log('GETTING MAP');
+        const map = this.getMap(this.config());
+        this.map.update((m) => {
+          if (m) {
+            m.remove();
+          }
+          return map;
+        });
+      }
+    });
+  }
 
   ngOnInit(): void {
   }
 
   ngAfterViewInit() {
-    if (this.platform.browser()) {
-      this.api.config.pipe(
-        filter((config) => !!config),
-        take(1),
-        switchMap((config) => {
-          return interval(100).pipe(
-            filter(() => !!window['L']),
-            take(1),
-            map(() => config)
-          );
-        })
-      ).subscribe((config) => {
-        this.config = config;
-        this.map = this.getMap(config);
-      });
-    }
+    this.viewInit.set(true);
   }
 
   getMap(config: any) {
-    if (this.map) {
-      this.map.remove();
-      this.map = null;
-    }
-    const w = config.dim[0] * config.conversion_ratio[0];
-    const h = (config.dim[1] + 0.285) * config.conversion_ratio[1];
+    const w = this.w();
+    const h = this.h();
     const bounds = [[-h, 0], [0, w]];
     const expandRatio = 0.333;
     const maxBounds = [[-h * (1 + expandRatio), -w * expandRatio], [h * expandRatio, w * (1 + expandRatio)]];
+    const maxMaxBounds = [[-h * 2, -w], [h, w * 2]];
     console.log('BOUNDS', config.dim, config.conversion_ratio, bounds, maxBounds);
     config.clusters.forEach((cluster: any) => {
-      cluster.x = (cluster.bounds[0][0] + cluster.bounds[1][0]) / config.dim[0] * 50;
-      cluster.y = (cluster.bounds[0][1] + cluster.bounds[1][1]) / config.dim[1] * 50;
+      cluster.x = (cluster.bounds[0][0] + cluster.bounds[1][0]) / 2 * config.conversion_ratio[0];
+      cluster.y = (cluster.bounds[0][1] + cluster.bounds[1][1]) / 2 * config.conversion_ratio[1];
+      cluster.w = (cluster.bounds[1][0] - cluster.bounds[0][0]) * config.conversion_ratio[0];
+      cluster.h = (cluster.bounds[1][1] - cluster.bounds[0][1]) * config.conversion_ratio[1];
+      cluster.fontSize = cluster.w / (cluster.title.length * 0.75);
       console.log(cluster);
     });
-    if (!this.map) {
-      this.map = L.map(this.mapElement.nativeElement, {
-        crs: L.CRS.Simple,
-        maxBounds: maxBounds,
-        center: [bounds[0][0] / 2, bounds[1][1] / 2],
-        zoom: 2,
+    const map = L.map(this.mapElement.nativeElement, {
+      crs: L.CRS.Simple,
+      maxBounds: maxBounds,
+      center: [bounds[0][0] / 2, bounds[1][1] / 2],
+      zoom: 2,
+      maxZoom: 8,
+      minZoom: 2,
+      zoomSnap: 0,
+      // zoomDelta: 1,
+      // wheelPxPerZoomLevel: 20,
+      zoomControl: false,
+      attributionControl: false
+    });
+    timer(1000).subscribe(() => {
+      map.fitBounds(bounds);
+    });
+    // Print bounds whenever the map is moved:
+    map.on('moveend', () => {
+      this.currentZoom.set(map.getZoom());
+    //   const bounds = this.map.getBounds();
+    //   const center = this.map.getCenter();
+    //   const zoom = this.map.getZoom();
+    //   console.log('Bounds:', bounds);
+    //   console.log('Center:', center);
+    //   console.log('Zoom:', zoom);
+    });
+    // this.map.on('moveend', () => {     
+    // if (this.layout.desktop && !this.clean) {
+      new L.Control.Zoom({ position: 'bottomleft' }).addTo(map);
+    // }
+    // Tile layers
+    this.tileLayer = L.tileLayer(`https://storage.googleapis.com/chronomaps3.firebasestorage.app/tiles/4d2c04b0-51b7-4aa2-a234-0e4be53447de/0/{z}/{x}/{y}.png`, {
         maxZoom: 8,
         minZoom: 2,
-        zoomSnap: 0,
-        // zoomDelta: 1,
-        // wheelPxPerZoomLevel: 20,
-        zoomControl: false,
-        attributionControl: false
-      });
-      timer(1000).subscribe(() => {
-        this.map.fitBounds(bounds);
-      });
-      timer(2000).subscribe(() => {
-        this.map.on('moveend', () => {
-          this.showClusters = false;
-        });
-      });
-      // Print bounds whenever the map is moved:
-      // this.map.on('moveend', () => {
-      //   const bounds = this.map.getBounds();
-      //   const center = this.map.getCenter();
-      //   const zoom = this.map.getZoom();
-      //   console.log('Bounds:', bounds);
-      //   console.log('Center:', center);
-      //   console.log('Zoom:', zoom);
-      // });
-      // this.map.on('moveend', () => {     
-      // if (this.layout.desktop && !this.clean) {
-        new L.Control.Zoom({ position: 'bottomleft' }).addTo(this.map);
-      // }
-      // Tile layers
-      this.tileLayers = L.tileLayer(`https://storage.googleapis.com/chronomaps3.firebasestorage.app/tiles/4d2c04b0-51b7-4aa2-a234-0e4be53447de/0/{z}/{x}/{y}.png`, {
-          maxZoom: 8,
-          // minZoom: configuration.min_zoom,
-          // bounds: [[-configuration.dim - 1, 0], [-1, configuration.dim]],
-          errorTileUrl: 'empty.png'
-      });
-      this.tileLayers.addTo(this.map);
+        bounds: maxMaxBounds,
+        errorTileUrl: 'empty.png'
+    });
+    this.tileLayer.addTo(map);
+    timer(0).subscribe(() => {
+      const svgElement = this.clusterLabelsElement.nativeElement.querySelector('svg');
+      console.log('ADDING SVG', svgElement);
+      this.svgLayer = L.svgOverlay(svgElement, bounds);
+      this.svgLayer.addTo(map);
       // this.normalityLayer = new NormalityLayer(this.map, this.grid);
-    }
-    return this.map;
+    });
+    return map;
   }
 
   // set feature(feature: string) {
