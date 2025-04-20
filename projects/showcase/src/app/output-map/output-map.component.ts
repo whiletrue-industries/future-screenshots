@@ -1,8 +1,9 @@
 import { AfterViewInit, Component, computed, effect, ElementRef, Input, OnInit, signal, ViewChild } from '@angular/core';
 
 import { PlatformService } from '../../platform.service';
-import { delay, filter, interval, map, max, switchMap, take, tap, timer } from 'rxjs';
+import { delay, distinct, distinctUntilChanged, filter, interval, map, max, ReplaySubject, Subject, switchMap, take, tap, timer } from 'rxjs';
 import { ApiService } from '../api.service';
+import * as L from 'leaflet';
 
 // import { type Map } from 'leaflet';
 // import * as _L from 'leaflet';
@@ -12,7 +13,6 @@ import { ApiService } from '../api.service';
 // import { LayoutService } from '../layout.service';
 // import { NormalityLayer } from '../map/normality-layer';
 
-declare const L: any;
 declare const window: any;
 
 @Component({
@@ -20,13 +20,13 @@ declare const window: any;
   templateUrl: './output-map.component.html',
   styleUrls: ['./output-map.component.less']
 })
-export class OutputMapComponent implements OnInit {
+export class OutputMapComponent {
 
   @Input() clean = true;
   // @Input() grid: Observable<GridItem[]>;
   @ViewChild('mapEl') mapElement: ElementRef;
   @ViewChild('clusterLabelsEl') clusterLabelsElement: ElementRef;
-  map = signal<any>(null);
+  map = signal<L.Map>(null as any);
   tileLayer: any = null;
   svgLayer: any = null;
   showClusters = true;
@@ -38,6 +38,9 @@ export class OutputMapComponent implements OnInit {
     return this.currentZoom() < 4;
   });
 
+  queue = new ReplaySubject<any>(1);
+  moveEnded = new Subject<void>();
+
   w = computed(() => {
     if (this.config()) {
       return this.config().dim[0] * this.config().conversion_ratio[0];
@@ -46,9 +49,12 @@ export class OutputMapComponent implements OnInit {
   });
   h = computed(() => {
     if (this.config()) {
-      return (this.config().dim[1] + 0.285) * this.config().conversion_ratio[1];
+      return (this.config().dim[1] + this.config().padding_ratio) * this.config().conversion_ratio[1];
     }
     return 0;
+  });
+  bounds = computed<L.LatLngBoundsLiteral>(() => {
+    return [[-this.h(), 0], [0, this.w()]];
   });
   
   constructor(private api: ApiService, private platform: PlatformService) {
@@ -67,6 +73,7 @@ export class OutputMapComponent implements OnInit {
       take(1)
     ).subscribe((config) => {
       this.config.set(config);
+      this.addToQueue();
     });
     effect(() => {
       if (this.viewInit() && this.config() && this.L()) {
@@ -78,11 +85,31 @@ export class OutputMapComponent implements OnInit {
           }
           return map;
         });
+        this.loop();
       }
     });
   }
 
-  ngOnInit(): void {
+  loop(): void {
+    console.log('LOOPING');
+    this.queue.pipe(
+      filter((item) => !!item),
+      distinctUntilChanged(),
+      switchMap((item) => {      
+        console.log('New item in queue:', item);
+        this.map().flyToBounds(item.geo_bounds as L.LatLngBoundsLiteral, {animate: true, duration: 3});
+        return this.moveEnded.pipe(take(1), map(() => item));
+      }),
+      delay(5000),
+      switchMap((item) => {
+        this.map().flyToBounds(this.bounds(), {animate: true, duration: 3});
+        return this.moveEnded.pipe(take(1), map(() => item));
+      }),
+      delay(1000),
+    ).subscribe((item) => {
+      console.log('Finished with item', item);
+      this.addToQueue();
+    });
   }
 
   ngAfterViewInit() {
@@ -92,10 +119,10 @@ export class OutputMapComponent implements OnInit {
   getMap(config: any) {
     const w = this.w();
     const h = this.h();
-    const bounds = [[-h, 0], [0, w]];
+    const bounds = this.bounds();
     const expandRatio = 0.333;
-    const maxBounds = [[-h * (1 + expandRatio), -w * expandRatio], [h * expandRatio, w * (1 + expandRatio)]];
-    const maxMaxBounds = [[-h * 2, -w], [h, w * 2]];
+    const maxBounds: L.LatLngBoundsLiteral = [[-h * (1 + expandRatio), -w * expandRatio], [h * expandRatio, w * (1 + expandRatio)]];
+    const maxMaxBounds: L.LatLngBoundsLiteral = [[-h * 2, -w], [h, w * 2]];
     console.log('BOUNDS', config.dim, config.conversion_ratio, bounds, maxBounds);
     config.clusters.forEach((cluster: any) => {
       cluster.x = (cluster.bounds[0][0] + cluster.bounds[1][0]) / 2 * config.conversion_ratio[0];
@@ -118,12 +145,12 @@ export class OutputMapComponent implements OnInit {
       zoomControl: false,
       attributionControl: false
     });
-    timer(1000).subscribe(() => {
-      map.fitBounds(bounds);
-    });
+    map.fitBounds(bounds);
     // Print bounds whenever the map is moved:
     map.on('moveend', () => {
+      console.log('Map move ended');
       this.currentZoom.set(map.getZoom());
+      this.moveEnded.next();
     //   const bounds = this.map.getBounds();
     //   const center = this.map.getCenter();
     //   const zoom = this.map.getZoom();
@@ -136,7 +163,7 @@ export class OutputMapComponent implements OnInit {
       new L.Control.Zoom({ position: 'bottomleft' }).addTo(map);
     // }
     // Tile layers
-    this.tileLayer = L.tileLayer(`https://storage.googleapis.com/chronomaps3.firebasestorage.app/tiles/4d2c04b0-51b7-4aa2-a234-0e4be53447de/0/{z}/{x}/{y}.png`, {
+    this.tileLayer = new L.TileLayer(`https://storage.googleapis.com/chronomaps3.firebasestorage.app/tiles/4d2c04b0-51b7-4aa2-a234-0e4be53447de/0/{z}/{x}/{y}.png`, {
         maxZoom: 8,
         minZoom: 2,
         bounds: maxMaxBounds,
@@ -153,6 +180,14 @@ export class OutputMapComponent implements OnInit {
     return map;
   }
 
+  addToQueue() {
+    if (this.config()) {
+      const grid = this.config().grid;
+      const index = Math.floor(Math.random() * grid.length);
+      const item = grid[index];
+      this.queue.next(item);
+    }
+  }
   // set feature(feature: string) {
   //   if (this._feature) {
   //     this.map.removeLayer(this.tileLayers[this._feature]);

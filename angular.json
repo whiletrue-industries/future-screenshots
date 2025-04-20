@@ -136,7 +136,8 @@
               }
             ],
             "styles": [
-              "projects/showcase/src/styles.less"
+              "projects/showcase/src/styles.less",
+              "node_modules/leaflet/dist/leaflet.css"
             ],
             "scripts": [],
             "server": "projects/showcase/src/main.server.ts",
@@ -164,7 +165,9 @@
             "development": {
               "optimization": false,
               "extractLicenses": false,
-              "sourceMap": true
+              "sourceMap": true,
+              "ssr": false,
+              "prerender": false
             }
           },
           "defaultConfiguration": "production"
