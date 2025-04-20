@@ -13,8 +13,6 @@ import * as L from 'leaflet';
 // import { LayoutService } from '../layout.service';
 // import { NormalityLayer } from '../map/normality-layer';
 
-declare const window: any;
-
 @Component({
   selector: 'app-output-map',
   templateUrl: './output-map.component.html',
@@ -31,7 +29,6 @@ export class OutputMapComponent {
   svgLayer: any = null;
   showClusters = true;
   config = signal<any>(null);
-  L = signal<any>(null);
   viewInit = signal(false);
   currentZoom = signal(0);
   clusterLabelsVisible = computed(() => {
@@ -58,16 +55,6 @@ export class OutputMapComponent {
   });
   
   constructor(private api: ApiService, private platform: PlatformService) {
-    if (platform.browser()) {
-      interval(100).pipe(
-        filter(() => !!window['L']),
-        take(1),
-        map(() => window['L'])
-      ).subscribe((L) => {
-        this.L.set(L);
-        console.log('L', L);
-      });
-    }
     this.api.config.pipe(
       filter(config => !!config),
       take(1)
@@ -76,7 +63,7 @@ export class OutputMapComponent {
       this.addToQueue();
     });
     effect(() => {
-      if (this.viewInit() && this.config() && this.L()) {
+      if (this.viewInit() && this.config() && L) {
         console.log('GETTING MAP');
         const map = this.getMap(this.config());
         this.map.update((m) => {

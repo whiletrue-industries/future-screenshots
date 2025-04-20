@@ -141,7 +141,7 @@
             ],
             "scripts": [],
             "server": "projects/showcase/src/main.server.ts",
-            "prerender": true,
+            "prerender": false,
             "ssr": {
               "entry": "projects/showcase/src/server.ts"
             }
