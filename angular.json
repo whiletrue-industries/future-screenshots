@@ -140,11 +140,7 @@
               "node_modules/leaflet/dist/leaflet.css"
             ],
             "scripts": [],
-            "server": "projects/showcase/src/main.server.ts",
-            "prerender": false,
-            "ssr": {
-              "entry": "projects/showcase/src/server.ts"
-            }
+            "prerender": false
           },
           "configurations": {
             "production": {
