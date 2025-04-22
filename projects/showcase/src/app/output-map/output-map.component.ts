@@ -117,8 +117,11 @@ export class OutputMapComponent {
       cluster.y = (cluster.bounds[0][1] + cluster.bounds[1][1]) / 2 * config.conversion_ratio[1];
       cluster.w = (cluster.bounds[1][0] - cluster.bounds[0][0]) * config.conversion_ratio[0];
       cluster.h = (cluster.bounds[1][1] - cluster.bounds[0][1]) * config.conversion_ratio[1];
-      cluster.fontSize = cluster.w / (cluster.title.length * 0.75);
-      console.log(cluster);
+      cluster.fontSize = {};
+      Object.keys(cluster.title).forEach((key) => {
+        const title = cluster.title[key];
+        cluster.fontSize[key] = cluster.w / (title.length * 0.75);
+      });
     });
     const map = L.map(this.mapElement.nativeElement, {
       crs: L.CRS.Simple,

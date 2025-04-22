@@ -26,7 +26,7 @@
                             fill='none' stroke='none' stroke-width='0'>
                         </path>
                         <text x='0' y='0' 
-                            [attr.font-size]="cluster.fontSize"
+                            [attr.font-size]="cluster.fontSize[lang()]"
                         >
                             <textPath [attr.href]="'#cluster-' + $index" method='stretch' lengthAdjust="spacing" 
                                       [attr.textLength]="cluster.w*0.66" side='left' spacing='auto'>
