@@ -30,7 +30,7 @@
                         >
                             <textPath [attr.href]="'#cluster-' + $index" method='stretch' lengthAdjust="spacing" 
                                       [attr.textLength]="cluster.w*0.66" side='left' spacing='auto'>
-                                {{ cluster.title }}
+                                {{ cluster.title[lang()] }}
                             </textPath>
                         </text>
                     </g></g>

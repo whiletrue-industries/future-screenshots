@@ -31,6 +31,7 @@ export class OutputMapComponent {
   config = signal<any>(null);
   viewInit = signal(false);
   currentZoom = signal(0);
+  lang = signal('dutch');
   clusterLabelsVisible = computed(() => {
     return this.currentZoom() < 4;
   });
