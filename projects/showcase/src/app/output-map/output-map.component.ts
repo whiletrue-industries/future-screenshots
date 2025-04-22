@@ -4,6 +4,7 @@ import { PlatformService } from '../../platform.service';
 import { delay, distinct, distinctUntilChanged, filter, interval, map, max, ReplaySubject, Subject, switchMap, take, tap, timer } from 'rxjs';
 import { ApiService } from '../api.service';
 import * as L from 'leaflet';
+import { ActivatedRoute } from '@angular/router';
 
 // import { type Map } from 'leaflet';
 // import * as _L from 'leaflet';
@@ -55,7 +56,12 @@ export class OutputMapComponent {
     return [[-this.h(), 0], [0, this.w()]];
   });
   
-  constructor(private api: ApiService, private platform: PlatformService) {
+  constructor(private api: ApiService, private platform: PlatformService, private activatedRoute: ActivatedRoute) {
+    activatedRoute.queryParams.subscribe((params: { [x: string]: string; }) => {
+      if (params['lang']) {
+        this.lang.set(params['lang']);
+      }
+    });
     this.api.config.pipe(
       filter(config => !!config),
       take(1)
