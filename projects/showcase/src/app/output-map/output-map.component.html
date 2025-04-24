@@ -1,4 +1,4 @@
-<div #mapEl class='map'></div>
+<div #mapEl class='map' [style.transform]='mapTransform()'></div>
 <div #clusterLabelsEl style='display:none'>
     @if (map()) {
         <svg xmlns="http://www.w3.org/2000/svg" class='cluster-labels' [attr.width]='w()' [attr.height]='h()' [attr.viewBox]='"0 0 " + w() + " " + h()' [class.visible]='clusterLabelsVisible()'>
@@ -38,4 +38,9 @@
             </g>
         </svg>
     }    
+</div>
+<div class='image-overlay'  [class.visible]='itemImgVisible()' [style.transform]='overlayTransform()'>
+    <div class='item-image'>
+        <img [src]='itemImg()'>
+    </div>
 </div>

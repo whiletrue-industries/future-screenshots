@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, computed, effect, ElementRef, Input, OnInit, signal, ViewChild } from '@angular/core';
 
 import { PlatformService } from '../../platform.service';
-import { delay, distinct, distinctUntilChanged, filter, interval, map, max, ReplaySubject, Subject, switchMap, take, tap, timer } from 'rxjs';
+import { catchError, delay, distinct, distinctUntilChanged, filter, from, interval, map, max, ReplaySubject, Subject, switchMap, take, tap, timer } from 'rxjs';
 import { ApiService } from '../api.service';
 import * as L from 'leaflet';
 import { ActivatedRoute } from '@angular/router';
@@ -33,9 +33,13 @@ export class OutputMapComponent {
   viewInit = signal(false);
   currentZoom = signal(0);
   lang = signal('dutch');
-  clusterLabelsVisible = computed(() => {
-    return this.currentZoom() < 4;
-  });
+
+  // Loop state
+  clusterLabelsVisible = signal(false);
+  itemImg = signal('');
+  itemImgVisible = signal(false);
+  mapTransform = signal('rotate(0deg)');
+  overlayTransform = signal('rotate(0deg)');
 
   queue = new ReplaySubject<any>(1);
   moveEnded = new Subject<void>();
@@ -89,17 +93,72 @@ export class OutputMapComponent {
     this.queue.pipe(
       filter((item) => !!item),
       distinctUntilChanged(),
+      // Load item & image
+      tap((item) => {
+        let url: string = item.metadata.url;
+        url = url.replace('https://storage.googleapis.com/chronomaps3.firebasestorage.app/', 'https://storage.googleapis.com/chronomaps3-eu/');
+        this.itemImg.set(url);
+      }),
+      // Show the mask with single item
+      // Fit item to bounds
       switchMap((item) => {      
         console.log('New item in queue:', item);
-        this.map().flyToBounds(item.geo_bounds as L.LatLngBoundsLiteral, {animate: true, duration: 3});
+        const bounds = item.geo_bounds as L.LatLngBoundsLiteral;
+        console.log('BOUNDS PRE', JSON.stringify(bounds), this.config().conversion_ratio);
+        const conv_ratio = this.config().conversion_ratio;
+        const cell_ratios = this.config().cell_ratios || [1, 1];
+        const expand = [1,0].map((i) => {
+          return conv_ratio[i] * (1.5 / cell_ratios[i] - 1);
+        });
+        console.log('CONV_RATIO', conv_ratio);
+        console.log('CELL_RATIOS', cell_ratios);
+        console.log('EXPAND', expand);
+        bounds[0][0] -= expand[0];
+        bounds[0][1] -= expand[1];
+        bounds[1][0] += expand[0];
+        bounds[1][1] += expand[1];
+        console.log('BOUNDS POST', JSON.stringify(bounds));
+        this.map().flyToBounds(bounds, {animate: true, duration: 3});
+        this.clusterLabelsVisible.set(false);
+        this.overlayTransform.set(`rotate(${-item.metadata.rotate}deg)`);
         return this.moveEnded.pipe(take(1), map(() => item));
       }),
+      // Rotate the map and show the overlay
+      tap((item) => {
+        this.mapTransform.set(`rotate(${item.metadata.rotate}deg)`);
+        this.overlayTransform.set(`rotate(0deg)`);
+        this.itemImgVisible.set(true);
+      }),
+      // When image is loaded, show the overlay <-- not checking atm
       delay(5000),
+      // // Rotate back the map
+      // tap((item) => {
+      // }),
+      delay(5000),
+      // Show clothespins
+      // Move clothespins to the new position
+      // Show cone and wait for animation to finish
+      // Zoom cone in based on potential, rotate the overlay
+      // Hide the overlay
+      tap((item) => {
+        this.mapTransform.set(`rotate(0deg)`);
+        this.overlayTransform.set(`rotate(${-item.metadata.rotate}deg)`);
+        this.itemImgVisible.set(false);
+      }),
+      delay(1000),
+      // fitToBounds map while updating the mask
       switchMap((item) => {
         this.map().flyToBounds(this.bounds(), {animate: true, duration: 3});
         return this.moveEnded.pipe(take(1), map(() => item));
       }),
-      delay(1000),
+      // Show the cluster labels
+      tap((item) => {
+        this.clusterLabelsVisible.set(true);
+      }),
+      delay(3000),
+      catchError((err) => {
+        return from(['error: ' + err]);
+      }),
     ).subscribe((item) => {
       console.log('Finished with item', item);
       this.addToQueue();
@@ -137,30 +196,16 @@ export class OutputMapComponent {
       maxZoom: 8,
       minZoom: 2,
       zoomSnap: 0,
-      // zoomDelta: 1,
-      // wheelPxPerZoomLevel: 20,
       zoomControl: false,
       attributionControl: false
     });
     map.fitBounds(bounds);
-    // Print bounds whenever the map is moved:
     map.on('moveend', () => {
       console.log('Map move ended');
       this.currentZoom.set(map.getZoom());
       this.moveEnded.next();
-    //   const bounds = this.map.getBounds();
-    //   const center = this.map.getCenter();
-    //   const zoom = this.map.getZoom();
-    //   console.log('Bounds:', bounds);
-    //   console.log('Center:', center);
-    //   console.log('Zoom:', zoom);
     });
-    // this.map.on('moveend', () => {     
-    // if (this.layout.desktop && !this.clean) {
-      new L.Control.Zoom({ position: 'bottomleft' }).addTo(map);
-    // }
-    // Tile layers
-    this.tileLayer = new L.TileLayer(`https://storage.googleapis.com/chronomaps3.firebasestorage.app/tiles/4d2c04b0-51b7-4aa2-a234-0e4be53447de/0/{z}/{x}/{y}.png`, {
+    this.tileLayer = new L.TileLayer(`https://storage.googleapis.com/chronomaps3-eu/tiles/4d2c04b0-51b7-4aa2-a234-0e4be53447de/0/{z}/{x}/{y}.png`, {
         maxZoom: 8,
         minZoom: 2,
         bounds: maxMaxBounds,
@@ -172,7 +217,6 @@ export class OutputMapComponent {
       console.log('ADDING SVG', svgElement);
       this.svgLayer = L.svgOverlay(svgElement, bounds);
       this.svgLayer.addTo(map);
-      // this.normalityLayer = new NormalityLayer(this.map, this.grid);
     });
     return map;
   }
@@ -185,16 +229,4 @@ export class OutputMapComponent {
       this.queue.next(item);
     }
   }
-  // set feature(feature: string) {
-  //   if (this._feature) {
-  //     this.map.removeLayer(this.tileLayers[this._feature]);
-  //   }
-  //   this._feature = feature;
-  //   this.tileLayers[this._feature].addTo(this.map);
-  // }
-
-  // get feature(): string {
-  //   return this._feature;
-  // }
-
 }
