@@ -149,20 +149,20 @@ export class OutputMapComponent {
       switchMap((item) => {      
         console.log('New item in queue:', item);
         const bounds = item.geo_bounds as L.LatLngBoundsLiteral;
-        console.log('BOUNDS PRE', JSON.stringify(bounds), this.config().conversion_ratio);
+        // console.log('BOUNDS PRE', JSON.stringify(bounds), this.config().conversion_ratio);
         const conv_ratio = this.config().conversion_ratio;
         const cell_ratios = this.config().cell_ratios || [1, 1];
         const expand = [1,0].map((i) => {
           return conv_ratio[i] * (1.5 / cell_ratios[i] - 1);
         });
-        console.log('CONV_RATIO', conv_ratio);
-        console.log('CELL_RATIOS', cell_ratios);
-        console.log('EXPAND', expand);
+        // console.log('CONV_RATIO', conv_ratio);
+        // console.log('CELL_RATIOS', cell_ratios);
+        // console.log('EXPAND', expand);
         bounds[0][0] -= expand[0];
         bounds[0][1] -= expand[1];
         bounds[1][0] += expand[0];
         bounds[1][1] += expand[1];
-        console.log('BOUNDS POST', JSON.stringify(bounds));
+        // console.log('BOUNDS POST', JSON.stringify(bounds));
         this.map().flyToBounds(bounds, {animate: true, duration: 3});
         this.clusterLabelsVisible.set(false);
         this.overlayTransform.set(`rotate(${-item.metadata.rotate}deg)`);
@@ -184,7 +184,6 @@ export class OutputMapComponent {
       delay(1000),
       // Move clothespins to the new position
       tap((item) => {
-        console.log('ITEM', item);
         if (item.metadata.sign > 0) {
           this.clothespinTextVisible.set('prefer');
           this.clothespinVisible.set('prefer');
