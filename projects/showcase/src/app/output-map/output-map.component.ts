@@ -1,10 +1,11 @@
 import { AfterViewInit, Component, computed, effect, ElementRef, Input, OnInit, signal, ViewChild } from '@angular/core';
 
 import { PlatformService } from '../../platform.service';
-import { catchError, delay, distinct, distinctUntilChanged, filter, from, interval, map, max, ReplaySubject, Subject, switchMap, take, tap, timer } from 'rxjs';
+import { animationFrameScheduler, catchError, delay, distinct, distinctUntilChanged, filter, forkJoin, from, interval, last, map, max, ReplaySubject, Subject, switchMap, take, tap, timer } from 'rxjs';
 import { ApiService } from '../api.service';
 import * as L from 'leaflet';
 import { ActivatedRoute } from '@angular/router';
+import { AnimationFrameScheduler } from 'rxjs/internal/scheduler/AnimationFrameScheduler';
 
 // import { type Map } from 'leaflet';
 // import * as _L from 'leaflet';
@@ -13,6 +14,8 @@ import { ActivatedRoute } from '@angular/router';
 // import { GridItem } from '../datatypes';
 // import { LayoutService } from '../layout.service';
 // import { NormalityLayer } from '../map/normality-layer';
+
+type MaskItem = {x: number, y: number};
 
 @Component({
   selector: 'app-output-map',
@@ -25,10 +28,15 @@ export class OutputMapComponent {
   // @Input() grid: Observable<GridItem[]>;
   @ViewChild('mapEl') mapElement: ElementRef;
   @ViewChild('clusterLabelsEl') clusterLabelsElement: ElementRef;
+  @ViewChild('maskEl') maskElement: ElementRef;
+
+  // Map
   map = signal<L.Map>(null as any);
   tileLayer: any = null;
-  svgLayer: any = null;
-  showClusters = true;
+  clusterLabelsLayer: L.SVGOverlay | null = null;
+  maskLayer: L.SVGOverlay | null = null;
+
+  // Global State
   config = signal<any>(null);
   viewInit = signal(false);
   currentZoom = signal(0);
@@ -36,23 +44,50 @@ export class OutputMapComponent {
 
   // Loop state
   clusterLabelsVisible = signal(false);
+  showClusters = true;
   itemImg = signal('');
   itemImgVisible = signal(false);
   mapTransform = signal('rotate(0deg)');
   overlayTransform = signal('rotate(0deg)');
+  clothespinTextVisible = signal('none');
+  clothespinVisible = signal('none');
+  clothespinSelected = signal(false);
+
+  // Mask
+  maskAmount = signal(20);
+  maskBase = signal<MaskItem>({x: 10, y: 10});
+  maskLayerVisible = signal(false);
+
+  maskItems = computed<MaskItem[]>(() => {
+    const maskAmount = this.maskAmount();
+    const maskBase = this.maskBase();
+    return this.calculateMask(maskAmount, maskBase);
+  });
 
   queue = new ReplaySubject<any>(1);
   moveEnded = new Subject<void>();
 
+  wdim = computed(() => {
+    if (this.config()) {
+      return this.config().dim[0];
+    }
+    return 0;
+  });
+  hdim = computed(() => {
+    if (this.config()) {
+      return this.config().dim[1] + this.config().padding_ratio;
+    }
+    return 0;
+  });
   w = computed(() => {
     if (this.config()) {
-      return this.config().dim[0] * this.config().conversion_ratio[0];
+      return this.wdim() * this.config().conversion_ratio[0];
     }
     return 0;
   });
   h = computed(() => {
     if (this.config()) {
-      return (this.config().dim[1] + this.config().padding_ratio) * this.config().conversion_ratio[1];
+      return this.hdim() * this.config().conversion_ratio[1];
     }
     return 0;
   });
@@ -83,7 +118,7 @@ export class OutputMapComponent {
           }
           return map;
         });
-        this.loop();
+        this.loop(); 
       }
     });
   }
@@ -100,6 +135,16 @@ export class OutputMapComponent {
         this.itemImg.set(url);
       }),
       // Show the mask with single item
+      tap((item) => {
+        this.maskBase.set({x: item.pos[0], y: item.pos[1]});
+        this.maskAmount.set(1);
+      }),
+      delay(1000),
+      tap((item) => {
+        this.maskLayerVisible.set(true);
+        this.clusterLabelsVisible.set(false);
+      }),
+      delay(3000),
       // Fit item to bounds
       switchMap((item) => {      
         console.log('New item in queue:', item);
@@ -129,15 +174,35 @@ export class OutputMapComponent {
         this.overlayTransform.set(`rotate(0deg)`);
         this.itemImgVisible.set(true);
       }),
+      delay(1000),
       // When image is loaded, show the overlay <-- not checking atm
-      delay(5000),
-      // // Rotate back the map
-      // tap((item) => {
-      // }),
-      delay(5000),
       // Show clothespins
+      tap((item) => {
+        this.clothespinTextVisible.set('both');
+        this.clothespinVisible.set('both');
+      }),
+      delay(1000),
       // Move clothespins to the new position
+      tap((item) => {
+        console.log('ITEM', item);
+        if (item.metadata.sign > 0) {
+          this.clothespinTextVisible.set('prefer');
+          this.clothespinVisible.set('prefer');
+        } else if (item.metadata.sign < 0) {
+          this.clothespinTextVisible.set('prevent');
+          this.clothespinVisible.set('prevent');
+        }
+      }),
+      delay(1000),
+      tap((item) => {
+        this.clothespinSelected.set(true);
+      }),
+      delay(1000),
       // Show cone and wait for animation to finish
+      tap((item) => {
+        this.clothespinTextVisible.set('none');
+      }),
+      delay(1000),
       // Zoom cone in based on potential, rotate the overlay
       // Hide the overlay
       tap((item) => {
@@ -148,11 +213,27 @@ export class OutputMapComponent {
       delay(1000),
       // fitToBounds map while updating the mask
       switchMap((item) => {
-        this.map().flyToBounds(this.bounds(), {animate: true, duration: 3});
-        return this.moveEnded.pipe(take(1), map(() => item));
+        this.clothespinSelected.set(false);
+        const duration = 5;
+        const frameRate = 33;
+        this.map().flyToBounds(this.bounds(), {animate: true, duration: duration, easeLinearity: 1.0 });
+        const count = Math.ceil(duration * 1000 / frameRate);
+        return forkJoin([
+          interval(33, animationFrameScheduler).pipe(
+            take(count),
+            tap((i) => {
+              const total = (this.wdim() ** 2) * 3;
+              const amount = ((i+1) / count) ** 5;
+              this.maskAmount.set(Math.ceil(amount*total));
+            }),
+          ),
+          this.moveEnded.pipe(take(1), map(() => item))
+        ]);
       }),
       // Show the cluster labels
       tap((item) => {
+        this.clothespinVisible.set('none');
+        this.maskLayerVisible.set(false);
         this.clusterLabelsVisible.set(true);
       }),
       delay(3000),
@@ -213,10 +294,12 @@ export class OutputMapComponent {
     });
     this.tileLayer.addTo(map);
     timer(0).subscribe(() => {
-      const svgElement = this.clusterLabelsElement.nativeElement.querySelector('svg');
-      console.log('ADDING SVG', svgElement);
-      this.svgLayer = L.svgOverlay(svgElement, bounds);
-      this.svgLayer.addTo(map);
+      const maskElement = this.maskElement.nativeElement.querySelector('svg');
+      this.maskLayer = L.svgOverlay(maskElement, bounds);
+      this.maskLayer.addTo(map);
+      const clusterLabelsElement = this.clusterLabelsElement.nativeElement.querySelector('svg');
+      this.clusterLabelsLayer = L.svgOverlay(clusterLabelsElement, bounds);
+      this.clusterLabelsLayer.addTo(map);
     });
     return map;
   }
@@ -228,5 +311,30 @@ export class OutputMapComponent {
       const item = grid[index];
       this.queue.next(item);
     }
+  }
+
+  calculateMask(maskAmount: number, maskBase: MaskItem): MaskItem[] {
+    const directions: MaskItem[] = [
+      {x: 1, y: -0.5},
+      {x: 0, y: -1},
+      {x: -1, y: -0.5},
+      {x: -1, y: 0.5},
+      {x: 0, y: 1},
+      {x: 1, y: 0.5},
+    ]
+    const ret: MaskItem[] = [maskBase];
+    let r = 1;
+    while (ret.length < maskAmount) {
+      let current = {x: maskBase.x, y: maskBase.y + r};
+      ret.push(current);
+      for (const d of directions) {
+        for (let i = 0; i < r; i++) {
+          current = {x: current.x + d.x, y: current.y + d.y};
+          ret.push(current);
+        }
+      }
+      r++;
+    }
+    return ret.slice(0, maskAmount);
   }
 }

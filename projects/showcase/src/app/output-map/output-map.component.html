@@ -39,8 +39,50 @@
         </svg>
     }    
 </div>
-<div class='image-overlay'  [class.visible]='itemImgVisible()' [style.transform]='overlayTransform()'>
-    <div class='item-image'>
+<div #maskEl class='mask-overlay' style='display:none'>
+    <svg xmlns="http://www.w3.org/2000/svg" class='mask' [class.visible]='maskLayerVisible()'
+        [attr.width]='wdim()' [attr.height]='hdim()' [attr.viewBox]='"0 0 " + wdim() + " " + hdim()' preserveAspectRatio="none">
+        <mask id='mask'>
+            <rect [attr.x]='0' [attr.y]='0' [attr.width]='wdim()' [attr.height]='hdim()' fill='white'></rect>
+            <g transform="translate(0,0)" >
+                @for (maskItem of maskItems(); track $index) {
+                    <rect [attr.x]='maskItem.x' [attr.y]='maskItem.y' [attr.width]='1' [attr.height]='1' fill='black'></rect>
+                }
+            </g>
+        </mask>
+        <rect class='blur' [attr.x]='0' [attr.y]='0' [attr.width]='wdim()' [attr.height]='hdim()' fill='white' mask='url(#mask)'></rect>
+    </svg>
+</div>
+<div class='image-overlay'  [class.visible]='itemImgVisible()'>
+    <div class='clothespin-text prefer' [class.visible]='clothespinTextVisible() === "prefer" || clothespinTextVisible() === "both"'>
+        Prefer
+    </div>
+    <div class='item-image' [style.transform]='overlayTransform()'>
         <img [src]='itemImg()'>
+        <div class='clothespin prefer' [class.visible]='clothespinVisible() === "prefer" || clothespinVisible() === "both"' [class.selected]='clothespinSelected()'>
+            <svg xmlns="http://www.w3.org/2000/svg" width="27" height="109" viewBox="0 0 27 109" fill="none">
+                <rect x="4.74609" y="0.916992" width="17.875" height="107.61" rx="5.93681" fill="#7BB3EE"/>
+                <rect x="7.7145" y="3.8854" width="11.9382" height="101.673" rx="2.9684" stroke="black" stroke-opacity="0.2" stroke-width="5.93681"/>
+                <rect x="6.94141" y="73.9231" width="13.4761" height="4.71275" fill="black" fill-opacity="0.2"/>
+                <path d="M6.94922 76.2804H23.8311L23.8311 39.5083" stroke="#7BB3EE" stroke-width="5.93681" stroke-linecap="round"/>
+                <path d="M6.94922 76.2804H23.8311L23.8311 39.5083" stroke="black" stroke-opacity="0.5" stroke-width="5.93681" stroke-linecap="round"/>
+                <path d="M3.88672 51.0888L3.88672 39.5083" stroke="#7BB3EE" stroke-width="5.93681" stroke-linecap="round"/>
+                <path d="M3.88672 51.0888L3.88672 39.5083" stroke="black" stroke-opacity="0.5" stroke-width="5.93681" stroke-linecap="round"/>
+            </svg>
+        </div>
+        <div class='clothespin prevent' [class.visible]='clothespinVisible() === "prevent" || clothespinVisible() === "both"' [class.selected]='clothespinSelected()'>
+            <svg xmlns="http://www.w3.org/2000/svg" width="27" height="108" viewBox="0 0 27 108" fill="none">
+                <rect x="4.28516" y="0.340332" width="17.875" height="107.61" rx="5.93681" fill="#F73C3C"/>
+                <rect x="7.25356" y="3.30874" width="11.9382" height="101.673" rx="2.9684" stroke="black" stroke-opacity="0.2" stroke-width="5.93681"/>
+                <rect x="6.48047" y="73.3464" width="13.4761" height="4.71275" fill="black" fill-opacity="0.2"/>
+                <path d="M6.48828 75.7038H23.3701L23.3701 38.9316" stroke="#F73C3C" stroke-width="5.93681" stroke-linecap="round"/>
+                <path d="M6.48828 75.7038H23.3701L23.3701 38.9316" stroke="black" stroke-opacity="0.5" stroke-width="5.93681" stroke-linecap="round"/>
+                <path d="M3.42578 50.5122L3.42578 38.9316" stroke="#F73C3C" stroke-width="5.93681" stroke-linecap="round"/>
+                <path d="M3.42578 50.5122L3.42578 38.9316" stroke="black" stroke-opacity="0.5" stroke-width="5.93681" stroke-linecap="round"/>
+            </svg>            
+        </div>
+    </div>
+    <div class='clothespin-text prevent' [class.visible]='clothespinTextVisible() === "prevent" || clothespinTextVisible() === "both"'>
+        Prevent
     </div>
 </div>
