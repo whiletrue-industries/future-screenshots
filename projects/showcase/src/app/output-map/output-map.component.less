@@ -1,5 +1,10 @@
 @import '../../common.less';
 
+@cone-intro-delay: 2s;
+@cone-intro-duration: 2s;
+@cone-spread-delay: @cone-intro-delay + @cone-intro-duration;
+@cone-spread-duration: 1s;
+
 :host {
     display: block;
     position: relative;
@@ -97,6 +102,93 @@
             opacity: 1;
         }
 
+        .cone {
+            height: 100%;
+            position: absolute;
+            aspect-ratio: 1/1;
+            transform: translateX(-10%);
+            display: flex;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn @cone-intro-delay ease-in-out;
+
+            svg {
+                width: 100%;
+                height: 100%;
+                .source-sans;
+
+                .expander {
+                    transition: transform 5s ease-in-out;
+                    transform-origin: center;
+
+                    &.expand-p-4 {
+                        // transform: translateY(-22%)scale(10)translateY(22%);
+                    }
+                }
+
+                .projected {
+                    .line {
+                        stroke-dasharray: 700;
+                        stroke-dashoffset: 650;
+                        animation: projected-intro @cone-intro-duration ease-in-out forwards @cone-intro-delay;
+                    }
+
+                    .label {
+                        animation: no-transform @cone-intro-duration ease-in-out forwards @cone-intro-delay;
+                    }    
+                }
+
+
+                .cone-line {
+                    opacity: 0;
+
+                    &.preferred {
+                        text {
+                            fill: @color-prefer;
+                        }
+                        path {
+                            stroke: @color-prefer;
+                        }
+
+                        &.probable {
+                            animation: probable-preferred @cone-spread-duration ease-in-out @cone-spread-delay forwards;
+                        }
+
+                        &.plausible {
+                            animation: plausible-preferred @cone-spread-duration ease-in-out @cone-spread-delay forwards;
+                        }
+                        &.possible {
+                            animation: possible-preferred @cone-spread-duration ease-in-out @cone-spread-delay forwards;
+                        }
+                        &.preposterous {
+                            animation: preposterous-preferred @cone-spread-duration ease-in-out @cone-spread-delay forwards;
+                        }
+                    }
+                    &.prevent {
+                        text {
+                            fill: @color-prevent;
+                        }
+                        path {
+                            stroke: @color-prevent;
+                        }
+
+                        &.probable {
+                            animation: probable-prevent @cone-spread-duration ease-in-out @cone-spread-delay forwards;
+                        }
+                        &.plausible {
+                            animation: plausible-prevent @cone-spread-duration ease-in-out @cone-spread-delay forwards;
+                        }
+                        &.possible {
+                            animation: possible-prevent @cone-spread-duration ease-in-out @cone-spread-delay forwards;
+                        }
+                        &.preposterous {
+                            animation: preposterous-prevent @cone-spread-duration ease-in-out @cone-spread-delay forwards;
+                        }
+                    }
+                }
+            }
+        }
         .item-image {
             aspect-ratio: 53/100;
             height: 50%;
@@ -162,5 +254,106 @@
                 color: @color-prevent;
             }
         }
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes projected-intro {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+@keyframes no-transform {
+    to {
+        transform: translate(0,0);
+    }
+}
+
+@keyframes probable-preferred {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 1;
+        transform: rotate(-8deg);
+    }
+}
+
+@keyframes probable-prevent {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 1;
+        transform: rotate(8deg);
+    }
+}
+
+@keyframes plausible-preferred {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 1;
+        transform: rotate(-16deg);
+    }
+}
+
+@keyframes plausible-prevent {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 1;
+        transform: rotate(16deg);
+    }
+}
+
+@keyframes possible-preferred {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 1;
+        transform: rotate(-24deg);
+    }
+}
+
+@keyframes possible-prevent {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 1;
+        transform: rotate(24deg);
+    }
+}
+
+@keyframes preposterous-preferred {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 1;
+        transform: rotate(-32deg);
+    }
+}
+
+@keyframes preposterous-prevent {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 1;
+        transform: rotate(32deg);
     }
 }

@@ -52,6 +52,8 @@ export class OutputMapComponent {
   clothespinTextVisible = signal('none');
   clothespinVisible = signal('none');
   clothespinSelected = signal(false);
+  coneVisible = signal(false);
+  coneExpand = signal('')
 
   // Mask
   maskAmount = signal(20);
@@ -200,19 +202,26 @@ export class OutputMapComponent {
       // Show cone and wait for animation to finish
       tap((item) => {
         this.clothespinTextVisible.set('none');
+        this.coneVisible.set(true);
       }),
-      delay(1000),
+      delay(8000),
       // Zoom cone in based on potential, rotate the overlay
+      tap((item) => {        
+        this.coneExpand.set('expand-p-4');
+        this.overlayTransform.set(`rotate(${-item.metadata.rotate}deg)`);
+        this.mapTransform.set(`rotate(0deg)`);
+      }),
+      delay(3000),
       // Hide the overlay
       tap((item) => {
-        this.mapTransform.set(`rotate(0deg)`);
-        this.overlayTransform.set(`rotate(${-item.metadata.rotate}deg)`);
         this.itemImgVisible.set(false);
       }),
       delay(1000),
       // fitToBounds map while updating the mask
       switchMap((item) => {
         this.clothespinSelected.set(false);
+        this.coneVisible.set(false);
+        this.coneExpand.set('');
         const duration = 5;
         const frameRate = 33;
         this.map().flyToBounds(this.bounds(), {animate: true, duration: duration, easeLinearity: 1.0 });
