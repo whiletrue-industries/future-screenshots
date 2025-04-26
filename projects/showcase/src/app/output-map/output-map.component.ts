@@ -206,12 +206,20 @@ export class OutputMapComponent {
       }),
       delay(8000),
       // Zoom cone in based on potential, rotate the overlay
-      tap((item) => {        
-        this.coneExpand.set('expand-p-4');
+      tap((item) => {
+        let className = '-' + Math.abs(Math.round(item.metadata.rotate / 8));
+        if (item.metadata.rotate > 0) {
+          className = 'expand-p' + className;
+        } else if (item.metadata.rotate < 0) {
+          className = 'expand-n' + className;
+        } else {
+          className = 'expand-' + className;
+        }
+        this.coneExpand.set(className);
         this.overlayTransform.set(`rotate(${-item.metadata.rotate}deg)`);
         this.mapTransform.set(`rotate(0deg)`);
       }),
-      delay(3000),
+      delay(8000),
       // Hide the overlay
       tap((item) => {
         this.itemImgVisible.set(false);
