@@ -1,0 +1,8 @@
+<div class='messages' #messagesEl>
+    @for (message of messages(); track $index) {
+        <div class='message' [class.human]="message.kind === 'human'" [class.ai]="message.kind === 'ai'" [class.part]="message.part">
+            <span class='message-text' [innerHTML]="_(message.text)"></span>
+        </div>
+    }
+    <div class='spacer'></div>
+</div>

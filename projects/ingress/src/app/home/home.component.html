@@ -1,0 +1,12 @@
+<app-messages #messages></app-messages>
+<div class='buttons'>
+    @if (showScanButton()) {
+        <div class='button primary' (click)='inputAnswer.next("yes")'>Yes, Let’s scan!</div>
+    }
+    @if (showMoreButton()) {
+        <div class='button' (click)='inputAnswer.next("more")'>How do I make one?</div>
+    }
+    @if (showAgreeButton()) {
+        <div class='button primary' [routerLink]='["/scan"]' queryParamsHandling="preserve">Yes, I agree</div>
+    }
+</div>

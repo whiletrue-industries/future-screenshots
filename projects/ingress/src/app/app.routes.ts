@@ -1,9 +1,9 @@
 import { Routes } from '@angular/router';
-import { ScannerComponent } from '../../scanner/scanner.component';
-import { ConfirmComponent } from '../../confirm/confirm.component';
-import { HomeComponent } from '../../home/home.component';
-import { DiscussComponent } from '../../discuss/discuss.component';
-import { CompleteComponent } from '../../complete/complete.component';
+import { ScannerComponent } from './scanner/scanner.component';
+import { ConfirmComponent } from './confirm/confirm.component';
+import { HomeComponent } from './home/home.component';
+import { DiscussComponent } from './discuss/discuss.component';
+import { CompleteComponent } from './complete/complete.component';
 
 export const routes: Routes = [
     {

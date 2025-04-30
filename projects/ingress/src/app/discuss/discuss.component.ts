@@ -1,9 +1,9 @@
 import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { StateService } from '../state.service';
+import { StateService } from '../../../state.service';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ApiService, DiscussResult } from '../api.service';
-import { PlatformService } from '../platform.service';
+import { ApiService, DiscussResult } from '../../../api.service';
+import { PlatformService } from '../../../platform.service';
 
 @Component({
   standalone: true,

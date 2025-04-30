@@ -3,10 +3,10 @@ import { AfterViewInit, Component, DestroyRef, ElementRef, Inject, OnDestroy, PL
 import { animationFrameScheduler, filter, interval, map, max, Subject, take, takeUntil, timer } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { time } from 'console';
-import { StateService } from '../state.service';
+import { StateService } from '../../../state.service';
 import { ActivatedRoute, Router } from '@angular/router';
-import { PlatformService } from '../platform.service';
-import { ApiService } from '../api.service';
+import { PlatformService } from '../../../platform.service';
+import { ApiService } from '../../../api.service';
 
 declare const jscanify: any;
 declare const cv: any;
