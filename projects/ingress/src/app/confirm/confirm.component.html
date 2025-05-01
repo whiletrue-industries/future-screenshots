@@ -1,7 +1,21 @@
 <div class='img'>
-    <img [src]="state.currentImageUrl()" alt="Confirmation Image">
+  <div class='inner'>
+      <img [src]="state.currentImageUrl()" alt="Confirmation Image">
+  </div>
 </div>
-<div class="confirmation">  
-  <a [routerLink]="['/scan']" queryParamsHandling="merge" class="btn btn-primary">Scan Again</a>
-  <a [routerLink]="['/discuss']" queryParamsHandling="merge" class="btn btn-secondary">Confirm</a>
+<div class="buttons">
+  <div class='button-row'>
+    <a [routerLink]="['/scan']" queryParamsHandling="merge" class="button">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="25" viewBox="0 0 24 25" fill="none">
+        <path d="M11 18.5H14.75C16.1424 18.5 17.4777 17.9469 18.4623 16.9623C19.4469 15.9777 20 14.6424 20 13.25C20 11.8576 19.4469 10.5223 18.4623 9.53769C17.4777 8.55312 16.1424 8 14.75 8H5M7.5 4.5L4 8L7.5 11.5" stroke="#4E02B2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>        
+      <span>Scan Again</span>
+    </a>
+    <a [routerLink]="['/load']" queryParamsHandling="merge" class="button primary">
+      <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 25 25" fill="none">
+        <path d="M18.3676 8.70492L11.0037 16.0689L6.76104 11.8262" stroke="#4E02B2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Looks Good</span>
+    </a>
+  </div>
 </div>

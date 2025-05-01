@@ -1,4 +1,4 @@
-import { Component, ElementRef, signal, ViewChild } from '@angular/core';
+import { Component, ElementRef, Input, signal, ViewChild, WritableSignal } from '@angular/core';
 import { marked } from 'marked';
 import { timer } from 'rxjs';
 
@@ -16,11 +16,15 @@ export type Message = {
 })
 export class MessagesComponent {
 
+  @Input() messages: WritableSignal<Message[]> = signal<Message[]>([]);
   @ViewChild('messagesEl') messagesEl!: ElementRef;
 
-  messages = signal<Message[]>([]);  
-
   _ = marked;
+
+  clear() {
+    this.messages.update(() => []);
+    this.messagesEl.nativeElement.scrollTop = 0;
+  }
 
   addMessage(message: Message) {
     this.messages.update((messages) => [...messages, message]);

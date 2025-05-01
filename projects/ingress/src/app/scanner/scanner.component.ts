@@ -1,12 +1,10 @@
-import { isPlatformBrowser } from '@angular/common';
-import { AfterViewInit, Component, DestroyRef, ElementRef, Inject, OnDestroy, PLATFORM_ID, signal, ViewChild } from '@angular/core';
-import { animationFrameScheduler, filter, interval, map, max, Subject, take, takeUntil, timer } from 'rxjs';
+import { AfterViewInit, Component, computed, DestroyRef, ElementRef, OnDestroy, signal, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { time } from 'console';
-import { StateService } from '../../../state.service';
 import { ActivatedRoute, Router } from '@angular/router';
-import { PlatformService } from '../../../platform.service';
+import { filter, interval, map, Subject, take, takeUntil, timer } from 'rxjs';
 import { ApiService } from '../../../api.service';
+import { PlatformService } from '../../../platform.service';
+import { StateService } from '../../../state.service';
 
 declare const jscanify: any;
 declare const cv: any;
@@ -29,9 +27,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   
   @ViewChild('video', { static: true }) videoEl!: ElementRef<HTMLVideoElement>;
   @ViewChild('canvas', { static: true }) canvasEl!: ElementRef<HTMLCanvasElement>;
-  @ViewChild('result', { static: true }) resultEl!: ElementRef<HTMLCanvasElement>;
   canvasCtx: CanvasRenderingContext2D | null;
-  resultCtx: CanvasRenderingContext2D | null;
 
   COUNTDOWN_INITIAL = 30;
   countDown = this.COUNTDOWN_INITIAL;
@@ -42,6 +38,23 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   displayMsg = signal<string>('');
   videoHeightM = signal<number>(0);
   videoWidthM = signal<number>(0);
+  displayWidth = signal<number>(0);
+  displayHeight = signal<number>(0);
+  viewBox = computed(() => {
+    if (this.displayWidth() === 0 || this.displayHeight() === 0) {
+      return '0 0 480 640';
+    }
+    return `0 0 ${this.displayWidth()} ${this.displayHeight()}`;
+  });
+  maskPath = computed(() => {
+    let points = this.points();
+    if (points.length < 4) {
+      return '';
+    }
+    return `M${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y} L ${points[2].x} ${points[2].y} L ${points[3].x} ${points[3].y} Z`;
+  });
+  maskOpacity = signal(0);
+  points = signal<{x: number, y: number}[]>([]);
 
   constructor(
     private el: ElementRef, 
@@ -66,12 +79,10 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       filter(() => !!(window as any).jscanify !== undefined),
       filter(() => !!(window as any).cv !== undefined),
       filter(() => !!this.canvasEl?.nativeElement),
-      filter(() => !!this.resultEl?.nativeElement),
       take(1)
     ).subscribe(() => {
       console.log('Starting scanner...', jscanify);
       this.canvasCtx = this.canvasEl.nativeElement.getContext("2d");
-      this.resultCtx = this.resultEl.nativeElement.getContext("2d");
       this.startScanner();
     });
   }
@@ -126,31 +137,17 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     return cornerPoints;    
   }
 
-  checkDimensions(cornerPoints: any, videoWidth: number, videoHeight: number): boolean {
+  checkDimensions(cornerPoints: any, videoWidth: number, videoHeight: number): {valid: boolean, snap: boolean} {
     if (!cornerPoints) {
-      this.displayMsg.set('Point the camera at the paper, use a flat surface, good light and clear background');
-      return false;
+      this.displayMsg.set('fit the page to the frame');
+      return {valid: false, snap: false};
     }
     // calculate the top-width and bottom-width, left-height and right-height
     const topWidth = Math.sqrt(Math.pow(cornerPoints.topLeftCorner.x - cornerPoints.topRightCorner.x, 2) + Math.pow(cornerPoints.topLeftCorner.y - cornerPoints.topRightCorner.y, 2));
     const bottomWidth = Math.sqrt(Math.pow(cornerPoints.bottomLeftCorner.x - cornerPoints.bottomRightCorner.x, 2) + Math.pow(cornerPoints.bottomLeftCorner.y - cornerPoints.bottomRightCorner.y, 2));
     const leftHeight = Math.sqrt(Math.pow(cornerPoints.topLeftCorner.x - cornerPoints.bottomLeftCorner.x, 2) + Math.pow(cornerPoints.topLeftCorner.y - cornerPoints.bottomLeftCorner.y, 2));
     const rightHeight = Math.sqrt(Math.pow(cornerPoints.topRightCorner.x - cornerPoints.bottomRightCorner.x, 2) + Math.pow(cornerPoints.topRightCorner.y - cornerPoints.bottomRightCorner.y, 2));
-    // Calculate the ratio of the top-width and bottom-width, left-height and right-height, ensure both are between 0.9 and 1.1
-    const topBottomRatio = Math.max(topWidth, bottomWidth) / Math.min(topWidth, bottomWidth);
-    const leftRightRatio = Math.max(leftHeight, rightHeight) / Math.min(leftHeight, rightHeight);
-    if (topBottomRatio > 1.1 || topBottomRatio < 0.9) {
-      this.msg.set('topBottomRatio is not in range: ' + topBottomRatio);
-      this.displayMsg.set('Make sure to hold the camera straight above the paper');
-      // console.log('topBottomRatio is not in range');
-      return false;
-    }
-    if (leftRightRatio > 1.1 || leftRightRatio < 0.9) {
-      this.msg.set('leftRightRatio is not in range: ' + leftRightRatio);
-      this.displayMsg.set('Make sure to hold the camera straight above the paper');
-      // console.log('leftRightRatio is not in range');
-      return false;
-    }
+
     // calculate the average of the top-width and bottom-width, left-height and right-height
     const topBottomAverage = (topWidth + bottomWidth) / 2;
     const leftRightAverage = (leftHeight + rightHeight) / 2;
@@ -158,9 +155,25 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     const averageRatio = (topBottomAverage / leftRightAverage) / 0.53;
     if (averageRatio < 0.95 || averageRatio > 1.05) {
       this.msg.set('averageRatio is not in range: ' + averageRatio);
-      this.displayMsg.set("Can't detect a proper screenshot.");
+      this.displayMsg.set("fit the page to the frame");
       // console.log('averageRatio is not in range');
-      return false;
+      return {valid: false, snap: false};
+    }
+
+    // Calculate the ratio of the top-width and bottom-width, left-height and right-height, ensure both are between 0.9 and 1.1
+    const topBottomRatio = Math.max(topWidth, bottomWidth) / Math.min(topWidth, bottomWidth);
+    const leftRightRatio = Math.max(leftHeight, rightHeight) / Math.min(leftHeight, rightHeight);
+    if (topBottomRatio > 1.1 || topBottomRatio < 0.9) {
+      this.msg.set('topBottomRatio is not in range: ' + topBottomRatio);
+      this.displayMsg.set('change your angle');
+      // console.log('topBottomRatio is not in range');
+      return {valid: false, snap: true};
+    }
+    if (leftRightRatio > 1.1 || leftRightRatio < 0.9) {
+      this.msg.set('leftRightRatio is not in range: ' + leftRightRatio);
+      this.displayMsg.set('change your angle');
+      // console.log('leftRightRatio is not in range');
+      return {valid: false, snap: true};
     }
     // ensure that at least one of averageWidth and averageHeight is more than 66% of the video width and height    
     const averageWidth = (topBottomAverage > 0.66 * videoWidth);
@@ -170,11 +183,11 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       this.msg.set('Neither averageWidth nor averageHeight is above 66% of video dimensions: ' + 
         topBottomAverage + '<0.66*' + videoWidth + ' ' + 
         leftRightAverage + '<0.66*' + videoHeight);
-      this.displayMsg.set('Move the camera closer to the paper');
-      return false;
+      this.displayMsg.set('move closer to page');
+      return {valid: false, snap: true};
     }
     this.msg.set('Dimensions are valid: ' + averageWidth + ' ' + averageHeight);
-    return true;
+    return {valid: true, snap: true};
   }
   
   checkBlurry(src: any): boolean {
@@ -187,9 +200,6 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     cv.meanStdDev(dst, menO, men);
     const blurry = men.data64F[0] < 10;
     this.msg.set('Blurriness is ' + blurry + ' ' + men.data64F[0]);
-    if (blurry) {
-      this.displayMsg.set('Make sure the paper is in focus and hold still');
-    }
     // console.log('menO', blurry, menO.data64F);
     // Release memory
     dst.delete();
@@ -211,10 +221,6 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     const ratio = Math.min(this.el.nativeElement.clientWidth / videoWidth, this.el.nativeElement.clientHeight / videoHeight);
     const sampleRatio = Math.floor(Math.min(videoHeight / 640, videoWidth / 480));
     console.log('SAMPLE RATIO', sampleRatio);
-    const displayWidth = videoWidth * ratio;
-    const displayHeight = videoHeight * ratio;
-    this.resultEl.nativeElement.width = displayWidth;
-    this.resultEl.nativeElement.height = displayHeight;
 
     let count = 0;
     interval(33).pipe(
@@ -224,7 +230,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       map(() => {
         let frame: any = null;
         let resampledFrame: any = null;
-        let ret: any = null;
+        let ret: any = {valid: false, snap: false};
         let blurry: any = null;
         count += 1;
         if (count % 100 === 0) {
@@ -237,16 +243,18 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
           // resize the frame by sampleRatio
           const width = Math.floor(frame.cols / sampleRatio);
           const height = Math.floor(frame.rows / sampleRatio);
+          this.displayWidth.set(width);
+          this.displayHeight.set(height);      
           const dsize = new cv.Size(width, height);
           cv.resize(frame, resampledFrame, dsize, 0, 0, cv.INTER_NEAREST);      
           const maxContour = scanner.findPaperContour(resampledFrame);
           if (maxContour) {
             const cornerPoints = this.checkCornerPoints(scanner.getCornerPoints(maxContour, resampledFrame) as CornerPoints);          
-            const valid = this.checkDimensions(cornerPoints, width, height);
+            const {valid, snap} = this.checkDimensions(cornerPoints, width, height);
             if (valid) {
               blurry = this.checkBlurry(resampledFrame);
             }
-            ret = {valid, blurry, cornerPoints};
+            ret = {valid, snap, blurry, cornerPoints};
           }
         } catch (e) {
           console.error('Error processing video frame', count, e);
@@ -257,8 +265,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
         }
         return ret;
       })
-    ).subscribe((shape: {valid: boolean, blurry: boolean, cornerPoints: CornerPoints} | null) => {
-      // console.log('GOT', shape?.valid, shape?.cornerPoints);
+    ).subscribe((shape: {valid: boolean, snap: boolean, blurry: boolean, cornerPoints: CornerPoints} | null) => {
+      this.setPoints(shape?.snap ? shape?.cornerPoints || null : null);
       let frame = null;
 
       if (shape?.cornerPoints) {
@@ -270,34 +278,39 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
         shape.cornerPoints.bottomLeftCorner.y *= sampleRatio;
         shape.cornerPoints.bottomRightCorner.x *= sampleRatio;
         shape.cornerPoints.bottomRightCorner.y *= sampleRatio;
-        const options = {
-          "color": shape?.valid ? (shape.blurry ? "#FFA500" : "#00FF00") : "#FF0000",
-          "thickness": 5
-        };
+        // const options = {
+        //   "color": shape?.valid ? (shape.blurry ? "#FFA500" : "#00FF00") : "#FF0000",
+        //   "thickness": 5
+        // };
         // console.log('Drawing video frame to canvas', displayWidth, displayHeight);
-        if (this.resultCtx) {
-          this.resultCtx.clearRect(0, 0, displayWidth, displayHeight);
-          const ctx = this.resultCtx;
-          ctx.strokeStyle = options.color;
-          ctx.lineWidth = options.thickness;
-          ctx.beginPath();
-          ctx.moveTo(shape.cornerPoints.topLeftCorner.x*ratio, shape.cornerPoints.topLeftCorner.y*ratio);
-          ctx.lineTo(shape.cornerPoints.topRightCorner.x*ratio, shape.cornerPoints.topRightCorner.y*ratio);
-          ctx.lineTo(shape.cornerPoints.bottomRightCorner.x*ratio, shape.cornerPoints.bottomRightCorner.y*ratio);
-          ctx.lineTo(shape.cornerPoints.bottomLeftCorner.x*ratio, shape.cornerPoints.bottomLeftCorner.y*ratio);
-          ctx.lineTo(shape.cornerPoints.topLeftCorner.x*ratio, shape.cornerPoints.topLeftCorner.y*ratio);
-          ctx.stroke();
-        }
-        // this.resultCtx?.drawImage(resultCanvas, 0, 0, displayWidth, displayHeight);  
+        // if (this.resultCtx) {
+        //   this.resultCtx.clearRect(0, 0, displayWidth, displayHeight);
+        //   const ctx = this.resultCtx;
+        //   ctx.strokeStyle = options.color;
+        //   ctx.lineWidth = options.thickness;
+        //   ctx.beginPath();
+        //   ctx.moveTo(shape.cornerPoints.topLeftCorner.x*ratio, shape.cornerPoints.topLeftCorner.y*ratio);
+        //   ctx.lineTo(shape.cornerPoints.topRightCorner.x*ratio, shape.cornerPoints.topRightCorner.y*ratio);
+        //   ctx.lineTo(shape.cornerPoints.bottomRightCorner.x*ratio, shape.cornerPoints.bottomRightCorner.y*ratio);
+        //   ctx.lineTo(shape.cornerPoints.bottomLeftCorner.x*ratio, shape.cornerPoints.bottomLeftCorner.y*ratio);
+        //   ctx.lineTo(shape.cornerPoints.topLeftCorner.x*ratio, shape.cornerPoints.topLeftCorner.y*ratio);
+        //   ctx.stroke();
+        // }
       }
       if (shape?.valid) {
+        this.displayMsg.set('hold still...');
         this.countDown -= 1;
-        if (this.countDown === 0 || !shape.blurry) {
+        if (!shape.blurry && this.countDown > 10) {
+          this.countDown = 10;
+        }
+        if (this.countDown < 10) {
+          this.maskOpacity.set(255 - this.countDown * 25);
+        } else {
+          this.maskOpacity.set(0);
+        }
+        if (this.countDown === 0) {
           frame = scanner.extractPaper(this.canvasEl.nativeElement, 1060, 2000, shape.cornerPoints);        
           console.log('Extraction result:', frame);
-          this.resultEl.nativeElement.width = frame.width;
-          this.resultEl.nativeElement.height = frame.height;
-          this.resultCtx?.drawImage(frame, 0, 0, frame.width, frame.height);
           this.stream?.getTracks().forEach((track) => {
             if (track.readyState == 'live') {
                 track.stop();
@@ -315,9 +328,28 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
         }
       } else {
         this.countDown = this.COUNTDOWN_INITIAL;
-        // this.resultCtx?.clearRect(0, 0, displayWidth, displayHeight);
       }
     });
+  }
+
+  setPoints(cornerPoints: CornerPoints | null) {
+    let points: CornerPoints;
+    if (!cornerPoints) {
+      points = {
+        topLeftCorner: { x: this.displayWidth()*0.15, y: this.displayHeight()*0.15 },
+        topRightCorner: { x: this.displayWidth()*0.85, y: this.displayHeight()*0.15 },
+        bottomLeftCorner: { x: this.displayWidth()*0.15, y: this.displayHeight()*0.85 },
+        bottomRightCorner: { x: this.displayWidth()*0.85, y: this.displayHeight()*0.85 }
+      };
+    } else {
+      points = cornerPoints;
+    }
+    this.points.set([
+      { x: points.topLeftCorner.x, y: points.topLeftCorner.y },
+      { x: points.topRightCorner.x, y: points.topRightCorner.y },
+      { x: points.bottomRightCorner.x, y: points.bottomRightCorner.y },
+      { x: points.bottomLeftCorner.x, y: points.bottomLeftCorner.y }
+    ]);
   }
 
   ngOnDestroy() {

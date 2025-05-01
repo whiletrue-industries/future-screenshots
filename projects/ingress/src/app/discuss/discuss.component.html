@@ -1,27 +1,21 @@
-<div class='messages'>
-    @for (message of messages(); track $index) {
-        <div class='message'>
-            <div class='message-who'>{{ message.dir }}</div>
-            <div class='message-text'>{{ message.message }}</div>
-        </div>
-    }
+<app-messages [messages]="messages" #messagesComponent>
     @if (thinking()) {
-        <div class='message'>
-            <div class='message-who'>ai</div>
+        <div class='message ai part'>
             <div class='message-text'>Thinking...</div>
         </div>
     } @else if (reply()) {
-        <div class='message'>
-            <div class='message-who'>ai</div>
+        <div class='message ai'>
             <div class='message-text'>{{ reply() }}</div>
         </div>
     }
-</div>
+</app-messages>
 <div class='input'>
-    <textarea
+    <input
+        class='input-el'
         [(ngModel)]="inputMessage"
         (keyup.enter)="submitMessage()"
         [disabled]='inputDisabled()'
         lines="2"
-        placeholder="Type your message here..."></textarea>
+        placeholder="in your own words..."
+    />
 </div>

@@ -4,6 +4,7 @@ import { ConfirmComponent } from './confirm/confirm.component';
 import { HomeComponent } from './home/home.component';
 import { DiscussComponent } from './discuss/discuss.component';
 import { CompleteComponent } from './complete/complete.component';
+import { LoaderComponent } from './loader/loader.component';
 
 export const routes: Routes = [
     {
@@ -19,8 +20,8 @@ export const routes: Routes = [
         'component': DiscussComponent
     },
     {
-        'path': 'discuss',
-        'component': DiscussComponent
+        'path': 'load',
+        'component': LoaderComponent,
     },
     {
         'path': 'complete',

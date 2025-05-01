@@ -1,27 +1,32 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { StateService } from '../../../state.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService, DiscussResult } from '../../../api.service';
 import { PlatformService } from '../../../platform.service';
+import { Message, MessagesComponent } from '../messages/messages.component';
 
 @Component({
   standalone: true,
   imports: [
     FormsModule,
+    MessagesComponent
   ],
   templateUrl: './discuss.component.html',
   styleUrl: './discuss.component.less'
 })
 export class DiscussComponent {
 
-  messages = signal<{dir: string, message: string}[]>([]);
+  messages = signal<Message[]>([]);
   inputMessage = signal<string>('');
   inputDisabled = signal<boolean>(true);
   thinking = signal<boolean>(true);
   reply = signal<string>('');
 
+  @ViewChild(MessagesComponent) messagesComponent!: MessagesComponent;
+
   constructor(public state: StateService, private router: Router, private api: ApiService, private route: ActivatedRoute, private platform: PlatformService) { 
+    this.api.updateFromRoute(this.route.snapshot);
     this.route.params.subscribe(params => {
       const item_id = params['item-id'];
       if (item_id) {
@@ -43,7 +48,7 @@ export class DiscussComponent {
             if (automatic) {
               this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
             } else {
-              this.router.navigate(['/discuss', item_id], { queryParams: {'key': item_key} });
+              this.router.navigate(['/discuss', item_id], { queryParams: {'key': item_key}, queryParamsHandling: 'merge' });
             }
           });
         }
@@ -51,8 +56,8 @@ export class DiscussComponent {
     });
   }
 
-  addMessage(dir: string, message: string) {
-    this.messages.update(msgs => [...msgs, { dir, message }]);
+  addMessage(kind: 'ai' | 'human', text: string) {
+    this.messagesComponent.addMessage({ kind, text });
   }
 
   submitMessage() {
@@ -67,16 +72,16 @@ export class DiscussComponent {
       // console.log('MESSAGE', ret);
       if (ret.kind === 'message') {
         const index = ret.idx;
-        const message = ret.content;
-        const role = ret.role === 'assistant' ? 'ai' : 'human';
+        const text = ret.content;
+        const kind = ret.role === 'assistant' ? 'ai' : 'human';
         this.messages.update(msgs => {
           if (msgs.length > index) {
-            msgs[index].message = message;
-            msgs[index].dir = role;
+            msgs[index].text = text;
+            msgs[index].kind = kind;
           }
           else {
             this.reply.set('');
-            msgs.push({ dir: role, message });
+            msgs.push({ kind, text });
           }
           return msgs;
         });

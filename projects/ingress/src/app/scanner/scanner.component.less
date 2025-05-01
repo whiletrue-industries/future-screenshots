@@ -1,3 +1,5 @@
+@import '../../common.less';
+
 :host {
     display: flex;
     flex-flow: column;
@@ -6,27 +8,40 @@
     position: relative;
 
     .message {
-        flex: 0 0 auto;
-        background-color: rgba(255, 255, 255, 0.5);
         position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
+        top: 16px;
+        left: 16px;
         z-index: 1;
-        text-align: center;
     }
 
     .action {
         position: relative;
         flex: 1 1 auto;
     
-        video, canvas {
+        video, canvas, svg {
             width: 100%;
             height: 100%;
             object-fit: contain;
             position: absolute;
             top: 0;
             left: 0;
-        }    
+        }
+
+        .overlay {
+            rect {
+                fill: fade(@color-light-purple, 50);
+            }
+
+            path {
+                stroke: @color-dark-pink;
+                fill: white;
+            }
+
+            circle {
+                fill: #000;
+                stroke: @color-dark-pink;
+                stroke-width: 2;
+            }
+        }
     }
 }

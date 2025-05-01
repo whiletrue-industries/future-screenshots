@@ -3,9 +3,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../../api.service';
 import { Message, MessagesComponent } from "../messages/messages.component";
 import { delay, filter, from, interval, Subject, switchMap, take, tap, timer } from 'rxjs';
-import { After } from 'v8';
 import { PlatformService } from '../../../platform.service';
-import { sign } from 'crypto';
 
 @Component({
   selector: 'app-home',
@@ -30,7 +28,7 @@ export class HomeComponent implements AfterViewInit {
 
 But first, please approve the collection, processing, and storage of your screenshot as described in the [Privacy Policy](https://google.com).
 
-I’m also about to ask you for *access to the camera*, and then we can get going….` };
+I’m also about to ask you for **access to the camera**, and then we can get going….` };
 
   inputAnswer = new Subject<string>();
 
@@ -46,6 +44,13 @@ I’m also about to ask you for *access to the camera*, and then we can get goin
     this.api.updateFromRoute(this.route.snapshot);
   }
 
+  ngOnInit() {
+    this.messagesComponent?.clear();
+    this.showMoreButton.set(false);
+    this.showScanButton.set(false);
+    this.showAgreeButton.set(false);
+  }
+
   ngAfterViewInit() {
     this.platform.browser(() => {
       this.interact();
@@ -53,7 +58,7 @@ I’m also about to ask you for *access to the camera*, and then we can get goin
   }
 
   interact() {
-    interval(2000).pipe(
+    interval(1500).pipe(
       take(3),
       switchMap((i) => {
         if (i < 2) {
@@ -80,6 +85,7 @@ I’m also about to ask you for *access to the camera*, and then we can get goin
             tap(() => {
               this.sendMessage(this.secondInteraction);
               this.showScanButton.set(false);
+              this.showMoreButton.set(false);
               this.showAgreeButton.set(true);
             }),
           );
