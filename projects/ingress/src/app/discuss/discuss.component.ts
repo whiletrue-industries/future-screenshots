@@ -75,15 +75,16 @@ export class DiscussComponent {
         const text = ret.content;
         const kind = ret.role === 'assistant' ? 'ai' : 'human';
         this.messages.update(msgs => {
-          if (msgs.length > index) {
-            msgs[index].text = text;
-            msgs[index].kind = kind;
+          const _msgs = msgs.slice();
+          if (_msgs.length > index) {
+            _msgs[index].text = text;
+            _msgs[index].kind = kind;
           }
           else {
             this.reply.set('');
-            msgs.push({ kind, text });
+            _msgs.push({ kind, text });
           }
-          return msgs;
+          return _msgs;
         });
       } else if (ret.kind === 'text') {
         this.reply.update(value => {
@@ -92,6 +93,7 @@ export class DiscussComponent {
             this.router.navigate(['/complete'], { queryParamsHandling: 'preserve' });
             return '';
           }
+          this.messages.update(msgs => msgs.slice());
           return value;
         });
         this.thinking.set(false);

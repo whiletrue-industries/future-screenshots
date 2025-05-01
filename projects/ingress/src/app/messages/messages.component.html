@@ -5,5 +5,5 @@
         </div>
     }
     <ng-content></ng-content>
-    <div class='spacer'></div>
+    <div class='spacer' #spacer [style.height.px]='spacerHeight()'></div>
 </div>
