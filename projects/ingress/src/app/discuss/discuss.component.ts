@@ -1,10 +1,12 @@
-import { Component, signal, ViewChild } from '@angular/core';
+import { Component, computed, ElementRef, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { StateService } from '../../../state.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService, DiscussResult } from '../../../api.service';
 import { PlatformService } from '../../../platform.service';
 import { Message, MessagesComponent } from '../messages/messages.component';
+import { fromEvent, take } from 'rxjs';
+import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 
 @Component({
   standalone: true,
@@ -22,10 +24,22 @@ export class DiscussComponent {
   inputDisabled = signal<boolean>(true);
   thinking = signal<boolean>(true);
   reply = signal<string>('');
+  imageUrl = signal<SafeUrl>('');
+  imageLoaded = signal<boolean>(false);
+  hasText = signal<boolean>(false);
+  visible = computed(() => {
+    return this.hasText() && this.imageLoaded();
+  });
+  expanded = signal<boolean>(false);
+  small = computed(() => {
+    return this.visible() && !this.expanded();
+  });
 
   @ViewChild(MessagesComponent) messagesComponent!: MessagesComponent;
+  @ViewChild('image') imageEl!: ElementRef<HTMLImageElement>;
 
-  constructor(public state: StateService, private router: Router, private api: ApiService, private route: ActivatedRoute, private platform: PlatformService) { 
+  constructor(public state: StateService, private router: Router, private api: ApiService, private route: ActivatedRoute,
+      private platform: PlatformService, private sanitizer: DomSanitizer) {
     this.api.updateFromRoute(this.route.snapshot);
     const item_id = this.route.snapshot.queryParams['item-id'];
     if (item_id) {
@@ -33,6 +47,10 @@ export class DiscussComponent {
       this.api.fetchItem(item_id, item_key).subscribe((item: any) => {
         if (item && this.platform.browser()) {
           this.submitMessage();
+          fromEvent(this.imageEl.nativeElement, 'load').pipe(take(1)).subscribe(() => {
+            this.imageLoaded.set(true);
+          });
+          this.imageUrl.set(this.sanitizer.bypassSecurityTrustUrl(item.screenshot_url));
         }
       });
     } else {
@@ -55,6 +73,7 @@ export class DiscussComponent {
     this.api.sendMessage(message || 'initial').subscribe((ret: any) => {
       // console.log('MESSAGE', ret);
       if (ret.kind === 'message') {
+        this.hasText.set(true);
         const index = ret.idx;
         const text = ret.content;
         const kind = ret.role === 'assistant' ? 'ai' : 'human';
@@ -71,6 +90,7 @@ export class DiscussComponent {
           return _msgs;
         });
       } else if (ret.kind === 'text') {
+        this.hasText.set(true);
         this.reply.update(value => {
           value += ret.value;
           if (value.slice(0,10).indexOf('DONE') >= 0) {

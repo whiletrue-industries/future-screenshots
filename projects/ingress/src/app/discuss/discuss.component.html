@@ -1,21 +1,28 @@
-<app-messages [messages]="messages" #messagesComponent>
-    @if (thinking()) {
-        <div class='message ai part'>
-            <div class='message-text'>Thinking...</div>
-        </div>
-    } @else if (reply()) {
-        <div class='message ai'>
-            <div class='message-text'>{{ reply() }}</div>
-        </div>
-    }
-</app-messages>
-<div class='input'>
-    <input
-        class='input-el'
-        [(ngModel)]="inputMessage"
-        (keyup.enter)="submitMessage()"
-        [disabled]='inputDisabled()'
-        lines="2"
-        placeholder="in your own words..."
-    />
+<div class='image-overlay'>
+    <div class='image' [class.small]='small()'>
+        <img [src]="imageUrl()" #image/>
+    </div>
+</div>
+<div class='discuss' [class.visible]="visible()">
+    <app-messages [messages]="messages" #messagesComponent>
+        @if (thinking()) {
+            <div class='message ai part'>
+                <div class='message-text'>Thinking...</div>
+            </div>
+        } @else if (reply()) {
+            <div class='message ai'>
+                <div class='message-text'>{{ reply() }}</div>
+            </div>
+        }
+    </app-messages>
+    <div class='input'>
+        <input
+            class='input-el'
+            [(ngModel)]="inputMessage"
+            (keyup.enter)="submitMessage()"
+            [disabled]='inputDisabled()'
+            lines="2"
+            placeholder="in your own words..."
+        />
+    </div>
 </div>
