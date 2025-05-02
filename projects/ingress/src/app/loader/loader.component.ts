@@ -108,10 +108,10 @@ export class LoaderComponent implements AfterViewInit {
 
   animationLoop() {
     timer(1000).pipe(
-      switchMap(() => this.getAnimation('/loader1.json', null, [1])),
-      switchMap((anim) => this.getAnimation('/loader2.json', anim)),
-      switchMap((anim) => this.getAnimation('/loader3.json', anim)),
-      switchMap((anim) => this.getAnimation('/loader4.json', anim)),
+      switchMap(() => this.getAnimation('loader1.json', null, [1])),
+      switchMap((anim) => this.getAnimation('loader2.json', anim)),
+      switchMap((anim) => this.getAnimation('loader3.json', anim)),
+      switchMap((anim) => this.getAnimation('loader4.json', anim)),
     ).subscribe((anim) => {
       // anim.destroy();
       this.animationComplete.set(true);
