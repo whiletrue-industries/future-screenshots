@@ -34,17 +34,14 @@ export class LoaderComponent implements AfterViewInit {
         this.api.startDiscussion(currentImage).pipe(
           switchMap((ret: any) => {
             const automatic = ret.automatic;
-            console.log('AAA1', ret);
             if (automatic) {
               this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
               return from([]);
             } else {
-              console.log('AAA2', ret);
               const item_key = ret?.item_key;
               const item_id = ret?.item_id;        
               return this.api.sendInitMessageNoStream(item_id, item_key).pipe(
                 tap((status: any) => {
-                  console.log('AAA3', status);
                   console.log('status', status);
                   this.loaded.set(ret);
                 })
@@ -52,7 +49,6 @@ export class LoaderComponent implements AfterViewInit {
             }
           }),
         ).subscribe((x: any) => {
-          console.log('AAA4', x);
         });
       }
     });
@@ -67,7 +63,9 @@ export class LoaderComponent implements AfterViewInit {
   }
 
   ngAfterViewInit() {
+    console.log('ZZZ');
     this.platform.browser(() => {
+      console.log('ZZZ1');
       this.animationLoop();
     });
   }
@@ -75,8 +73,10 @@ export class LoaderComponent implements AfterViewInit {
   getAnimation(path: string, anim: AnimationItem | null, assetIdxs: any=null): Observable<AnimationItem> {
     const animationContainer = this.animationContainer.nativeElement;
     const itemUrl = this.state.currentImageUrl();
+    console.log('ZZZ2', itemUrl);
     return this.http.get(path, { responseType: 'json' }).pipe(
       switchMap((data: any) => {
+        console.log('ZZZ3', data);
         anim?.destroy();
         if (data.assets) {
           (data.assets as any[]).forEach((asset, idx) => {
@@ -95,6 +95,7 @@ export class LoaderComponent implements AfterViewInit {
           animationData: data,
         });
         newAnim.setSpeed(0.5);
+        console.log('ZZZ5', this.currentMessage());
         this.currentMessage.update((msg) => msg + 1);
         return from(new Promise<AnimationItem>((resolve) => {
           newAnim.addEventListener('loopComplete', () => {

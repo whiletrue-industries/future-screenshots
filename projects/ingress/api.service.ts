@@ -74,7 +74,6 @@ export class ApiService {
   }
 
   sendInitMessageNoStream(item_id: string, item_key: string): Observable<any> {
-    console.log('AAA4', this.item());
     const params = {
       workspace: this.workspace(),
       api_key: this.api_key(),
@@ -83,10 +82,8 @@ export class ApiService {
       message: 'initial',
       stream: 'false',
     };
-    console.log('AAA5', params);
     return this.http.get(`${this.ITEM_INGRES_AGENT_URL}`, {params}).pipe(
       map((response: any) => {
-        console.log('AAA6', response);
         return response.status;
       })
     );
