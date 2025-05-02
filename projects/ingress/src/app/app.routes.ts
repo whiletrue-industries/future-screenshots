@@ -16,7 +16,7 @@ export const routes: Routes = [
         'component': ConfirmComponent
     },
     {
-        'path': 'discuss/:item-id',
+        'path': 'discuss',
         'component': DiscussComponent
     },
     {

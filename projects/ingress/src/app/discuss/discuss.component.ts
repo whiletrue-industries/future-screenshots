@@ -27,33 +27,17 @@ export class DiscussComponent {
 
   constructor(public state: StateService, private router: Router, private api: ApiService, private route: ActivatedRoute, private platform: PlatformService) { 
     this.api.updateFromRoute(this.route.snapshot);
-    this.route.params.subscribe(params => {
-      const item_id = params['item-id'];
-      if (item_id) {
-        const item_key = this.route.snapshot.queryParams['key'];
-        this.api.fetchItem(item_id, item_key).subscribe((item: any) => {
-          if (item && this.platform.browser()) {
-            this.submitMessage();
-          }
-        });
-      } else {
-        const currentImage = this.state.currentImage();
-        if (!currentImage) {
-          this.router.navigate(['/scan']);
-        } else {
-          this.api.startDiscussion(currentImage).subscribe((ret: any) => {
-            const item_key = ret.item_key;
-            const item_id = ret.item_id;
-            const automatic = ret.automatic;
-            if (automatic) {
-              this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
-            } else {
-              this.router.navigate(['/discuss', item_id], { queryParams: {'key': item_key}, queryParamsHandling: 'merge' });
-            }
-          });
+    const item_id = this.route.snapshot.queryParams['item-id'];
+    if (item_id) {
+      const item_key = this.route.snapshot.queryParams['key'];
+      this.api.fetchItem(item_id, item_key).subscribe((item: any) => {
+        if (item && this.platform.browser()) {
+          this.submitMessage();
         }
-      }
-    });
+      });
+    } else {
+      this.router.navigate(['/'], { queryParamsHandling: 'preserve' });
+    }
   }
 
   addMessage(kind: 'ai' | 'human', text: string) {

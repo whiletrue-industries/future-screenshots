@@ -57,7 +57,7 @@ export class LoaderComponent implements AfterViewInit {
       const item_key = ret?.item_key;
       const item_id = ret?.item_id;
       if (item_key && item_id && this.animationComplete()) {
-        this.router.navigate(['/discuss', item_id], { queryParams: {'key': item_key}, queryParamsHandling: 'merge' });
+        this.router.navigate(['/discuss'], { queryParams: {'item-id': item_id, 'key': item_key}, queryParamsHandling: 'merge' });
       }
     });
   }
