@@ -200,12 +200,18 @@ export class DiscussComponent implements AfterViewInit {
     }
     this.http.get(url, { responseType: 'blob' }).subscribe(
       (blob: Blob) => {
-        const file = new File([blob], 'my-screenshot.png', { type: blob.type });
-        navigator.share({
+        const files = [new File([blob], 'my-screenshot.png', { type: blob.type })];
+        const share: ShareData = {
           title: 'Our Future?',
           text: this.item().future_scenario_tagline || 'Check out this image!',
-          files: [file],
-        });
+        }
+        console.log('share', share);
+        if (navigator.canShare({ files })) {
+          share.files = files;
+        } else {
+          share.url = this.item().screenshot_url;
+        }
+        navigator.share(share);
       });
   }
 }
