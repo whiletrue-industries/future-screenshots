@@ -303,11 +303,6 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
         if (!shape.blurry && this.countDown > 10) {
           this.countDown = 10;
         }
-        if (this.countDown < 10) {
-          this.maskOpacity.set(255 - this.countDown * 25);
-        } else {
-          this.maskOpacity.set(0);
-        }
         if (this.countDown === 0) {
           frame = scanner.extractPaper(this.canvasEl.nativeElement, 1060, 2000, shape.cornerPoints);        
           console.log('Extraction result:', frame);
@@ -328,6 +323,11 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
         }
       } else {
         this.countDown = this.COUNTDOWN_INITIAL;
+      }
+      if (this.countDown < 10) {
+        this.maskOpacity.set(255 - this.countDown * 25);
+      } else {
+        this.maskOpacity.set(0);
       }
     });
   }

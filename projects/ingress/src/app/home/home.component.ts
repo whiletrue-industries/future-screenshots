@@ -19,16 +19,16 @@ export class HomeComponent implements AfterViewInit {
   @ViewChild(MessagesComponent) messagesComponent!: MessagesComponent;
   
   initialInteraction: Message[] = [
-    { kind: 'ai', text: 'Hi there…' },
-    { kind: 'ai', text: 'Have you made a future screenshot you would like to **scan** and add to the map?' },
+    new Message('ai', 'Hi there…'),
+    new Message('ai', 'I’m here to help you **scan** your future screenshot and add it to the map.'),
   ];
-  answer: Message = { kind: 'human', text: 'Yes, Let’s scan!' };
-  tellMore: Message = { kind: 'ai', text: `This is more information bla bla bla.` };
-  secondInteraction: Message = { kind: 'ai', text: `Great!
+  answer: Message = new Message('human', 'Yes, Let’s scan!');
+  tellMore: Message = new Message('ai', `This is more information bla bla bla.`);
+  secondInteraction: Message = new Message('ai', `Great!
 
 But first, please approve the collection, processing, and storage of your screenshot as described in the [Privacy Policy](https://google.com).
 
-I’m also about to ask you for **access to the camera**, and then we can get going….` };
+I’m also about to ask you for **access to the camera**, and then we can get going….`);
 
   inputAnswer = new Subject<string>();
 
@@ -36,7 +36,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
   showScanButton = signal(false);
   showAgreeButton = signal(false);
 
-  sendMessage(message: Message) {
+  addMessage(message: Message) {
     this.messagesComponent.addMessage(message);
   }
 
@@ -65,7 +65,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
           for (let j = 0; j < i + 1; j++) {
             this.initialInteraction[j].part = j !== i;
           }
-          this.sendMessage(this.initialInteraction[i]);
+          this.addMessage(this.initialInteraction[i]);
           return from([]);
         } else {
           this.showMoreButton.set(true);
@@ -73,17 +73,17 @@ I’m also about to ask you for **access to the camera**, and then we can get go
           return this.inputAnswer.pipe(
             tap((answer) => {
               if (answer === 'more') {
-                this.sendMessage(this.tellMore);
+                this.addMessage(this.tellMore);
                 this.showMoreButton.set(false);
               }
             }),
             filter((answer) => answer === 'yes'),
             tap(() => {
-              this.sendMessage(this.answer);
+              this.addMessage(this.answer);
             }),
             delay(1000),
             tap(() => {
-              this.sendMessage(this.secondInteraction);
+              this.addMessage(this.secondInteraction);
               this.showScanButton.set(false);
               this.showMoreButton.set(false);
               this.showAgreeButton.set(true);
