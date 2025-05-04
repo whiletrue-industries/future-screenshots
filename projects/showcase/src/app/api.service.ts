@@ -12,7 +12,7 @@ export class ApiService {
 
   constructor(private http: HttpClient) {
     this._configs.pipe(
-      distinctUntilChanged((a, b) => a?.tag === b?.tag && a?.set === b?.set),
+      distinctUntilChanged((a, b) => a?.tag === b?.tag && a?.set_id === b?.set_id),
     ).subscribe(config => {
       console.log('Config updated:', config);
       this.config.next(config);
