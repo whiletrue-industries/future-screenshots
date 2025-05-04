@@ -127,6 +127,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
   }
 
   ngOnInit() {
+    this.tag = this.tag || this.activatedRoute.snapshot.queryParams['tag'];
     this.api.loadConfig(this.tag);
   }
 
