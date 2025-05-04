@@ -7,6 +7,7 @@ npm run build:ingress  && \
 npm run build:showcase  && \
 mv dist/ingress/browser _dist && \
 mv dist/showcase/browser _dist/show && \
+mkdir _dist/show/pps25 && cp -r dist/showcase/index.html _dist/show/pps25 && \
 (cp CNAME _dist/ || true) && \
 git add _dist && \
 git commit -m dist && \

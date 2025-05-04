@@ -128,6 +128,9 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
 
   ngOnInit() {
     this.tag = this.tag || this.activatedRoute.snapshot.queryParams['tag'];
+    interval(60000).subscribe(() => {
+      this.api.loadConfig(this.tag);
+    });
     this.api.loadConfig(this.tag);
   }
 
@@ -313,7 +316,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
       this.currentZoom.set(map.getZoom());
       this.moveEnded.next();
     });
-    this.tileLayer = new L.TileLayer(`https://storage.googleapis.com/chronomaps3-eu/tiles/${this.tag}/0/{z}/{x}/{y}.png`, {
+    this.tileLayer = new L.TileLayer(`https://storage.googleapis.com/chronomaps3-eu/tiles/${this.tag}/${config.set}/{z}/{x}/{y}.png`, {
         maxZoom: 8,
         minZoom: 2,
         bounds: maxMaxBounds,
