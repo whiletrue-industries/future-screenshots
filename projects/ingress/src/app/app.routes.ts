@@ -31,6 +31,13 @@ export const routes: Routes = [
         }
     },
     {
+        'path': 'timeisnow25',
+        'component': RedirectorComponent,
+        'data': {
+            'redirectTo': '/?workspace=03da8ede-395b-4fd2-b46e-bc2bc7f4035c&api_key=a356977d-219f-4d65-ae18-d8e98280bca1',
+        }
+    },
+    {
         'path': '',
         'component': HomeComponent
     }
