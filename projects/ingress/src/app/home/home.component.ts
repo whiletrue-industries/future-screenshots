@@ -26,7 +26,7 @@ export class HomeComponent implements AfterViewInit {
   tellMore: Message = new Message('ai', `This is more information bla bla bla.`);
   secondInteraction: Message = new Message('ai', `Great!
 
-But first, please approve the collection, processing, and storage of your screenshot as described in the [Privacy Policy](https://google.com).
+But first, please approve the collection, processing, and storage of your screenshot as described in the [Privacy Policy](https://github.com/whiletrue-industries/future-screenshots/blob/main/projects/ingress/src/privacy-policy.md).
 
 I’m also about to ask you for **access to the camera**, and then we can get going….`);
 
