@@ -5,8 +5,7 @@ git checkout -b dist && \
 rm .gitignore && \
 npm run build:ingress  && \
 npm run build:showcase  && \
-mkdir _dist && \
-mv dist/ingress/browser _dist/ && \
+mv dist/ingress/browser _dist && \
 mv dist/showcase/browser _dist/show && \
 (cp CNAME _dist/ || true) && \
 git add _dist && \
