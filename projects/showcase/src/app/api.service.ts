@@ -22,8 +22,9 @@ export class ApiService {
   loadConfig(tag: string) {
     const mainURL = `https://storage.googleapis.com/chronomaps3-eu/tiles/${tag}/config.json`;
     this.http.get(mainURL).pipe(
-      switchMap(config => {
-        const setURL = `https://storage.googleapis.com/chronomaps3-eu/tiles/${tag}/0/config.json`;
+      switchMap((config: any)=> {
+        const set_id = config.set_id || 0;
+        const setURL = `https://storage.googleapis.com/chronomaps3-eu/tiles/${tag}/${set_id}/config.json`;
         return this.http.get(setURL).pipe(
           map(setConfig => {
             const mergedConfig = { ...config, ...setConfig };
