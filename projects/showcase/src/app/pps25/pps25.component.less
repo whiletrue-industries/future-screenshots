@@ -1,0 +1,41 @@
+:host {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    padding: 24px;
+
+    .container {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        position: relative;
+        .map-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            padding-top: 20px;
+            padding-left: 20px;
+            padding-right: 20px;
+            padding-bottom: 252px;
+            overflow: hidden;
+        }
+        .frame {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 1000;
+            top: 0;
+            left: 0;
+            background-image: url(../../../public/pps25-screen-frame.svg);
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+    }
+
+}
