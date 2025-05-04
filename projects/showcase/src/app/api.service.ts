@@ -6,16 +6,15 @@ import { ReplaySubject } from "rxjs";
   providedIn: 'root'
 })
 export class ApiService {
-  URL = 'https://storage.googleapis.com/chronomaps3-eu/tiles/4d2c04b0-51b7-4aa2-a234-0e4be53447de/0/config.json';
 
   config = new ReplaySubject<any>(1);
 
   constructor(private http: HttpClient) {
-    this.loadConfig();
   }
 
-  private loadConfig() {
-    this.http.get(this.URL).subscribe(config => {
+  loadConfig(tag: string) {
+    const URL = `https://storage.googleapis.com/chronomaps3-eu/tiles/${tag}/0/config.json`;
+    this.http.get(URL).subscribe(config => {
       console.log('Config loaded:', config);
       this.config.next(config);
     });

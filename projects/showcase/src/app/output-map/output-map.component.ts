@@ -22,9 +22,10 @@ type MaskItem = {x: number, y: number};
   templateUrl: './output-map.component.html',
   styleUrls: ['./output-map.component.less']
 })
-export class OutputMapComponent {
+export class OutputMapComponent implements OnInit, AfterViewInit {
 
   @Input() clean = true;
+  @Input() tag = '';
   // @Input() grid: Observable<GridItem[]>;
   @ViewChild('mapEl') mapElement: ElementRef;
   @ViewChild('clusterLabelsEl') clusterLabelsElement: ElementRef;
@@ -123,6 +124,14 @@ export class OutputMapComponent {
         this.loop(); 
       }
     });
+  }
+
+  ngOnInit() {
+    this.api.loadConfig(this.tag);
+  }
+
+  ngAfterViewInit() {
+    this.viewInit.set(true);
   }
 
   loop(): void {
@@ -267,10 +276,6 @@ export class OutputMapComponent {
     });
   }
 
-  ngAfterViewInit() {
-    this.viewInit.set(true);
-  }
-
   getMap(config: any) {
     const w = this.w();
     const h = this.h();
@@ -307,7 +312,7 @@ export class OutputMapComponent {
       this.currentZoom.set(map.getZoom());
       this.moveEnded.next();
     });
-    this.tileLayer = new L.TileLayer(`https://storage.googleapis.com/chronomaps3-eu/tiles/4d2c04b0-51b7-4aa2-a234-0e4be53447de/0/{z}/{x}/{y}.png`, {
+    this.tileLayer = new L.TileLayer(`https://storage.googleapis.com/chronomaps3-eu/tiles/${this.tag}/0/{z}/{x}/{y}.png`, {
         maxZoom: 8,
         minZoom: 2,
         bounds: maxMaxBounds,
