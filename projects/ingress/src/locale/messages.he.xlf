@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en-US" datatype="plaintext" original="ng2.template">
+    <body>
+      <trans-unit id="225185942591106089" datatype="html">
+        <source>Yes, Let’s scan!</source>
+        <target state="">כן, בואו נסרוק!</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/home/home.component.html</context>
+          <context context-type="linenumber">4,5</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="512623949609093993" datatype="html">
+        <source>Yes, I agree</source>
+        <target state="">בטח, אין בעיה בכלל</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/home/home.component.html</context>
+          <context context-type="linenumber">10,11</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="2005970641889841406" datatype="html">
+        <source>Hi there…</source>
+        <target state="">הי שם...</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/home/home.component.ts</context>
+          <context context-type="linenumber">22</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="4767332476188972747" datatype="html">
+        <source>I’m here to help you **scan** your future screenshot and add it to the map.</source>
+        <target state="">האם הכנת צילום מסך עתידי כדי לסרוק** ולהעלות למפה**?</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/home/home.component.ts</context>
+          <context context-type="linenumber">23</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="5995049986155292198" datatype="html">
+        <source>Great!
+
+But first, please approve the collection, processing, and storage of your screenshot as described in the [Privacy Policy](https://github.com/whiletrue-industries/future-screenshots/blob/main/projects/ingress/src/privacy-policy.md).
+
+I’m also about to ask you for **access to the camera**, and then we can get going….</source>
+        <target state="">מעולה!
+אבל קודם, **אבקש רשות** לאסוף, לעבד ולאחסן את צילומי המסך בהתאם ל[מדיניות הפרטיות](https://github.com/whiletrue-industries/future-screenshots/blob/main/projects/ingress/src/privacy-policy.md).
+עוד רגע אבקש גם **גישה למצלמה** ונוכל להמשיך משם…</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/home/home.component.ts</context>
+          <context context-type="linenumber">27,31</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="3353693432826716953" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Scan Again</source>
+        <target state="">סריקה חוזרת</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/confirm/confirm.component.html</context>
+          <context context-type="linenumber">12,13</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="921463071525604673" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Looks Good</source>
+        <target state="">נראה טוב</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/confirm/confirm.component.html</context>
+          <context context-type="linenumber">18,19</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="7419704019640008953" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Share</source>
+        <target state="">שיתוף</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/discuss/discuss.component.html</context>
+          <context context-type="linenumber">14,15</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="6928209535035628388" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Add Another</source>
+        <target state="">אוסיף עוד אחד</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/discuss/discuss.component.html</context>
+          <context context-type="linenumber">21,22</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="3099741642167775297" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Download</source>
+        <target state="">הורדה כתמונה</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/discuss/discuss.component.html</context>
+          <context context-type="linenumber">27,28</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="8763211465841977542" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Thinking...</source>
+        <target state="">חושב...</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/discuss/discuss.component.html</context>
+          <context context-type="linenumber">37,38</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="5739735053002293531" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>in your own words...</source>
+        <target state="">במילים שלך...</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/discuss/discuss.component.html</context>
+          <context context-type="linenumber">53,54</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="7393743239484919387" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Our Future?</source>
+        <target state="">העתיד שלנו?</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/discuss/discuss.component.ts</context>
+          <context context-type="linenumber">205</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="9038979569246987154" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Check out this image!</source>
+        <target state="">זה מה שאני דמיינתי</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/discuss/discuss.component.ts</context>
+          <context context-type="linenumber">206</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="1118165592779649506" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Uploading image...</source>
+        <target state="">מעלה קובץ תמונה...</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/loader/loader.component.html</context>
+          <context context-type="linenumber">4,5</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="4408916053694770822" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Analyzing template...</source>
+        <target state="">מנתח את התבנית...</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/loader/loader.component.html</context>
+          <context context-type="linenumber">5,6</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="5031262677315310464" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Deciphering handwriting...</source>
+        <target state="">מפענח את כתב היד...</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/loader/loader.component.html</context>
+          <context context-type="linenumber">6,7</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="8669766856289451191" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Anticipating transition...</source>
+        <target state="">מזהה שינוי...</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/loader/loader.component.html</context>
+          <context context-type="linenumber">7,8</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="3995298380815881001" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>fit the page to the frame</source>
+        <target state="">התאימו את הדף למסגרת</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
+          <context context-type="linenumber">142</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
+          <context context-type="linenumber">158</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="1441240370999158350" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>change your angle</source>
+        <target state="">אולי זווית שונה</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
+          <context context-type="linenumber">168</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
+          <context context-type="linenumber">174</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="4101939369873545738" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>move closer to page</source>
+        <target state="">תתקרבו קצת אל הדף</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
+          <context context-type="linenumber">186</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="2634869837365297121" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>hold still...</source>
+        <target state="">אוקיי, לא לזוז...</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
+          <context context-type="linenumber">301</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="9167839955944290506" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>How do I make one?</source>
+        <target state="">איך יוצרים כזה?</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/home/home.component.html</context>
+          <context context-type="linenumber">7,8</context>
+        </context-group>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>
