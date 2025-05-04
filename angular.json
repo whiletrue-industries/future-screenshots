@@ -45,7 +45,7 @@
             "ssr": {
               "entry": "projects/ingress/src/server.ts"
             },
-            "localize": true
+            "localize": ["he", "en"]
           },
           "configurations": {
             "production": {
@@ -62,6 +62,9 @@
                 }
               ],
               "outputHashing": "all"
+            },
+            "he": {
+              "localize": ["he"]
             },
             "development": {
               "optimization": false,
@@ -113,8 +116,11 @@
         "sourceLocale": "en-US",
         "locales": {
           "he": {
-            "translation": "projects/ingress/src/locale/messages.he.xlf",
-            "subPath": "he"
+            "translation": "projects/ingress/src/locale/messages.he.xlf"
+          },
+          "en": {
+            "translation": "projects/ingress/src/locale/messages.en.xlf",
+            "baseHref": "/"
           }
         }
       }
