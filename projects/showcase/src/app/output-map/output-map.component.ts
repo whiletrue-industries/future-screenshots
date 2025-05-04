@@ -144,7 +144,6 @@ export class OutputMapComponent {
       delay(1000),
       tap((item) => {
         this.maskLayerVisible.set(true);
-        this.clusterLabelsVisible.set(false);
       }),
       delay(3000),
       // Fit item to bounds
@@ -172,6 +171,7 @@ export class OutputMapComponent {
       }),
       // Rotate the map and show the overlay
       tap((item) => {
+        this.clusterLabelsVisible.set(false);
         this.mapTransform.set(`rotate(${item.metadata.rotate}deg)`);
         this.overlayTransform.set(`rotate(0deg)`);
         this.itemImgVisible.set(true);
@@ -215,6 +215,11 @@ export class OutputMapComponent {
         } else {
           className = 'expand-' + className;
         }
+        if (this.mapElement.nativeElement.offsetWidth > this.mapElement.nativeElement.offsetHeight) {
+          className = className + '  h';
+        } else {
+          className = className + '  v';
+        }
         this.coneExpand.set(className);
         this.overlayTransform.set(`rotate(${-item.metadata.rotate}deg)`);
         this.mapTransform.set(`rotate(0deg)`);
@@ -230,6 +235,7 @@ export class OutputMapComponent {
         this.clothespinSelected.set(false);
         this.coneVisible.set(false);
         this.coneExpand.set('');
+        this.clusterLabelsVisible.set(true);
         const duration = 5;
         const frameRate = 33;
         this.map().flyToBounds(this.bounds(), {animate: true, duration: duration, easeLinearity: 1.0 });
@@ -250,7 +256,6 @@ export class OutputMapComponent {
       tap((item) => {
         this.clothespinVisible.set('none');
         this.maskLayerVisible.set(false);
-        this.clusterLabelsVisible.set(true);
       }),
       delay(3000),
       catchError((err) => {

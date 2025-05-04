@@ -12,7 +12,7 @@
         },
         "@schematics/angular:service": {
           "skipTests": true
-        },
+        }
       },
       "root": "projects/ingress",
       "sourceRoot": "projects/ingress/src",
@@ -111,7 +111,8 @@
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
-          "style": "less"
+          "style": "less",
+          "skipTests": true
         }
       },
       "root": "projects/showcase",
