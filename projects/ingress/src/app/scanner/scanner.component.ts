@@ -139,7 +139,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
 
   checkDimensions(cornerPoints: any, videoWidth: number, videoHeight: number): {valid: boolean, snap: boolean} {
     if (!cornerPoints) {
-      this.displayMsg.set('fit the page to the frame');
+      this.displayMsg.set($localize`fit the page to the frame`);
       return {valid: false, snap: false};
     }
     // calculate the top-width and bottom-width, left-height and right-height
@@ -155,7 +155,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     const averageRatio = (topBottomAverage / leftRightAverage) / 0.53;
     if (averageRatio < 0.95 || averageRatio > 1.05) {
       this.msg.set('averageRatio is not in range: ' + averageRatio);
-      this.displayMsg.set("fit the page to the frame");
+      this.displayMsg.set($localize`fit the page to the frame`);
       // console.log('averageRatio is not in range');
       return {valid: false, snap: false};
     }
@@ -165,13 +165,13 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     const leftRightRatio = Math.max(leftHeight, rightHeight) / Math.min(leftHeight, rightHeight);
     if (topBottomRatio > 1.1 || topBottomRatio < 0.9) {
       this.msg.set('topBottomRatio is not in range: ' + topBottomRatio);
-      this.displayMsg.set('change your angle');
+      this.displayMsg.set($localize`change your angle`);
       // console.log('topBottomRatio is not in range');
       return {valid: false, snap: true};
     }
     if (leftRightRatio > 1.1 || leftRightRatio < 0.9) {
       this.msg.set('leftRightRatio is not in range: ' + leftRightRatio);
-      this.displayMsg.set('change your angle');
+      this.displayMsg.set($localize`change your angle`);
       // console.log('leftRightRatio is not in range');
       return {valid: false, snap: true};
     }
@@ -183,7 +183,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       this.msg.set('Neither averageWidth nor averageHeight is above 66% of video dimensions: ' + 
         topBottomAverage + '<0.66*' + videoWidth + ' ' + 
         leftRightAverage + '<0.66*' + videoHeight);
-      this.displayMsg.set('move closer to page');
+      this.displayMsg.set($localize`move closer to page`);
       return {valid: false, snap: true};
     }
     this.msg.set('Dimensions are valid: ' + averageWidth + ' ' + averageHeight);
@@ -298,7 +298,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
         // }
       }
       if (shape?.valid) {
-        this.displayMsg.set('hold still...');
+        this.displayMsg.set($localize`hold still...`);
         this.countDown -= 1;
         if (!shape.blurry && this.countDown > 10) {
           this.countDown = 10;

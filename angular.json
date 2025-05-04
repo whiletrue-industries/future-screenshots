@@ -25,7 +25,8 @@
             "index": "projects/ingress/src/index.html",
             "browser": "projects/ingress/src/main.ts",
             "polyfills": [
-              "zone.js"
+              "zone.js",
+              "@angular/localize/init"
             ],
             "tsConfig": "projects/ingress/tsconfig.app.json",
             "inlineStyleLanguage": "less",
@@ -43,7 +44,8 @@
             "prerender": true,
             "ssr": {
               "entry": "projects/ingress/src/server.ts"
-            }
+            },
+            "localize": true
           },
           "configurations": {
             "production": {
@@ -89,7 +91,8 @@
           "options": {
             "polyfills": [
               "zone.js",
-              "zone.js/testing"
+              "zone.js/testing",
+              "@angular/localize/init"
             ],
             "tsConfig": "projects/ingress/tsconfig.spec.json",
             "inlineStyleLanguage": "less",
@@ -103,6 +106,15 @@
               "projects/ingress/src/styles.less"
             ],
             "scripts": []
+          }
+        }
+      },
+      "i18n": {
+        "sourceLocale": "en-US",
+        "locales": {
+          "he": {
+            "translation": "projects/ingress/src/locale/messages.he.xlf",
+            "subPath": "he"
           }
         }
       }

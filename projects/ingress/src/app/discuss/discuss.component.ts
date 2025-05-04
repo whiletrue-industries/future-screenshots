@@ -202,8 +202,8 @@ export class DiscussComponent implements AfterViewInit {
       (blob: Blob) => {
         const files = [new File([blob], 'my-screenshot.png', { type: blob.type })];
         const share: ShareData = {
-          title: 'Our Future?',
-          text: this.item().future_scenario_tagline || 'Check out this image!',
+          title: $localize`Our Future?`,
+          text: this.item().future_scenario_tagline || $localize`Check out this image!`,
         }
         console.log('share', share);
         if (navigator.canShare({ files })) {

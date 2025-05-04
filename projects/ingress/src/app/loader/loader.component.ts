@@ -42,7 +42,6 @@ export class LoaderComponent implements AfterViewInit {
               const item_id = ret?.item_id;        
               return this.api.sendInitMessageNoStream(item_id, item_key).pipe(
                 tap((status: any) => {
-                  console.log('status', status);
                   this.loaded.set(ret);
                 })
               );
@@ -63,9 +62,7 @@ export class LoaderComponent implements AfterViewInit {
   }
 
   ngAfterViewInit() {
-    console.log('ZZZ');
     this.platform.browser(() => {
-      console.log('ZZZ1');
       this.animationLoop();
     });
   }
@@ -73,10 +70,8 @@ export class LoaderComponent implements AfterViewInit {
   getAnimation(path: string, anim: AnimationItem | null, assetIdxs: any=null): Observable<AnimationItem> {
     const animationContainer = this.animationContainer.nativeElement;
     const itemUrl = this.state.currentImageUrl();
-    console.log('ZZZ2', itemUrl);
     return this.http.get(path, { responseType: 'json' }).pipe(
       switchMap((data: any) => {
-        console.log('ZZZ3', data);
         anim?.destroy();
         if (data.assets) {
           (data.assets as any[]).forEach((asset, idx) => {
@@ -95,7 +90,6 @@ export class LoaderComponent implements AfterViewInit {
           animationData: data,
         });
         newAnim.setSpeed(0.5);
-        console.log('ZZZ5', this.currentMessage());
         this.currentMessage.update((msg) => msg + 1);
         return from(new Promise<AnimationItem>((resolve) => {
           newAnim.addEventListener('loopComplete', () => {

@@ -19,12 +19,12 @@ export class HomeComponent implements AfterViewInit {
   @ViewChild(MessagesComponent) messagesComponent!: MessagesComponent;
   
   initialInteraction: Message[] = [
-    new Message('ai', 'Hi there…'),
-    new Message('ai', 'I’m here to help you **scan** your future screenshot and add it to the map.'),
+    new Message('ai', $localize`Hi there…`),
+    new Message('ai', $localize`I’m here to help you **scan** your future screenshot and add it to the map.`),
   ];
-  answer: Message = new Message('human', 'Yes, Let’s scan!');
+  answer: Message = new Message('human', $localize`Yes, Let’s scan!`);
   tellMore: Message = new Message('ai', `This is more information bla bla bla.`);
-  secondInteraction: Message = new Message('ai', `Great!
+  secondInteraction: Message = new Message('ai', $localize`Great!
 
 But first, please approve the collection, processing, and storage of your screenshot as described in the [Privacy Policy](https://github.com/whiletrue-industries/future-screenshots/blob/main/projects/ingress/src/privacy-policy.md).
 
@@ -68,7 +68,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
           this.addMessage(this.initialInteraction[i]);
           return from([]);
         } else {
-          this.showMoreButton.set(true);
+          // this.showMoreButton.set(true);
           this.showScanButton.set(true);
           return this.inputAnswer.pipe(
             tap((answer) => {

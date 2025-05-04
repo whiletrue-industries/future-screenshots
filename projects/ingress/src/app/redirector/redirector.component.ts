@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { PlatformService } from '../../../platform.service';
 
 @Component({
   selector: 'app-redirector',
@@ -9,14 +10,16 @@ import { ActivatedRoute, Router } from '@angular/router';
 })
 export class RedirectorComponent {
 
-  constructor(private route: ActivatedRoute, private router: Router) {
-    console.log('Redirecting to:', this.route.snapshot.data);
-    const redirectTo = this.route.snapshot.data['redirectTo'];
-    console.log('Redirecting to:', redirectTo);
-    if (redirectTo) {
-      this.router.navigateByUrl(redirectTo, { replaceUrl: true });
-    } else {
-      this.router.navigate(['/']);
-    }
+  constructor(private route: ActivatedRoute, private router: Router, private platform: PlatformService) {
+    this.platform.browser(() => {
+      console.log('Redirecting to:', this.route.snapshot.data);
+      const redirectTo = this.route.snapshot.data['redirectTo'];
+      console.log('Redirecting to:', redirectTo);
+      if (redirectTo) {
+        window.location.href = redirectTo;
+      } else {
+        this.router.navigate(['/']);
+      }
+    });
   }
 }
