@@ -8,13 +8,15 @@ import { Message, MessagesComponent } from '../messages/messages.component';
 import { from, fromEvent, switchMap, take } from 'rxjs';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { HttpClient } from '@angular/common/http';
+import { LtrDirective } from '../ltr.directive';
 
 @Component({
   standalone: true,
   imports: [
     FormsModule,
     MessagesComponent,
-    RouterLink
+    RouterLink,
+    LtrDirective
   ],
   templateUrl: './discuss.component.html',
   styleUrl: './discuss.component.less'

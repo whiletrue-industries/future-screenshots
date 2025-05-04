@@ -7,10 +7,13 @@ import { default as lottie, AnimationItem } from 'lottie-web';
 import { from, Observable, switchMap, tap, timer } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { get } from 'http';
+import { LtrDirective } from '../ltr.directive';
 
 @Component({
   selector: 'app-loader',
-  imports: [],
+  imports: [
+    LtrDirective
+  ],
   templateUrl: './loader.component.html',
   styleUrl: './loader.component.less'
 })

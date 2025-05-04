@@ -24,9 +24,9 @@ export class AppComponent {
       try {
         const orientation: any = window.screen.orientation;
         if (screen && orientation?.lock) {
-          orientation?.lock('portrait').then(() => {
-            console.log('Screen orientation locked to portrait');
-          });
+          // orientation?.lock('portrait').then(() => {
+          //   console.log('Screen orientation locked to portrait');
+          // });
         }          
       } catch (e) {
         console.error('Error locking screen orientation', e);

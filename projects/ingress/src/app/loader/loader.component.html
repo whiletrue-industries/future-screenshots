@@ -1,6 +1,6 @@
 <div class='animation' #animationContainer>
 </div>
-<div class='messages'>
+<div class='messages' ltr>
     <div class='message' [class.before]='currentMessage() < 0' [class.after]='currentMessage() > 0' i18n>Uploading image...</div>
     <div class='message' [class.before]='currentMessage() < 1' [class.after]='currentMessage() > 1' i18n>Analyzing template...</div>
     <div class='message' [class.before]='currentMessage() < 2' [class.after]='currentMessage() > 2' i18n>Deciphering handwriting...</div>

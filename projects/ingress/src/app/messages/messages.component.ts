@@ -2,6 +2,7 @@ import { Component, computed, effect, ElementRef, Input, signal, ViewChild, Writ
 import { marked } from 'marked';
 import { debounceTime, Subject, timer } from 'rxjs';
 import { PlatformService } from '../../../platform.service';
+import { LtrDirective } from '../ltr.directive';
 
 export class Message {
 
@@ -21,7 +22,9 @@ export class Message {
 
 @Component({
   selector: 'app-messages',
-  imports: [],
+  imports: [
+    LtrDirective
+  ],
   templateUrl: './messages.component.html',
   styleUrl: './messages.component.less'
 })

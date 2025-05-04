@@ -4,12 +4,14 @@ import { ApiService } from '../../../api.service';
 import { Message, MessagesComponent } from "../messages/messages.component";
 import { delay, filter, from, interval, Subject, switchMap, take, tap, timer } from 'rxjs';
 import { PlatformService } from '../../../platform.service';
+import { LtrDirective } from '../ltr.directive';
 
 @Component({
   selector: 'app-home',
   imports: [
     RouterLink,
-    MessagesComponent
+    MessagesComponent,
+    LtrDirective
 ],
   templateUrl: './home.component.html',
   styleUrl: './home.component.less'

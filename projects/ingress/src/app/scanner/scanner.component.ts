@@ -5,6 +5,7 @@ import { filter, interval, map, Subject, take, takeUntil, timer } from 'rxjs';
 import { ApiService } from '../../../api.service';
 import { PlatformService } from '../../../platform.service';
 import { StateService } from '../../../state.service';
+import { LtrDirective } from '../ltr.directive';
 
 declare const jscanify: any;
 declare const cv: any;
@@ -19,7 +20,9 @@ type CornerPoints = {
 
 @Component({
   selector: 'app-scanner',
-  imports: [],
+  imports: [
+    LtrDirective
+  ],
   templateUrl: './scanner.component.html',
   styleUrl: './scanner.component.less'
 })

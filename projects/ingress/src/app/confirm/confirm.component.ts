@@ -2,11 +2,13 @@ import { Component } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { StateService } from '../../../state.service';
 import { ApiService } from '../../../api.service';
+import { LtrDirective } from '../ltr.directive';
 
 @Component({
   selector: 'app-confirm',
   imports: [
-    RouterLink
+    RouterLink,
+    LtrDirective
   ],
   templateUrl: './confirm.component.html',
   styleUrl: './confirm.component.less'

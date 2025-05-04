@@ -28,7 +28,7 @@
       </trans-unit>
       <trans-unit id="4767332476188972747" datatype="html">
         <source>I’m here to help you **scan** your future screenshot and add it to the map.</source>
-        <target state="">האם הכנת צילום מסך עתידי כדי לסרוק** ולהעלות למפה**?</target>
+        <target state="">האם הכנת צילום מסך עתידי כדי **לסרוק** ולהעלות למפה?</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/ingress/src/app/home/home.component.ts</context>
           <context context-type="linenumber">23</context>

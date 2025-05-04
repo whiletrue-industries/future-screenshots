@@ -82,6 +82,9 @@
             },
             "development": {
               "buildTarget": "ingress:build:development"
+            },
+            "he": {
+              "buildTarget": "ingress:build:he"
             }
           },
           "defaultConfiguration": "development"
