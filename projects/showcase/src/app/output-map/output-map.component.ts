@@ -316,7 +316,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
       this.currentZoom.set(map.getZoom());
       this.moveEnded.next();
     });
-    this.tileLayer = new L.TileLayer(`https://storage.googleapis.com/chronomaps3-eu/tiles/${this.tag}/${config.set}/{z}/{x}/{y}.png`, {
+    this.tileLayer = new L.TileLayer(`https://storage.googleapis.com/chronomaps3-eu/tiles/${this.tag}/${config.set_id}/{z}/{x}/{y}.png`, {
         maxZoom: 8,
         minZoom: 2,
         bounds: maxMaxBounds,
