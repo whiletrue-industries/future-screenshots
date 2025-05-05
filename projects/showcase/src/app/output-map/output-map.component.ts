@@ -101,9 +101,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
   
   constructor(private api: ApiService, private platform: PlatformService, private activatedRoute: ActivatedRoute) {
     activatedRoute.queryParams.subscribe((params: { [x: string]: string; }) => {
-      if (params['lang']) {
-        this.lang.set(params['lang']);
-      }
+      this.setLanguage();
     });
     this.api.config.pipe(
       filter(config => !!config),
@@ -138,8 +136,26 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
     }
   }
 
+  setLanguage(lang?: string) {
+    const options = [this.activatedRoute.snapshot.queryParams['lang'], lang, this.language, 'english'];
+    const cluster = this.config()?.clusters?.[0]?.title;
+    if (cluster) {
+      for (let option of options) {
+        if (option) {
+          option = option.toLowerCase();
+          if (cluster[option]) {
+            this.lang.set(option);
+            return;
+          }
+        }
+      }
+    }
+    this.lang.set(options[options.length - 1]);
+  }
+
   ngAfterViewInit() {
     this.viewInit.set(true);
+    this.setLanguage();
   }
 
   loop(): void {
@@ -253,6 +269,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
         this.coneVisible.set(false);
         this.coneExpand.set('');
         this.clusterLabelsVisible.set(true);
+        this.setLanguage(item.metadata.detected_language);
         const duration = 5;
         const frameRate = 33;
         this.map().flyToBounds(this.bounds(), {animate: true, duration: duration, easeLinearity: 1.0 });

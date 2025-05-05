@@ -38,6 +38,13 @@ export const routes: Routes = [
         }
     },
     {
+        'path': 'radical25',
+        'component': RedirectorComponent,
+        'data': {
+            'redirectTo': '/he/?workspace=3c4496be-258d-4e32-803f-4f2cd67afa15&api_key=51760995-7a38-4f7a-b055-5415239f77de',
+        }
+    },
+    {
         'path': '',
         'component': HomeComponent
     }
