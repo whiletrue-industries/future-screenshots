@@ -26,6 +26,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
 
   @Input() clean = true;
   @Input() tag = '';
+  @Input() language = '';
   // @Input() grid: Observable<GridItem[]>;
   @ViewChild('mapEl') mapElement: ElementRef;
   @ViewChild('clusterLabelsEl') clusterLabelsElement: ElementRef;
@@ -132,6 +133,9 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
       this.api.loadConfig(this.tag);
     });
     this.api.loadConfig(this.tag);
+    if (this.language) {
+      this.lang.set(this.language);
+    }
   }
 
   ngAfterViewInit() {
