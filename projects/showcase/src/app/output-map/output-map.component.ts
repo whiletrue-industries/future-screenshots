@@ -6,6 +6,7 @@ import { ApiService } from '../api.service';
 import * as L from 'leaflet';
 import { ActivatedRoute } from '@angular/router';
 import { AnimationFrameScheduler } from 'rxjs/internal/scheduler/AnimationFrameScheduler';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 // import { type Map } from 'leaflet';
 // import * as _L from 'leaflet';
@@ -105,40 +106,40 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
     });
     this.api.config.pipe(
       filter(config => !!config),
-      take(1)
     ).subscribe((config) => {
       this.config.set(config);
       this.addToQueue();
     });
     effect(() => {
       if (this.viewInit() && this.config() && L) {
-        console.log('GETTING MAP');
-        const map = this.getMap(this.config());
+        console.log('LANG GETTING MAP');
         this.map.update((m) => {
           if (m) {
             m.remove();
           }
+          const map = this.getMap(this.config());
           return map;
         });
         this.loop(); 
       }
     });
+    interval(60000).pipe(
+      takeUntilDestroyed(),
+    ).subscribe(() => {
+      this.api.loadConfig(this.tag);
+    });
   }
 
   ngOnInit() {
     this.tag = this.tag || this.activatedRoute.snapshot.queryParams['tag'];
-    interval(60000).subscribe(() => {
-      this.api.loadConfig(this.tag);
-    });
     this.api.loadConfig(this.tag);
-    if (this.language) {
-      this.lang.set(this.language);
-    }
   }
 
   setLanguage(lang?: string) {
     const options = [this.activatedRoute.snapshot.queryParams['lang'], lang, this.language, 'english'];
     const cluster = this.config()?.clusters?.[0]?.title;
+    console.log('LANG OPTIONS', options);
+    console.log('LANG CLUSTER', cluster);
     if (cluster) {
       for (let option of options) {
         if (option) {
@@ -269,7 +270,8 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
         this.coneVisible.set(false);
         this.coneExpand.set('');
         this.clusterLabelsVisible.set(true);
-        this.setLanguage(item.metadata.detected_language);
+        console.log('LANGUAGE ITEM', item.metadata);
+        this.setLanguage(item.metadata.lang);
         const duration = 5;
         const frameRate = 33;
         this.map().flyToBounds(this.bounds(), {animate: true, duration: duration, easeLinearity: 1.0 });
