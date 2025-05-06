@@ -48,8 +48,10 @@ export class DiscussComponent implements AfterViewInit {
     return -sign * ((100 - plausibility) / 100 * 32);
   });
   imageTransform = computed(() => {
-    const translate = this.small() ? 'translate(0,0)' :'translate(-50%, 50%)';
-    return `${translate}rotate(${this.imageRotation()}deg)`;
+    const translate = this.completed() ?
+      `translate(-50%, calc(100% + 50vh - ${this.messagesComponent.spacerHeight()}px))rotate(${this.imageRotation()}deg)` :
+      (this.small() ? 'translate(0,0)' :'translate(-50%, 50%)');
+    return translate;
   });
 
   // State
@@ -163,7 +165,7 @@ export class DiscussComponent implements AfterViewInit {
         });
         console.log('thinking done...');
         this.thinking.set(false);
-      } else if (ret.kind === 'status') {
+      } else if (ret.kind === 'status' && ret.status) {
         this.thinking.set(false);
         this.inputDisabled.set(false);
         if (this.reply()) {

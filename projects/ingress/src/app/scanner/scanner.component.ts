@@ -179,8 +179,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       return {valid: false, snap: true};
     }
     // ensure that at least one of averageWidth and averageHeight is more than 66% of the video width and height    
-    const averageWidth = (topBottomAverage > 0.66 * videoWidth);
-    const averageHeight = (leftRightAverage > 0.66 * videoHeight);
+    const averageWidth = (topBottomAverage > 0.5 * videoWidth);
+    const averageHeight = (leftRightAverage > 0.5 * videoHeight);
     if (!averageWidth && !averageHeight) {
       // console.log('Neither averageWidth nor averageHeight is above 66% of video dimensions');
       this.msg.set('Neither averageWidth nor averageHeight is above 66% of video dimensions: ' + 
