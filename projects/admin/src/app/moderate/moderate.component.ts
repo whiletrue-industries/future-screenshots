@@ -20,7 +20,7 @@ export type Filter = {
 export class ModerateComponent {
 
   FILTERS = [
-    {name: 'all approved', filter:'metadata._private_moderation == 4'},
+    {name: 'approved', filter:'metadata._private_moderation == 4'},
     {name: 'not-flagged', filter:'metadata._private_moderation == 3'},
     {name: 'pending', filter:'metadata._private_moderation == 2'},
     {name: 'flagged', filter:'metadata._private_moderation == 1'},
