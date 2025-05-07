@@ -25,6 +25,13 @@
         <div class='item'>
             <img [src]='item.screenshot_url'>
             <div class='tagline'>{{ item.future_scenario_tagline }}</div>
+            <div class='status'>
+                @if (item._private_moderation >= 0) {
+                    <div class='status-text'>{{ LEVELS[item._private_moderation] }}</div>
+                } @else {
+                    <div class='status-text'>no moderation status</div>
+                }
+            </div>
             <div class='buttons'>
                 <div class='button-row'>
                     <button class='button' (click)="approve(item._id)">Approve</button>

@@ -25,6 +25,7 @@ export class ModerateComponent {
     {name: 'pending', filter:'metadata._private_moderation == 2'},
     {name: 'flagged', filter:'metadata._private_moderation == 1'},
     {name: 'rejected', filter:'metadata._private_moderation == 0'},
+    {name: 'all', filter:''},
   ];
   
   workspaceId = signal<string | null>(null);
@@ -55,6 +56,9 @@ export class ModerateComponent {
       console.log('page', page, 'filter', currentFilter.filter, 'workspaceId', workspaceId, 'apiKey', apiKey);
       if (workspaceId && apiKey) {
         this.api.getItems(workspaceId, apiKey, page, currentFilter.filter).subscribe(data => {
+          data.forEach((item: any) => {
+            item.screenshot_url = this.fix_url(item.screenshot_url);
+          });
           this.items.set(data);
         });
       }
@@ -98,5 +102,10 @@ export class ModerateComponent {
   
   get _filter(): number {
     return this.FILTERS.indexOf(this.filter());
+  }
+
+  fix_url(url: string) {
+    url = url.replace('https://storage.googleapis.com/chronomaps3.firebasestorage.app/', 'https://storage.googleapis.com/chronomaps3-eu/');
+    return url;
   }
 }

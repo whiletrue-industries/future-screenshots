@@ -42,6 +42,7 @@
             flex: 0 0 auto;
             display: flex;
             flex-direction: column;
+            // align-items: center;
             gap: 8px;
             padding: 8px;
             border: 1px solid #ccc;
@@ -54,9 +55,17 @@
                 border: 1px solid @color-purple;
             }
     
+            .status {
+                font-size: 12px;
+                font-weight: 300;
+                text-align: center;
+                color: @color-purple;
+            }
+
             .tagline {
                 font-weight: 700;
                 text-align: center;
+                min-height: 50px;
             }
         }
     }
