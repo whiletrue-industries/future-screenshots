@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { catchError, Observable, of } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -11,7 +11,15 @@ export class ApiService {
 
   constructor(private http: HttpClient) { }
 
-  getItems(workspace: string, api_key: string, page: number, filters: string | null): Observable<any[]> {
+  getWorkspace(workspace: string, api_key: string): Observable<any> {
+    return this.http.get<any>(`${this.CHRONOMAPS_API_URL}/${workspace}`, {
+      headers: {
+        'Authorization': `${api_key}`
+      }
+    });
+  }
+
+  getItems(workspace: string, api_key: string, page: number, filters: string | null): Observable<any> {
     let params: any = {
       page: page,
       page_size: 50,
@@ -24,7 +32,12 @@ export class ApiService {
       headers: {
         'Authorization': `${api_key}`
       }
-    });
+    }).pipe(
+      catchError((error) => {
+        console.error('Error fetching items:', error.error);
+        return of(error.error); // Return null or handle the error as needed
+      })
+    );
   }
 
   updateItem(workspace: string, api_key: string, itemId: string, moderation: number): Observable<any> {

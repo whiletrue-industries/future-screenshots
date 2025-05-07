@@ -20,6 +20,7 @@ export type Filter = {
 export class ModerateComponent {
 
   FILTERS = [
+    {name: 'highlighted', filter:'metadata._private_moderation == 5'},
     {name: 'approved', filter:'metadata._private_moderation == 4'},
     {name: 'not-flagged', filter:'metadata._private_moderation == 3'},
     {name: 'pending', filter:'metadata._private_moderation == 2'},
@@ -29,11 +30,13 @@ export class ModerateComponent {
   ];
   
   workspaceId = signal<string | null>(null);
+  workspace = signal<any>({});
   apiKey = signal<string | null>(null);
   page = signal<number>(0);
-  filter = signal<Filter>(this.FILTERS[1]);
+  filter = signal<Filter>(this.FILTERS[this.FILTERS.length - 1]);
 
   items = signal<any[]>([]);
+  indexLink = signal<string | null>(null);
 
   LEVELS = [
     'banned',
@@ -41,6 +44,7 @@ export class ModerateComponent {
     'pending',
     'not-flagged',
     'approved',
+    'highlighted',
   ];
 
   constructor(private route: ActivatedRoute, private api: ApiService) {
@@ -55,11 +59,26 @@ export class ModerateComponent {
       const page = this.page();
       console.log('page', page, 'filter', currentFilter.filter, 'workspaceId', workspaceId, 'apiKey', apiKey);
       if (workspaceId && apiKey) {
-        this.api.getItems(workspaceId, apiKey, page, currentFilter.filter).subscribe(data => {
-          data.forEach((item: any) => {
-            item.screenshot_url = this.fix_url(item.screenshot_url);
-          });
-          this.items.set(data);
+        this.api.getItems(workspaceId, apiKey, page, currentFilter.filter).subscribe((data: any) => {
+          if (data['index-required']) {
+            this.indexLink.set(data['index-required'] || null);
+            this.items.set([]);
+          } else {
+            this.indexLink.set(null);
+            data.forEach((item: any) => {
+              item.screenshot_url = this.fix_url(item.screenshot_url);
+            });
+            this.items.set(data);
+          }
+        });
+      }
+    });
+    effect(() => {
+      const workspaceId = this.workspaceId();
+      const apiKey = this.apiKey();
+      if (workspaceId && apiKey) {
+        this.api.getWorkspace(workspaceId, apiKey).subscribe((data: any) => {
+          this.workspace.set(data);
         });
       }
     });
@@ -88,6 +107,20 @@ export class ModerateComponent {
     if (workspaceId && apiKey) {
       this.api.updateItem(workspaceId, apiKey, itemId, 4).subscribe(data => {
         console.log('item approved', data);
+        this.items.set(this.items().filter(item => item._id !== itemId));
+      }
+      );
+    } else {
+      console.error('workspaceId or apiKey is null');
+    }
+  }  
+  
+  highlight(itemId: string) {
+    const workspaceId = this.workspaceId();
+    const apiKey = this.apiKey();
+    if (workspaceId && apiKey) {
+      this.api.updateItem(workspaceId, apiKey, itemId, 5).subscribe(data => {
+        console.log('item highlighted', data);
         this.items.set(this.items().filter(item => item._id !== itemId));
       }
       );

@@ -1,3 +1,4 @@
+<h1>{{workspace()?.source}}</h1>
 <div class='creds'>
     <div class='input'>
         <label>Workspace ID</label>
@@ -20,24 +21,34 @@
         }
     </select>
 </div>
-<div class='items'>
-    @for (item of items(); track item._id) {
-        <div class='item'>
-            <img [src]='item.screenshot_url'>
-            <div class='tagline'>{{ item.future_scenario_tagline }}</div>
-            <div class='status'>
-                @if (item._private_moderation >= 0) {
-                    <div class='status-text'>{{ LEVELS[item._private_moderation] }}</div>
-                } @else {
-                    <div class='status-text'>no moderation status</div>
-                }
-            </div>
-            <div class='buttons'>
-                <div class='button-row'>
-                    <button class='button' (click)="approve(item._id)">Approve</button>
-                    <button class='button' (click)="reject(item._id)">Reject</button>    
+@if (indexLink()) {
+    <div class='index-link'>
+        <a [href]='indexLink()' target='_blank'>Index creation needed</a>
+    </div>
+} @else {
+    <div class='items'>
+        @for (item of items(); track item._id) {
+            <div class='item'>
+                <img [src]='item.screenshot_url'>
+                <div class='tagline'>{{ item.future_scenario_tagline }}</div>
+                <div class='status'>
+                    @if (item._private_moderation >= 0) {
+                        <div class='status-text'>{{ LEVELS[item._private_moderation] }}</div>
+                    } @else {
+                        <div class='status-text'>no moderation status</div>
+                    }
+                    <div class='status-text'>{{item.created_at.slice(0,19)}}</div>
+                    <div class='status-text'>content certainty: {{item.content_certainty}}</div>
+                    <div class='status-text'>transition certainty: {{item.transition_bar_certainty}}</div>
+                </div>
+                <div class='buttons'>
+                    <div class='button-row'>
+                        <button class='button' (click)="reject(item._id)">NO</button>    
+                        <button class='button' (click)="approve(item._id)">YES</button>
+                        <button class='button' (click)="highlight(item._id)">LIKE</button>
+                    </div>
                 </div>
             </div>
-        </div>
-    }
-</div>
+        }
+    </div>    
+}
