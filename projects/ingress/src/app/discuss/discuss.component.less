@@ -88,7 +88,7 @@
             overflow: hidden;
             display: flex;
         }
-    
+
         .input {
             flex: 0 0 auto;
             border-radius: 16px 16px 0px 0px;
@@ -131,6 +131,10 @@
             .input-el:not(:placeholder-shown) + .submit {
                 display: block;
             }
+        }
+
+        &.completed {
+            z-index: 1;
         }
     }
 }

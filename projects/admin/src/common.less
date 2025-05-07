@@ -1,0 +1,78 @@
+.font-sans {
+    font-family: "Source Sans 3", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+}
+    
+@color-beige: #F5F0E7;
+@color-purple: #4E02B2;
+@color-light-purple: #B969FF;
+@color-dark-pink: #E7CBFF;
+@color-pink: #F1E5F3;
+@color-light-pink: #FBF5F6;
+@color-prefer: #698CFF;
+@color-prevent: #F73C3C;
+
+@color-gray: #9B90AA;
+
+@color-message-bg-ai: rgba(238, 219, 255, 0.50);
+@color-message-bg-human: @color-purple;
+@color-message-ai: #4E02B2;
+@color-message-human: #FFFFFF;
+
+.buttons {
+    width: 100%;
+    display: flex;
+    flex-flow: column;
+    padding: 8px 0;
+    gap: 4px;
+
+    .button-row {
+        width: 100%;
+        display: flex;
+        flex-flow: row;
+        flex-wrap: nowrap;
+        gap: 8px;
+        
+        & > .button {
+            flex: 1 1 auto;
+        }
+    }
+
+    .button {
+        height: 32px;
+        padding: 0px 8px;
+        display: flex;
+        flex-flow: row;
+        gap: 4px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 16px;
+        leading-trim: both;        
+        text-edge: cap;
+        .font-sans;
+        font-size: 16px;
+        line-height: normal;
+        text-transform: uppercase;
+        font-weight: 400;
+
+        border: 1px solid fade(@color-purple, 50%);
+        background: @color-light-pink;
+        color: @color-purple;
+
+        cursor: pointer;
+
+        &.primary {
+            border: 1px solid @color-purple;
+            background: @color-pink;
+            font-weight: 700;
+        }
+    }
+
+    a {
+        text-decoration: none;
+        color: inherit;
+        cursor: pointer;
+    }
+}

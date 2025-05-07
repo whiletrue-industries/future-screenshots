@@ -74,7 +74,6 @@ export class DiscussComponent implements AfterViewInit {
     return !this.small() && this.visible();
   });
 
-
   @ViewChild(MessagesComponent) messagesComponent!: MessagesComponent;
   @ViewChild('image') imageEl!: ElementRef<HTMLImageElement>;
 
@@ -82,6 +81,15 @@ export class DiscussComponent implements AfterViewInit {
       private platform: PlatformService, private sanitizer: DomSanitizer, private http: HttpClient) {
     this.api.updateFromRoute(this.route.snapshot);
     this.item_id.set(this.route.snapshot.queryParams['item-id']);
+    effect(() => {
+      if (this.completed()) {
+        this.refreshItem();
+      }
+    });
+  }
+
+  ngAfterViewInit(): void {
+    this.messages = this.messagesComponent.messages;
     const item_id = this.item_id();
     if (item_id) {
       this.item_key.set(this.route.snapshot.queryParams['key']);
@@ -98,15 +106,6 @@ export class DiscussComponent implements AfterViewInit {
     } else {
       this.router.navigate(['/'], { queryParamsHandling: 'preserve' });
     }
-    effect(() => {
-      if (this.completed()) {
-        this.refreshItem();
-      }
-    });
-  }
-
-  ngAfterViewInit(): void {
-      this.messages = this.messagesComponent.messages;
   }
 
   refreshItem() {

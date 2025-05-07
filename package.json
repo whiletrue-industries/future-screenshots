@@ -7,6 +7,7 @@
     "build": "ng build",
     "build:ingress": "ng build ingress --base-href=/",
     "build:showcase": "ng build showcase --base-href=/show/",
+    "build:admin": "ng build admin --base-href=/admin/",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "serve:ssr:ingress": "node dist/ingress/server/server.mjs",

@@ -1,0 +1,36 @@
+<div class='creds'>
+    <div class='input'>
+        <label>Workspace ID</label>
+        <input type='text' [(ngModel)]='workspaceId' placeholder='workspaceId'>
+    </div>
+    <div class='input'>
+        <label>API Key</label>
+        <input type='text' [(ngModel)]='apiKey' placeholder='apiKey'>
+    </div>
+</div>
+<div class='pager'>
+    <button [disabled]='page() === 0' (click)='page.set(page() - 1)'>Prev Page</button>
+    <div class='page-number'>Page {{ page() + 1 }}</div>
+    <button [disabled]='!items().length' (click)='page.set(page() + 1)'>Next Page</button> 
+</div>
+<div class='filters'>
+    <select class='filter' [(ngModel)]='_filter'>
+        @for (f of FILTERS; track $index) {
+            <option [value]='$index'>{{ f.name }}</option>
+        }
+    </select>
+</div>
+<div class='items'>
+    @for (item of items(); track item._id) {
+        <div class='item'>
+            <img [src]='item.screenshot_url'>
+            <div class='tagline'>{{ item.future_scenario_tagline }}</div>
+            <div class='buttons'>
+                <div class='button-row'>
+                    <button class='button' (click)="approve(item._id)">Approve</button>
+                    <button class='button' (click)="reject(item._id)">Reject</button>    
+                </div>
+            </div>
+        </div>
+    }
+</div>

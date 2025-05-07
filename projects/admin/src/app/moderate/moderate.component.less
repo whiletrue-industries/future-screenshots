@@ -1,0 +1,63 @@
+@import '../../common.less';
+
+:host {
+    display: flex;
+    flex-flow: column;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    
+    .creds {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        gap: 16px;
+        width: 100%;
+    
+        .input {
+            display: flex;
+            flex-flow: column;
+            align-items: flex-start;
+            width: 40%;
+            input {
+                width: 100%;
+            }
+        }
+    }
+    
+    .pager {
+        display: flex;
+        flex-flow: row;
+        align-items: flex-start;
+        gap: 16px;
+    }
+    
+    .items {
+        display: flex;
+        flex-flow: row wrap;
+        gap: 16px;
+    
+        .item {
+            width: 250px;
+            flex: 0 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            .font-sans;
+    
+            img {
+                border: 1px solid @color-purple;
+            }
+    
+            .tagline {
+                font-weight: 700;
+                text-align: center;
+            }
+        }
+    }
+}

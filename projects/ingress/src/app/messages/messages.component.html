@@ -1,9 +1,11 @@
-<div class='messages' #messagesEl>
+<div class='messages' #messagesEl [class.bg]='bg'>
     @for (message of messages(); track $index) {
         <div class='message' [class.human]="message.kind === 'human'" [class.ai]="message.kind === 'ai'" [class.part]="message.part" ltr>
             <span class='message-text' [innerHTML]="message._()"></span>
         </div>
     }
     <ng-content></ng-content>
-    <div class='spacer' #spacer [style.height.px]='spacerHeight()'></div>
+    <div class='spacer' #spacer [style.height.px]='spacerHeight()'>
+        <div class='thinking-animation' [class.visible]='thinking' #thinkingEl></div>
+    </div>
 </div>

@@ -1,15 +1,17 @@
-import { Component, computed, effect, ElementRef, Input, signal, ViewChild, WritableSignal } from '@angular/core';
+import { AfterViewInit, Component, computed, effect, ElementRef, Input, OnDestroy, signal, ViewChild, WritableSignal } from '@angular/core';
 import { marked } from 'marked';
 import { debounceTime, fromEvent, Subject, timer } from 'rxjs';
 import { PlatformService } from '../../../platform.service';
 import { LtrDirective } from '../ltr.directive';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { default as lottie, AnimationItem } from 'lottie-web';
 
 export class Message {
 
   _text = signal<string>('');
   _ = computed(() => {
-    return marked(this._text());
+    let text = this._text();
+    return marked(text);
   });
   
   constructor(public kind: 'human' | 'ai', public text: string, public part?: boolean) {
@@ -29,7 +31,10 @@ export class Message {
   templateUrl: './messages.component.html',
   styleUrl: './messages.component.less'
 })
-export class MessagesComponent {
+export class MessagesComponent implements AfterViewInit, OnDestroy {
+
+  @Input() bg = false;
+  @Input() thinking = false;
 
   messages = signal<Message[]>([]);
   @ViewChild('messagesEl') messagesEl!: ElementRef;
@@ -37,6 +42,9 @@ export class MessagesComponent {
   scroller = new Subject<() => void>();
 
   spacerHeight = signal(0);
+
+  loadingAnim: AnimationItem;
+  @ViewChild('thinkingEl') thinkingEl!: ElementRef<HTMLDivElement>;
 
   _ = marked;
 
@@ -63,6 +71,22 @@ export class MessagesComponent {
     });
   }
 
+  ngAfterViewInit(): void {
+    this.platform.browser(() => {
+      this.loadingAnim = lottie.loadAnimation({
+        container: this.thinkingEl.nativeElement, // the dom element that will contain the animation
+        renderer: 'svg',
+        loop: true,
+        autoplay: true,
+        path: '/thinking.json' // the path to the animation json
+      });
+    });
+  }
+
+  ngOnDestroy() {
+    this.loadingAnim?.destroy();
+  }
+
   clear() {
     this.messages.update(() => []);
     this.messagesEl.nativeElement.scrollTop = 0;
@@ -79,6 +103,9 @@ export class MessagesComponent {
       const elements = messagesEl.querySelectorAll('.message');
       if (elements.length > 0) {
         const element = elements[messages.length - 1];
+        if (!element) {
+          return;
+        }
         const boundingRect = element.getBoundingClientRect();
         let spacerSize = messagesEl.offsetHeight - boundingRect.height - 48;
         if (spacerSize < 1) {
