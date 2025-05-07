@@ -56,6 +56,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
   clothespinSelected = signal(false);
   coneVisible = signal(false);
   coneExpand = signal('')
+  selectedLabel = signal(-1);
 
   // Mask
   maskAmount = signal(20);
@@ -273,7 +274,8 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
       delay(8000),
       // Zoom cone in based on potential, rotate the overlay
       tap((item) => {
-        let className = '-' + Math.abs(Math.round(item.metadata.rotate / 8));
+        this.selectedLabel.set(Math.round(item.metadata.rotate / 8));
+        let className = '-' + Math.abs(this.selectedLabel());
         if (item.metadata.rotate > 0) {
           className = 'expand-p' + className;
         } else if (item.metadata.rotate < 0) {

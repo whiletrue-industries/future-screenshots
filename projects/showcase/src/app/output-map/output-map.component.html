@@ -5,33 +5,14 @@
             <g transform="translate(0,0)">
                 <rect [attr.x]='0' [attr.y]='0' [attr.width]='w()' [attr.height]='h()' fill='#fffdf6' opacity='0.5'></rect>
                 @for (cluster of config().clusters; track $index) {
-                    <!-- <path [attr.id]="'cluster-' + cluster.id" [attr.d]="
-                        'M' + (cluster.x - cluster.w / 2) + ' ' + (cluster.y) +
-                        ' C' + (cluster.x) + ' ' + (cluster.y + cluster.w * (cluster.y - h()/2) / h() / 3) +
-                        ' ' + (cluster.x) + ' ' + (cluster.y + cluster.w * (cluster.y - h()/2) / h() / 3) +
-                        ' ' + (cluster.x + cluster.w / 2) + ' ' + (cluster.y)"
-                        fill='none' stroke='none' stroke-width='0'>
-                    </path> -->
-
                     <g [attr.transform]='"translate(" + cluster.x + "," + cluster.y + ")"'  [class.positive]='cluster.average_rotation <= 0' [class.negative]='cluster.average_rotation > 0'>
                         <g [style.transform]='"rotate(" + (-cluster.average_rotation*2) + "deg)"'>
                         
-                        <!-- text-anchor="middle" alignment-baseline="middle"  -->
-
-                        <path [attr.id]="'cluster-' + $index" [attr.d]="
-                            'M' + (- cluster.w / 3) + ' ' + (0) +
-                            ' C' + (0) + ' ' + (cluster.w * (cluster.y - h()/2) / h() / 4) +
-                            ' ' + (0) + ' ' + (cluster.w * (cluster.y - h()/2) / h() / 4) +
-                            ' ' + (cluster.w / 3) + ' ' + (0)"
-                            fill='none' stroke='none' stroke-width='0'>
-                        </path>
                         <text x='0' y='0' 
                             [attr.font-size]="cluster.fontSize[lang()]"
+                            text-anchor="middle" alignment-baseline="middle"
                         >
-                            <textPath [attr.href]="'#cluster-' + $index" method='stretch' lengthAdjust="spacing" 
-                                      [attr.textLength]="cluster.w*0.66" side='left' spacing='auto'>
-                                {{ cluster.title[lang()] }}
-                            </textPath>
+                            {{ cluster.title[lang()] }}
                         </text>
                     </g></g>
                 }
@@ -61,40 +42,40 @@
                     <g transform='translate(0,500)'>
                         <g class='probable preferred cone-line' transform-origin="150 0">
                             <path class='line' d="M150 0 L850 0" stroke='#698CFF' stroke-width="1"></path>
-                            <text class='label' x='850' y='0' dy="6" dx='16' fill='#698CFF' font-size="24">Probable</text>
+                            <text class='label' x='850' y='0' dy="6" dx='16' fill='#698CFF' font-size="24" i18n>Probable</text>
                         </g>
                         <g class='plausible preferred cone-line' transform-origin="150 0">
                             <path class='line' d="M150 0 L850 0" stroke='#698CFF' stroke-width="1"></path>
-                            <text class='label' x='850' y='0' dy="6" dx='16' fill='#698CFF' font-size="24">Plausible</text>
+                            <text class='label' x='850' y='0' dy="6" dx='16' fill='#698CFF' font-size="24" i18n>Plausible</text>
                         </g>
                         <g class='possible preferred cone-line' transform-origin="150 0">
                             <path class='line' d="M150 0 L850 0" stroke='#698CFF' stroke-width="1"></path>
-                            <text class='label' x='850' y='0' dy="6" dx='16' fill='#698CFF' font-size="24">Possible</text>
+                            <text class='label' x='850' y='0' dy="6" dx='16' fill='#698CFF' font-size="24" i18n>Possible</text>
                         </g>
                         <g class='preposterous preferred cone-line' transform-origin="150 0">
                             <path class='line' d="M150 0 L850 0" stroke='#698CFF' stroke-width="1"></path>
-                            <text class='label' x='850' y='0' dy="6" dx='16' fill='#698CFF' font-size="24">Preposterous</text>
+                            <text class='label' x='850' y='0' dy="6" dx='16' fill='#698CFF' font-size="24" i18n>Preposterous</text>
                         </g>
                         <g class='probable prevent cone-line' transform-origin="150 0">
                             <path class='line' d="M150 0 L850 0" stroke='#F73C3C' stroke-width="1"></path>
-                            <text class='label' x='850' y='0' dy="6" dx='16' fill='#F73C3C' font-size="24">Probable</text>
+                            <text class='label' x='850' y='0' dy="6" dx='16' fill='#F73C3C' font-size="24" i18n>Probable</text>
                         </g>                    
                         <g class='plausible prevent cone-line' transform-origin="150 0">
                             <path class='line' d="M150 0 L850 0" stroke='#F73C3C' stroke-width="1"></path>
-                            <text class='label' x='850' y='0' dy="6" dx='16' fill='#F73C3C' font-size="24">Plausible</text>
+                            <text class='label' x='850' y='0' dy="6" dx='16' fill='#F73C3C' font-size="24" i18n>Plausible</text>
                         </g>
                         <g class='possible prevent cone-line' transform-origin="150 0">
                             <path class='line' d="M150 0 L850 0" stroke='#F73C3C' stroke-width="1"></path>
-                            <text class='label' x='850' y='0' dy="6" dx='16' fill='#F73C3C' font-size="24">Possible</text>
+                            <text class='label' x='850' y='0' dy="6" dx='16' fill='#F73C3C' font-size="24" i18n>Possible</text>
                         </g>
                         <g class='preposterous prevent cone-line' transform-origin="150 0">
                             <path class='line' d="M150 0 L850 0" stroke='#F73C3C' stroke-width="1"></path>
-                            <text class='label' x='850' y='0' dy="6" dx='16' fill='#F73C3C' font-size="24">Preposterous</text>
+                            <text class='label' x='850' y='0' dy="6" dx='16' fill='#F73C3C' font-size="24" i18n>Preposterous</text>
                         </g>
                         <g class='projected'>
                             <path class='line' d="M150 0 L850 0" stroke='#8F8F8F' stroke-width="1"></path>
-                            <text class='now' x='150' y='0' dy="6" dx='-16' fill='#8F8F8F' font-size="24" text-anchor='end'>NOW</text>
-                            <text class='label' x='850' y='0' dy="6" dx='16' fill='#8F8F8F' font-size="24" transform='translate(-650,0)'>PROJECTED</text>    
+                            <text class='now' x='150' y='0' dy="6" dx='-16' fill='#8F8F8F' font-size="24" text-anchor='end' i18n>NOW</text>
+                            <text class='label' x='850' y='0' dy="6" dx='16' fill='#8F8F8F' font-size="24" transform='translate(-650,0)' i18n>PROJECTED</text>    
                             <circle class='circle' cx='150' cy='0' r='5' fill='#8F8F8F'></circle>
                         </g>    
                     </g>
@@ -102,9 +83,7 @@
             </svg>
         </div>
     }
-    <div class='clothespin-text prefer' [class.visible]='clothespinTextVisible() === "prefer" || clothespinTextVisible() === "both"'>
-        Prefer
-    </div>
+    <div class='clothespin-text prefer' [class.visible]='clothespinTextVisible() === "prefer" || clothespinTextVisible() === "both"' i18n>Prefer</div>
     <div class='item-image' [style.transform]='overlayTransform()'>
         <img [src]='itemImg()'>
         <div class='clothespin prefer' [class.visible]='clothespinVisible() === "prefer" || clothespinVisible() === "both"' [class.selected]='clothespinSelected()'>
@@ -130,7 +109,5 @@
             </svg>            
         </div>
     </div>
-    <div class='clothespin-text prevent' [class.visible]='clothespinTextVisible() === "prevent" || clothespinTextVisible() === "both"'>
-        Prevent
-    </div>
+    <div class='clothespin-text prevent' [class.visible]='clothespinTextVisible() === "prevent" || clothespinTextVisible() === "both"' i18n>Prevent</div>
 </div>

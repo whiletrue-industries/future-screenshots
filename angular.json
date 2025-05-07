@@ -147,7 +147,8 @@
             "index": "projects/showcase/src/index.html",
             "browser": "projects/showcase/src/main.ts",
             "polyfills": [
-              "zone.js"
+              "zone.js",
+              "@angular/localize/init"
             ],
             "tsConfig": "projects/showcase/tsconfig.app.json",
             "inlineStyleLanguage": "less",
@@ -162,7 +163,8 @@
               "node_modules/leaflet/dist/leaflet.css"
             ],
             "scripts": [],
-            "prerender": false
+            "prerender": false,
+            "localize": ["he", "en"]
           },
           "configurations": {
             "production": {
@@ -179,6 +181,9 @@
                 }
               ],
               "outputHashing": "all"
+            },
+            "he": {
+              "localize": ["he"]
             },
             "development": {
               "optimization": false,
@@ -198,6 +203,9 @@
             },
             "development": {
               "buildTarget": "showcase:build:development"
+            },
+            "he": {
+              "buildTarget": "showcase:build:he"
             }
           },
           "defaultConfiguration": "development"
@@ -210,7 +218,8 @@
           "options": {
             "polyfills": [
               "zone.js",
-              "zone.js/testing"
+              "zone.js/testing",
+              "@angular/localize/init"
             ],
             "tsConfig": "projects/showcase/tsconfig.spec.json",
             "inlineStyleLanguage": "less",
@@ -224,6 +233,18 @@
               "projects/showcase/src/styles.less"
             ],
             "scripts": []
+          }
+        }
+      },
+      "i18n": {
+        "sourceLocale": "en-US",
+        "locales": {
+          "he": {
+            "translation": "projects/showcase/src/locale/messages.he.xlf"
+          },
+          "en": {
+            "translation": "projects/showcase/src/locale/messages.en.xlf",
+            "baseHref": "/"
           }
         }
       }

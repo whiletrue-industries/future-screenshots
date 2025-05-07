@@ -10,7 +10,8 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "serve:ssr:ingress": "node dist/ingress/server/server.mjs",
-    "serve:ssr:showcase": "node dist/showcase/server/server.mjs"
+    "serve:ssr:showcase": "node dist/showcase/server/server.mjs",
+    "serve:ssr:admin": "node dist/admin/server/server.mjs"
   },
   "private": true,
   "dependencies": {
