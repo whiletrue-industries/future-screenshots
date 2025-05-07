@@ -231,7 +231,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
         bounds[1][0] += expand[0];
         bounds[1][1] += expand[1];
         // console.log('BOUNDS POST', JSON.stringify(bounds));
-        this.map().flyToBounds(bounds, {animate: true, duration: 3});
+        this.map().flyToBounds(bounds, {animate: true, duration: 5});
         this.clusterLabelsVisible.set(false);
         this.overlayTransform.set(`rotate(${-item.metadata.rotate}deg)`);
         return this.moveEnded.pipe(take(1), map(() => item));
