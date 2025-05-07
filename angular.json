@@ -241,11 +241,10 @@
         "locales": {
           "he": {
             "translation": "projects/showcase/src/locale/messages.he.xlf",
-            "baseHref": "/show/he"
+            "baseHref": "/he"
           },
           "en": {
             "translation": "projects/showcase/src/locale/messages.en.xlf",
-            "baseHref": "/show"
           }
         }
       }
