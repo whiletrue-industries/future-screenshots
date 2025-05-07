@@ -271,7 +271,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
         this.clothespinTextVisible.set('none');
         this.coneVisible.set(true);
       }),
-      delay(8000),
+      delay(4000),
       // Zoom cone in based on potential, rotate the overlay
       tap((item) => {
         this.selectedLabel.set(Math.round(item.metadata.rotate / 8));
@@ -293,7 +293,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
         this.mapTransform.set(`rotate(0deg)`);
         this.mapChangingOpportunity.next();
       }),
-      delay(2000),
+      delay(5000),
       // Hide the overlay
       tap((item) => {
         this.itemImgVisible.set(false);
