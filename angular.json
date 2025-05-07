@@ -240,11 +240,12 @@
         "sourceLocale": "en-US",
         "locales": {
           "he": {
-            "translation": "projects/showcase/src/locale/messages.he.xlf"
+            "translation": "projects/showcase/src/locale/messages.he.xlf",
+            "baseHref": "/show/he"
           },
           "en": {
             "translation": "projects/showcase/src/locale/messages.en.xlf",
-            "baseHref": "/"
+            "baseHref": "/show"
           }
         }
       }
