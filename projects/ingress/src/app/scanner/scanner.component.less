@@ -9,11 +9,17 @@
 
     .message {
         position: absolute;
-        bottom: 16px;
-        left: 16px;
+        bottom: 32px;
+        left: 50%;
+        transform: translateX(-50%) translateY(300%);
         z-index: 1;
-        background-color: #f30;
-        color: white;
+        animation: showElastic 0.8s linear forwards;
+        width: max-content;
+        max-width: none;
+        .message-text {
+            width: max-content;
+            white-space: nowrap;
+        }
     }
 
     .action {
@@ -45,5 +51,40 @@
                 stroke-width: 2;
             }
         }
+    }
+}
+
+// Use the example from above but change it to start at translateX(-50%)translateY(300%) and end at translateX(-50%)translateY(0%)
+@keyframes showElastic {
+    0% {
+        transform: translateX(-50%) translateY(300%);
+    }
+
+    16% {
+        transform: translateX(-50%) translateY(-96.81%);
+    }
+
+    28% {
+        transform: translateX(-50%) translateY(39.36%);
+    }
+
+    44% {
+        transform: translateX(-50%) translateY(-13.89%);
+    }
+
+    59% {
+        transform: translateX(-50%) translateY(4.92%);
+    }
+
+    73% {
+        transform: translateX(-50%) translateY(-1.73%);
+    }
+
+    88% {
+        transform: translateX(-50%) translateY(0.6%);
+    }
+
+    100% {
+        transform: translateX(-50%) translateY(0);
     }
 }

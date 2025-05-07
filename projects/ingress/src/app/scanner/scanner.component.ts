@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, computed, DestroyRef, ElementRef, OnDestroy, signal, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
-import { filter, interval, map, Subject, take, takeUntil, timer } from 'rxjs';
+import { debounceTime, delay, distinctUntilChanged, filter, interval, map, Subject, take, takeUntil, tap, timer } from 'rxjs';
 import { ApiService } from '../../../api.service';
 import { PlatformService } from '../../../platform.service';
 import { StateService } from '../../../state.service';
@@ -33,10 +33,12 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   canvasCtx: CanvasRenderingContext2D | null;
 
   COUNTDOWN_INITIAL = 30;
+  FRAME_COUNT_DARKER = 100;
   countDown = this.COUNTDOWN_INITIAL;
   scanState = null;
   stream: MediaStream | null = null;
   stopScannerSubject = new Subject<void>();
+  displayMsgSubject = new Subject<string>();
   msg = signal<string>('');
   displayMsg = signal<string>('');
   videoHeightM = signal<number>(0);
@@ -69,6 +71,18 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     private api: ApiService,
   ) {
     this.api.updateFromRoute(this.route.snapshot);
+    this.displayMsgSubject.pipe(
+      takeUntilDestroyed(),
+      distinctUntilChanged(),
+      debounceTime(150),
+      distinctUntilChanged(),
+      tap(() => {
+        this.displayMsg.set('');
+      }),
+      delay(1),
+    ).subscribe((msg) => {
+      this.displayMsg.set(msg);
+    });
   }
   
   ngAfterViewInit(): void {
@@ -140,9 +154,13 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     return cornerPoints;    
   }
 
-  checkDimensions(cornerPoints: any, videoWidth: number, videoHeight: number): {valid: boolean, snap: boolean} {
+  checkDimensions(cornerPoints: any, videoWidth: number, videoHeight: number, frameCount: number): {valid: boolean, snap: boolean} {
     if (!cornerPoints) {
-      this.displayMsg.set($localize`fit the page to the frame`);
+      if (frameCount < this.FRAME_COUNT_DARKER) {
+        this.displayMsgSubject.next($localize`fit the page to the frame`);
+      } else {
+        this.displayMsgSubject.next($localize`try on a darker background`);
+      }
       return {valid: false, snap: false};
     }
     // calculate the top-width and bottom-width, left-height and right-height
@@ -158,7 +176,11 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     const averageRatio = (topBottomAverage / leftRightAverage) / 0.53;
     if (averageRatio < 0.95 || averageRatio > 1.05) {
       this.msg.set('averageRatio is not in range: ' + averageRatio);
-      this.displayMsg.set($localize`fit the page to the frame`);
+      if (frameCount < this.FRAME_COUNT_DARKER) {
+        this.displayMsgSubject.next($localize`fit the page to the frame`);
+      } else {
+        this.displayMsgSubject.next($localize`try on a darker background`);
+      }
       // console.log('averageRatio is not in range');
       return {valid: false, snap: false};
     }
@@ -168,13 +190,13 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     const leftRightRatio = Math.max(leftHeight, rightHeight) / Math.min(leftHeight, rightHeight);
     if (topBottomRatio > 1.1 || topBottomRatio < 0.9) {
       this.msg.set('topBottomRatio is not in range: ' + topBottomRatio);
-      this.displayMsg.set($localize`change your angle`);
+      this.displayMsgSubject.next($localize`change your angle`);
       // console.log('topBottomRatio is not in range');
       return {valid: false, snap: true};
     }
     if (leftRightRatio > 1.1 || leftRightRatio < 0.9) {
       this.msg.set('leftRightRatio is not in range: ' + leftRightRatio);
-      this.displayMsg.set($localize`change your angle`);
+      this.displayMsgSubject.next($localize`change your angle`);
       // console.log('leftRightRatio is not in range');
       return {valid: false, snap: true};
     }
@@ -186,7 +208,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       this.msg.set('Neither averageWidth nor averageHeight is above 66% of video dimensions: ' + 
         topBottomAverage + '<0.66*' + videoWidth + ' ' + 
         leftRightAverage + '<0.66*' + videoHeight);
-      this.displayMsg.set($localize`move closer to page`);
+      this.displayMsgSubject.next($localize`move closer to page`);
       return {valid: false, snap: true};
     }
     this.msg.set('Dimensions are valid: ' + averageWidth + ' ' + averageHeight);
@@ -253,7 +275,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
           const maxContour = scanner.findPaperContour(resampledFrame);
           if (maxContour) {
             const cornerPoints = this.checkCornerPoints(scanner.getCornerPoints(maxContour, resampledFrame) as CornerPoints);          
-            const {valid, snap} = this.checkDimensions(cornerPoints, width, height);
+            const {valid, snap} = this.checkDimensions(cornerPoints, width, height, count);
             if (valid) {
               blurry = this.checkBlurry(resampledFrame);
             }
@@ -301,7 +323,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
         // }
       }
       if (shape?.valid) {
-        this.displayMsg.set($localize`hold still...`);
+        this.displayMsgSubject.next($localize`hold still...`);
         this.countDown -= 1;
         if (!shape.blurry && this.countDown > 10) {
           this.countDown = 10;
