@@ -13,6 +13,11 @@
                 <div class='message-text'>{{ reply() }}</div>
             </div>
         }
+        @if (failed()) {
+            <div class='message ai' ltr>
+                <div class='message-text'>Something went wrong... please refresh the page or try again in a few minutes.</div>
+            </div>
+        }
     </app-messages>
     @if (inputVisible()) {
         <div class='input' ltr>

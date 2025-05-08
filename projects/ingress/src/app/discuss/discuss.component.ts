@@ -73,6 +73,7 @@ export class DiscussComponent implements AfterViewInit {
   buttonsVisible = computed(() => {
     return !this.small() && this.visible();
   });
+  failed = signal<boolean>(false);
 
   @ViewChild(MessagesComponent) messagesComponent!: MessagesComponent;
   @ViewChild('image') imageEl!: ElementRef<HTMLImageElement>;
@@ -151,6 +152,8 @@ export class DiscussComponent implements AfterViewInit {
         });
       } else if (ret.kind === 'status' && ret.status === 'done') {
         this.completed.set(true);
+      } else if (ret.kind === 'status' && ret.status === 'failed') {
+        this.failed.set(true);
       } else if (ret.kind === 'text') {
         this.hasText.set(true);
         this.reply.update(value => {
@@ -166,6 +169,7 @@ export class DiscussComponent implements AfterViewInit {
         this.thinking.set(false);
       } else if (ret.kind === 'status' && ret.status) {
         this.thinking.set(false);
+        this.failed.set(false);
         this.inputDisabled.set(false);
         if (this.reply()) {
           this.addMessage('ai', this.reply());
