@@ -34,7 +34,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
 
   inputAnswer = new Subject<string>();
 
-  showMoreButton = signal(true);
+  showMoreButton = signal(false);
   showScanButton = signal(false);
   showAgreeButton = signal(false);
 
@@ -70,7 +70,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
           this.addMessage(this.initialInteraction[i]);
           return from([]);
         } else {
-          // this.showMoreButton.set(true);
+          this.showMoreButton.set(true);
           this.showScanButton.set(true);
           return this.inputAnswer.pipe(
             tap((answer) => {
