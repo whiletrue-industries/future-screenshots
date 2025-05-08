@@ -112,7 +112,7 @@
             width: 100%;
             position: absolute;
             aspect-ratio: 1/1;
-            //transform: translateX(-5%);
+            // transform: translateX(-10%);
             display: flex;
             display: flex;
             justify-content: center;
@@ -282,16 +282,16 @@
                 &.prefer {
                     right: 80px;
                     top: -110px;
-                    transform: translateY(170px)translateX(max(-32vh, -41vw));
+                    transform: translateY(200px) translateX(max(-24vh, -41vw)) rotate(270deg);
                 }
                 &.prevent {
                     left: 80px;
                     top: -110px;
-                    transform: translateY(170px)translateX(min(32vh, 41vw));
+                    transform: translateY(200px) translateX(min(25vh, 41vw)) rotate(-270deg);
                 }
 
                 &.selected {
-                    transform: translateY(0)translateX(0);
+                    transform: translateY(0)translateX(0)rotate(0deg);
                 }
             }
         }
