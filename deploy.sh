@@ -11,6 +11,7 @@ mv dist/ingress/browser/he _dist && \
 mv dist/showcase/browser/en _dist/show && \
 mv dist/showcase/browser/he _dist/show && \
 mkdir _dist/show/he/pps25 && cp -r _dist/show/he/index.html _dist/show/he/pps25 && \
+mkdir _dist/show/he/pps25w && cp -r _dist/show/he/index.html _dist/show/he/pps25w && \
 mv dist/admin/browser _dist/admin && \
 (cp CNAME _dist/ || true) && \
 git add _dist && \
