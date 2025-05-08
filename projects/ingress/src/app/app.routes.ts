@@ -55,7 +55,7 @@ export const routes: Routes = [
         'path': 'ppsjlm',
         'component': RedirectorComponent,
         'data': {
-            'redirectTo': '/?workspace=b5c32453-b748-4bac-8e28-5dc04a32c91d&api_key=f52ff81e-75bb-45cf-9363-e8f9a1a30a7d',
+            'redirectTo': '/he/?workspace=b5c32453-b748-4bac-8e28-5dc04a32c91d&api_key=f52ff81e-75bb-45cf-9363-e8f9a1a30a7d',
         }
     },
     {
