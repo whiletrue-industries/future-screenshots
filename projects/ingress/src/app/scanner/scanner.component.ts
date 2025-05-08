@@ -174,7 +174,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     const leftRightAverage = (leftHeight + rightHeight) / 2;
     // ensure the ratio between averageWidth and averageHeight is 0.53 to 5% margin
     const averageRatio = (topBottomAverage / leftRightAverage) / 0.53;
-    if (averageRatio < 0.95 || averageRatio > 1.05) {
+    const ratioMargin = frameCount < this.FRAME_COUNT_DARKER ? 0.05 : 0.07;
+    if (averageRatio < 1 - ratioMargin || averageRatio > 1 + ratioMargin) {
       this.msg.set('averageRatio is not in range: ' + averageRatio);
       if (frameCount < this.FRAME_COUNT_DARKER) {
         this.displayMsgSubject.next($localize`fit the page to the frame`);
