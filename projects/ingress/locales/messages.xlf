@@ -16,53 +16,46 @@
           <context context-type="linenumber">18,19</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="5739735053002293531" datatype="html">
+        <source>in your own words...</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/discuss/discuss.component.html</context>
+          <context context-type="linenumber">30,31</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="7419704019640008953" datatype="html">
         <source>Share</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/ingress/src/app/discuss/discuss.component.html</context>
-          <context context-type="linenumber">14,15</context>
+          <context context-type="linenumber">53,54</context>
         </context-group>
       </trans-unit>
       <trans-unit id="6928209535035628388" datatype="html">
         <source>Add Another</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/ingress/src/app/discuss/discuss.component.html</context>
-          <context context-type="linenumber">21,22</context>
+          <context context-type="linenumber">60,61</context>
         </context-group>
       </trans-unit>
       <trans-unit id="3099741642167775297" datatype="html">
         <source>Download</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/ingress/src/app/discuss/discuss.component.html</context>
-          <context context-type="linenumber">27,28</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="8763211465841977542" datatype="html">
-        <source>Thinking...</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/discuss/discuss.component.html</context>
-          <context context-type="linenumber">37,38</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="5739735053002293531" datatype="html">
-        <source>in your own words...</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/discuss/discuss.component.html</context>
-          <context context-type="linenumber">53,54</context>
+          <context context-type="linenumber">66,67</context>
         </context-group>
       </trans-unit>
       <trans-unit id="7393743239484919387" datatype="html">
         <source>Our Future?</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/ingress/src/app/discuss/discuss.component.ts</context>
-          <context context-type="linenumber">209</context>
+          <context context-type="linenumber">212</context>
         </context-group>
       </trans-unit>
       <trans-unit id="9038979569246987154" datatype="html">
         <source>Check out this image!</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/ingress/src/app/discuss/discuss.component.ts</context>
-          <context context-type="linenumber">210</context>
+          <context context-type="linenumber">213</context>
         </context-group>
       </trans-unit>
       <trans-unit id="225185942591106089" datatype="html">
@@ -102,6 +95,13 @@
         <context-group purpose="location">
           <context context-type="sourcefile">projects/ingress/src/app/home/home.component.ts</context>
           <context context-type="linenumber">25</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="1218703804763274432" datatype="html">
+        <source>Find our booth in the lobby in front of the entrance. There you&apos;ll find templates and guidance.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/home/home.component.ts</context>
+          <context context-type="linenumber">28</context>
         </context-group>
       </trans-unit>
       <trans-unit id="5995049986155292198" datatype="html">
@@ -147,47 +147,47 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>fit the page to the frame</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
-          <context context-type="linenumber">159</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
-          <context context-type="linenumber">179</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="5420590008427243564" datatype="html">
-        <source>try on a darker background</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
-          <context context-type="linenumber">161</context>
+          <context context-type="linenumber">160</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
           <context context-type="linenumber">181</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="5420590008427243564" datatype="html">
+        <source>try on a darker background</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
+          <context context-type="linenumber">162</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
+          <context context-type="linenumber">183</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="1441240370999158350" datatype="html">
         <source>change your angle</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
-          <context context-type="linenumber">192</context>
+          <context context-type="linenumber">194</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
-          <context context-type="linenumber">198</context>
+          <context context-type="linenumber">200</context>
         </context-group>
       </trans-unit>
       <trans-unit id="4101939369873545738" datatype="html">
         <source>move closer to page</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
-          <context context-type="linenumber">210</context>
+          <context context-type="linenumber">212</context>
         </context-group>
       </trans-unit>
       <trans-unit id="2634869837365297121" datatype="html">
         <source>hold still...</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
-          <context context-type="linenumber">325</context>
+          <context context-type="linenumber">327</context>
         </context-group>
       </trans-unit>
     </body>

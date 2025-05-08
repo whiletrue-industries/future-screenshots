@@ -25,7 +25,7 @@ export class HomeComponent implements AfterViewInit {
     new Message('ai', $localize`I’m here to help you **scan** your future screenshot and add it to the map.`),
   ];
   answer: Message = new Message('human', $localize`Yes, Let’s scan!`);
-  tellMore: Message = new Message('ai', `This is more information bla bla bla.`);
+  tellMore: Message = new Message('ai', $localize`Find our booth in the lobby in front of the entrance. There you'll find templates and guidance.`);
   secondInteraction: Message = new Message('ai', $localize`Great!
 
 But first, please approve the collection, processing, and storage of your screenshot as described in the [Privacy Policy](https://github.com/whiletrue-industries/future-screenshots/blob/main/projects/ingress/src/privacy-policy.md).
@@ -34,7 +34,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
 
   inputAnswer = new Subject<string>();
 
-  showMoreButton = signal(false);
+  showMoreButton = signal(true);
   showScanButton = signal(false);
   showAgreeButton = signal(false);
 
