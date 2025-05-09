@@ -388,9 +388,12 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
 
   addToQueue() {
     if (this.config()) {
-      const grid = this.config().grid;
-      const index = Math.floor(Math.random() * grid.length);
-      const item = grid[index];
+      let item = null;
+      while (!item) {
+        const grid = this.config().grid;
+        const index = Math.floor(Math.random() * grid.length);
+        item = grid[index];  
+      }
       this.queue.next(item);
     }
   }
