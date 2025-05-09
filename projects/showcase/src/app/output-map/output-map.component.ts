@@ -25,7 +25,7 @@ type MaskItem = {x: number, y: number};
 export class OutputMapComponent implements OnInit, AfterViewInit {
 
   @Input() clean = true;
-  @Input() tag = '';
+  @Input() tag = 'its_time';
   @Input() language = '';
   // @Input() grid: Observable<GridItem[]>;
   @ViewChild('mapEl') mapElement: ElementRef;
@@ -43,6 +43,8 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
   viewInit = signal(false);
   currentZoom = signal(0);
   lang = signal('dutch');
+  sortCorrectly = true;
+  currentIndex = 0;
 
   // Loop state
   clusterLabelsVisible = signal(false);
@@ -119,7 +121,12 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
           const title = cluster.title[key];
           cluster.fontSize[key] = cluster.w / (title.length * 0.75);
         });
-      });  
+      });
+      config.grid = config.grid.sort((a: any, b: any) => {
+        return -((a.metadata.timestamp as string)?.localeCompare(b.metadata.timestamp) || 0);
+      });
+      this.sortCorrectly = true;
+      this.currentIndex = 0;
       this.config.set(config);
     });
     this.api.config.pipe(
@@ -391,9 +398,18 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
       let item = null;
       while (!item) {
         const grid = this.config().grid;
-        const index = Math.floor(Math.random() * grid.length);
-        item = grid[index];  
+        let index = this.currentIndex;
+        if (!this.sortCorrectly) {
+          index = Math.floor(Math.random() * grid.length);          
+        } 
+        item = grid[index];
+        this.currentIndex++;
+        if (this.currentIndex >= grid.length) {
+          this.currentIndex = 0;
+          this.sortCorrectly = false;
+        }
       }
+      // console.log('ITEM', item.metadata.timestamp);
       this.queue.next(item);
     }
   }
