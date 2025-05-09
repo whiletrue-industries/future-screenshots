@@ -22,8 +22,8 @@ export class ApiService {
   // API_KEY = 'f290c30a-8819-42a0-aa0b-77f5582b4a2f';
 
   item = signal<any>(null);
-  api_key = signal<string>('');
-  workspace = signal<string>('');
+  api_key = signal<string>('a356977d-219f-4d65-ae18-d8e98280bca1');
+  workspace = signal<string>('03da8ede-395b-4fd2-b46e-bc2bc7f4035c');
   automatic = signal<boolean>(false);
 
   constructor(private http: HttpClient, private zone: NgZone) { }
