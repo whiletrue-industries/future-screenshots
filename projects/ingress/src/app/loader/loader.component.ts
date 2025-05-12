@@ -4,7 +4,7 @@ import { ApiService } from '../../../api.service';
 import { PlatformService } from '../../../platform.service';
 import { StateService } from '../../../state.service';
 import { default as lottie, AnimationItem } from 'lottie-web';
-import { from, Observable, switchMap, tap, timer } from 'rxjs';
+import { from, merge, Observable, switchMap, take, tap, timer } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { LtrDirective } from '../ltr.directive';
 
@@ -41,9 +41,13 @@ export class LoaderComponent implements AfterViewInit {
               return from([]);
             } else {
               const item_key = ret?.item_key;
-              const item_id = ret?.item_id;        
-              return this.api.sendInitMessageNoStream(item_id, item_key).pipe(
-                tap((status: any) => {
+              const item_id = ret?.item_id;
+              return merge(
+                timer(30000),
+                this.api.sendInitMessageNoStream(item_id, item_key)
+              ).pipe(
+                take(1),
+                tap(() => {
                   this.loaded.set(ret);
                 })
               );
