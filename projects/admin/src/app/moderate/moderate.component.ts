@@ -33,6 +33,7 @@ export class ModerateComponent {
   apiKey = signal<string | null>(null);
   page = signal<number>(0);
   filter = signal<Filter>(this.FILTERS[this.FILTERS.length - 1]);
+  editTagline = signal<boolean>(false);
 
   items = signal<any[]>([]);
   indexLink = signal<string | null>(null);
@@ -161,6 +162,21 @@ export class ModerateComponent {
       });
     } else {
       console.error('workspaceId or apiKey is null');
+    }
+  }
+
+  setTagline(item: any) {
+    const workspaceId = this.workspaceId();
+    const apiKey = this.apiKey();
+    if (workspaceId && apiKey) {
+      this.api.updateItem(workspaceId, apiKey, item._id, {
+        future_scenario_tagline: item.future_scenario_tagline,
+        future_scenario_description: item.future_scenario_tagline, 
+        embedding: null
+      }).subscribe(data => {
+        console.log('item updated', data);
+        this.editTagline.set(false);
+      });
     }
   }
 }

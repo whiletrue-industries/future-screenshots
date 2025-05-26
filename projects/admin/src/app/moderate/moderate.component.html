@@ -30,7 +30,15 @@
         @for (item of items(); track item._id) {
             <div class='item'>
                 <img [src]='item.screenshot_url'>
-                <div class='tagline'>{{ item.future_scenario_tagline }}</div>
+                @if (editTagline()) {
+                    <div class='tagline-edit'>
+                        <input type='text' [(ngModel)]='item.future_scenario_tagline' placeholder='Tagline'>
+                        <button class='button' (click)='setTagline(item)'>OK</button>
+                        <button class='button' (click)='editTagline.set(false)'>X</button>
+                    </div>
+                } @else {
+                    <div class='tagline' (click)='editTagline.set(true)'>{{ item.future_scenario_tagline }}</div>
+                }
                 <div class='status'>
                     @if (item._private_moderation >= 0) {
                         <div class='status-text'>{{ LEVELS[item._private_moderation] }}</div>
