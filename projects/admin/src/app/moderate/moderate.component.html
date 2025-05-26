@@ -11,7 +11,7 @@
 </div>
 <div class='pager'>
     <button [disabled]='page() === 0' (click)='page.set(page() - 1)'>Prev Page</button>
-    <div class='page-number'>Page {{ page() + 1 }}</div>
+    <div class='page-number'>Page {{ page() + 1 }} ({{ items().length }} items)</div>
     <button [disabled]='!items().length' (click)='page.set(page() + 1)'>Next Page</button> 
 </div>
 <div class='filters'>
@@ -37,16 +37,43 @@
                     } @else {
                         <div class='status-text'>no moderation status</div>
                     }
-                    <div class='status-text'>{{item.created_at.slice(0,19)}}</div>
+                    <div class='status-text'>{{item.created_at?.slice(0,19)}}</div>
+                    <div class='status-text'>P&amp;P: {{item.plausibility}} / {{item.favorable_future}}</div>
                     <div class='status-text'>content certainty: {{item.content_certainty}}</div>
                     <div class='status-text'>transition certainty: {{item.transition_bar_certainty}}</div>
                 </div>
                 <div class='buttons'>
                     <div class='button-row'>
-                        <button class='button' (click)="reject(item._id)">NO</button>    
-                        <button class='button' (click)="approve(item._id)">YES</button>
-                        <button class='button' (click)="highlight(item._id)">LIKE</button>
+                        <button class='button' [class.primary]='item._private_moderation === 0' (click)="reject(item._id)">NO</button>    
+                        <button class='button' [class.primary]='item._private_moderation === 4' (click)="approve(item._id)">YES</button>
+                        <button class='button' [class.primary]='item._private_moderation === 5'  (click)="highlight(item._id)">LIKE</button>
                     </div>
+                </div>
+                <div class='selects'>
+                    <select [(ngModel)]='item.plausibility' (change)="setPlausibility(item)">
+                        <option [value]='null'>Potential?</option>
+                        <option [value]='100'>Projected</option>
+                        <option [value]='90'>90</option>
+                        <option [value]='80'>80</option>
+                        <option [value]='75'>Probable</option>
+                        <option [value]='70'>70</option>
+                        <option [value]='60'>60</option>
+                        <option [value]='50'>Plausible</option>
+                        <option [value]='40'>40</option>
+                        <option [value]='30'>30</option>
+                        <option [value]='25'>Possible</option>
+                        <option [value]='20'>20</option>
+                        <option [value]='10'>10</option>
+                        <option [value]='0'>Preposterous</option>
+                    </select>
+                    <select [(ngModel)]='item.favorable_future' (change)="setFavorable(item)">
+                        <option [value]='null'>Favorable?</option>
+                        <option [value]='"preferred"'>Preferred</option>
+                        <option [value]='"mostly preferred"'>Mostly Preferred</option>
+                        <option [value]='"mostly prevent"'>Mostly Prevent</option>
+                        <option [value]='"prevent"'>Prevent</option>
+                        <option [value]='"uncertain"'>Uncertain</option>
+                    </select>
                 </div>
             </div>
         }

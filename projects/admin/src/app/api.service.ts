@@ -26,6 +26,8 @@ export class ApiService {
     };
     if (filters) {
       params.filters = filters;
+    } else {
+      params.order_by = '';
     }
     return this.http.get<any[]>(`${this.CHRONOMAPS_API_URL}/${workspace}/items`, {
       params,
@@ -40,7 +42,15 @@ export class ApiService {
     );
   }
 
-  updateItem(workspace: string, api_key: string, itemId: string, moderation: number): Observable<any> {
+  updateItem(workspace: string, api_key: string, itemId: string, data: any): Observable<any> {
+    return this.http.put<any>(`${this.CHRONOMAPS_API_URL}/${workspace}/${itemId}`, data, {
+      headers: {
+        'Authorization': `${api_key}`
+      },
+    });
+  }
+
+  updateItemModeration(workspace: string, api_key: string, itemId: string, moderation: number): Observable<any> {
     const data = {
       _private_moderation: moderation
     };

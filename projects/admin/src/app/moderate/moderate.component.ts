@@ -67,6 +67,7 @@ export class ModerateComponent {
             this.indexLink.set(null);
             data.forEach((item: any) => {
               item.screenshot_url = this.fix_url(item.screenshot_url);
+              item.favorable_future = this.fix_favorable_future(item.favorable_future);
             });
             this.items.set(data);
           }
@@ -88,11 +89,11 @@ export class ModerateComponent {
     });
   }
 
-  reject(itemId: string) {
+  updateModeration(itemId: string, level: number) {
     const workspaceId = this.workspaceId();
     const apiKey = this.apiKey();
     if (workspaceId && apiKey) {
-      this.api.updateItem(workspaceId, apiKey, itemId, 0).subscribe(data => {
+      this.api.updateItem(workspaceId, apiKey, itemId, level).subscribe(data => {
         console.log('item rejected', data);
         this.items.set(this.items().filter(item => item._id !== itemId));
       });
@@ -101,32 +102,16 @@ export class ModerateComponent {
     }
   }
 
+  reject(itemId: string) {
+    this.updateModeration(itemId, 0);
+  }
+
   approve(itemId: string) {
-    const workspaceId = this.workspaceId();
-    const apiKey = this.apiKey();
-    if (workspaceId && apiKey) {
-      this.api.updateItem(workspaceId, apiKey, itemId, 4).subscribe(data => {
-        console.log('item approved', data);
-        this.items.set(this.items().filter(item => item._id !== itemId));
-      }
-      );
-    } else {
-      console.error('workspaceId or apiKey is null');
-    }
-  }  
-  
+    this.updateModeration(itemId, 4);
+  }
+
   highlight(itemId: string) {
-    const workspaceId = this.workspaceId();
-    const apiKey = this.apiKey();
-    if (workspaceId && apiKey) {
-      this.api.updateItem(workspaceId, apiKey, itemId, 5).subscribe(data => {
-        console.log('item highlighted', data);
-        this.items.set(this.items().filter(item => item._id !== itemId));
-      }
-      );
-    } else {
-      console.error('workspaceId or apiKey is null');
-    }
+    this.updateModeration(itemId, 5);
   }
 
   set _filter(idx: number) {
@@ -140,5 +125,41 @@ export class ModerateComponent {
   fix_url(url: string) {
     url = url.replace('https://storage.googleapis.com/chronomaps3.firebasestorage.app/', 'https://storage.googleapis.com/chronomaps3-eu/');
     return url;
+  }
+
+  fix_favorable_future(future: any) {
+    if (future) {
+      if (future === 'yes') {
+        return 'preferred';
+      }
+      if (future === 'no') {
+        return 'prevent';
+      }
+    }
+    return 'uncertain';
+  }
+
+  setPlausibility(item: any) {
+    const workspaceId = this.workspaceId();
+    const apiKey = this.apiKey();
+    if (workspaceId && apiKey) {
+      this.api.updateItem(workspaceId, apiKey, item._id, {plausibility: item.plausibility}).subscribe(data => {
+        console.log('item updated', data);
+      });
+    } else {
+      console.error('workspaceId or apiKey is null');
+    }
+  }  
+
+  setFavorable(item: any) {
+    const workspaceId = this.workspaceId();
+    const apiKey = this.apiKey();
+    if (workspaceId && apiKey) {
+      this.api.updateItem(workspaceId, apiKey, item._id, {favorable_future: item.favorable_future}).subscribe(data => {
+        console.log('item updated', data);
+      });
+    } else {
+      console.error('workspaceId or apiKey is null');
+    }
   }
 }
