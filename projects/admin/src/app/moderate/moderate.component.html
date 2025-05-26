@@ -37,7 +37,11 @@
                         <button class='button' (click)='editTagline.set(false)'>X</button>
                     </div>
                 } @else {
-                    <div class='tagline' (click)='editTagline.set(true)'>{{ item.future_scenario_tagline }}</div>
+                    @if (item.future_scenario_tagline) {
+                        <div class='tagline' (click)='editTagline.set(true)'>{{ item.future_scenario_tagline }}</div>
+                    } @else {
+                        <div class='tagline' (click)='editTagline.set(true)'><em>Add a tagline</em></div>
+                    }
                 }
                 <div class='status'>
                     @if (item._private_moderation >= 0) {
