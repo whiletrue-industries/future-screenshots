@@ -1,4 +1,3 @@
-import { HttpClient } from '@angular/common/http';
 import { Component, effect, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { ApiService } from '../api.service';
@@ -143,6 +142,7 @@ export class ModerateComponent {
     const workspaceId = this.workspaceId();
     const apiKey = this.apiKey();
     if (workspaceId && apiKey) {
+      item.plausibility = parseInt(item.plausibility, 10);
       this.api.updateItem(workspaceId, apiKey, item._id, {plausibility: item.plausibility}).subscribe(data => {
         console.log('item updated', data);
       });
