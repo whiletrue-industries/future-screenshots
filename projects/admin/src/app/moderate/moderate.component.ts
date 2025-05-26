@@ -92,7 +92,7 @@ export class ModerateComponent {
     const workspaceId = this.workspaceId();
     const apiKey = this.apiKey();
     if (workspaceId && apiKey) {
-      this.api.updateItem(workspaceId, apiKey, itemId, level).subscribe(data => {
+      this.api.updateItemModeration(workspaceId, apiKey, itemId, level).subscribe(data => {
         console.log('item rejected', data);
         this.items.set(this.items().filter(item => item._id !== itemId));
       });
