@@ -134,6 +134,7 @@ export class ModerateComponent {
       if (future === 'no') {
         return 'prevent';
       }
+      return future;
     }
     return 'uncertain';
   }
