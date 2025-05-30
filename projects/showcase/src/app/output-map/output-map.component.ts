@@ -25,7 +25,7 @@ type MaskItem = {x: number, y: number};
 export class OutputMapComponent implements OnInit, AfterViewInit {
 
   @Input() clean = true;
-  @Input() tag = 'its_time';
+  @Input() tag = 'main';
   @Input() language = '';
   @Input() doLoop = false;
 
