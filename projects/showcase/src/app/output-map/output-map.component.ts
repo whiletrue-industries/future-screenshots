@@ -165,6 +165,21 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
         });
       }
     });
+    effect(() => {
+      const currentZoom = this.currentZoom();
+      if (!this.doLoop && this.clusterLabelsLayer) {
+        if (currentZoom < 4) {
+          this.clusterLabelsLayer.setOpacity(1.0);
+          this.clusterLabelsVisible.set(true);
+        } else if (currentZoom > 4.5) {
+          this.clusterLabelsLayer.setOpacity(0.0);
+          this.clusterLabelsVisible.set(false);
+        } else {
+          this.clusterLabelsLayer.setOpacity(1 - (currentZoom - 4) / 0.5);
+          this.clusterLabelsVisible.set(true);
+        }
+      }
+    });
     interval(60000).pipe(
       takeUntilDestroyed(),
     ).subscribe(() => {
@@ -374,16 +389,16 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
       this.moveEnded.next();
     });
     this.addTileLayer(map);
-    if (this.doLoop) {
-      timer(0).subscribe(() => {
+    timer(0).subscribe(() => {
+      if (this.doLoop) {
         const maskElement = this.maskElement.nativeElement.querySelector('svg');
         this.maskLayer = L.svgOverlay(maskElement, bounds);
         this.maskLayer.addTo(map);
-        const clusterLabelsElement = this.clusterLabelsElement.nativeElement.querySelector('svg');
-        this.clusterLabelsLayer = L.svgOverlay(clusterLabelsElement, bounds);
-        this.clusterLabelsLayer.addTo(map);
-      });
-    }
+      }
+      const clusterLabelsElement = this.clusterLabelsElement.nativeElement.querySelector('svg');
+      this.clusterLabelsLayer = L.svgOverlay(clusterLabelsElement, bounds);
+      this.clusterLabelsLayer.addTo(map);
+    });
     return map;
   }
 
