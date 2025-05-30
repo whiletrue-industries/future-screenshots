@@ -27,6 +27,8 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
   @Input() clean = true;
   @Input() tag = 'its_time';
   @Input() language = '';
+  @Input() doLoop = false;
+
   // @Input() grid: Observable<GridItem[]>;
   @ViewChild('mapEl') mapElement: ElementRef;
   @ViewChild('clusterLabelsEl') clusterLabelsElement: ElementRef;
@@ -139,7 +141,9 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
       }),
       delay(2000),
     ).subscribe(() => {
-      this.loop();
+      if (this.doLoop) {
+        this.loop();
+      }
     });
     effect(() => {
       if (this.viewInit() && this.config() && L) {
@@ -370,14 +374,16 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
       this.moveEnded.next();
     });
     this.addTileLayer(map);
-    timer(0).subscribe(() => {
-      const maskElement = this.maskElement.nativeElement.querySelector('svg');
-      this.maskLayer = L.svgOverlay(maskElement, bounds);
-      this.maskLayer.addTo(map);
-      const clusterLabelsElement = this.clusterLabelsElement.nativeElement.querySelector('svg');
-      this.clusterLabelsLayer = L.svgOverlay(clusterLabelsElement, bounds);
-      this.clusterLabelsLayer.addTo(map);
-    });
+    if (this.doLoop) {
+      timer(0).subscribe(() => {
+        const maskElement = this.maskElement.nativeElement.querySelector('svg');
+        this.maskLayer = L.svgOverlay(maskElement, bounds);
+        this.maskLayer.addTo(map);
+        const clusterLabelsElement = this.clusterLabelsElement.nativeElement.querySelector('svg');
+        this.clusterLabelsLayer = L.svgOverlay(clusterLabelsElement, bounds);
+        this.clusterLabelsLayer.addTo(map);
+      });
+    }
     return map;
   }
 

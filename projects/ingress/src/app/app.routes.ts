@@ -65,9 +65,11 @@ export const routes: Routes = [
             'redirectTo': '/?workspace=b4ce1eae-9add-4854-bd7c-5d90dbe31134&api_key=fa3d6160-f061-4159-afd1-5e654c29ffc5',
         }
     },
-    
     {
         'path': '',
-        'component': HomeComponent
+        'component': RedirectorComponent,
+        'data': {
+            'redirectTo': '/show'
+        }
     }
 ];
