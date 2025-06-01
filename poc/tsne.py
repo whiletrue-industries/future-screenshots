@@ -233,7 +233,7 @@ def main():
         print('Image:', image.size, image.mode, image.format)
         image.save('tsne.png', format='PNG', compress_level=9)
         print("Creating tiles.")
-        create_tiles('4d2c04b0-51b7-4aa2-a234-0e4be53447de/0', image)
+        # create_tiles('4d2c04b0-51b7-4aa2-a234-0e4be53447de/0', image)
         print('Saved image to tsne.png')
         print(info)
 

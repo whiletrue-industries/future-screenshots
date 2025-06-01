@@ -19,12 +19,15 @@ if __name__ == '__main__':
             continue
         config = yaml.safe_load(config.read_text())
         workspace = config['workspace']
-        api_key = config['api_key']    
+        api_key = config['api_key']
+        delete = config.get('delete', True)
+        print(f'https://mapfutur.es/admin/?workspace={workspace}&api_key={api_key}')
         filenames = list(chain(path.glob('*.png'), path.glob('*.jpeg'), path.glob('*.jpg')))
 
-        print(f'Deleting items in workspace: {workspace}')
-        resp = requests.delete(f'{item_crud_handler}/{workspace}/items', headers={'Authorization': f'{api_key}'})
-        resp.raise_for_status()
+        if delete:
+            print(f'Deleting items in workspace: {workspace}')
+            resp = requests.delete(f'{item_crud_handler}/{workspace}/items', headers={'Authorization': f'{api_key}'})
+            resp.raise_for_status()
 
         for i, filename in enumerate(filenames):
             print(f'Uploading image {filename} ({i+1}/{len(filenames)}) to workspace: {workspace}')
@@ -44,6 +47,8 @@ if __name__ == '__main__':
             if response.status_code == 200:
                 response = response.json()
                 item_id = response.get('item_id')
-                item_key = response.get('item_key')          
+                item_key = response.get('item_key')
+                print('Successfully uploaded file:', filename, 
+                      f'Item ID: {item_id}, Item Key: {item_key}')
             else:
                 print(f"Failed to upload file {i+1}: {filename}, Status Code: {response.status_code}, Response: {response.text}")
