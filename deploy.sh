@@ -10,7 +10,7 @@ mv dist/ingress/browser/en _dist && \
 mv dist/ingress/browser/he _dist && \
 mv dist/showcase/browser/en _dist/show && \
 mv dist/showcase/browser/he _dist/show && \
-mkdir _dist/show/en/jma25 && cp -r _dist/show/he/index.html _dist/show/en/jma25 && \
+mkdir _dist/show/jma25 && cp -r _dist/show/index.html _dist/show/jma25 && \
 mkdir _dist/show/he/pps25 && cp -r _dist/show/he/index.html _dist/show/he/pps25 && \
 mkdir _dist/show/he/pps25w && cp -r _dist/show/he/index.html _dist/show/he/pps25w && \
 mv dist/admin/browser _dist/admin && \
