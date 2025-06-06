@@ -79,13 +79,13 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
 
   wdim = computed(() => {
     if (this.config()) {
-      return this.config().dim[0];
+      return this.config().dim[0] + this.config().padding_ratio;
     }
     return 0;
   });
   hdim = computed(() => {
     if (this.config()) {
-      return this.config().dim[1] + this.config().padding_ratio;
+      return this.config().dim[1];
     }
     return 0;
   });
@@ -108,6 +108,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
   constructor(private api: ApiService, private platform: PlatformService, private activatedRoute: ActivatedRoute) {
     activatedRoute.queryParams.subscribe((params: { [x: string]: string; }) => {
       this.setLanguage();
+      this.tag = params['tag'] || this.tag;
     });
     this.api.config.pipe(
       takeUntilDestroyed(),
@@ -447,11 +448,11 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
     const ret: MaskItem[] = [maskBase];
     let r = 1;
     while (ret.length < maskAmount) {
-      let current = {x: maskBase.x, y: maskBase.y + r};
+      let current = {x: maskBase.x + r, y: maskBase.y};
       ret.push(current);
       for (const d of directions) {
         for (let i = 0; i < r; i++) {
-          current = {x: current.x + d.x, y: current.y + d.y};
+          current = {x: current.x + d.y, y: current.y + d.x};
           ret.push(current);
         }
       }
