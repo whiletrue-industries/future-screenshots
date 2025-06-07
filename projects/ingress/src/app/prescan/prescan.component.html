@@ -1,0 +1,27 @@
+<div class='sticky-menu' [class.visible]='topMenuOpen()'>
+    <div class='header'>
+        <a class='back' [routerLink]='["/"]' queryParamsHandling="preserve"></a>
+        <div class='logo'></div>
+        <div class='open-menu' (click)='mainMenuOpen.set(true)'></div>        
+    </div>
+    <app-language-selector></app-language-selector>
+</div>
+<app-messages #messages [scrollOnAI]='false' [paddingTop]="124">
+</app-messages>
+<div class='buttons' ltr>
+    @if (showScanButton()) {
+        <div class='button primary' (click)='inputAnswer.next("yes")' i18n>Yes, Let’s scan!</div>
+    }
+    @if (showMoreButton()) {
+        <div class='button' (click)='inputAnswer.next("more")' i18n>How do I make one?</div>
+    }
+    @if (showAgreeButton()) {
+        <div class='button primary' [routerLink]='["/scan"]' queryParamsHandling="preserve" i18n>Yes, I agree</div>
+    }
+</div>
+@if (mainMenuOpen()) {
+    <div class='menu-overlay' (click)='mainMenuOpen.set(false)'></div>
+}
+<div class='menu' [class.open]='mainMenuOpen()'>
+    <app-main-menu></app-main-menu>
+</div>

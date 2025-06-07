@@ -6,22 +6,31 @@
     font-style: normal;
 }
     
+@color-creme: #FFFDF6;
 @color-beige: #F5F0E7;
 @color-purple: #4E02B2;
 @color-light-purple: #B969FF;
 @color-dark-pink: #E7CBFF;
 @color-pink: #F1E5F3;
-@color-light-pink: #FBF5F6;
+@color-primary: #4E02B2;
+@color-primary-50: #FBF5F6;
 @color-prefer: #698CFF;
 @color-prevent: #F73C3C;
 
+@color-white: #FFFFFF;
 @color-gray: #9B90AA;
 
 @color-message-bg-ai: rgba(238, 219, 255, 0.50);
 @color-message-bg-human: @color-purple;
-@color-message-ai: #4E02B2;
+@color-message-ai: @color-primary;
 @color-message-human: #FFFFFF;
 
+
+.background-image {
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: cover;
+}
 
 .message {
     font-size: 18px;
@@ -93,7 +102,7 @@
         font-weight: 400;
 
         border: 1px solid fade(@color-purple, 50%);
-        background: @color-light-pink;
+        background: @color-primary-50;
         color: @color-purple;
 
         cursor: pointer;

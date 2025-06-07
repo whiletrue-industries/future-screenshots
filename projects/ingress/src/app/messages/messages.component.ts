@@ -1,6 +1,6 @@
-import { AfterViewInit, Component, computed, effect, ElementRef, Input, OnDestroy, signal, ViewChild, WritableSignal } from '@angular/core';
+import { AfterViewInit, Component, computed, DestroyRef, effect, ElementRef, Input, OnDestroy, signal, ViewChild, WritableSignal } from '@angular/core';
 import { marked } from 'marked';
-import { debounceTime, fromEvent, Subject, timer } from 'rxjs';
+import { debounceTime, fromEvent, Subject, throttleTime, timer } from 'rxjs';
 import { PlatformService } from '../../../platform.service';
 import { LtrDirective } from '../ltr.directive';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -35,6 +35,8 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
 
   @Input() bg = false;
   @Input() thinking = false;
+  @Input() scrollOnAI = true;
+  @Input() paddingTop = 16;
 
   messages = signal<Message[]>([]);
   @ViewChild('messagesEl') messagesEl!: ElementRef;
@@ -42,13 +44,14 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
   scroller = new Subject<() => void>();
 
   spacerHeight = signal(0);
+  scrollPosition = new Subject<number>();
 
   loadingAnim: AnimationItem;
   @ViewChild('thinkingEl') thinkingEl!: ElementRef<HTMLDivElement>;
 
   _ = marked;
 
-  constructor(private platform: PlatformService) {
+  constructor(private platform: PlatformService, private ref: DestroyRef) {
     this.platform.browser(() => {
       effect(() => {
         const messages = this.messages();
@@ -79,6 +82,13 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
         loop: true,
         autoplay: true,
         path: '/thinking.json' // the path to the animation json
+      });
+      fromEvent(this.messagesEl.nativeElement, 'scroll').pipe(
+        takeUntilDestroyed(this.ref),
+        throttleTime(100, undefined, { leading: true, trailing: true }),
+      ).subscribe(() => {
+        const messagesEl: HTMLElement = this.messagesEl.nativeElement;
+        this.scrollPosition.next(messagesEl.scrollTop);
       });
     });
   }
@@ -122,7 +132,7 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
             console.log('scrolling last message', element, element.classList);
             this.messagesEl.nativeElement.scrollBy({top: top - 16, behavior: 'smooth'});
           });
-        } else {
+        } else if (this.scrollOnAI) {
           this.scroller.next(() => {
             console.log('scrolling spacer', element, element.classList);
             this.spacerEl.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });

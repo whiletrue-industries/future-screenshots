@@ -1,4 +1,4 @@
-<div class='messages' #messagesEl [class.bg]='bg'>
+<div class='messages' #messagesEl [class.bg]='bg' [style.padding-top.px]='paddingTop'>
     @for (message of messages(); track $index) {
         <div class='message' [class.human]="message.kind === 'human'" [class.ai]="message.kind === 'ai'" [class.part]="message.part" ltr>
             <span class='message-text' [innerHTML]="message._()"></span>

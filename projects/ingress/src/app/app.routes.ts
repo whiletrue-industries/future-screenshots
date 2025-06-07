@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { ScannerComponent } from './scanner/scanner.component';
 import { ConfirmComponent } from './confirm/confirm.component';
-import { HomeComponent } from './home/home.component';
+import { HomeComponent } from './prescan/prescan.component';
 import { DiscussComponent } from './discuss/discuss.component';
 import { LoaderComponent } from './loader/loader.component';
 import { RedirectorComponent } from './redirector/redirector.component';
@@ -48,7 +48,7 @@ export const routes: Routes = [
         'path': 'jma25',
         'component': RedirectorComponent,
         'data': {
-            'redirectTo': '/?workspace=ceaed215-e28a-4988-aca4-458c20d5cf1d&api_key=2dbffec8-9175-4dc4-b553-5b8cf085b5fe',
+            'redirectTo': '/?workspace=ceaed215-e28a-4988-aca4-458c20d5cf1d&api_key=2dbffec8-9175-4dc4-b553-5b8cf085b5fe&tag=jma25',
         }
     },
     {

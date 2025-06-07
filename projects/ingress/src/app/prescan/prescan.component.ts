@@ -1,20 +1,25 @@
-import { AfterViewInit, Component, signal, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, computed, DestroyRef, signal, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../../api.service';
 import { Message, MessagesComponent } from "../messages/messages.component";
-import { delay, filter, from, interval, Subject, switchMap, take, tap, timer } from 'rxjs';
+import { delay, filter, from, interval, map, Subject, switchMap, take, tap, timer } from 'rxjs';
 import { PlatformService } from '../../../platform.service';
 import { LtrDirective } from '../ltr.directive';
+import { MainMenuComponent } from "../main-menu/main-menu.component";
+import { LanguageSelectorComponent } from "../language-selector/language-selector.component";
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'app-home',
   imports: [
     RouterLink,
     MessagesComponent,
-    LtrDirective
+    LtrDirective,
+    MainMenuComponent,
+    LanguageSelectorComponent
 ],
-  templateUrl: './home.component.html',
-  styleUrl: './home.component.less'
+  templateUrl: './prescan.component.html',
+  styleUrl: './prescan.component.less'
 })
 export class HomeComponent implements AfterViewInit {
 
@@ -37,12 +42,14 @@ I’m also about to ask you for **access to the camera**, and then we can get go
   showMoreButton = signal(false);
   showScanButton = signal(false);
   showAgreeButton = signal(false);
+  topMenuOpen = signal(true);
+  mainMenuOpen = signal(false);
 
   addMessage(message: Message) {
     this.messagesComponent.addMessage(message);
   }
 
-  constructor(private route: ActivatedRoute, private api: ApiService, private platform: PlatformService, private router: Router) {    
+  constructor(private route: ActivatedRoute, private api: ApiService, private platform: PlatformService, private router: Router, private ref: DestroyRef) {    
     this.api.updateFromRoute(this.route.snapshot);
   }
 
@@ -56,6 +63,12 @@ I’m also about to ask you for **access to the camera**, and then we can get go
   ngAfterViewInit() {
     this.platform.browser(() => {
       this.interact();
+      this.messagesComponent.scrollPosition.pipe(
+        takeUntilDestroyed(this.ref),
+        map((pos) => pos < 10),
+      ).subscribe((value) => {
+        this.topMenuOpen.set(value);
+      });
     });
   }
 

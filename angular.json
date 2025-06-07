@@ -45,7 +45,7 @@
             "ssr": {
               "entry": "projects/ingress/src/server.ts"
             },
-            "localize": ["he", "en"]
+            "localize": ["he", "en", "nl"]
           },
           "configurations": {
             "production": {
@@ -66,6 +66,9 @@
             "he": {
               "localize": ["he"]
             },
+            "nl": {
+              "localize": ["nl"]
+            },
             "development": {
               "optimization": false,
               "extractLicenses": false,
@@ -85,6 +88,9 @@
             },
             "he": {
               "buildTarget": "ingress:build:he"
+            },
+            "nl": {
+              "buildTarget": "ingress:build:nl"
             }
           },
           "defaultConfiguration": "development"
@@ -124,6 +130,9 @@
           "en": {
             "translation": "projects/ingress/src/locale/messages.en.xlf",
             "baseHref": "/"
+          },
+          "nl": {
+            "translation": "projects/ingress/src/locale/messages.nl.xlf"
           }
         }
       }
@@ -164,7 +173,7 @@
             ],
             "scripts": [],
             "prerender": false,
-            "localize": ["he", "en"]
+            "localize": ["he", "en", "nl"]
           },
           "configurations": {
             "production": {
@@ -184,6 +193,9 @@
             },
             "he": {
               "localize": ["he"]
+            },
+            "nl": {
+              "localize": ["nl"]
             },
             "development": {
               "optimization": false,
@@ -206,6 +218,9 @@
             },
             "he": {
               "buildTarget": "showcase:build:he"
+            },
+            "nl": {
+              "buildTarget": "showcase:build:nl"
             }
           },
           "defaultConfiguration": "development"
@@ -245,6 +260,9 @@
           "en": {
             "translation": "projects/showcase/src/locale/messages.en.xlf",
             "baseHref": "/"
+          },
+          "nl": {
+            "translation": "projects/showcase/src/locale/messages.nl.xlf"
           }
         }
       }
