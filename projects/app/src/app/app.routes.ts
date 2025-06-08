@@ -10,6 +10,7 @@ import { Pps25Component } from './showcase/pps25/pps25.component';
 import { Pps25VComponent } from './showcase/pps25v/pps25.component';
 import { Jma25Component } from './showcase/jma25/jma25.component';
 import { OutputMapComponent } from './showcase/output-map/output-map.component';
+import { ModerateComponent } from './admin/moderate/moderate.component';
 
 export const routes: Routes = [
     // Showcase routes
@@ -18,6 +19,11 @@ export const routes: Routes = [
     { path: 'show/jma25', component: Jma25Component },
     { path: 'show', component: OutputMapComponent },
 
+    // Admin routes
+    {
+        'path': 'admin',
+        'component': ModerateComponent
+    },
     {
         'path': 'scan',
         'component': ScannerComponent

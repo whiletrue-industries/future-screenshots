@@ -4,6 +4,7 @@ import { MAIN_MENU_HEIGHT, MainMenuComponent } from "../main-menu/main-menu.comp
 import { PlatformService } from '../../platform.service';
 import { Observable } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute } from '@angular/router';
 
 @Component({
   selector: 'app-home',
@@ -21,9 +22,13 @@ export class HomeComponent implements AfterViewInit {
   @ViewChild('mapContainer') mapContainer: ElementRef<HTMLElement>;
   @ViewChild(OutputMapComponent) outputMap: OutputMapComponent;
 
-  constructor(private platform: PlatformService, private destroyRef: DestroyRef) {
+  constructor(private platform: PlatformService, private destroyRef: DestroyRef, private route: ActivatedRoute) {
     this.platform.browser(() => {
       this.browser = true;
+    });
+    this.route.queryParams.subscribe(params => {
+      const tag = params['tag'] || 'main';
+      this.tag.set(tag);
     });
   }
 

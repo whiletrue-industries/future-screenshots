@@ -1,6 +1,6 @@
 import { Component, effect, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { ApiService } from '../api.service';
+import { ModerateApiService } from '../../../moderate-api.service';
 import { FormsModule } from '@angular/forms';
 
 export type Filter = {
@@ -47,7 +47,7 @@ export class ModerateComponent {
     'highlighted',
   ];
 
-  constructor(private route: ActivatedRoute, private api: ApiService) {
+  constructor(private route: ActivatedRoute, private api: ModerateApiService) {
     this.route.queryParams.subscribe(params => {
       this.workspaceId.set(params['workspace'] || null);
       this.apiKey.set(params['api_key'] || null);
