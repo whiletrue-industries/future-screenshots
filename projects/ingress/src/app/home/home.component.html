@@ -1,0 +1,14 @@
+<div class='container'>
+    <div class='map'>
+        @if (browser) {
+            <app-output-map [tag]='tag()'></app-output-map>
+        }
+        <div class='menu-button' (click)='mainMenuOpen.set(!mainMenuOpen())'>
+            <div class='button' [class.open]='mainMenuOpen()'></div>
+            <span>menu</span>
+        </div>
+    </div>
+    <div class='menu-container' [class.open]='mainMenuOpen()'>
+        <app-main-menu></app-main-menu>
+    </div>
+</div>

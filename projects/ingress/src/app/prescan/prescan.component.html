@@ -1,7 +1,9 @@
 <div class='sticky-menu' [class.visible]='topMenuOpen()'>
     <div class='header'>
-        <a class='back' [routerLink]='["/"]' queryParamsHandling="preserve"></a>
-        <div class='logo'></div>
+        <a [routerLink]='["/"]' queryParamsHandling="preserve">
+            <div class='back'></div>
+            <div class='logo'></div>
+        </a>
         <div class='open-menu' (click)='mainMenuOpen.set(true)'></div>        
     </div>
     <app-language-selector></app-language-selector>

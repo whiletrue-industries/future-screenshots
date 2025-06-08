@@ -21,7 +21,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
   templateUrl: './prescan.component.html',
   styleUrl: './prescan.component.less'
 })
-export class HomeComponent implements AfterViewInit {
+export class PrescanComponent implements AfterViewInit {
 
   @ViewChild(MessagesComponent) messagesComponent!: MessagesComponent;
   

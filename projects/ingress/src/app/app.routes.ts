@@ -1,10 +1,11 @@
 import { Routes } from '@angular/router';
 import { ScannerComponent } from './scanner/scanner.component';
 import { ConfirmComponent } from './confirm/confirm.component';
-import { HomeComponent } from './prescan/prescan.component';
+import { PrescanComponent } from './prescan/prescan.component';
 import { DiscussComponent } from './discuss/discuss.component';
 import { LoaderComponent } from './loader/loader.component';
 import { RedirectorComponent } from './redirector/redirector.component';
+import { HomeComponent } from './home/home.component';
 
 export const routes: Routes = [
     {
@@ -22,6 +23,10 @@ export const routes: Routes = [
     {
         'path': 'load',
         'component': LoaderComponent,
+    },
+    {
+        'path': 'prescan',
+        'component': PrescanComponent,
     },
     {
         'path': 'pps25',

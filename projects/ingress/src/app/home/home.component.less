@@ -1,0 +1,22 @@
+.container {
+    display: flex;
+    flex-flow: column;
+    align-items: stretch;
+    height: 100%;
+    overflow: hidden;
+
+    .map {
+        flex: 1 1 100%;
+        position: relative;
+        display: flex;
+        flex-flow: column;
+        align-items: center;
+
+        app-output-map {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            flex: 1 1 100%;
+        }
+    }
+}
