@@ -4,16 +4,9 @@ git checkout main && \
 git checkout -b dist && \
 rm .gitignore && \
 npm run build:app  && \
-npm run build:showcase  && \
-npm run build:admin  && \
 mv dist/app/browser/en _dist && \
 mv dist/app/browser/he _dist && \
-mv dist/showcase/browser/en _dist/show && \
-mv dist/showcase/browser/he _dist/show && \
-mkdir _dist/show/jma25 && cp -r _dist/show/index.html _dist/show/jma25 && \
-mkdir _dist/show/he/pps25 && cp -r _dist/show/he/index.html _dist/show/he/pps25 && \
-mkdir _dist/show/he/pps25w && cp -r _dist/show/he/index.html _dist/show/he/pps25w && \
-mv dist/admin/browser _dist/admin && \
+mv dist/app/browser/nl _dist && \
 (cp CNAME _dist/ || true) && \
 git add _dist && \
 git commit -m dist && \
