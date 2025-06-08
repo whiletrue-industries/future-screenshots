@@ -5,7 +5,7 @@ import { distinct, distinctUntilChanged, map, ReplaySubject, Subject, switchMap 
 @Injectable({
   providedIn: 'root'
 })
-export class ApiService {
+export class ShowcaseApiService {
 
   _configs = new Subject<any>();
   config = new ReplaySubject<any>(1);
@@ -14,7 +14,7 @@ export class ApiService {
     this._configs.pipe(
       distinctUntilChanged((a, b) => a?.tag === b?.tag && a?.set_id === b?.set_id),
     ).subscribe(config => {
-      console.log('Config updated:', config);
+      // console.log('Config updated:', config);
       this.config.next(config);
     });
   }
@@ -33,7 +33,7 @@ export class ApiService {
         );
       })
     ).subscribe(config => {
-      console.log('Config loaded:', config);
+      // console.log('Config loaded:', config);
       this._configs.next(config);
     });
   }

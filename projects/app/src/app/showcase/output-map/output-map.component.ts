@@ -1,11 +1,13 @@
 import { AfterViewInit, Component, computed, effect, ElementRef, Input, OnInit, signal, ViewChild } from '@angular/core';
 
-import { PlatformService } from '../../platform.service';
 import { animationFrameScheduler, catchError, delay, distinct, distinctUntilChanged, filter, forkJoin, from, interval, last, map, max, ReplaySubject, Subject, switchMap, take, tap, timer } from 'rxjs';
-import { ApiService } from '../api.service';
-import * as L from 'leaflet';
+// import * as L from 'leaflet';
 import { ActivatedRoute } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { PlatformService } from '../../../platform.service';
+import { ShowcaseApiService } from '../../../showcase-api.service';
+import { LeafletService } from '../../../leaflet.service';
+// import * as L from '@types/leaflet';
 
 // import { type Map } from 'leaflet';
 // import * as _L from 'leaflet';
@@ -34,6 +36,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
   @ViewChild('maskEl') maskElement: ElementRef;
 
   // Map
+  L: any;
   map = signal<L.Map>(null as any);
   tileLayer: any = null;
   clusterLabelsLayer: L.SVGOverlay | null = null;
@@ -104,7 +107,8 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
     return [[-this.h(), 0], [0, this.w()]];
   });
   
-  constructor(private api: ApiService, private platform: PlatformService, private activatedRoute: ActivatedRoute) {
+  constructor(private api: ShowcaseApiService, private platform: PlatformService, private activatedRoute: ActivatedRoute, private leafletService: LeafletService) {
+    this.L = this.leafletService.L;
     activatedRoute.queryParams.subscribe((params: { [x: string]: string; }) => {
       this.setLanguage();
       this.tag = params['tag'] || this.tag;
@@ -131,59 +135,61 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
       this.currentIndex = 0;
       this.config.set(config);
     });
-    this.api.config.pipe(
-      filter(config => !!config),
-      take(1),
-      delay(2000),
-      tap(() => {
-        this.mapChangingOpportunity.next();
-        this.addToQueue();
-      }),
-      delay(2000),
-    ).subscribe(() => {
-      if (this.doLoop) {
-        this.loop();
-      }
-    });
-    effect(() => {
-      if (this.viewInit() && this.config() && L) {
-        console.log('LANG GETTING MAP?');
-        this.mapChangingOpportunity.pipe(
-          take(1)
-        ).subscribe(() => {
-          console.log('LANG GETTING MAP!');
-          this.map.update((m) => {
-            if (m) {
-              this.tileLayer.remove();
-              this.addTileLayer(m);
-              return m;
-            } else {
-              const map = this.getMap(this.config());
-              return map;  
-            }
-          });
-        });
-      }
-    });
-    effect(() => {
-      const currentZoom = this.currentZoom();
-      if (!this.doLoop && this.clusterLabelsLayer) {
-        if (currentZoom < 4) {
-          this.clusterLabelsLayer.setOpacity(1.0);
-          this.clusterLabelsVisible.set(true);
-        } else if (currentZoom > 4.5) {
-          this.clusterLabelsLayer.setOpacity(0.0);
-          this.clusterLabelsVisible.set(false);
-        } else {
-          this.clusterLabelsLayer.setOpacity(1 - (currentZoom - 4) / 0.5);
-          this.clusterLabelsVisible.set(true);
+    this.platform.browser(() => {
+      this.api.config.pipe(
+        filter(config => !!config),
+        take(1),
+        delay(2000),
+        tap(() => {
+          this.mapChangingOpportunity.next();
+          this.addToQueue();
+        }),
+        delay(2000),
+      ).subscribe(() => {
+        if (this.doLoop) {
+          this.loop();
         }
-      }
-    });
-    interval(60000).pipe(
-      takeUntilDestroyed(),
-    ).subscribe(() => {
-      this.api.loadConfig(this.tag);
+      });
+      effect(() => {
+        if (this.viewInit() && this.config() && this.L) {
+          console.log('LANG GETTING MAP?');
+          this.mapChangingOpportunity.pipe(
+            take(1)
+          ).subscribe(() => {
+            console.log('LANG GETTING MAP!');
+            this.map.update((m) => {
+              if (m) {
+                this.tileLayer.remove();
+                this.addTileLayer(m);
+                return m;
+              } else {
+                const map = this.getMap(this.config());
+                return map;  
+              }
+            });
+          });
+        }
+      });
+      effect(() => {
+        const currentZoom = this.currentZoom();
+        if (!this.doLoop && this.clusterLabelsLayer) {
+          if (currentZoom < 4) {
+            this.clusterLabelsLayer.setOpacity(1.0);
+            this.clusterLabelsVisible.set(true);
+          } else if (currentZoom > 4.5) {
+            this.clusterLabelsLayer.setOpacity(0.0);
+            this.clusterLabelsVisible.set(false);
+          } else {
+            this.clusterLabelsLayer.setOpacity(1 - (currentZoom - 4) / 0.5);
+            this.clusterLabelsVisible.set(true);
+          }
+        }
+      });
+      interval(60000).pipe(
+        takeUntilDestroyed(),
+      ).subscribe(() => {
+        this.api.loadConfig(this.tag);
+      });
     });
   }
 
@@ -371,8 +377,8 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
     const expandRatio = 0.333;
     const maxBounds: L.LatLngBoundsLiteral = [[-h * (1 + expandRatio), -w * expandRatio], [h * expandRatio, w * (1 + expandRatio)]];
     console.log('BOUNDS', config.dim, config.conversion_ratio, bounds, maxBounds);
-    const map = L.map(this.mapElement.nativeElement, {
-      crs: L.CRS.Simple,
+    const map = this.L.map(this.mapElement.nativeElement, {
+      crs: this.L.CRS.Simple,
       maxBounds: maxBounds,
       center: [bounds[0][0] / 2, bounds[1][1] / 2],
       zoom: 2,
@@ -392,12 +398,12 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
     timer(0).subscribe(() => {
       if (this.doLoop) {
         const maskElement = this.maskElement.nativeElement.querySelector('svg');
-        this.maskLayer = L.svgOverlay(maskElement, bounds);
-        this.maskLayer.addTo(map);
+        this.maskLayer = this.L.svgOverlay(maskElement, bounds);
+        this.maskLayer?.addTo(map);
       }
       const clusterLabelsElement = this.clusterLabelsElement.nativeElement.querySelector('svg');
-      this.clusterLabelsLayer = L.svgOverlay(clusterLabelsElement, bounds);
-      this.clusterLabelsLayer.addTo(map);
+      this.clusterLabelsLayer = this.L.svgOverlay(clusterLabelsElement, bounds);
+      this.clusterLabelsLayer?.addTo(map);
     });
     return map;
   }
@@ -405,7 +411,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
   addTileLayer(map: L.Map) {
     const maxMaxBounds: L.LatLngBoundsLiteral = [[-this.h() * 2, -this.w()], [this.h(), this.w() * 2]];
     const config = this.config();
-    this.tileLayer = new L.TileLayer(`https://storage.googleapis.com/chronomaps3-eu/tiles/${this.tag}/${config.set_id}/{z}/{x}/{y}.png`, {
+    this.tileLayer = new this.L.TileLayer(`https://storage.googleapis.com/chronomaps3-eu/tiles/${this.tag}/${config.set_id}/{z}/{x}/{y}.png`, {
       maxZoom: 8,
       minZoom: 2,
       bounds: maxMaxBounds,

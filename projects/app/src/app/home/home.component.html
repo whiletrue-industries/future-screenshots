@@ -1,14 +1,20 @@
 <div class='container'>
-    <div class='map'>
+    <div class='map' #mapContainer>
         @if (browser) {
             <app-output-map [tag]='tag()'></app-output-map>
         }
+        <div class='borders' [class.fullscreen]='!mainMenuOpen()'>
+            <div class='border b1'></div>
+            <div class='border b2'></div>
+            <div class='border b3'></div>
+        </div>
+        <div class='logo' [class.fullscreen]='!mainMenuOpen()'></div>
         <div class='menu-button' (click)='mainMenuOpen.set(!mainMenuOpen())'>
             <div class='button' [class.open]='mainMenuOpen()'></div>
             <span>menu</span>
         </div>
     </div>
-    <div class='menu-container' [class.open]='mainMenuOpen()'>
+    <div class='menu-container' [style.height.px]='mainMenuOpen() ? menuHeight : 0'>
         <app-main-menu></app-main-menu>
     </div>
 </div>

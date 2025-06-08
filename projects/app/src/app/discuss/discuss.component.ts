@@ -1,9 +1,9 @@
 import { AfterViewInit, Component, computed, effect, ElementRef, signal, ViewChild, WritableSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { StateService } from '../../../state.service';
+import { StateService } from '../../state.service';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { ApiService, DiscussResult } from '../../../api.service';
-import { PlatformService } from '../../../platform.service';
+import { ApiService, DiscussResult } from '../../api.service';
+import { PlatformService } from '../../platform.service';
 import { Message, MessagesComponent } from '../messages/messages.component';
 import { from, fromEvent, switchMap, take } from 'rxjs';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';

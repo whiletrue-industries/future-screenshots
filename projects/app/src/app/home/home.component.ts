@@ -1,7 +1,9 @@
-import { Component, signal } from '@angular/core';
-import { OutputMapComponent } from "../../../../showcase/src/app/output-map/output-map.component";
-import { MainMenuComponent } from "../main-menu/main-menu.component";
-import { PlatformService } from '../../../platform.service';
+import { AfterViewInit, Component, DestroyRef, ElementRef, signal, ViewChild } from '@angular/core';
+import { OutputMapComponent } from "../showcase/output-map/output-map.component";
+import { MAIN_MENU_HEIGHT, MainMenuComponent } from "../main-menu/main-menu.component";
+import { PlatformService } from '../../platform.service';
+import { Observable } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'app-home',
@@ -9,14 +11,46 @@ import { PlatformService } from '../../../platform.service';
   templateUrl: './home.component.html',
   styleUrl: './home.component.less'
 })
-export class HomeComponent {
+export class HomeComponent implements AfterViewInit {
   tag = signal('main');
-  mainMenuOpen = signal(false);
+  mainMenuOpen = signal(true);
   browser = false;
 
-  constructor(private platform: PlatformService) {
+  menuHeight = MAIN_MENU_HEIGHT;
+
+  @ViewChild('mapContainer') mapContainer: ElementRef<HTMLElement>;
+  @ViewChild(OutputMapComponent) outputMap: OutputMapComponent;
+
+  constructor(private platform: PlatformService, private destroyRef: DestroyRef) {
     this.platform.browser(() => {
       this.browser = true;
+    });
+  }
+
+  ngAfterViewInit() {
+    this.platform.browser(() => {
+      new Observable<ResizeObserverEntry[]>((observer) => {
+        const resize = new ResizeObserver((entries) => {
+          observer.next(entries);
+        });
+        resize.observe(this.mapContainer.nativeElement);
+        const unsubscribe = () => {
+          resize.disconnect();
+        };
+        return unsubscribe;
+      }).pipe(
+        takeUntilDestroyed(this.destroyRef),
+      ).subscribe((entries) => {
+        const entry = entries[0];
+        if (entry) {
+          const map = this.outputMap.map();
+          if (map) {
+            const latlng = map.getCenter();
+            map.invalidateSize();
+            map.flyTo(latlng);
+          }
+        }
+      });
     });
   }
 }

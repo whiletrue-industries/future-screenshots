@@ -1,3 +1,5 @@
+@import '../../common.less';
+
 .container {
     display: flex;
     flex-flow: column;
@@ -12,11 +14,77 @@
         flex-flow: column;
         align-items: center;
 
+        .borders {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            transition: background-color 0.3s ease-in-out;
+            background-color: fade(@color-creme, 75%);
+            &.fullscreen {
+                background-color: fade(@color-creme, 0%);
+            }
+
+            .border {
+                position: absolute;
+                top: 2px;
+                left: 2px;
+                width: calc(100% ~'-' 4px);
+                height: calc(100% ~'-' 4px);
+
+                &.b1 {
+                    z-index: 900;
+                    border: 3px solid @color-primary;
+                }
+                &.b2 {
+                    z-index: 901;
+                    border: 2px dashed @color-creme;                
+                }
+                &.b3 {
+                    z-index: 902;
+                    border: 1px solid @color-primary;
+                }
+            }
+        }
+
         app-output-map {
             width: 100%;
             height: 100%;
             position: relative;
             flex: 1 1 100%;
         }
+
+        .menu-button {
+            position: absolute;
+            z-index: 1000;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .logo {
+            position: absolute;
+            z-index: 1000;
+            pointer-events: none;
+            left: 50%;
+            top: 50%;
+            transform: translateX(-50%) translateY(-50%);
+            transition: all 0.3s ease-in-out;
+            &.fullscreen {
+                top: 0;
+                transform: translateX(-50%) translateY(0);
+            }
+            .background-image;
+            width: 165px;
+            height: 138px;
+            background-image: url(../../../public/futures-map-logo.svg);
+        }
+    }
+
+    .menu-container {
+        flex: 0 0 auto;
+        transition: height 0.3s ease-in-out;
     }
 }

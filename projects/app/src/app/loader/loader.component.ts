@@ -1,8 +1,8 @@
 import { AfterViewInit, Component, effect, signal, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ApiService } from '../../../api.service';
-import { PlatformService } from '../../../platform.service';
-import { StateService } from '../../../state.service';
+import { ApiService } from '../../api.service';
+import { PlatformService } from '../../platform.service';
+import { StateService } from '../../state.service';
 import { default as lottie, AnimationItem } from 'lottie-web';
 import { from, merge, Observable, switchMap, take, tap, timer } from 'rxjs';
 import { HttpClient } from '@angular/common/http';

@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { PlatformService } from '../../platform.service';
+import { PlatformService } from '../platform.service';
 import { marked } from 'marked';
 
 @Component({

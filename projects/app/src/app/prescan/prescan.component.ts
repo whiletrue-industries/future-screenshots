@@ -1,9 +1,9 @@
 import { AfterViewInit, Component, computed, DestroyRef, signal, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { ApiService } from '../../../api.service';
+import { ApiService } from '../../api.service';
 import { Message, MessagesComponent } from "../messages/messages.component";
 import { delay, filter, from, interval, map, Subject, switchMap, take, tap, timer } from 'rxjs';
-import { PlatformService } from '../../../platform.service';
+import { PlatformService } from '../../platform.service';
 import { LtrDirective } from '../ltr.directive';
 import { MainMenuComponent } from "../main-menu/main-menu.component";
 import { LanguageSelectorComponent } from "../language-selector/language-selector.component";

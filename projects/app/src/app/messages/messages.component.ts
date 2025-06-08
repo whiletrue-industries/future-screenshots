@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, computed, DestroyRef, effect, ElementRef, Input, OnDestroy, signal, ViewChild, WritableSignal } from '@angular/core';
 import { marked } from 'marked';
 import { debounceTime, fromEvent, Subject, throttleTime, timer } from 'rxjs';
-import { PlatformService } from '../../../platform.service';
+import { PlatformService } from '../../platform.service';
 import { LtrDirective } from '../ltr.directive';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { default as lottie, AnimationItem } from 'lottie-web';

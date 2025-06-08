@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { PlatformService } from '../../../platform.service';
+import { PlatformService } from '../../platform.service';
 
 @Component({
   selector: 'app-redirector',

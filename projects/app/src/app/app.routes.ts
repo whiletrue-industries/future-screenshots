@@ -6,8 +6,18 @@ import { DiscussComponent } from './discuss/discuss.component';
 import { LoaderComponent } from './loader/loader.component';
 import { RedirectorComponent } from './redirector/redirector.component';
 import { HomeComponent } from './home/home.component';
+import { Pps25Component } from './showcase/pps25/pps25.component';
+import { Pps25VComponent } from './showcase/pps25v/pps25.component';
+import { Jma25Component } from './showcase/jma25/jma25.component';
+import { OutputMapComponent } from './showcase/output-map/output-map.component';
 
 export const routes: Routes = [
+    // Showcase routes
+    { path: 'show/pps25w', component: Pps25Component },
+    { path: 'show/pps25', component: Pps25VComponent },
+    { path: 'show/jma25', component: Jma25Component },
+    { path: 'show', component: OutputMapComponent },
+
     {
         'path': 'scan',
         'component': ScannerComponent

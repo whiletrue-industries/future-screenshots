@@ -2,9 +2,9 @@ import { AfterViewInit, Component, computed, DestroyRef, ElementRef, OnDestroy, 
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { debounceTime, delay, distinctUntilChanged, filter, interval, map, Subject, take, takeUntil, tap, timer } from 'rxjs';
-import { ApiService } from '../../../api.service';
-import { PlatformService } from '../../../platform.service';
-import { StateService } from '../../../state.service';
+import { ApiService } from '../../api.service';
+import { PlatformService } from '../../platform.service';
+import { StateService } from '../../state.service';
 import { LtrDirective } from '../ltr.directive';
 
 declare const jscanify: any;
