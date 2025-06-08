@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "ingress": {
+    "app": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -14,36 +14,36 @@
           "skipTests": true
         }
       },
-      "root": "projects/ingress",
-      "sourceRoot": "projects/ingress/src",
+      "root": "projects/app",
+      "sourceRoot": "projects/app/src",
       "prefix": "app",
       "architect": {
         "build": {
           "builder": "@angular-devkit/build-angular:application",
           "options": {
-            "outputPath": "dist/ingress",
-            "index": "projects/ingress/src/index.html",
-            "browser": "projects/ingress/src/main.ts",
+            "outputPath": "dist/app",
+            "index": "projects/app/src/index.html",
+            "browser": "projects/app/src/main.ts",
             "polyfills": [
               "zone.js",
               "@angular/localize/init"
             ],
-            "tsConfig": "projects/ingress/tsconfig.app.json",
+            "tsConfig": "projects/app/tsconfig.app.json",
             "inlineStyleLanguage": "less",
             "assets": [
               {
                 "glob": "**/*",
-                "input": "projects/ingress/public"
+                "input": "projects/app/public"
               }
             ],
             "styles": [
-              "projects/ingress/src/styles.less"
+              "projects/app/src/styles.less"
             ],
             "scripts": [],
-            "server": "projects/ingress/src/main.server.ts",
+            "server": "projects/app/src/main.server.ts",
             "prerender": true,
             "ssr": {
-              "entry": "projects/ingress/src/server.ts"
+              "entry": "projects/app/src/server.ts"
             },
             "localize": ["he", "en", "nl"]
           },
@@ -81,16 +81,16 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "ingress:build:production"
+              "buildTarget": "app:build:production"
             },
             "development": {
-              "buildTarget": "ingress:build:development"
+              "buildTarget": "app:build:development"
             },
             "he": {
-              "buildTarget": "ingress:build:he"
+              "buildTarget": "app:build:he"
             },
             "nl": {
-              "buildTarget": "ingress:build:nl"
+              "buildTarget": "app:build:nl"
             }
           },
           "defaultConfiguration": "development"
@@ -106,16 +106,16 @@
               "zone.js/testing",
               "@angular/localize/init"
             ],
-            "tsConfig": "projects/ingress/tsconfig.spec.json",
+            "tsConfig": "projects/app/tsconfig.spec.json",
             "inlineStyleLanguage": "less",
             "assets": [
               {
                 "glob": "**/*",
-                "input": "projects/ingress/public"
+                "input": "projects/app/public"
               }
             ],
             "styles": [
-              "projects/ingress/src/styles.less"
+              "projects/app/src/styles.less"
             ],
             "scripts": []
           }
@@ -125,14 +125,14 @@
         "sourceLocale": "en-US",
         "locales": {
           "he": {
-            "translation": "projects/ingress/src/locale/messages.he.xlf"
+            "translation": "projects/app/src/locale/messages.he.xlf"
           },
           "en": {
-            "translation": "projects/ingress/src/locale/messages.en.xlf",
+            "translation": "projects/app/src/locale/messages.en.xlf",
             "baseHref": "/"
           },
           "nl": {
-            "translation": "projects/ingress/src/locale/messages.nl.xlf"
+            "translation": "projects/app/src/locale/messages.nl.xlf"
           }
         }
       }

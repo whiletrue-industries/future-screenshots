@@ -33,7 +33,7 @@ export class PrescanComponent implements AfterViewInit {
   tellMore: Message = new Message('ai', $localize`Find our booth in the lobby in front of the entrance. There you'll find templates and guidance.`);
   secondInteraction: Message = new Message('ai', $localize`Great!
 
-But first, please approve the collection, processing, and storage of your screenshot as described in the [Privacy Policy](https://github.com/whiletrue-industries/future-screenshots/blob/main/projects/ingress/src/privacy-policy.md).
+But first, please approve the collection, processing, and storage of your screenshot as described in the [Privacy Policy](https://github.com/whiletrue-industries/future-screenshots/blob/main/projects/app/src/privacy-policy.md).
 
 I’m also about to ask you for **access to the camera**, and then we can get going….`);
 

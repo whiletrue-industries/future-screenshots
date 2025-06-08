@@ -4,47 +4,47 @@
     <body>
       <trans-unit id="225185942591106089" datatype="html">
         <source>Yes, Let’s scan!</source>
-        <target state="">כן, בואו נסרוק!</target>
+        <target state="">Ja, laten we scannen!</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/home/home.component.html</context>
+          <context context-type="sourcefile">projects/app/src/app/home/home.component.html</context>
           <context context-type="linenumber">4,5</context>
         </context-group>
       </trans-unit>
       <trans-unit id="512623949609093993" datatype="html">
         <source>Yes, I agree</source>
-        <target state="">בטח, אין בעיה בכלל</target>
+        <target state="">Ja, ik ga akkoord</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/home/home.component.html</context>
+          <context context-type="sourcefile">projects/app/src/app/home/home.component.html</context>
           <context context-type="linenumber">10,11</context>
         </context-group>
       </trans-unit>
       <trans-unit id="2005970641889841406" datatype="html">
         <source>Hi there…</source>
-        <target state="">הי שם...</target>
+        <target state="">Hallo…</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/home/home.component.ts</context>
+          <context context-type="sourcefile">projects/app/src/app/home/home.component.ts</context>
           <context context-type="linenumber">22</context>
         </context-group>
       </trans-unit>
       <trans-unit id="4767332476188972747" datatype="html">
         <source>I’m here to help you **scan** your future screenshot and add it to the map.</source>
-        <target state="">האם הכנת צילום מסך עתידי כדי **לסרוק** ולהעלות למפה?</target>
+        <target state="">Ik ben hier om je te helpen **scannen** je toekomstige screenshot en deze aan de kaart toe te voegen.</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/home/home.component.ts</context>
+          <context context-type="sourcefile">projects/app/src/app/home/home.component.ts</context>
           <context context-type="linenumber">23</context>
         </context-group>
       </trans-unit>
       <trans-unit id="5995049986155292198" datatype="html">
         <source>Great!
 
-But first, please approve the collection, processing, and storage of your screenshot as described in the [Privacy Policy](https://github.com/whiletrue-industries/future-screenshots/blob/main/projects/ingress/src/privacy-policy.md).
+But first, please approve the collection, processing, and storage of your screenshot as described in the [Privacy Policy](https://github.com/whiletrue-industries/future-screenshots/blob/main/projects/app/src/privacy-policy.md).
 
 I’m also about to ask you for **access to the camera**, and then we can get going….</source>
         <target state="">מעולה!
-אבל קודם, **אבקש רשות** לאסוף, לעבד ולאחסן את צילומי המסך בהתאם ל[מדיניות הפרטיות](https://github.com/whiletrue-industries/future-screenshots/blob/main/projects/ingress/src/privacy-policy.md).
+אבל קודם, **אבקש רשות** לאסוף, לעבד ולאחסן את צילומי המסך בהתאם ל[מדיניות הפרטיות](https://github.com/whiletrue-industries/future-screenshots/blob/main/projects/app/src/privacy-policy.md).
 עוד רגע אבקש גם **גישה למצלמה** ונוכל להמשיך משם…</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/home/home.component.ts</context>
+          <context context-type="sourcefile">projects/app/src/app/home/home.component.ts</context>
           <context context-type="linenumber">27,31</context>
         </context-group>
       </trans-unit>
@@ -52,7 +52,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>Scan Again</source>
         <target state="">סריקה חוזרת</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/confirm/confirm.component.html</context>
+          <context context-type="sourcefile">projects/app/src/app/confirm/confirm.component.html</context>
           <context context-type="linenumber">12,13</context>
         </context-group>
       </trans-unit>
@@ -60,7 +60,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>Looks Good</source>
         <target state="">נראה טוב</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/confirm/confirm.component.html</context>
+          <context context-type="sourcefile">projects/app/src/app/confirm/confirm.component.html</context>
           <context context-type="linenumber">18,19</context>
         </context-group>
       </trans-unit>
@@ -68,7 +68,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>Share</source>
         <target state="">שיתוף</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/discuss/discuss.component.html</context>
+          <context context-type="sourcefile">projects/app/src/app/discuss/discuss.component.html</context>
           <context context-type="linenumber">14,15</context>
         </context-group>
       </trans-unit>
@@ -76,7 +76,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>Add Another</source>
         <target state="">אוסיף עוד אחד</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/discuss/discuss.component.html</context>
+          <context context-type="sourcefile">projects/app/src/app/discuss/discuss.component.html</context>
           <context context-type="linenumber">21,22</context>
         </context-group>
       </trans-unit>
@@ -84,7 +84,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>Download</source>
         <target state="">הורדה כתמונה</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/discuss/discuss.component.html</context>
+          <context context-type="sourcefile">projects/app/src/app/discuss/discuss.component.html</context>
           <context context-type="linenumber">27,28</context>
         </context-group>
       </trans-unit>
@@ -92,7 +92,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>in your own words...</source>
         <target state="">במילים שלך...</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/discuss/discuss.component.html</context>
+          <context context-type="sourcefile">projects/app/src/app/discuss/discuss.component.html</context>
           <context context-type="linenumber">53,54</context>
         </context-group>
       </trans-unit>
@@ -100,7 +100,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>Our Future?</source>
         <target state="">העתיד שלנו?</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/discuss/discuss.component.ts</context>
+          <context context-type="sourcefile">projects/app/src/app/discuss/discuss.component.ts</context>
           <context context-type="linenumber">205</context>
         </context-group>
       </trans-unit>
@@ -108,7 +108,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>Check out this image!</source>
         <target state="">זה מה שאני דמיינתי</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/discuss/discuss.component.ts</context>
+          <context context-type="sourcefile">projects/app/src/app/discuss/discuss.component.ts</context>
           <context context-type="linenumber">206</context>
         </context-group>
       </trans-unit>
@@ -116,7 +116,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>Uploading image...</source>
         <target state="">מעלה קובץ תמונה...</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/loader/loader.component.html</context>
+          <context context-type="sourcefile">projects/app/src/app/loader/loader.component.html</context>
           <context context-type="linenumber">4,5</context>
         </context-group>
       </trans-unit>
@@ -124,7 +124,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>Analyzing template...</source>
         <target state="">מנתח את התבנית...</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/loader/loader.component.html</context>
+          <context context-type="sourcefile">projects/app/src/app/loader/loader.component.html</context>
           <context context-type="linenumber">5,6</context>
         </context-group>
       </trans-unit>
@@ -132,7 +132,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>Deciphering handwriting...</source>
         <target state="">מפענח את כתב היד...</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/loader/loader.component.html</context>
+          <context context-type="sourcefile">projects/app/src/app/loader/loader.component.html</context>
           <context context-type="linenumber">6,7</context>
         </context-group>
       </trans-unit>
@@ -140,7 +140,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>Anticipating transition...</source>
         <target state="">מזהה שינוי...</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/loader/loader.component.html</context>
+          <context context-type="sourcefile">projects/app/src/app/loader/loader.component.html</context>
           <context context-type="linenumber">7,8</context>
         </context-group>
       </trans-unit>
@@ -148,11 +148,11 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>fit the page to the frame</source>
         <target state="">התאימו את הדף למסגרת</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
+          <context context-type="sourcefile">projects/app/src/app/scanner/scanner.component.ts</context>
           <context context-type="linenumber">142</context>
         </context-group>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
+          <context context-type="sourcefile">projects/app/src/app/scanner/scanner.component.ts</context>
           <context context-type="linenumber">158</context>
         </context-group>
       </trans-unit>
@@ -160,11 +160,11 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>change your angle</source>
         <target state="">אולי זווית שונה</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
+          <context context-type="sourcefile">projects/app/src/app/scanner/scanner.component.ts</context>
           <context context-type="linenumber">168</context>
         </context-group>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
+          <context context-type="sourcefile">projects/app/src/app/scanner/scanner.component.ts</context>
           <context context-type="linenumber">174</context>
         </context-group>
       </trans-unit>
@@ -172,7 +172,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>move closer to page</source>
         <target state="">תתקרבו קצת אל הדף</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
+          <context context-type="sourcefile">projects/app/src/app/scanner/scanner.component.ts</context>
           <context context-type="linenumber">186</context>
         </context-group>
       </trans-unit>
@@ -180,7 +180,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>hold still...</source>
         <target state="">אוקיי, לא לזוז...</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
+          <context context-type="sourcefile">projects/app/src/app/scanner/scanner.component.ts</context>
           <context context-type="linenumber">301</context>
         </context-group>
       </trans-unit>
@@ -188,7 +188,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>How do I make one?</source>
         <target state="">איך יוצרים כזה?</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/home/home.component.html</context>
+          <context context-type="sourcefile">projects/app/src/app/home/home.component.html</context>
           <context context-type="linenumber">7,8</context>
         </context-group>
       </trans-unit>
@@ -196,11 +196,11 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>try on a darker background</source>
         <target state="">נסו לצלם מעל רקע כהה יותר</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
+          <context context-type="sourcefile">projects/app/src/app/scanner/scanner.component.ts</context>
           <context context-type="linenumber">161</context>
         </context-group>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/scanner/scanner.component.ts</context>
+          <context context-type="sourcefile">projects/app/src/app/scanner/scanner.component.ts</context>
           <context context-type="linenumber">181</context>
         </context-group>
       </trans-unit>
@@ -208,7 +208,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>Find our booth in the lobby in front of the entrance. There you'll find templates and guidance.</source>
         <target state="">חפשו אותנו בלובי מול הכניסה - שם תמצאו תבניות למילוי והדרכה!</target>
         <context-group purpose="location">
-          <context context-type="sourcefile">projects/ingress/src/app/home/home.component.ts</context>
+          <context context-type="sourcefile">projects/app/src/app/home/home.component.ts</context>
           <context context-type="linenumber">28</context>
         </context-group>
       </trans-unit>
