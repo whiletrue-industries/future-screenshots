@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, NgZone, signal } from '@angular/core';
+import { effect, Injectable, NgZone, signal } from '@angular/core';
 import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
 import { map, Observable, switchMap, tap } from 'rxjs';
 
@@ -23,24 +23,41 @@ export class ApiService {
 
   item = signal<any>(null);
   api_key = signal<string>('a356977d-219f-4d65-ae18-d8e98280bca1');
-  workspace = signal<string>('03da8ede-395b-4fd2-b46e-bc2bc7f4035c');
+  workspaceId = signal<string>('03da8ede-395b-4fd2-b46e-bc2bc7f4035c');
   automatic = signal<boolean>(false);
+  workspace = signal<any>({});
 
-  constructor(private http: HttpClient, private zone: NgZone) { }
+  constructor(private http: HttpClient, private zone: NgZone) {
+    effect(() => {
+      const workspaceId = this.workspaceId();
+      if (workspaceId) {
+        this.fetchWorkspace(workspaceId).subscribe();
+      }
+    });
+  }
 
   updateFromRoute(route: ActivatedRouteSnapshot) {
-    const workspace = route.queryParams['workspace'] || this.workspace();
+    const workspace = route.queryParams['workspace'] || this.workspaceId();
     const api_key = route.queryParams['api_key'] || this.api_key();
     const automatic = route.queryParams['automatic'] || this.automatic();
     if (automatic) {
       this.automatic.set(automatic === 'true');
     }
     if (workspace) {
-      this.workspace.set(workspace);
+      this.workspaceId.set(workspace);
     }
     if (api_key) {
       this.api_key.set(api_key);
     }
+  }
+
+  fetchWorkspace(workspaceId: string): Observable<any> {
+    return this.http.get(`${this.CHRONOMAPS_API_URL}/${workspaceId}`).pipe(
+      map((response: any) => {
+        this.workspace.set(response);
+        return response;
+      })
+    );
   }
 
   fetchItem(item_id: string, item_key: string): Observable<any> { 
@@ -50,7 +67,7 @@ export class ApiService {
     const headers = {
       'Authorization': this.api_key(),
     };
-    return this.http.get(`${this.CHRONOMAPS_API_URL}/${this.workspace()}/${item_id}`, {params, headers}).pipe(
+    return this.http.get(`${this.CHRONOMAPS_API_URL}/${this.workspaceId()}/${item_id}`, {params, headers}).pipe(
       map((response: any) => {
         response.item_id = item_id;
         response.item_key = item_key;
@@ -64,7 +81,7 @@ export class ApiService {
     const formData = new FormData();
     formData.append('image', image);
     const params: any = {
-      workspace: this.workspace(),
+      workspace: this.workspaceId(),
       api_key: this.api_key(),
     };
     if (this.automatic()) {
@@ -75,7 +92,7 @@ export class ApiService {
 
   sendInitMessageNoStream(item_id: string, item_key: string): Observable<any> {
     const params = {
-      workspace: this.workspace(),
+      workspace: this.workspaceId(),
       api_key: this.api_key(),
       item_id,
       item_key,
@@ -91,7 +108,7 @@ export class ApiService {
 
   sendMessage(message: string): Observable<any> {
     const params = {
-      workspace: this.workspace(),
+      workspace: this.workspaceId(),
       api_key: this.api_key(),
       item_id: this.item().item_id,
       item_key: this.item().item_key,

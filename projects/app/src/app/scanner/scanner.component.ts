@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, computed, DestroyRef, ElementRef, OnDestroy, signal, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { debounceTime, delay, distinctUntilChanged, filter, interval, map, Subject, take, takeUntil, tap, timer } from 'rxjs';
 import { ApiService } from '../../api.service';
 import { PlatformService } from '../../platform.service';
@@ -11,17 +11,21 @@ declare const jscanify: any;
 declare const cv: any;
 declare const window: any;
 
+type Point = { x: number, y: number };
+
 type CornerPoints = {
-  topLeftCorner: { x: number; y: number };
-  topRightCorner: { x: number; y: number };
-  bottomLeftCorner: { x: number; y: number };
-  bottomRightCorner: { x: number; y: number };
+  topLeftCorner: Point;
+  topRightCorner: Point;
+  bottomLeftCorner: Point;
+  bottomRightCorner: Point;
 };
+
 
 @Component({
   selector: 'app-scanner',
   imports: [
-    LtrDirective
+    LtrDirective,
+    RouterLink
   ],
   templateUrl: './scanner.component.html',
   styleUrl: './scanner.component.less'
@@ -58,7 +62,6 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     }
     return `M${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y} L ${points[2].x} ${points[2].y} L ${points[3].x} ${points[3].y} Z`;
   });
-  maskOpacity = signal(0);
   points = signal<{x: number, y: number}[]>([]);
 
   constructor(
@@ -174,7 +177,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     const leftRightAverage = (leftHeight + rightHeight) / 2;
     // ensure the ratio between averageWidth and averageHeight is 0.53 to 5% margin
     const averageRatio = (topBottomAverage / leftRightAverage) / 0.53;
-    const ratioMargin = frameCount < this.FRAME_COUNT_DARKER ? 0.05 : 0.09;
+    const ratioMargin = frameCount < this.FRAME_COUNT_DARKER ? 0.05 : 0.1;
     if (averageRatio < 1 - ratioMargin || averageRatio > 1 + ratioMargin) {
       this.msg.set('averageRatio is not in range: ' + averageRatio);
       if (frameCount < this.FRAME_COUNT_DARKER) {
@@ -189,7 +192,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     // Calculate the ratio of the top-width and bottom-width, left-height and right-height, ensure both are between 0.9 and 1.1
     const topBottomRatio = Math.max(topWidth, bottomWidth) / Math.min(topWidth, bottomWidth);
     const leftRightRatio = Math.max(leftHeight, rightHeight) / Math.min(leftHeight, rightHeight);
-    if (topBottomRatio > 1.1 || topBottomRatio < 0.9) {
+    if (topBottomRatio > 1.2 || topBottomRatio < 0.8) {
       this.msg.set('topBottomRatio is not in range: ' + topBottomRatio);
       this.displayMsgSubject.next($localize`change your angle`);
       // console.log('topBottomRatio is not in range');
@@ -304,30 +307,12 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
         shape.cornerPoints.bottomLeftCorner.y *= sampleRatio;
         shape.cornerPoints.bottomRightCorner.x *= sampleRatio;
         shape.cornerPoints.bottomRightCorner.y *= sampleRatio;
-        // const options = {
-        //   "color": shape?.valid ? (shape.blurry ? "#FFA500" : "#00FF00") : "#FF0000",
-        //   "thickness": 5
-        // };
-        // console.log('Drawing video frame to canvas', displayWidth, displayHeight);
-        // if (this.resultCtx) {
-        //   this.resultCtx.clearRect(0, 0, displayWidth, displayHeight);
-        //   const ctx = this.resultCtx;
-        //   ctx.strokeStyle = options.color;
-        //   ctx.lineWidth = options.thickness;
-        //   ctx.beginPath();
-        //   ctx.moveTo(shape.cornerPoints.topLeftCorner.x*ratio, shape.cornerPoints.topLeftCorner.y*ratio);
-        //   ctx.lineTo(shape.cornerPoints.topRightCorner.x*ratio, shape.cornerPoints.topRightCorner.y*ratio);
-        //   ctx.lineTo(shape.cornerPoints.bottomRightCorner.x*ratio, shape.cornerPoints.bottomRightCorner.y*ratio);
-        //   ctx.lineTo(shape.cornerPoints.bottomLeftCorner.x*ratio, shape.cornerPoints.bottomLeftCorner.y*ratio);
-        //   ctx.lineTo(shape.cornerPoints.topLeftCorner.x*ratio, shape.cornerPoints.topLeftCorner.y*ratio);
-        //   ctx.stroke();
-        // }
       }
       if (shape?.valid) {
         this.displayMsgSubject.next($localize`hold still...`);
         this.countDown -= 1;
         if (!shape.blurry && this.countDown > 10) {
-          this.countDown = 10;
+          this.countDown = 0;
         }
         if (this.countDown === 0) {
           frame = scanner.extractPaper(this.canvasEl.nativeElement, 1060, 2000, shape.cornerPoints);        
@@ -349,11 +334,6 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
         }
       } else {
         this.countDown = this.COUNTDOWN_INITIAL;
-      }
-      if (this.countDown < 10) {
-        this.maskOpacity.set(255 - this.countDown * 25);
-      } else {
-        this.maskOpacity.set(0);
       }
     });
   }

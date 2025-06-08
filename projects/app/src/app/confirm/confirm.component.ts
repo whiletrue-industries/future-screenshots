@@ -18,7 +18,7 @@ export class ConfirmComponent {
   constructor(public state: StateService, private router: Router, private api: ApiService, private route: ActivatedRoute) { 
     this.api.updateFromRoute(this.route.snapshot);
     if (!this.state.currentImageUrl()) {
-      this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
+      // this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
     }
   }
 }

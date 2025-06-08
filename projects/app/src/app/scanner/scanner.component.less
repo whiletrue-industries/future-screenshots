@@ -6,12 +6,13 @@
     width: 100%;
     height: 100%;
     position: relative;
+    background-color: fade(@color-dark-purple, 50%);
 
     .message {
         position: absolute;
-        bottom: 32px;
-        left: 50%;
-        transform: translateX(-50%) translateY(300%);
+        top: 4px;
+        left: 24px;
+        transform: translateY(-300%);
         z-index: 1;
         animation: showElastic 0.8s linear forwards;
         width: max-content;
@@ -20,6 +21,13 @@
             width: max-content;
             white-space: nowrap;
         }
+    }
+
+    .close {
+        position: absolute;
+        top: 12px;
+        right: 24px;
+        z-index: 1;
     }
 
     .action {
@@ -37,18 +45,18 @@
 
         .overlay {
             rect {
-                fill: fade(@color-light-purple, 50);
+                fill: fade(@color-dark-purple, 50);
             }
 
             path {
-                stroke: @color-dark-pink;
+                stroke: @color-light-purple;
                 fill: white;
             }
 
             circle {
                 fill: #000;
-                stroke: @color-dark-pink;
-                stroke-width: 2;
+                stroke: @color-light-purple
+                // stroke-width: 2;
             }
         }
     }
@@ -57,34 +65,34 @@
 // Use the example from above but change it to start at translateX(-50%)translateY(300%) and end at translateX(-50%)translateY(0%)
 @keyframes showElastic {
     0% {
-        transform: translateX(-50%) translateY(300%);
+        transform: translateY(-300%);
     }
 
     16% {
-        transform: translateX(-50%) translateY(-96.81%);
+        transform: translateY(96.81%);
     }
 
     28% {
-        transform: translateX(-50%) translateY(39.36%);
+        transform: translateY(-39.36%);
     }
 
     44% {
-        transform: translateX(-50%) translateY(-13.89%);
+        transform: translateY(13.89%);
     }
 
     59% {
-        transform: translateX(-50%) translateY(4.92%);
+        transform: translateY(-4.92%);
     }
 
     73% {
-        transform: translateX(-50%) translateY(-1.73%);
+        transform: translateY(1.73%);
     }
 
     88% {
-        transform: translateX(-50%) translateY(0.6%);
+        transform: translateY(-0.6%);
     }
 
     100% {
-        transform: translateX(-50%) translateY(0);
+        transform: translateY(0);
     }
 }

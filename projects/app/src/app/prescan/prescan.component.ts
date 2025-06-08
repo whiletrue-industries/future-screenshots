@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, computed, DestroyRef, signal, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, computed, DestroyRef, effect, signal, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
 import { Message, MessagesComponent } from "../messages/messages.component";
@@ -25,10 +25,7 @@ export class PrescanComponent implements AfterViewInit {
 
   @ViewChild(MessagesComponent) messagesComponent!: MessagesComponent;
   
-  initialInteraction: Message[] = [
-    new Message('ai', $localize`Hi there…`),
-    new Message('ai', $localize`I’m here to help you **scan** your future screenshot and add it to the map.`),
-  ];
+  initialInteraction: Message[] = [];
   answer: Message = new Message('human', $localize`Yes, Let’s scan!`);
   tellMore: Message = new Message('ai', $localize`Find our booth in the lobby in front of the entrance. There you'll find templates and guidance.`);
   secondInteraction: Message = new Message('ai', $localize`Great!
@@ -51,6 +48,17 @@ I’m also about to ask you for **access to the camera**, and then we can get go
 
   constructor(private route: ActivatedRoute, private api: ApiService, private platform: PlatformService, private router: Router, private ref: DestroyRef) {    
     this.api.updateFromRoute(this.route.snapshot);
+    effect(() => {
+      const workspace = this.api.workspace();
+      if (workspace && workspace.source && this.initialInteraction.length === 0) {
+        this.initialInteraction = [
+          new Message('ai', $localize`Hi there…`),
+          new Message('ai', $localize`Thanks for participating in **` + (workspace.event_name || $localize`the workshop`) + `**!`),
+          new Message('ai', $localize`I’m here to help you **scan** your future screenshot and add it to the map.`),
+        ];
+        this.interact();
+      }
+    });
   }
 
   ngOnInit() {
@@ -62,7 +70,6 @@ I’m also about to ask you for **access to the camera**, and then we can get go
 
   ngAfterViewInit() {
     this.platform.browser(() => {
-      this.interact();
       this.messagesComponent.scrollPosition.pipe(
         takeUntilDestroyed(this.ref),
         map((pos) => pos < 10),
@@ -74,9 +81,9 @@ I’m also about to ask you for **access to the camera**, and then we can get go
 
   interact() {
     interval(1500).pipe(
-      take(3),
+      take(this.initialInteraction.length + 1),
       switchMap((i) => {
-        if (i < 2) {
+        if (i < this.initialInteraction.length) {
           for (let j = 0; j < i + 1; j++) {
             this.initialInteraction[j].part = j !== i;
           }
