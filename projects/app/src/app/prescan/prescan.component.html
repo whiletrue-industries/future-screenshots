@@ -18,7 +18,7 @@
         <div class='button' (click)='inputAnswer.next("more")' i18n>How do I make one?</div>
     }
     @if (showAgreeButton()) {
-        <div class='button primary' [routerLink]='["/scan"]' queryParamsHandling="preserve" i18n>Yes, I agree</div>
+        <div class='button primary' [routerLink]='["/scan"]' queryParamsHandling="merge" [queryParams]="{'item-id': null, 'key': null}">Yes, I agree</div>
     }
 </div>
 @if (mainMenuOpen()) {

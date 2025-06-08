@@ -5,6 +5,7 @@ import { PlatformService } from '../../platform.service';
 import { LtrDirective } from '../ltr.directive';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { default as lottie, AnimationItem } from 'lottie-web';
+import { DiscussComponent } from "../discuss/discuss.component";
 
 export class Message {
 
@@ -26,7 +27,7 @@ export class Message {
 @Component({
   selector: 'app-messages',
   imports: [
-    LtrDirective
+    LtrDirective,
   ],
   templateUrl: './messages.component.html',
   styleUrl: './messages.component.less'
@@ -104,7 +105,7 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
 
   addMessage(message: Message) {
     this.messages.update((messages) => [...messages, message]);
-    console.log('addMessage', message);
+    // console.log('addMessage', message);
   }
 
   setScrollParams(messages: Message[]) {

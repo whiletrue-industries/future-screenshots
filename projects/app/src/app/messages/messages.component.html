@@ -4,8 +4,9 @@
             <span class='message-text' [innerHTML]="message._()"></span>
         </div>
     }
-    <ng-content></ng-content>
+    <ng-content select='.message'></ng-content>
     <div class='spacer' #spacer [style.height.px]='spacerHeight()'>
         <div class='thinking-animation' [class.visible]='thinking' #thinkingEl></div>
+        <ng-content select='.spacer'></ng-content>
     </div>
 </div>

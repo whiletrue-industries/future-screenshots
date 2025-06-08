@@ -1,0 +1,15 @@
+<app-messages #messages>
+    <div class='spacer'>
+        @switch (step()) {
+            @case (0) {
+                <app-collect-properties-favorable (done)='completeStep($event)'></app-collect-properties-favorable>
+            }
+            @case (1) {
+            }
+            @case (2) {
+            }
+            @case (3) {
+            }
+        }
+    </div>
+</app-messages>

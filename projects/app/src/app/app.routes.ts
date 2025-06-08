@@ -11,6 +11,7 @@ import { Pps25VComponent } from './showcase/pps25v/pps25.component';
 import { Jma25Component } from './showcase/jma25/jma25.component';
 import { OutputMapComponent } from './showcase/output-map/output-map.component';
 import { ModerateComponent } from './admin/moderate/moderate.component';
+import { CollectPropertiesComponent } from './collect-properties/collect-properties.component';
 
 export const routes: Routes = [
     // Showcase routes
@@ -31,6 +32,10 @@ export const routes: Routes = [
     {
         'path': 'confirm',
         'component': ConfirmComponent
+    },
+    {
+        'path': 'props',
+        'component': CollectPropertiesComponent
     },
     {
         'path': 'discuss',
@@ -84,6 +89,13 @@ export const routes: Routes = [
         'component': RedirectorComponent,
         'data': {
             'redirectTo': '/?workspace=b4ce1eae-9add-4854-bd7c-5d90dbe31134&api_key=fa3d6160-f061-4159-afd1-5e654c29ffc5',
+        }
+    },
+    {
+        'path': 'testing',
+        'component': RedirectorComponent,
+        'data': {
+            'redirectTo': '/?workspace=61358757-cf32-483f-847f-3e4eb3855408&api_key=212aa064-4d02-4edb-8f0b-9f649d026fb2',
         }
     },    
     {

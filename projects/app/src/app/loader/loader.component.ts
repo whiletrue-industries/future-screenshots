@@ -33,28 +33,27 @@ export class LoaderComponent implements AfterViewInit {
       if (!currentImage) {
         this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
       } else {
-        this.api.startDiscussion(currentImage).pipe(
-          switchMap((ret: any) => {
-            const automatic = ret.automatic;
-            if (automatic) {
-              this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
-              return from([]);
-            } else {
-              const item_key = ret?.item_key;
-              const item_id = ret?.item_id;
-              return merge(
-                timer(30000),
-                this.api.sendInitMessageNoStream(item_id, item_key)
-              ).pipe(
-                take(1),
-                tap(() => {
-                  this.loaded.set(ret);
-                })
-              );
-            }
-          }),
-        ).subscribe((x: any) => {
-        });
+        // this.api.startDiscussion(currentImage).pipe(
+        //   switchMap((ret: any) => {
+        //     const automatic = ret.automatic;
+        //     if (automatic) {
+        //       this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
+        //       return from([]);
+        //     } else {
+        //       const item_key = ret?.item_key;
+        //       const item_id = ret?.item_id;
+        //       return merge(
+        //         timer(30000),
+        //         this.api.sendInitMessageNoStream(item_id, item_key)
+        //       ).pipe(
+        //         take(1),
+        //         tap(() => {
+        //           this.loaded.set(ret);
+        //         })
+        //       );
+        //     }
+        //   }),
+        // ).subscribe((x: any) => {});
       }
     });
     effect(() => {

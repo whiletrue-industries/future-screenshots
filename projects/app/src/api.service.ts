@@ -49,6 +49,12 @@ export class ApiService {
     if (api_key) {
       this.api_key.set(api_key);
     }
+
+    const item_key = route.queryParams['key'];
+    const item_id = route.queryParams['item-id'];
+    if (item_key && item_id) {
+      this.fetchItem(item_id, item_key).subscribe();
+    }
   }
 
   fetchWorkspace(workspaceId: string): Observable<any> {
@@ -77,12 +83,35 @@ export class ApiService {
     );
   }
 
-  startDiscussion(image: Blob): Observable<any> {
+  createItem(metadata: any): Observable<any> {
+    const headers = {
+      'Authorization': this.api_key(),
+    };
+    return this.http.post(`${this.CHRONOMAPS_API_URL}/${this.workspaceId()}`, metadata, { headers }).pipe(
+      map((response: any) => {
+        const item = Object.assign({}, metadata, response);
+        this.item.set(item);
+        return item;
+      })
+    );
+  }
+
+  uploadImage(image: Blob, item_id: string, item_key: string): void {
+    this.startDiscussion(image, item_id, item_key).pipe(
+      switchMap((ret: any) => {
+        return this.sendInitMessageNoStream(item_id, item_key);
+      })
+    ).subscribe((x: any) => {});
+  }    
+
+  startDiscussion(image: Blob, item_id: string, item_key: string): Observable<any> {
     const formData = new FormData();
     formData.append('image', image);
     const params: any = {
       workspace: this.workspaceId(),
       api_key: this.api_key(),
+      item_id: item_id,
+      item_key: item_key,
     };
     if (this.automatic()) {
       params['automatic'] = 'true';

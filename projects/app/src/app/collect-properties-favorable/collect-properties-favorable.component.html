@@ -1,0 +1,60 @@
+<div class='container'>
+    <div class='pins'>
+        <div class='prefer' [class.visible]='primary() === "prefer" || (primary() === "prevent" && secondary())'></div>
+        <div class='label' [class.visible]='primarySelected()'>
+            @if (primary() === "prefer") {
+                <span class='prefer'i18n>Prefer</span>
+                @if (secondary()) {
+                    <span class='prevent' i18n>-ish</span>
+                }
+            } @else if (primary() === "prevent") {
+                <span class='prevent' i18n>Prevent</span>
+                @if (secondary()) {
+                    <span class='prefer' i18n>-ish</span>
+                }
+            }
+        </div>
+        <div class='prevent' [class.visible]='primary() === "prevent" || (primary() === "prefer" && secondary())'></div>
+    </div>
+    <div class='img'>
+      <img [src]="imageUrl()" alt="Confirmation Image">
+    </div> 
+    @if (!primarySelected()) {
+        <div class='initial'>
+            <div class='prefer' (click)='primary.set("prefer")'>
+                <div class='img'></div>
+                <span i18n>Prefer</span>
+            </div>
+            <div class='prevent' (click)='primary.set("prevent")'>
+                <div class='img'></div>
+                <span i18n>Prevent</span>
+            </div>
+        </div>
+    } @else {
+        <div class='selected'>
+            <div class='ish'>
+                <div [class]='primary()'></div>
+                <div class='ish-select'>
+                    <input type='checkbox' [(ngModel)]='secondary'/>
+                    @if (primary() === "prefer") {
+                        <span i18n>I’d still rather <strong>prevent</strong> some parts of this</span>
+                    } @else if (primary() === "prevent") {
+                        <span i18n>I do still <strong>prefer</strong> some parts of this</span>
+                    }                                        
+                </div>
+            </div>
+            <div class='controls'>
+                <div class='undo' (click)='clear()'>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 25 25" fill="none">
+                        <path d="M7.14716 12.0595C7.14714 13.5462 7.71432 15.033 8.84869 16.1673C11.1174 18.436 14.7957 18.436 17.0644 16.1673C19.3331 13.8986 19.3331 10.2203 17.0644 7.95161C15.93 6.81725 14.4433 6.25007 12.9565 6.25009C12.1998 6.25008 10.4462 6.35411 10.4462 6.35411" stroke="#6C707B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M12.1597 4.20703L10.0422 6.32452L12.1597 8.44201" stroke="#6C707B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span i18n>undo</span>
+                </div>
+                <div class='submit'>
+                    <span i18n>continue</span>
+                </div>
+            </div>
+        </div>
+    }
+</div>

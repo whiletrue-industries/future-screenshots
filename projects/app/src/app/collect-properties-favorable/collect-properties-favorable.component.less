@@ -1,0 +1,175 @@
+@import '../../common.less';
+
+.container {
+    display: flex;
+    flex-flow: column;
+    align-items: center;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    gap: 15px;
+
+    .pins {
+        display: flex;
+        flex: 0 0 auto;
+        height: 50px;
+        display: flex;
+        width: 100%;
+        position: relative;
+
+        & > * {
+            transition: opacity 1s ease-in-out;
+            opacity: 0;
+        }
+        .visible {
+            opacity: 1;
+        }
+
+        .label {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            .font-sans;
+            font-size: 18px;
+            font-weight: 700;
+
+            .prefer {
+                color: @color-prefer-dark;
+            }
+            .prevent {
+                color: @color-prevent-dark;
+            }
+        }
+        & > .prefer, & > .prevent {
+            position: absolute;
+            top: 0px;
+            left: 50%;
+            width: 28px;
+            height: 105px;
+            .background-image;
+            background-size: cover
+        }
+
+        & > .prefer {
+            transform: translateX(-108px) rotate(-13deg);
+            background-image: url(../../../public/img-pin-prefer-v.svg);
+        }
+
+        & > .prevent {
+            transform: translateX(70px) translateY(10px) rotate(15deg);
+            background-image: url(../../../public/img-pin-prevent-v.svg);
+        }
+    }
+
+    .img {
+        flex: 1 1 auto;
+        // height: 100%;
+        overflow: hidden;
+
+        img {
+            object-fit: contain;
+            object-position: center;
+            max-height: 100%;
+        }
+    }
+
+    .initial {
+        flex: 0 0 auto;
+        display: flex;
+        flex-flow: row nowrap;
+        gap: 20px;
+        height: fit-content;
+
+        .prefer, .prevent {
+            display: flex;
+            width: 145px;
+            height: 145px;
+            border-radius: 80px;
+            flex-flow: column nowrap;
+            align-items: center;
+            justify-content: flex-end;
+            padding-bottom: 25px;
+            gap: 8px;
+
+            .font-sans;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .prefer {
+            background-color: fade(@color-prefer, 15%);
+            .background-image;
+            background-image: url(../../../public/img-pin-prefer-h.svg);
+            background-size: 105px 28px;
+            background-position: center;
+            color: @color-prefer-dark
+        }
+
+        .prevent {
+            background-color: fade(@color-prevent, 15%);
+            .background-image;
+            background-image: url(../../../public/img-pin-prevent-h.svg);
+            background-size: 105px 28px;
+            background-position: center;
+            color: @color-prevent-dark
+        }
+    }
+
+    .selected {
+        flex: 0 0 auto;
+        display: flex;
+        flex-flow: column nowrap;
+        gap: 15px;
+        height: fit-content;
+        width: 100%;
+
+        .ish {        
+            display: flex;
+            flex-flow: column nowrap;
+            align-items: center;
+            width: 100%;
+        }
+
+        .controls {
+            padding: 12px 0;
+            display: flex;
+            flex-flow: row nowrap;
+            gap: 8px;
+            align-items: center;
+
+            .undo {
+                display: flex;
+                flex-flow: row nowrap;
+                align-items: center;
+                gap: 4px;
+                padding: 0 8px;
+                color: @color-dark-gray;
+                leading-trim: both;
+                text-edge: cap;
+                .font-sans;
+                font-size: 16px;
+                font-weight: 400;
+            }
+
+            .submit {
+                display: flex;
+                height: 52px;
+                padding: 0px 16px;
+                justify-content: center;
+                align-items: center;
+                gap: 4px;
+                flex: 1 0 0;
+                border-radius: 16px;
+                background: @color-primary;
+                color: @color-white;
+                leading-trim: both;
+                text-edge: cap;
+                .font-sans;
+                font-size: 16px;
+                font-weight: 700;
+                text-transform: uppercase;
+            }
+        }
+    }
+}
