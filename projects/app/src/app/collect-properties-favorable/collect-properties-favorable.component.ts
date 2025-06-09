@@ -44,13 +44,7 @@ export class CollectPropertiesFavorableComponent {
     if (this.secondary()) {
       props['favorable_future'] = 'mostly ' + props['favorable_future'];
     }
-    const message = props['favorable_future']
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-    this.done.emit({
-      message: message,
-      props: props
-    });
+    const message = primary.charAt(0).toUpperCase() + primary.slice(1) + (this.secondary() ? '-ish' : '');
+    this.done.emit({message, props});
   }
 }

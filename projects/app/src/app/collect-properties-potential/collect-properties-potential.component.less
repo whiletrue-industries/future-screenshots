@@ -1,0 +1,77 @@
+@import '../../common.less';
+
+.container {
+    display: flex;
+    flex-flow: column;
+    align-items: center;
+    height: 100%;
+    width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    gap: 15px;
+    position: relative;
+    padding: 16px 0;
+
+    .cone-line {
+        position: absolute;
+
+        &.prefer {
+            bottom: 0;
+        }
+        &.prevent {
+            top: 0;
+        }
+        left: calc(145px - 800px);
+        display: flex;
+        flex-flow: row nowrap;
+        align-items: center;
+        transform-origin: left center;
+
+        .string {
+            width: 800px;
+            height: 0px;
+            border-top: 2px solid currentColor;
+
+            &.dashed {
+                border-top-style: dashed;
+            }
+        }
+
+        .label {
+            padding: 8px 16px;
+            display: flex;
+            flex-flow: column;
+            .font-sans;
+            font-size: 18px;
+            border-radius: 0px 8px 8px 0px;
+            white-space: nowrap;
+            border-left: 1px solid currentColor;
+
+            span:first-child {
+                font-weight: 700;
+                text-transform: uppercase;
+            }
+
+            span:last-child {
+                font-weight: 400;
+            }
+        }
+
+        &.prefer {
+            color: @color-prefer;
+            .label {
+                color: @color-prefer-dark;
+                background-color: fade(@color-prefer, 15%);
+            }
+        }
+
+        &.prevent {
+            color: @color-prevent;
+            .label {
+                color: @color-prevent-dark;
+                background-color: fade(@color-prevent, 15%);
+            }
+        }
+
+    }
+}

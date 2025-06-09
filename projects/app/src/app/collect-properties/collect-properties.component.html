@@ -4,11 +4,12 @@
             @case (0) {
                 <app-collect-properties-favorable (done)='completeStep($event)'></app-collect-properties-favorable>
             }
-            @case (1) {
-            }
             @case (2) {
+                <app-collect-properties-potential [prefer]="!!prefer()" (done)='completeStep($event)'></app-collect-properties-potential>
             }
-            @case (3) {
+            @case (4) {
+            }
+            @case (6) {
             }
         }
     </div>
