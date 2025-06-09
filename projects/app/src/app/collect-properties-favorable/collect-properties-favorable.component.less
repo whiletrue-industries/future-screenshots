@@ -129,6 +129,83 @@
             flex-flow: column nowrap;
             align-items: center;
             width: 100%;
+            padding-top: 16px;
+            
+            .pin {
+                height: 14px;
+                width: 52px;
+                .background-image;
+                transition: opacity 1s ease-in-out;
+                opacity: 0;
+                &.visible {
+                    opacity: 1;
+                }
+            }
+
+            .ish-select {
+                display: flex;
+                flex-flow: row nowrap;
+                align-items: center;
+                gap: 8px;
+                .font-sans;
+                leading-trim: both;
+                text-edge: cap;
+                font-size: 16px;
+                font-weight: 400;
+
+                strong {
+                    font-weight: 700;
+                }
+
+                input[type="checkbox"] {
+                    /* Add if not using autoprefixer */
+                    -webkit-appearance: none;
+                    appearance: none;
+                    /* For iOS < 15 to remove gradient background */
+                    background-color: #fff;
+                    /* Not removed via appearance */
+                    margin: 0;
+
+                    font: inherit;
+                    color: currentColor;
+                    width: 24px;
+                    height: 24px;
+                    border: 2px solid currentColor;
+                    border-radius: 4px;
+
+                    &:checked {
+                        background-color: currentColor !important;
+                        .background-image;
+                        background-image: url(../../../public/icon-check-white.svg);
+                    }
+                }
+            }
+
+            &.prefer {
+                .pin {
+                    background-image: url(../../../public/img-pin-prevent-h.svg);
+                }
+                .ish-select {
+                    color: @color-prevent-dark;
+
+                    input[type="checkbox"] {
+                        background-color: fade(@color-prevent, 15%);
+                    }
+                }
+
+            }
+            &.prevent {
+                .pin {
+                    background-image: url(../../../public/img-pin-prefer-h.svg);
+                }
+                .ish-select {
+                    color: @color-prefer-dark;
+
+                    input[type="checkbox"] {
+                        background-color: fade(@color-prefer, 15%);
+                    }
+                }
+            }
         }
 
         .controls {

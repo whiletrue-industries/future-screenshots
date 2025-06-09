@@ -8,6 +8,11 @@ type StepSpec = {
   instructions: string;
 };
 
+export type StepUpdate = {
+  message: string;
+  props: any;
+};
+
 @Component({
   selector: 'app-collect-properties',
   imports: [MessagesComponent, CollectPropertiesFavorableComponent],
@@ -23,6 +28,8 @@ export class CollectPropertiesComponent implements AfterViewInit {
       instructions: $localize`Now, is that a future you would **prefer** would happen or is it a future you’ld rather **prevent**?`
     }
   ];
+
+  propsUpdate = {};
 
   constructor(private api: ApiService, private route: ActivatedRoute) {
     this.api.updateFromRoute(this.route.snapshot);
@@ -46,7 +53,9 @@ export class CollectPropertiesComponent implements AfterViewInit {
     this.step.set(0);
   }
 
-  completeStep(update: any) {
+  completeStep(update: StepUpdate) {
+    this.messages.addMessage(new Message('human', update.message));
+    this.propsUpdate = Object.assign({}, this.propsUpdate, update.props);
     this.step.update(s => s + 1);
   }
 }

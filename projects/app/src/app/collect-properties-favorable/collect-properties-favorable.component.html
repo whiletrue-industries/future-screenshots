@@ -32,8 +32,8 @@
         </div>
     } @else {
         <div class='selected'>
-            <div class='ish'>
-                <div [class]='primary()'></div>
+            <div [class]='"ish " + primary()'>
+                <div class='pin' [class.visible]='!secondary()'></div>
                 <div class='ish-select'>
                     <input type='checkbox' [(ngModel)]='secondary'/>
                     @if (primary() === "prefer") {
@@ -51,7 +51,7 @@
                     </svg>
                     <span i18n>undo</span>
                 </div>
-                <div class='submit'>
+                <div class='submit' (click)='submit()'>
                     <span i18n>continue</span>
                 </div>
             </div>

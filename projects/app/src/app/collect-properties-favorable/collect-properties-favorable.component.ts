@@ -1,7 +1,8 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, EventEmitter, Output, signal } from '@angular/core';
 import { StateService } from '../../state.service';
 import { ApiService } from '../../api.service';
 import { FormsModule } from '@angular/forms';
+import { StepUpdate } from '../collect-properties/collect-properties.component';
 
 @Component({
   selector: 'app-collect-properties-favorable',
@@ -12,6 +13,9 @@ import { FormsModule } from '@angular/forms';
   styleUrl: './collect-properties-favorable.component.less'
 })
 export class CollectPropertiesFavorableComponent {
+
+  @Output() done = new EventEmitter<StepUpdate>();
+
   primary = signal<'prefer' | 'prevent' | null>(null);
   secondary = signal(false);
   primarySelected = computed(() => {
@@ -27,5 +31,26 @@ export class CollectPropertiesFavorableComponent {
   clear() {
     this.primary.set(null);
     this.secondary.set(false);
+  }
+
+  submit() {
+    const primary = this.primary();
+    if (!primary) {
+      return;
+    }
+    const props = {
+      'favorable_future': primary as string
+    };
+    if (this.secondary()) {
+      props['favorable_future'] = 'mostly ' + props['favorable_future'];
+    }
+    const message = props['favorable_future']
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+    this.done.emit({
+      message: message,
+      props: props
+    });
   }
 }
