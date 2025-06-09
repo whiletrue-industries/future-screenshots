@@ -82,7 +82,7 @@
     width: 100%;
     display: flex;
     flex-flow: column;
-    padding: 8px 24px;
+    padding: 8px 0;
     gap: 4px;
 
     .button-row {
@@ -105,22 +105,23 @@
         gap: 4px;
         align-items: center;
         justify-content: center;
-        border-radius: 40px;
+        border-radius: 16px;
         .font-sans;
         font-size: 16px;
         line-height: normal;
         text-transform: uppercase;
         font-weight: 400;
 
-        border: 1px solid fade(@color-purple, 50%);
+        border: 1px solid @color-accent-100;
         background: @color-primary-50;
-        color: @color-purple;
+        color: @color-primary;
 
         cursor: pointer;
 
         &.primary {
             border: 1px solid @color-purple;
-            background: @color-pink;
+            background: @color-purple;
+            color: @color-white;
             font-weight: 700;
         }
     }
