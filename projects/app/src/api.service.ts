@@ -15,6 +15,7 @@ export type DiscussResult = {
 export class ApiService {
 
   CHRONOMAPS_API_URL = 'https://chronomaps-api-qjzuw7ypfq-ez.a.run.app';
+  COMPLETE_FLOW_URL = 'https://complete-flow-qjzuw7ypfq-ez.a.run.app';
   SCREENSHOT_HANDLER_URL = 'https://screenshot-handler-qjzuw7ypfq-ez.a.run.app';
   ITEM_INGRES_AGENT_URL = 'https://item-ingress-agent-qjzuw7ypfq-ez.a.run.app';
 
@@ -22,8 +23,10 @@ export class ApiService {
   // API_KEY = 'f290c30a-8819-42a0-aa0b-77f5582b4a2f';
 
   item = signal<any>(null);
-  api_key = signal<string>('a356977d-219f-4d65-ae18-d8e98280bca1');
-  workspaceId = signal<string>('03da8ede-395b-4fd2-b46e-bc2bc7f4035c');
+  api_key = signal<string | null>(null);
+  workspaceId = signal<string>('empty');
+  itemId = signal<string | null>(null);
+  itemKey = signal<string | null>(null);
   automatic = signal<boolean>(false);
   workspace = signal<any>({});
 
@@ -43,16 +46,18 @@ export class ApiService {
     if (automatic) {
       this.automatic.set(automatic === 'true');
     }
-    if (workspace) {
-      this.workspaceId.set(workspace);
-    }
     if (api_key) {
       this.api_key.set(api_key);
+    }
+    if (workspace) {
+      this.workspaceId.set(workspace);
     }
 
     const item_key = route.queryParams['key'];
     const item_id = route.queryParams['item-id'];
-    if (item_key && item_id) {
+    if (item_id) {
+      this.itemKey.set(item_key);
+      this.itemId.set(item_id);
       this.fetchItem(item_id, item_key).subscribe();
     }
   }
@@ -67,12 +72,12 @@ export class ApiService {
   }
 
   fetchItem(item_id: string, item_key: string): Observable<any> { 
-    const params = {
-      item_key: item_key,
-    };
-    const headers = {
+    const params: any = item_key ? {
+      'item-key': item_key,
+    } : {};
+    const headers: any = this.api_key() ? {
       'Authorization': this.api_key(),
-    };
+    } : {};
     return this.http.get(`${this.CHRONOMAPS_API_URL}/${this.workspaceId()}/${item_id}`, {params, headers}).pipe(
       map((response: any) => {
         response.item_id = item_id;
@@ -84,10 +89,26 @@ export class ApiService {
   }
 
   createItem(metadata: any): Observable<any> {
-    const headers = {
+    const headers: any = {
       'Authorization': this.api_key(),
     };
     return this.http.post(`${this.CHRONOMAPS_API_URL}/${this.workspaceId()}`, metadata, { headers }).pipe(
+      map((response: any) => {
+        const item = Object.assign({}, metadata, response);
+        this.item.set(item);
+        return item;
+      })
+    );
+  }
+
+  updateItem(metadata: any, item_id: string, item_key: string): Observable<any> {
+    const params = {
+      'item_key': item_key,
+      'item_id': item_id,
+      'workspace': this.workspaceId() as string,
+      'api_key': this.api_key() as string,
+    };
+    return this.http.post(this.COMPLETE_FLOW_URL, metadata, { params }).pipe(
       map((response: any) => {
         const item = Object.assign({}, metadata, response);
         this.item.set(item);
@@ -120,7 +141,7 @@ export class ApiService {
   }
 
   sendInitMessageNoStream(item_id: string, item_key: string): Observable<any> {
-    const params = {
+    const params: any = {
       workspace: this.workspaceId(),
       api_key: this.api_key(),
       item_id,
@@ -136,7 +157,7 @@ export class ApiService {
   }
 
   sendMessage(message: string): Observable<any> {
-    const params = {
+    const params: any = {
       workspace: this.workspaceId(),
       api_key: this.api_key(),
       item_id: this.item().item_id,

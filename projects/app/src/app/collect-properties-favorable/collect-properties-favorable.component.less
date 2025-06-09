@@ -8,7 +8,7 @@
     width: 100%;
     overflow: hidden;
     gap: 15px;
-    padding: 0 32px;
+    padding: 16px 32px;
 
     .pins {
         display: flex;
@@ -149,36 +149,11 @@
                 align-items: center;
                 gap: 8px;
                 .font-sans;
-                leading-trim: both;
-                text-edge: cap;
                 font-size: 16px;
                 font-weight: 400;
 
                 strong {
                     font-weight: 700;
-                }
-
-                input[type="checkbox"] {
-                    /* Add if not using autoprefixer */
-                    -webkit-appearance: none;
-                    appearance: none;
-                    /* For iOS < 15 to remove gradient background */
-                    background-color: #fff;
-                    /* Not removed via appearance */
-                    margin: 0;
-
-                    font: inherit;
-                    color: currentColor;
-                    width: 24px;
-                    height: 24px;
-                    border: 2px solid currentColor;
-                    border-radius: 4px;
-
-                    &:checked {
-                        background-color: currentColor !important;
-                        .background-image;
-                        background-image: url(../../../public/icon-check-white.svg);
-                    }
                 }
             }
 
@@ -190,7 +165,7 @@
                     color: @color-prevent-dark;
 
                     input[type="checkbox"] {
-                        background-color: fade(@color-prevent, 15%);
+                        .nice-checkbox(@color-prevent-dark, fade(@color-prevent, 15%));
                     }
                 }
 
@@ -203,7 +178,7 @@
                     color: @color-prefer-dark;
 
                     input[type="checkbox"] {
-                        background-color: fade(@color-prefer, 15%);
+                        .nice-checkbox(@color-prefer-dark, fade(@color-prefer, 15%));
                     }
                 }
             }
@@ -223,8 +198,6 @@
                 gap: 4px;
                 padding: 0 8px;
                 color: @color-dark-gray;
-                leading-trim: both;
-                text-edge: cap;
                 .font-sans;
                 font-size: 16px;
                 font-weight: 400;
@@ -241,8 +214,6 @@
                 border-radius: 16px;
                 background: @color-primary;
                 color: @color-white;
-                leading-trim: both;
-                text-edge: cap;
                 .font-sans;
                 font-size: 16px;
                 font-weight: 700;

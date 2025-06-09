@@ -9,6 +9,7 @@ import { from, fromEvent, switchMap, take } from 'rxjs';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { HttpClient } from '@angular/common/http';
 import { LtrDirective } from '../ltr.directive';
+import { CompleteEvaluationComponent } from "../complete-evaluation/complete-evaluation.component";
 
 @Component({
   standalone: true,
@@ -16,8 +17,9 @@ import { LtrDirective } from '../ltr.directive';
     FormsModule,
     MessagesComponent,
     RouterLink,
-    LtrDirective
-  ],
+    LtrDirective,
+    CompleteEvaluationComponent
+],
   templateUrl: './discuss.component.html',
   styleUrl: './discuss.component.less'
 })
@@ -177,48 +179,5 @@ export class DiscussComponent implements AfterViewInit {
         }
       }
     });
-  }
-
-  downloadImage() {
-    const url = this.item().screenshot_url;
-    if (!url) {
-      return;
-    }
-    this.http.get(url, { responseType: 'blob' }).pipe(
-      switchMap((blob: Blob) => {
-        return from(new Promise<string>(resolve => {
-          let reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.readAsDataURL(blob);
-        }));
-      })
-    ).subscribe((dataUrl: string) => {
-      var link = document.createElement('a');
-      link.download = `my-screenshot.png`;
-      link.href = dataUrl;
-      link.click();
-    });
-  }
-
-  shareImage() {
-    const url = this.item().screenshot_url;
-    if (!url) {
-      return;
-    }
-    this.http.get(url, { responseType: 'blob' }).subscribe(
-      (blob: Blob) => {
-        const files = [new File([blob], 'my-screenshot.png', { type: blob.type })];
-        const share: ShareData = {
-          title: $localize`Our Future?`,
-          text: this.item().future_scenario_tagline || $localize`Check out this image!`,
-        }
-        console.log('share', share);
-        if (navigator.canShare({ files })) {
-          share.files = files;
-        } else {
-          share.url = this.item().screenshot_url;
-        }
-        navigator.share(share);
-      });
   }
 }

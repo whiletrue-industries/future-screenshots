@@ -1,0 +1,108 @@
+@import '../../common.less';
+
+.container {
+    display: flex;
+    flex-flow: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+    width: 100%;
+    gap: 14px;
+
+    .form {
+        padding: 0 32px;
+        display: flex;
+        flex-flow: column;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 14px;
+
+        input[type='email'] {
+            height: 56px;
+            width: 100%;
+            padding: 8px 24px;
+            border-radius: 16px;
+            border: 2px solid @color-accent;
+            background: @color-white;
+
+            .font-sans;
+            font-size: 16px;
+            font-weight: 400;
+
+            color: @color-primary;
+
+            &:placeholder-shown {
+                color: @color-dark-gray;
+            }
+        }
+
+        .opt-in {
+            display: flex;
+            flex-flow: row nowrap;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 0 8px;
+
+            input[type='checkbox'] {
+                flex: 0 0 auto;
+                .nice-checkbox(@color-dark-gray, fade(@color-dark-gray, 15%));
+            }
+
+            label {
+                color: @color-dark-gray;
+                .font-sans;
+                font-size: 16px;
+                font-weight: 400;
+            }
+        }
+    }
+    .buttons {
+        padding: 12px 16px;
+        display: flex;
+        flex-flow: row nowrap;
+        gap: 8px;
+        justify-content: center;
+        border-top: 1px solid @color-light-gray;
+
+        .no-thanks {
+            display: flex;
+            flex-flow: row nowrap;
+            white-space: nowrap;
+            padding: 0px 8px;
+            align-items: center;
+            gap: 4px;
+            .font-sans;
+            font-size: 16px;
+            font-weight: 400;
+            color: @color-dark-gray;
+            svg {
+                flex: 0 0 auto;
+                width: 24px;
+                height: 24px;
+            }
+        }
+
+        .submit {
+            display: flex;
+            height: 52px;
+            padding: 0px 16px;
+            justify-content: center;
+            align-items: center;
+            flex: 1 1 auto;
+            width: 100%;
+            border-radius: 16px;
+            background: @color-light-gray;
+            color: @color-dark-gray;
+            .font-sans;
+            font-size: 16px;
+            font-weight: 400;
+            text-transform: uppercase;
+
+            &.enabled {
+                background: @color-primary;
+                color: @color-white;
+                font-weight: 700;                
+            }
+        }
+    }
+}

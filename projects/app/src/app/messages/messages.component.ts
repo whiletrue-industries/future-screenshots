@@ -118,7 +118,7 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
           return;
         }
         const boundingRect = element.getBoundingClientRect();
-        let spacerSize = messagesEl.offsetHeight - boundingRect.height - 48;
+        let spacerSize = messagesEl.offsetHeight - boundingRect.height - 32;
         if (spacerSize < 1) {
           spacerSize = 1;
         }

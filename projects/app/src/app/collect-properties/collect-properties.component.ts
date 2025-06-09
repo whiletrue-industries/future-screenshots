@@ -5,9 +5,15 @@ import { CollectPropertiesFavorableComponent } from "../collect-properties-favor
 import { ActivatedRoute } from '@angular/router';
 import { CollectPropertiesPotentialComponent } from "../collect-properties-potential/collect-properties-potential.component";
 import { timer } from 'rxjs';
+import { CollectEmailComponent } from "../collect-properties-email/collect-properties-email.component";
+import { sign } from 'node:crypto';
+import { CompleteEvaluationComponent } from "../complete-evaluation/complete-evaluation.component";
+import { DirectToMapComponent } from "../direct-to-map/direct-to-map.component";
 
 type StepSpec = {
+  id: number;
   instructions: string;
+  skip?: () => any | null;
 };
 
 export type StepUpdate = {
@@ -17,7 +23,7 @@ export type StepUpdate = {
 
 @Component({
   selector: 'app-collect-properties',
-  imports: [MessagesComponent, CollectPropertiesFavorableComponent, CollectPropertiesPotentialComponent],
+  imports: [MessagesComponent, CollectPropertiesFavorableComponent, CollectPropertiesPotentialComponent, CollectEmailComponent, CompleteEvaluationComponent, DirectToMapComponent],
   templateUrl: './collect-properties.component.html',
   styleUrl: './collect-properties.component.less'
 })
@@ -25,51 +31,197 @@ export class CollectPropertiesComponent implements AfterViewInit {
   @ViewChild(MessagesComponent) messages: MessagesComponent;
 
   step = signal(-1);
+  actualSteps = signal<StepSpec[]>([]);
   steps: StepSpec[] = [
     {
-      instructions: $localize`Now, is that a future you would **prefer** would happen or is it a future you’ld rather **prevent**?`
+      id: 0,
+      instructions: $localize`Now, is that a future you would **prefer** would happen or is it a future you’ld rather **prevent**?`,
+      skip: () => {
+        if (!!this.api.item()?.favorable_future) {
+          return {};
+        }
+        return null;
+      }
     },
     {
-      instructions: $localize`And can you evaluate how likely is this future?`
+      id: 1,
+      instructions: $localize`And can you evaluate how likely is this future?`,
+      skip: () => {
+        const potential = this.api.item()?.plausibility;
+        if (potential !== undefined && potential !== null && potential >= 0) {
+          console.log('Skipping potential step, already set', potential);
+          return {};
+        }
+        console.log('Potential step not skipped, not set', potential);
+        return null;
+      }
     },
     {
-      instructions: $localize`Got it. Thanks!\n\nWe’re currently analyzing your screenshot and adding it to the Futures Map. This usually takes a few minutes. When it’s ready we will **email** you a **secret link** so you can always find, edit or delete your screenshots from the map.`,      
+      id: 2,
+      instructions: $localize`Got it. Thanks!\n\nWe’re currently analyzing your screenshot and adding it to the Futures Map. This usually takes a few minutes. When it’s ready we will **email** you a **secret link** so you can always find, edit or delete your screenshots from the map.`,
+      skip: () => {
+        let email = this.api.item()?._private_email;
+        const email_refused = this.api.item()?._private_refused_email;
+        if (email || email_refused) {
+          return {};
+        }
+        email = this.localStorage?.getItem('mapfutures-email');
+        const email_subscribe = this.localStorage?.getItem('mapfutures-email-subscribe') === 'true';
+        if (email) {
+          this.emailFromStorage = true;
+          return {
+            _private_email: email,
+            _private_email_subscribe: email_subscribe,
+          };
+        }
+        this.emailRequested = true;
+        return null;
+      }
     },
+    {
+      id: 10,
+      instructions: '',
+      skip: () => {
+        const propsUpdate = this.propsUpdate();
+        const item_id = this.api.itemId();
+        const item_key = this.api.itemKey();
+        if (item_id && item_key) {
+          for (const _ in propsUpdate) {
+            this.api.item.update((item: any) => Object.assign({}, item, propsUpdate));
+            console.log('Updating item with props:', propsUpdate);
+            this.api.updateItem(propsUpdate, item_id, item_key).subscribe();
+            break;
+          }
+        }
+        this.propsUpdate.set({});
+        return {};
+      }
+    },
+    {
+      id: 11,
+      instructions: $localize`Perfect! We’re all set.\n\nExpect an email soon from **MapFutur.es!**`,
+      skip: () => {
+        const item = this.api.item();
+        if (this.emailRequested && item && item._private_email) {
+          return null;
+        }
+        return {};
+      }
+    },  
+    {
+      id: 12,
+      instructions: $localize`Got it. Thanks!\n\nWe will send another **secret link** to your email address as soon as this screenshot is added to the Futures Map.`,
+      skip: () => {
+        if (this.emailFromStorage) {
+          return null;
+        }
+        return {};
+      }
+    },
+    {
+      id: 13,
+      instructions: $localize`Well, you will lose the option to edit and track your screenshot, but we will try to handle it with care. **Thanks**!`,
+      skip: () => {
+        const item = this.api.item();
+        if (this.emailRequested && item && item._private_refused_email) {
+          return null;
+        }
+        return {};
+      },
+    },
+    {
+      id: 20,
+      instructions: $localize`That’s great!\n\nWe added “:TAGLINE:” to the map!\n\n**Want to see it?**`,      
+      skip: () => {
+        const itemKey = this.api.itemKey();
+        if (itemKey && this.fragment() === 'publish') {
+          return null;
+        }
+        return {};
+      }
+    },
+    {
+      id: 21,
+      instructions: $localize`We added “:TAGLINE:” to the map!\n\n**Want to see it?**`,      
+      skip: () => {
+        const itemKey = this.api.itemKey();
+        if (itemKey && this.fragment() === 'publish') {
+          return {};
+        }
+        return null;
+      }
+    }
   ];
 
   propsUpdate = signal<any>({});
   prefer = computed(() => {
     return this.propsUpdate()?.favorable_future.indexOf('prefer') >= 0;
   });
+  viewInit = signal(false);
+  fragment = signal<string | null>(null);
+  emailRequested = false;
+  emailFromStorage = false;
+  localStorage = typeof localStorage !== 'undefined' ? localStorage : null;
 
   constructor(private api: ApiService, private route: ActivatedRoute) {
     this.api.updateFromRoute(this.route.snapshot);
+    this.fragment.set(this.route.snapshot.fragment || null);
+    console.log('FRAGMENT', this.fragment());
+    effect(() => {
+      const messages = this.messages?.messages() || [];
+      const actualSteps = this.actualSteps();
+      const expectedLength = actualSteps.length*2 - 1;
+      if (messages.length === expectedLength - 1) {
+        const stepSpec = actualSteps[actualSteps.length - 1];
+        const message = new Message('ai', stepSpec.instructions.replace(':TAGLINE:', this.api.item()?.future_scenario_tagline || ''));
+        this.messages.addMessage(message);
+      }
+    });
     effect(() => {
       const step = this.step();
-      const messages = this.messages?.messages() || [];
-      const expectedLength = step + 1;
-      if (messages.length === expectedLength - 1) {
-        const stepSpec = this.steps[Math.floor(step / 2)];
-        const message = new Message('ai', stepSpec.instructions);
-        this.messages.addMessage(message);
-      // } else if (messages.length > expectedLength) {
-      //   this.messages?.messages.update(msgs => {
-      //     return msgs.slice(0, expectedLength);
-      //   });
+      console.log('Current step:', step);
+      const item = this.api.item();
+      if (this.viewInit() && step === -1 && item) {
+        console.log('Step is -1, adding first step');
+        this.addStep();
       }
     });
   }
 
   ngAfterViewInit() {
-    this.step.set(0);
+    this.viewInit.set(true);
+  }
+
+  addStep() {
+    const actualSteps = this.actualSteps();
+    const lastStepId = actualSteps.length > 0 ? actualSteps[actualSteps.length - 1].id : -1;
+    for (let i = 0; i < this.steps.length; i++) {
+      const step = this.steps[i];
+      if (step.id > lastStepId) {
+        if (step.skip) {
+          const skipProps = step.skip();
+          console.log('Step ID', step.id, 'skipped with props?', skipProps);
+          if (skipProps !== null) {
+            this.propsUpdate.update(s => Object.assign({}, s, skipProps));
+            continue;
+          }
+        }
+        console.log('Adding step', step.id, 'with instructions', step.instructions);
+        this.actualSteps.update(s => [...s, step]);
+        this.step.set(step.id);
+        return;
+      }
+    }
+    console.log('No more steps to add, setting step to 99');
+    this.step.set(99); // No more steps to add, set to a final state
   }
 
   completeStep(update: StepUpdate) {
     this.messages.addMessage(new Message('human', update.message));
     this.propsUpdate.update(s => Object.assign({}, s, update.props));
-    this.step.update(s => s + 1);
-    timer(2000).subscribe(() => {
-      this.step.update(s => s + 1);
+    this.step.set(99);
+    timer(20).subscribe(() => {
+      this.addStep();
     });
   }
 }

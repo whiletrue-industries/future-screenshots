@@ -4,6 +4,8 @@
     font-optical-sizing: auto;
     font-weight: 400;
     font-style: normal;
+    leading-trim: both;
+    text-edge: cap;
 }
     
 @color-creme: #FFFDF6;
@@ -104,8 +106,6 @@
         align-items: center;
         justify-content: center;
         border-radius: 40px;
-        leading-trim: both;        
-        text-edge: cap;
         .font-sans;
         font-size: 16px;
         line-height: normal;
@@ -130,4 +130,26 @@
         color: inherit;
         cursor: pointer;
     }
+}
+
+.nice-checkbox(@fg: currentColor, @bg: #fff) {
+    /* Add if not using autoprefixer */
+    -webkit-appearance: none;
+    appearance: none;
+    /* Not removed via appearance */
+    margin: 0;
+
+    font: inherit;
+    color: @fg;
+    background-color: @bg;
+    width: 24px;
+    height: 24px;
+    border: 2px solid @fg;
+    border-radius: 4px;
+
+    &:checked {
+        background-color: @fg;
+        .background-image;
+        background-image: url(../public/icon-check-white.svg);
+    }    
 }

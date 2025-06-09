@@ -1,16 +1,18 @@
-<app-messages #messages>
+<app-messages #messages ngSkipHydration>
     <div class='spacer'>
-        @switch (step()) {
-            @case (0) {
-                <app-collect-properties-favorable (done)='completeStep($event)'></app-collect-properties-favorable>
-            }
-            @case (2) {
-                <app-collect-properties-potential [prefer]="!!prefer()" (done)='completeStep($event)'></app-collect-properties-potential>
-            }
-            @case (4) {
-            }
-            @case (6) {
-            }
+        @if (step() === 0) {
+            <app-collect-properties-favorable (done)='completeStep($event)'></app-collect-properties-favorable>
+        }
+        @else if (step() === 1) {
+            <app-collect-properties-potential [prefer]="!!prefer()" (done)='completeStep($event)'></app-collect-properties-potential>
+        }
+        @else if (step() === 2) {
+            <app-collect-email (done)='completeStep($event)'></app-collect-email>
+        }
+        @else if (step() > 10 && step() < 20) {
+            <app-complete-evaluation></app-complete-evaluation>
+        } @else {
+            <app-direct-to-map></app-direct-to-map>
         }
     </div>
 </app-messages>
