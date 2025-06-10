@@ -39,23 +39,20 @@ export class CompleteEvaluationComponent {
   }
 
   shareImage() {
-    const url = this.api.item().screenshot_url;
-    if (!url) {
+    const workspaceId = this.api.workspaceId();
+    const itemId = this.api.itemId();
+    const item = this.api.item();
+
+    if (!workspaceId || !itemId) {
+      console.error('Workspace ID or Item ID is missing');
       return;
     }
-    this.http.get(url, { responseType: 'blob' }).subscribe((blob: Blob) => {
-      const files = [new File([blob], 'my-screenshot.png', { type: blob.type })];
-      const share: ShareData = {
+    const url = `https://mapfutur.es/props?workspace=${workspaceId}&item-id=${itemId}`;
+    const share: ShareData = {
         title: $localize`Our Future?`,
         text: this.api.item().future_scenario_tagline || $localize`Check out this image!`,
-      }
-      console.log('share', share);
-      if (navigator.canShare({ files })) {
-        share.files = files;
-      } else {
-        share.url = this.api.item().screenshot_url;
-      }
-      navigator.share(share);
-    });
+        url: url
+    }
+    navigator.share(share);
   }
 }

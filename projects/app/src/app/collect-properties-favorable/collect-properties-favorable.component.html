@@ -36,11 +36,13 @@
                 <div class='pin' [class.visible]='!secondary()'></div>
                 <div class='ish-select'>
                     <input type='checkbox' [(ngModel)]='secondary'/>
+                    <span>
                     @if (primary() === "prefer") {
-                        <span i18n>I’d still rather <strong>prevent</strong> some parts of this</span>
+                        <span i18n>I’d still rather</span> <strong i18n>prevent</strong> <span i18n>some parts of this</span>
                     } @else if (primary() === "prevent") {
-                        <span i18n>I do still <strong>prefer</strong> some parts of this</span>
-                    }                                        
+                        <span i18n>I do still</span> <strong i18n>prefer</strong> <span i18n>some parts of this</span>
+                    }
+                    </span>
                 </div>
             </div>
             <div class='controls'>
