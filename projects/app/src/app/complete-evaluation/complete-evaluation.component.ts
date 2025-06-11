@@ -50,7 +50,7 @@ export class CompleteEvaluationComponent {
     const url = `https://mapfutur.es/props?workspace=${workspaceId}&item-id=${itemId}`;
     const share: ShareData = {
         title: $localize`Our Future?`,
-        text: this.api.item().future_scenario_tagline || $localize`Check out this image!`,
+        text: item.future_scenario_tagline || $localize`Check out this image!`,
         url: url
     }
     navigator.share(share);
