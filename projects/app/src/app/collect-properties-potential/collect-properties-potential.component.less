@@ -28,9 +28,10 @@
         transform-origin: left center;
 
         .string {
-            width: 496px;
+            width: 0px;
             height: 0px;
             border-top: 2px solid currentColor;
+            animation: elongate 0.3s ease-out forwards;
 
             &.dashed {
                 border-top-style: dashed;
@@ -76,5 +77,14 @@
             }
         }
 
+    }
+}
+
+@keyframes elongate {
+    from {
+        width: 0px;
+    }
+    to {
+        width: 496px;
     }
 }

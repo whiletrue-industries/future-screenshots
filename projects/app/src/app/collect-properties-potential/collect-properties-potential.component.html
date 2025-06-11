@@ -1,8 +1,12 @@
 <div class='container'>
     @for (label of LABELS; track $index) {
         <div class='cone-line' [class.prefer]='!!prefer' [class.prevent]='!prefer'
-            [style.transform]='"rotate(" + ((prefer ? -1 : 1) * (100 - label.value) * 0.32) + "deg)"'>
-            <div class='string' [class.dashed]='label.dashed'></div>
+            [style.transform]='"rotate(" + ((prefer ? -1 : 1) * (100 - label.value) * 0.32) + "deg)"'
+            
+        >
+            <div class='string' [class.dashed]='label.dashed'
+                [style.animation-delay.ms]='500 - (label.value * 5) + 1000'
+            ></div>
             <div class='label' (click)='submit(label)'>
                 <span>{{ label.label }}</span>
                 <span>{{ label.description }}</span>

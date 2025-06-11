@@ -220,7 +220,7 @@ export class CollectPropertiesComponent implements AfterViewInit {
     this.messages.addMessage(new Message('human', update.message));
     this.propsUpdate.update(s => Object.assign({}, s, update.props));
     this.step.set(99);
-    timer(20).subscribe(() => {
+    timer(2000).subscribe(() => {
       this.addStep();
     });
   }
