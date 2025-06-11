@@ -16,19 +16,19 @@
         position: absolute;
 
         &.prefer {
-            bottom: 0;
+            bottom: 20px;
         }
         &.prevent {
-            top: 0;
+            top: 20px;
         }
-        left: calc(145px - 800px);
+        left: calc(108px - 496px);
         display: flex;
         flex-flow: row nowrap;
         align-items: center;
         transform-origin: left center;
 
         .string {
-            width: 800px;
+            width: 496px;
             height: 0px;
             border-top: 2px solid currentColor;
 
@@ -38,9 +38,12 @@
         }
 
         .label {
-            padding: 8px 16px;
+            padding: 0px 16px;
+            height: 62px;
             display: flex;
             flex-flow: column;
+            align-items: flex-start;
+            justify-content: center;
             .font-sans;
             font-size: 18px;
             border-radius: 0px 8px 8px 0px;
