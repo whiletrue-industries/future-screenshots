@@ -49,6 +49,7 @@
     font-size: 18px;
     padding: 16px 24px;
     max-width: calc(100% ~'-' 32px);
+    transition: border-radius 0.3s ease-in-out;
 
     ::ng-deep * {
         margin: 0;
@@ -62,7 +63,8 @@
         color: @color-message-ai;
         .font-sans;
         border-radius: 32px 32px 32px 2px;
-        align-self: flex-start;    
+        align-self: flex-start;
+        animation : fadeInLeft 0.3s ease-in-out;
     }
 
     &.human {
@@ -71,6 +73,7 @@
         .font-sans;
         border-radius: 32px 32px 2px 32px;
         align-self: flex-end;
+        animation : fadeInRight 0.3s ease-in-out;
     }
 
     &.part {
@@ -153,4 +156,26 @@
         .background-image;
         background-image: url(../public/icon-check-white.svg);
     }    
+}
+
+@keyframes fadeInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-16px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes fadeInRight {
+    from {
+        opacity: 0;
+        transform: translateX(16px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }

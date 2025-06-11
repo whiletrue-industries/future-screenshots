@@ -41,6 +41,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
   showAgreeButton = signal(false);
   topMenuOpen = signal(true);
   mainMenuOpen = signal(false);
+  uiInitialized = signal(false);
 
   addMessage(message: Message) {
     this.messagesComponent.addMessage(message);
@@ -50,7 +51,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
     this.api.updateFromRoute(this.route.snapshot);
     effect(() => {
       const workspace = this.api.workspace();
-      if (workspace && workspace.source && this.initialInteraction.length === 0) {
+      if (workspace && workspace.source && this.initialInteraction.length === 0 && this.uiInitialized()) {
         this.initialInteraction = [
           new Message('ai', $localize`Hi there…`),
           new Message('ai', $localize`Thanks for participating in **` + (workspace.event_name || $localize`the workshop`) + `**!`),
@@ -70,6 +71,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
 
   ngAfterViewInit() {
     this.platform.browser(() => {
+      this.uiInitialized.set(true);
       this.messagesComponent.scrollPosition.pipe(
         takeUntilDestroyed(this.ref),
         map((pos) => pos < 10),
