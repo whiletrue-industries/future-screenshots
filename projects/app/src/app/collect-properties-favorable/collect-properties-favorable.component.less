@@ -66,12 +66,16 @@
     .img {
         flex: 1 1 auto;
         // height: 100%;
-        overflow: hidden;
+        overflow: auto;
+        display: flex;
+        flex-flow: column;
+        align-items: center;
+        width: 100%;
 
         img {
             object-fit: contain;
             object-position: center;
-            max-height: 100%;
+            width: 75%;
         }
     }
 
@@ -81,6 +85,7 @@
         flex-flow: row nowrap;
         gap: 20px;
         height: fit-content;
+        position: relative;
 
         .prefer, .prevent {
             display: flex;
@@ -96,23 +101,25 @@
             .font-sans;
             font-size: 18px;
             font-weight: 700;
+            position: relative;
+
+            .img {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translateX(-50%) translateY(-50%);
+                width: 105px;
+                height: 28px;
+            }
         }
 
         .prefer {
             background-color: fade(@color-prefer, 15%);
-            .background-image;
-            background-image: url(../../../public/img-pin-prefer-h.svg);
-            background-size: 105px 28px;
-            background-position: center;
             color: @color-prefer-dark
         }
 
         .prevent {
             background-color: fade(@color-prevent, 15%);
-            .background-image;
-            background-image: url(../../../public/img-pin-prevent-h.svg);
-            background-size: 105px 28px;
-            background-position: center;
             color: @color-prevent-dark
         }
     }

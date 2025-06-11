@@ -3,11 +3,13 @@ import { StateService } from '../../state.service';
 import { ApiService } from '../../api.service';
 import { FormsModule } from '@angular/forms';
 import { StepUpdate } from '../collect-properties/collect-properties.component';
+import { NgOptimizedImage } from '@angular/common';
 
 @Component({
   selector: 'app-collect-properties-favorable',
   imports: [
-    FormsModule
+    FormsModule,
+    NgOptimizedImage
   ],
   templateUrl: './collect-properties-favorable.component.html',
   styleUrl: './collect-properties-favorable.component.less'

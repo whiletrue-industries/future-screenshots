@@ -22,11 +22,11 @@
     @if (!primarySelected()) {
         <div class='initial'>
             <div class='prefer' (click)='primary.set("prefer")'>
-                <div class='img'></div>
+                <img class='img' ngSrc='img-pin-prefer-h.svg' priority width="105px" height="28px"/>
                 <span i18n>Prefer</span>
             </div>
             <div class='prevent' (click)='primary.set("prevent")'>
-                <div class='img'></div>
+                <img class='img' ngSrc='/img-pin-prevent-h.svg' priority width="105px" height="28px"/>
                 <span i18n>Prevent</span>
             </div>
         </div>
@@ -38,9 +38,9 @@
                     <input type='checkbox' [(ngModel)]='secondary'/>
                     <span>
                     @if (primary() === "prefer") {
-                        <span i18n>I’d still rather</span> <strong i18n>prevent</strong> <span i18n>some parts of this</span>
+                        <span i18n>I’d still rather</span>&nbsp;<strong i18n>prevent</strong>&nbsp;<span i18n>some parts of this</span>
                     } @else if (primary() === "prevent") {
-                        <span i18n>I do still</span> <strong i18n>prefer</strong> <span i18n>some parts of this</span>
+                        <span i18n>I do still</span>&nbsp;<strong i18n>prefer</strong>&nbsp;<span i18n>some parts of this</span>
                     }
                     </span>
                 </div>
