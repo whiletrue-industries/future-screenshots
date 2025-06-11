@@ -80,9 +80,11 @@ I’m also about to ask you for **access to the camera**, and then we can get go
   }
 
   interact() {
+    this.addMessage(this.initialInteraction[0]);
     interval(1500).pipe(
-      take(this.initialInteraction.length + 1),
+      take(this.initialInteraction.length),
       switchMap((i) => {
+        i += 1;
         if (i < this.initialInteraction.length) {
           for (let j = 0; j < i + 1; j++) {
             this.initialInteraction[j].part = j !== i;
