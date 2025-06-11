@@ -1,41 +1,42 @@
-<?xml version="1.0" encoding="UTF-8" ?>
+<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
   <file source-language="en-US" datatype="plaintext" original="ng2.template">
     <body>
-      <trans-unit id="7868524447908836070" datatype="html">
+      <trans-unit id="7868524447908836070" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>your email</source>
+        <target state="translated">بريدك الإلكتروني</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-email/collect-properties-email.component.html</context>
           <context context-type="linenumber">3</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="3886813665525566856" datatype="html">
+      <trans-unit id="3886813665525566856" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>I welcome additional boosts of hopeful activism and political imagination into my inbox</source>
+        <target state="translated">أرحب بإضافات من النشاط المفعم بالأمل والخيال السياسي إلى صندوق بريدي</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-email/collect-properties-email.component.html</context>
           <context context-type="linenumber">6,7</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="7381817875028728077" datatype="html">
+      <trans-unit id="7381817875028728077" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>No thanks</source>
+        <target state="translated">لا شكراً</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-email/collect-properties-email.component.html</context>
           <context context-type="linenumber">14,15</context>
         </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">projects/app/src/app/collect-properties-email/collect-properties-email.component.ts</context>
-          <context context-type="linenumber">38</context>
-        </context-group>
       </trans-unit>
-      <trans-unit id="4180374702588082219" datatype="html">
+      <trans-unit id="4180374702588082219" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Send link</source>
+        <target state="translated">إرسال الرابط</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-email/collect-properties-email.component.html</context>
           <context context-type="linenumber">16,17</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="773590849053728767" datatype="html">
+      <trans-unit id="773590849053728767" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Prefer</source>
+        <target state="translated">يفضل</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">6,7</context>
@@ -49,8 +50,9 @@
           <context context-type="linenumber">86,87</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="2012955752017338899" datatype="html">
+      <trans-unit id="2012955752017338899" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>-ish</source>
+        <target state="translated">-يش</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">8,9</context>
@@ -60,8 +62,9 @@
           <context context-type="linenumber">13,14</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="7674739602840460559" datatype="html">
+      <trans-unit id="7674739602840460559" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Prevent</source>
+        <target state="translated">منع</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">11,12</context>
@@ -75,22 +78,25 @@
           <context context-type="linenumber">112,113</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="2699388920689322350" datatype="html">
+      <trans-unit id="2699388920689322350" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>I’d still rather</source>
+        <target state="translated">ما زلت أفضل</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">41</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="5361893382190984494" datatype="html">
+      <trans-unit id="5361893382190984494" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>prevent</source>
+        <target state="translated">منع</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">41</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="73573374824589403" datatype="html">
+      <trans-unit id="73573374824589403" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>some parts of this</source>
+        <target state="translated">بعض أجزاء من هذا</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">41,42</context>
@@ -100,50 +106,57 @@
           <context context-type="linenumber">43,44</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="814054648013397270" datatype="html">
+      <trans-unit id="814054648013397270" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>I do still</source>
+        <target state="translated">ما زلت</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">43</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="3656498069730681301" datatype="html">
+      <trans-unit id="3656498069730681301" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>prefer</source>
+        <target state="translated">أفضل</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">43</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="4529258443538479124" datatype="html">
+      <trans-unit id="4529258443538479124" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>undo</source>
+        <target state="translated">تراجع</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">54,55</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="7132705977879866263" datatype="html">
+      <trans-unit id="7132705977879866263" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>continue</source>
+        <target state="translated">استمر</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">57,58</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="1480856902951863661" datatype="html">
+      <trans-unit id="1480856902951863661" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Projected</source>
+        <target state="translated">متوقع</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">26</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="6076808633385617788" datatype="html">
+      <trans-unit id="6076808633385617788" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>will happen for sure</source>
+        <target state="translated">سيحدث بالتأكيد</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">27</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="2484260751558990093" datatype="html">
+      <trans-unit id="2484260751558990093" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Probable</source>
+        <target state="translated">محتمل</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">31</context>
@@ -157,15 +170,17 @@
           <context context-type="linenumber">61,62</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="2738506871935936721" datatype="html">
+      <trans-unit id="2738506871935936721" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>almost certain</source>
+        <target state="translated">شبه مؤكد</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">32</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="1134819861441098772" datatype="html">
+      <trans-unit id="1134819861441098772" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Plausible</source>
+        <target state="translated">معقول</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">36</context>
@@ -179,15 +194,17 @@
           <context context-type="linenumber">65,66</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="2626926581880691929" datatype="html">
+      <trans-unit id="2626926581880691929" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>not obvious, not surprising</source>
+        <target state="translated">غير واضح، غير مفاجئ</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">37</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="7841744051797681626" datatype="html">
+      <trans-unit id="7841744051797681626" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Possible</source>
+        <target state="translated">ممكن</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">41</context>
@@ -201,15 +218,17 @@
           <context context-type="linenumber">69,70</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="7019072582993235227" datatype="html">
+      <trans-unit id="7019072582993235227" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>highly unlikely, not impossible</source>
+        <target state="translated">غير محتمل للغاية، لكنه ليس مستحيلاً</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">42</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="8633620612538259053" datatype="html">
+      <trans-unit id="8633620612538259053" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Preposterous</source>
+        <target state="translated">سخيف</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">46</context>
@@ -223,216 +242,257 @@
           <context context-type="linenumber">73,74</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="9097624115673349291" datatype="html">
+      <trans-unit id="9097624115673349291" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>can never happen</source>
+        <target state="translated">لا يمكن أن يحدث أبداً</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">47</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="1392631183234789308" datatype="html">
+      <trans-unit id="1392631183234789308" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Now, is that a future you would **prefer** would happen or is it a future you’ld rather **prevent**?</source>
+        <target state="translated">الآن، هل هذا مستقبل تفضل أن يحدث أم مستقبل تفضل أن تمنعه؟</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
           <context context-type="linenumber">38</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="4243437504159954387" datatype="html">
+      <trans-unit id="4243437504159954387" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>And can you evaluate how likely is this future?</source>
+        <target state="translated">وهل يمكنك تقييم مدى احتمال حدوث هذا المستقبل؟</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
           <context context-type="linenumber">48</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="3366292503269738586" datatype="html">
+      <trans-unit id="3366292503269738586" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Got it. Thanks!
 
 We’re currently analyzing your screenshot and adding it to the Futures Map. This usually takes a few minutes. When it’s ready we will **email** you a **secret link** so you can always find, edit or delete your screenshots from the map.</source>
+        <target state="translated">تم. شكراً!
+
+نحن حالياً نقوم بتحليل لقطة الشاشة الخاصة بك وإضافتها إلى خريطة المستقبل. عادةً ما يستغرق ذلك بضع دقائق. عندما تكون جاهزة، سنرسل لك **رابطاً سرياً** عبر البريد الإلكتروني لتتمكن دائماً من العثور عليها أو تعديلها أو حذفها من الخريطة.</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
           <context context-type="linenumber">61</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="9056685040810677339" datatype="html">
+      <trans-unit id="9056685040810677339" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Perfect! We’re all set.
 
 Expect an email soon from **MapFutur.es!**</source>
+        <target state="translated">رائع! نحن جاهزون.
+
+توقع بريد إلكتروني قريباً من **MapFutur.es!**</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
           <context context-type="linenumber">102</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="3912926066750765140" datatype="html">
+      <trans-unit id="3912926066750765140" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Got it. Thanks!
 
 We will send another **secret link** to your email address as soon as this screenshot is added to the Futures Map.</source>
+        <target state="translated">تم. شكراً!
+
+سنرسل **رابطاً سرياً** آخر إلى عنوان بريدك الإلكتروني بمجرد إضافة لقطة الشاشة هذه إلى خريطة المستقبل.</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
           <context context-type="linenumber">113</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="884442091533409805" datatype="html">
+      <trans-unit id="884442091533409805" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Well, you will lose the option to edit and track your screenshot, but we will try to handle it with care. **Thanks**!</source>
+        <target state="translated">حسناً، ستفقد خيار تعديل ومتابعة لقطة الشاشة الخاصة بك، لكننا سنحاول التعامل معها بعناية. **شكراً**!</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
           <context context-type="linenumber">123</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="1667655031564191836" datatype="html">
+      <trans-unit id="1667655031564191836" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>That’s great!
 
 We added “:TAGLINE:” to the map!
 
 **Want to see it?**</source>
+        <target state="translated">هذا رائع!
+
+لقد أضفنا “:TAGLINE:” إلى الخريطة!
+
+**هل تريد رؤيتها؟**</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
           <context context-type="linenumber">134</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="7811812787841697190" datatype="html">
+      <trans-unit id="7811812787841697190" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>We added “:TAGLINE:” to the map!
 
 **Want to see it?**</source>
+        <target state="translated">لقد أضفنا “:TAGLINE:” إلى الخريطة!
+
+**هل تريد رؤيتها؟**</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
           <context context-type="linenumber">145</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="6928209535035628388" datatype="html">
+      <trans-unit id="6928209535035628388" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Add Another</source>
+        <target state="translated">أضف آخر</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/complete-evaluation/complete-evaluation.component.html</context>
           <context context-type="linenumber">8,9</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="3155265313783380285" datatype="html">
+      <trans-unit id="3155265313783380285" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Explore Map</source>
+        <target state="translated">استكشاف الخريطة</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/complete-evaluation/complete-evaluation.component.html</context>
           <context context-type="linenumber">14,15</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="7419704019640008953" datatype="html">
+      <trans-unit id="7419704019640008953" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Share</source>
+        <target state="translated">شارك</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/complete-evaluation/complete-evaluation.component.html</context>
           <context context-type="linenumber">21,22</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="7393743239484919387" datatype="html">
+      <trans-unit id="7393743239484919387" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Our Future?</source>
+        <target state="translated">مستقبلنا؟</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/complete-evaluation/complete-evaluation.component.ts</context>
           <context context-type="linenumber">52</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="9038979569246987154" datatype="html">
+      <trans-unit id="9038979569246987154" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Check out this image!</source>
+        <target state="translated">تحقق من هذه الصورة!</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/complete-evaluation/complete-evaluation.component.ts</context>
           <context context-type="linenumber">53</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="6492369180328294412" datatype="html">
+      <trans-unit id="6492369180328294412" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>scan again</source>
+        <target state="translated">امسح مرة أخرى</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/confirm/confirm.component.html</context>
           <context context-type="linenumber">11,12</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="1858257055664276732" datatype="html">
+      <trans-unit id="1858257055664276732" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Looking Good</source>
+        <target state="translated">يبدو جيداً</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/confirm/confirm.component.html</context>
           <context context-type="linenumber">18,19</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="6094323860393720657" datatype="html">
+      <trans-unit id="6094323860393720657" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Show me</source>
+        <target state="translated">أرني</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/direct-to-map/direct-to-map.component.html</context>
           <context context-type="linenumber">7,8</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="5739735053002293531" datatype="html">
+      <trans-unit id="5739735053002293531" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>in your own words...</source>
+        <target state="translated">بكلماتك الخاصة...</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/discuss/discuss.component.html</context>
           <context context-type="linenumber">30,31</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="454031185450713879" datatype="html">
+      <trans-unit id="454031185450713879" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>MENU</source>
+        <target state="translated">القائمة</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/home/home.component.html</context>
           <context context-type="linenumber">16,17</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="1118165592779649506" datatype="html">
+      <trans-unit id="1118165592779649506" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Uploading image...</source>
+        <target state="translated">جارٍ تحميل الصورة...</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/loader/loader.component.html</context>
           <context context-type="linenumber">4,5</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="4408916053694770822" datatype="html">
+      <trans-unit id="4408916053694770822" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Analyzing template...</source>
+        <target state="translated">جارٍ تحليل النموذج...</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/loader/loader.component.html</context>
           <context context-type="linenumber">5,6</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="5031262677315310464" datatype="html">
+      <trans-unit id="5031262677315310464" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Deciphering handwriting...</source>
+        <target state="translated">جارٍ فك رموز الكتابة اليدوية...</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/loader/loader.component.html</context>
           <context context-type="linenumber">6,7</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="8669766856289451191" datatype="html">
+      <trans-unit id="8669766856289451191" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Anticipating transition...</source>
+        <target state="translated">جارٍ توقع الانتقال...</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/loader/loader.component.html</context>
           <context context-type="linenumber">7,8</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="2201270596914647255" datatype="html">
+      <trans-unit id="2201270596914647255" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Explore the Map</source>
+        <target state="translated">استكشاف الخريطة</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/main-menu/main-menu.component.html</context>
           <context context-type="linenumber">4,5</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="572370568328906221" datatype="html">
+      <trans-unit id="572370568328906221" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>About + Contact</source>
+        <target state="translated">حول + تواصل</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/main-menu/main-menu.component.html</context>
           <context context-type="linenumber">5,6</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="5958041823400245861" datatype="html">
+      <trans-unit id="5958041823400245861" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Join a Workshop</source>
+        <target state="translated">انضم إلى ورشة عمل</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/main-menu/main-menu.component.html</context>
           <context context-type="linenumber">6,7</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="2868430931337553487" datatype="html">
+      <trans-unit id="2868430931337553487" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>A Land For All</source>
+        <target state="translated">أرض للجميع</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/main-menu/main-menu.component.html</context>
           <context context-type="linenumber">7,8</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="700463741507627080" datatype="html">
+      <trans-unit id="700463741507627080" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source> Add to Map </source>
+        <target state="translated"> أضف إلى الخريطة </target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/main-menu/main-menu.component.html</context>
           <context context-type="linenumber">13</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="225185942591106089" datatype="html">
+      <trans-unit id="225185942591106089" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Yes, Let’s scan!</source>
+        <target state="translated">نعم، دعنا نفحص!</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.html</context>
           <context context-type="linenumber">15,16</context>
@@ -442,68 +502,81 @@ We added “:TAGLINE:” to the map!
           <context context-type="linenumber">29</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="9167839955944290506" datatype="html">
+      <trans-unit id="9167839955944290506" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>How do I make one?</source>
+        <target state="translated">كيف أصنع واحدة؟</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.html</context>
           <context context-type="linenumber">18,19</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="512623949609093993" datatype="html">
+      <trans-unit id="512623949609093993" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Yes, I agree</source>
+        <target state="translated">نعم، أوافق</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.html</context>
           <context context-type="linenumber">21,22</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="1218703804763274432" datatype="html">
-        <source>Find our booth in the lobby in front of the entrance. There you&apos;ll find templates and guidance.</source>
+      <trans-unit id="1218703804763274432" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Find our booth in the lobby in front of the entrance. There you'll find templates and guidance.</source>
+        <target state="translated">ابحث عن كشكنا في الردهة أمام المدخل. هناك ستجد النماذج والإرشادات.</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
           <context context-type="linenumber">30</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="8317312788503639787" datatype="html">
+      <trans-unit id="8317312788503639787" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Great!
 
 But first, please approve the collection, processing, and storage of your screenshot as described in the [Privacy Policy](https://github.com/whiletrue-industries/future-screenshots/blob/main/projects/app/src/privacy-policy.md).
 
 I’m also about to ask you for **access to the camera**, and then we can get going….</source>
+        <target state="translated">رائع!
+
+لكن أولاً، يرجى الموافقة على جمع ومعالجة وتخزين لقطة الشاشة الخاصة بك كما هو موضح في [سياسة الخصوصية](https://github.com/whiletrue-industries/future-screenshots/blob/main/projects/app/src/privacy-policy.md).
+
+سأطلب منك أيضاً **الوصول إلى الكاميرا**، وبعدها يمكننا البدء...</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
           <context context-type="linenumber">31,35</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="2005970641889841406" datatype="html">
+      <trans-unit id="2005970641889841406" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Hi there…</source>
+        <target state="translated">مرحباً...</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
           <context context-type="linenumber">55</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="4571274738606596845" datatype="html">
+      <trans-unit id="4571274738606596845" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Thanks for participating in **</source>
+        <target state="translated">شكراً لمشاركتك في **</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
           <context context-type="linenumber">56</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="9044526817068657586" datatype="html">
+      <trans-unit id="9044526817068657586" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>the workshop</source>
+        <target state="translated">ورشة العمل</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
           <context context-type="linenumber">56</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="4767332476188972747" datatype="html">
+      <trans-unit id="4767332476188972747" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>I’m here to help you **scan** your future screenshot and add it to the map.</source>
+        <target state="translated">أنا هنا لمساعدتك في **مسح** لقطة المستقبل الخاصة بك وإضافتها إلى الخريطة.</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
           <context context-type="linenumber">57</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="3995298380815881001" datatype="html">
+      <trans-unit id="3995298380815881001" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>fit the page to the frame</source>
+        <target state="translated">قم بتناسب الصفحة مع الإطار</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/scanner/scanner.component.ts</context>
           <context context-type="linenumber">163</context>
@@ -513,8 +586,9 @@ I’m also about to ask you for **access to the camera**, and then we can get go
           <context context-type="linenumber">184</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="5420590008427243564" datatype="html">
+      <trans-unit id="5420590008427243564" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>try on a darker background</source>
+        <target state="translated">جرب على خلفية أغمق</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/scanner/scanner.component.ts</context>
           <context context-type="linenumber">165</context>
@@ -524,8 +598,9 @@ I’m also about to ask you for **access to the camera**, and then we can get go
           <context context-type="linenumber">186</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="1441240370999158350" datatype="html">
+      <trans-unit id="1441240370999158350" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>change your angle</source>
+        <target state="translated">غير زاويتك</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/scanner/scanner.component.ts</context>
           <context context-type="linenumber">197</context>
@@ -535,29 +610,33 @@ I’m also about to ask you for **access to the camera**, and then we can get go
           <context context-type="linenumber">203</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="4101939369873545738" datatype="html">
+      <trans-unit id="4101939369873545738" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>move closer to page</source>
+        <target state="translated">اقترب من الصفحة</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/scanner/scanner.component.ts</context>
           <context context-type="linenumber">215</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="2634869837365297121" datatype="html">
+      <trans-unit id="2634869837365297121" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>hold still...</source>
+        <target state="translated">ابقَ ثابتاً...</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/scanner/scanner.component.ts</context>
           <context context-type="linenumber">312</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="6735193863300955006" datatype="html">
+      <trans-unit id="6735193863300955006" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>NOW</source>
+        <target state="translated">الآن</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/showcase/output-map/output-map.component.html</context>
           <context context-type="linenumber">77,78</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="5491533816591642211" datatype="html">
+      <trans-unit id="5491533816591642211" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>PROJECTED</source>
+        <target state="translated">متوقع</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/showcase/output-map/output-map.component.html</context>
           <context context-type="linenumber">78</context>

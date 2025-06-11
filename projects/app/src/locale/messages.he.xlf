@@ -575,6 +575,70 @@ I’m also about to ask you for **access to the camera**, and then we can get go
           <context context-type="linenumber">43</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="3886813665525566856" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>I welcome additional boosts of hopeful activism and political imagination into my inbox</source>
+        <target state="translated">אני מקבל בברכה תוספות של אקטיביזם מלא תקווה ודמיון פוליטי לתיבת הדואר שלי</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/collect-properties-email/collect-properties-email.component.html</context>
+          <context context-type="linenumber">6,7</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="454031185450713879" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>MENU</source>
+        <target state="translated">תפריט</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/home/home.component.html</context>
+          <context context-type="linenumber">16,17</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="2201270596914647255" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Explore the Map</source>
+        <target state="translated">חקור את המפה</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/main-menu/main-menu.component.html</context>
+          <context context-type="linenumber">4,5</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="572370568328906221" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>About + Contact</source>
+        <target state="translated">אודות + יצירת קשר</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/main-menu/main-menu.component.html</context>
+          <context context-type="linenumber">5,6</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="5958041823400245861" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Join a Workshop</source>
+        <target state="translated">הצטרף לסדנה</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/main-menu/main-menu.component.html</context>
+          <context context-type="linenumber">6,7</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="2868430931337553487" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>A Land For All</source>
+        <target state="translated">ארץ לכולם</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/main-menu/main-menu.component.html</context>
+          <context context-type="linenumber">7,8</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="700463741507627080" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source> Add to Map </source>
+        <target state="translated">הוסף למפה</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/main-menu/main-menu.component.html</context>
+          <context context-type="linenumber">13</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="512623949609093993" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Yes, I agree</source>
+        <target state="translated">כן, אני מסכים</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.html</context>
+          <context context-type="linenumber">21,22</context>
+        </context-group>
+      </trans-unit>
     </body>
   </file>
 </xliff>
