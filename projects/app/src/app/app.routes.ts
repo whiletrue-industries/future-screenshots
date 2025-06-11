@@ -74,7 +74,7 @@ export const routes: Routes = [
         'path': 'jma25',
         'component': RedirectorComponent,
         'data': {
-            'redirectTo': '/prescan?workspace=ceaed215-e28a-4988-aca4-458c20d5cf1d&api_key=2dbffec8-9175-4dc4-b553-5b8cf085b5fe&tag=jma25',
+            'redirectTo': '/nl/prescan?workspace=ceaed215-e28a-4988-aca4-458c20d5cf1d&api_key=2dbffec8-9175-4dc4-b553-5b8cf085b5fe&tag=jma25',
         }
     },
     {
