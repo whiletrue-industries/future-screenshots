@@ -10,17 +10,19 @@
 </div>
 <app-messages #messages [scrollOnAI]='false' [paddingTop]="124">
 </app-messages>
-<div class='buttons' ltr>
-    @if (showScanButton()) {
-        <div class='button primary' (click)='inputAnswer.next("yes")' i18n>Yes, Let’s scan!</div>
-    }
-    @if (showMoreButton()) {
-        <div class='button' (click)='inputAnswer.next("more")' i18n>How do I make one?</div>
-    }
-    @if (showAgreeButton()) {
-        <div class='button primary' [routerLink]='["/scan"]' queryParamsHandling="merge" [queryParams]="{'item-id': null, 'key': null}" i18n>Yes, I agree</div>
-    }
-</div>
+@if (showScanButton() || showMoreButton() || showAgreeButton()) {
+    <div class='buttons' ltr>
+        @if (showScanButton()) {
+            <div class='button primary' (click)='inputAnswer.next("yes")' i18n>Yes, Let’s scan!</div>
+        }
+        @if (showMoreButton()) {
+            <div class='button' (click)='inputAnswer.next("more")' i18n>How do I make one?</div>
+        }
+        @if (showAgreeButton()) {
+            <div class='button primary' [routerLink]='["/scan"]' queryParamsHandling="merge" [queryParams]="{'item-id': null, 'key': null}" i18n>Yes, I agree</div>
+        }
+    </div>
+}
 @if (mainMenuOpen()) {
     <div class='menu-overlay' (click)='mainMenuOpen.set(false)'></div>
 }

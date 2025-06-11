@@ -106,12 +106,12 @@ I’m also about to ask you for **access to the camera**, and then we can get go
             filter((answer) => answer === 'yes'),
             tap(() => {
               this.addMessage(this.answer);
+              this.showScanButton.set(false);
+              this.showMoreButton.set(false);
             }),
             delay(1000),
             tap(() => {
               this.addMessage(this.secondInteraction);
-              this.showScanButton.set(false);
-              this.showMoreButton.set(false);
               this.showAgreeButton.set(true);
             }),
           );
