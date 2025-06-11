@@ -14,7 +14,7 @@ import { ActivatedRoute } from '@angular/router';
 })
 export class HomeComponent implements AfterViewInit {
   tag = signal('main');
-  mainMenuOpen = signal(true);
+  mainMenuOpen = signal(false);
   browser = false;
 
   menuHeight = MAIN_MENU_HEIGHT;
