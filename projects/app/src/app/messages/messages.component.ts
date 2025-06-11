@@ -118,7 +118,7 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
           return;
         }
         const boundingRect = element.getBoundingClientRect();
-        let spacerSize = messagesEl.offsetHeight - boundingRect.height - 32;
+        let spacerSize = messagesEl.offsetHeight - boundingRect.height - 8;
         if (spacerSize < 1) {
           spacerSize = 1;
         }
@@ -131,7 +131,7 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
           // console.log('scrollTop', messagesEl.scrollTop);
           this.scroller.next(() => {
             console.log('scrolling last message', element, element.classList);
-            this.messagesEl.nativeElement.scrollBy({top: top - 16, behavior: 'smooth'});
+            this.messagesEl.nativeElement.scrollBy({top: top - 4, behavior: 'smooth'});
           });
         } else if (this.scrollOnAI) {
           this.scroller.next(() => {
