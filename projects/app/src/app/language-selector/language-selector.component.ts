@@ -18,7 +18,7 @@ type Language = {
 export class LanguageSelectorComponent {
   LANGUAGES = computed<Language[]>(() => {
     const ret: Language[] = [
-      { code: 'en-US', name: 'English', baseHref: '/' },
+      { code: 'en', name: 'English', baseHref: '/' },
       { code: 'nl', name: 'Nederlands', baseHref: '/nl/' },
     ];
     const currentLanguage = ret.find(lang => lang.code === this.currentLanguageCode());
