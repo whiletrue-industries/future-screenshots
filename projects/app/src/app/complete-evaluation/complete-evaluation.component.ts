@@ -17,12 +17,13 @@ import { CompletionImageComponent } from "../completion-image/completion-image.c
 })
 export class CompleteEvaluationComponent {
 
-  constructor(private api: ApiService, private http: HttpClient) {}
+  constructor(public api: ApiService, private http: HttpClient) {}
 
   downloadImage() {
     const item = this.api.item();
     const url = item.screenshot_url;
     if (!url) {
+      console.log('No screenshot URL available', item);
       return;
     }
     this.http.get(url, { responseType: 'blob' }).pipe(

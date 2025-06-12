@@ -29,6 +29,7 @@ export class ApiService {
   itemKey = signal<string | null>(null);
   automatic = signal<boolean>(false);
   workspace = signal<any>({});
+  isWorkshop = signal<boolean>(false);
   uploadImageInProgress = new ReplaySubject<boolean>(1);
 
   constructor(private http: HttpClient, private zone: NgZone) {
@@ -54,6 +55,9 @@ export class ApiService {
     if (workspace) {
       this.workspaceId.set(workspace);
     }
+
+    const isWorkshop = !!route.queryParams['ws'];
+    this.isWorkshop.set(isWorkshop);
 
     const item_key = route.queryParams['key'];
     const item_id = route.queryParams['item-id'];
@@ -111,10 +115,11 @@ export class ApiService {
       'api_key': this.api_key() as string,
     };
     return this.http.post(this.COMPLETE_FLOW_URL, metadata, { params }).pipe(
-      map((response: any) => {
-        const item = Object.assign({}, metadata, response);
-        this.item.set(item);
-        return item;
+      map(() => {
+        this.item.update((item: any) => {
+          return Object.assign({}, item, metadata);
+        });
+        return true;
       })
     );
   }
@@ -123,10 +128,10 @@ export class ApiService {
     this.uploadImageInProgress.next(true);
     this.startDiscussion(image, item_id, item_key).pipe(
       switchMap((ret: any) => {
+        this.uploadImageInProgress.next(false);
         return this.sendInitMessageNoStream(item_id, item_key);
       })
     ).subscribe((x: any) => {
-      this.uploadImageInProgress.next(false);
     });
   }    
 
@@ -142,7 +147,14 @@ export class ApiService {
     if (this.automatic()) {
       params['automatic'] = 'true';
     }
-    return this.http.post(this.SCREENSHOT_HANDLER_URL, formData, { params });
+    return this.http.post(this.SCREENSHOT_HANDLER_URL, formData, { params }).pipe(
+      tap((data: any) => {
+        console.log('Screenshot uploaded successfully', data.metadata);
+        this.item.update((item: any) => {
+          return Object.assign({}, item, data.metadata);
+        });
+      })
+    );
   }
 
   sendInitMessageNoStream(item_id: string, item_key: string): Observable<any> {

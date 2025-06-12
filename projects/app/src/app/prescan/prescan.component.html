@@ -12,6 +12,15 @@
 </app-messages>
 @if (showScanButton() || showMoreButton() || showAgreeButton()) {
     <div class='buttons' ltr>
+        @if (showWhatsappButton()) {
+            <a class='button' [href]='api.workspace().whatsapp_group' target="_blank" i18n>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M22.375 12.0195C22.375 17.5425 17.898 22.0195 12.375 22.0195C10.6195 22.022 8.89463 21.5604 7.375 20.6815L2.375 21.5195L3.207 16.0195C2.65735 14.7577 2.3741 13.3959 2.375 12.0195C2.375 6.49653 6.852 2.01953 12.375 2.01953C17.898 2.01953 22.375 6.49653 22.375 12.0195Z" stroke="#4E02B2" stroke-width="1.5" stroke-linecap="round"/>
+                    <path d="M13.335 13.8875L15.415 13.4815L17.375 14.2345V16.0575C17.375 16.6645 16.853 17.1275 16.265 16.9975C14.742 16.6635 11.975 15.8235 10.053 13.8875C8.223 12.0445 7.598 9.47753 7.385 8.06053C7.3 7.49353 7.749 7.01953 8.318 7.01953H10.212L10.947 8.98853L10.558 11.0895" stroke="#4E02B2" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                <span>Join whatsapp Group</span>
+            </a>
+        }
         @if (showScanButton()) {
             <div class='button primary' (click)='inputAnswer.next("yes")' i18n>Yes, Let’s scan!</div>
         }

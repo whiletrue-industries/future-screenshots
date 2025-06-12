@@ -39,22 +39,26 @@ I’m also about to ask you for **access to the camera**, and then we can get go
   showMoreButton = signal(false);
   showScanButton = signal(false);
   showAgreeButton = signal(false);
+  showWhatsappButton = signal(false);
   topMenuOpen = signal(true);
   mainMenuOpen = signal(false);
   uiInitialized = signal(false);
 
   addMessage(message: Message) {
+    message.setText(message.text.replace(/:EVENT_NAME:/g, this.api.workspace()?.event_name || $localize`the workshop`));
     this.messagesComponent.addMessage(message);
   }
 
-  constructor(private route: ActivatedRoute, private api: ApiService, private platform: PlatformService, private router: Router, private ref: DestroyRef) {    
+  constructor(private route: ActivatedRoute, public api: ApiService, private platform: PlatformService, private router: Router, private ref: DestroyRef) {    
     this.api.updateFromRoute(this.route.snapshot);
     effect(() => {
       const workspace = this.api.workspace();
       if (workspace && workspace.source && this.initialInteraction.length === 0 && this.uiInitialized()) {
         this.initialInteraction = [
           new Message('ai', $localize`Hi there…`),
-          new Message('ai', $localize`Thanks for participating in **` + (workspace.event_name || $localize`the workshop`) + `**!`),
+          !this.api.workspace().whatsapp_group ?
+            new Message('ai', $localize`Thanks for participating in **:EVENT_NAME:**!`) :
+            new Message('ai', $localize`**First, join the chat group** we set up for :EVENT_NAME:.`),
           new Message('ai', $localize`I’m here to help you **scan** your future screenshot and add it to the map.`),
         ];
         this.interact();
@@ -94,7 +98,8 @@ I’m also about to ask you for **access to the camera**, and then we can get go
           this.addMessage(this.initialInteraction[i]);
           return from([]);
         } else {
-          this.showMoreButton.set(true);
+          this.showMoreButton.set(!this.api.isWorkshop());
+          this.showWhatsappButton.set(this.api.isWorkshop() && this.api.workspace()?.whatsapp_group);
           this.showScanButton.set(true);
           return this.inputAnswer.pipe(
             tap((answer) => {

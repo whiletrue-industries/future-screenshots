@@ -40,6 +40,10 @@ export class CollectPropertiesComponent implements AfterViewInit {
         if (!!this.api.item()?.favorable_future) {
           return {};
         }
+        if (this.api.isWorkshop()) {
+          console.log('Skipping favorable future step, workshop mode');
+          return {};
+        }
         return null;
       }
     },
@@ -50,6 +54,10 @@ export class CollectPropertiesComponent implements AfterViewInit {
         const potential = this.api.item()?.plausibility;
         if (potential !== undefined && potential !== null && potential >= 0) {
           console.log('Skipping potential step, already set', potential);
+          return {};
+        }
+        if (this.api.isWorkshop()) {
+          console.log('Skipping potential step, workshop mode');
           return {};
         }
         console.log('Potential step not skipped, not set', potential);
@@ -81,22 +89,23 @@ export class CollectPropertiesComponent implements AfterViewInit {
     {
       id: 10,
       instructions: '',
-      skip: async () => {
+      skip: () => {
         const propsUpdate = this.propsUpdate();
         const item_id = this.api.itemId();
         const item_key = this.api.itemKey();
+        console.log('CONSIDERING IF UPDATE IS NEEDED', propsUpdate);
         if (item_id && item_key) {
           for (const _ in propsUpdate) {
             this.api.item.update((item: any) => Object.assign({}, item, propsUpdate));
             console.log('Updating item with props:', propsUpdate);
-            this.messages.thinking = true;          
-            await firstValueFrom(this.api.uploadImageInProgress.pipe(
+            this.messages.thinking = true;
+            this.api.uploadImageInProgress.pipe(
               filter((inProgress) => inProgress === false),
               switchMap(() => this.api.updateItem(propsUpdate, item_id, item_key)),
               tap(() => {
                 this.messages.thinking = false;
               })
-            ));
+            ).subscribe();
             break;
           }
         }
@@ -165,6 +174,7 @@ export class CollectPropertiesComponent implements AfterViewInit {
     return this.propsUpdate()?.favorable_future.indexOf('prefer') >= 0;
   });
   viewInit = signal(false);
+  stepInitialized = signal(false);
   fragment = signal<string | null>(null);
   emailRequested = false;
   emailFromStorage = false;
@@ -191,9 +201,10 @@ export class CollectPropertiesComponent implements AfterViewInit {
     });
     effect(() => {
       const step = this.step();
-      console.log('Current step:', step);
       const item = this.api.item();
-      if (this.viewInit() && step === -1 && item) {
+      const stepInitialized = this.stepInitialized();
+      if (!stepInitialized && this.viewInit() && step === -1 && item) {
+        this.stepInitialized.set(true);
         console.log('Step is -1, adding first step');
         timer(0).subscribe(async () => {
           await this.addStep();

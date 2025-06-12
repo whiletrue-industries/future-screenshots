@@ -92,6 +92,13 @@ export const routes: Routes = [
         }
     },
     {
+        'path': '20250612',
+        'component': RedirectorComponent,
+        'data': {
+            'redirectTo': '/?workspace=573006c9-b004-438f-aae3-969751b32fd2&api_key=c5f7e0e7-8cc3-4822-b11d-ddc37339870e&ws=true',
+        }
+    },
+    {
         'path': 'testing',
         'component': RedirectorComponent,
         'data': {
