@@ -4,12 +4,14 @@ import { ApiService } from '../../api.service';
 import { HttpClient } from '@angular/common/http';
 import { switchMap } from 'rxjs/operators';
 import { from } from 'rxjs';
+import { CompletionImageComponent } from "../completion-image/completion-image.component";
 
 @Component({
   selector: 'app-complete-evaluation',
   imports: [
-    RouterLink
-  ],
+    RouterLink,
+    CompletionImageComponent
+],
   templateUrl: './complete-evaluation.component.html',
   styleUrl: './complete-evaluation.component.less'
 })

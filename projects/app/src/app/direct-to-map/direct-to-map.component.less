@@ -7,5 +7,22 @@
     justify-content: flex-end;
     height: 100%;
     width: 100%;
-    padding: 16px 32px;
+    position: relative;
+
+    app-completion-image {
+        position: absolute;
+        top: 32px;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+    .buttons {
+        padding: 12px 16px; 
+        width: 100%;
+        position: relative;
+        z-index: 1;
+        background-color: @color-creme;
+        border-top: 1px solid @color-light-gray;
+    }
 }

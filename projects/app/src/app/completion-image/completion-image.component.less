@@ -1,0 +1,61 @@
+@import '../../common.less';
+
+.container {
+    width: 100%;
+
+    display: flex;
+    flex-flow: column;
+    align-items: center;
+    position: relative;
+    
+    img {
+        width: 75%;
+        position: relative;
+        z-index: 1;
+    }
+
+    .line {
+        position: absolute;
+        top: -2px;
+        left: -50%;
+        width: 200%;
+        height: 2px;
+        border-top: 4px solid;    
+    }
+
+    &.prefer {
+        transform-origin: 85% 0;
+        .line {
+            border-top-color: @color-prefer;
+        }
+    }
+
+    &.prevent {
+        transform-origin: 15% 0;
+        .line {
+            border-top-color: @color-prevent;
+        }
+    }
+
+    .prefer, .prevent {
+        .background-image;
+        width: 40px;
+        height: 106px;
+        position: absolute;
+        z-index: 2;
+    }
+
+    .prefer {
+        background-image: url(../../../public/img-pin-prefer-v.svg);
+        top: -48px;
+        left: 20%;
+        transform: rotate(-13deg)scale(1.2);
+    }
+
+    .prevent {
+        background-image: url(../../../public/img-pin-prevent-v.svg);
+        top: -36px;
+        left: 62%;
+        transform: rotate(16deg) scale(1.2);    
+    }
+}

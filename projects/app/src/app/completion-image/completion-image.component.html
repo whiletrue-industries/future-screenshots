@@ -1,0 +1,10 @@
+<div class='container' [style.transform]='"rotate(" + rotate() + "deg)"' [class.prefer]='!!prefer()' [class.prevent]='!!prevent()'>
+    <div class='line'></div>
+    <img [src]="imageUrl()" alt="Confirmation Image">
+    @if (prefer()) {
+      <div class='prefer'></div>
+    } 
+    @if (prevent()) {
+      <div class='prevent'></div>
+    }
+</div>

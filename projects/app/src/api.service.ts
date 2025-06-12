@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { effect, Injectable, NgZone, signal } from '@angular/core';
 import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
-import { map, Observable, switchMap, tap } from 'rxjs';
+import { map, Observable, ReplaySubject, switchMap, tap } from 'rxjs';
 
 export type DiscussResult = {
   complete: boolean;
@@ -29,8 +29,10 @@ export class ApiService {
   itemKey = signal<string | null>(null);
   automatic = signal<boolean>(false);
   workspace = signal<any>({});
+  uploadImageInProgress = new ReplaySubject<boolean>(1);
 
   constructor(private http: HttpClient, private zone: NgZone) {
+    this.uploadImageInProgress.next(false);
     effect(() => {
       const workspaceId = this.workspaceId();
       if (workspaceId) {
@@ -118,11 +120,14 @@ export class ApiService {
   }
 
   uploadImage(image: Blob, item_id: string, item_key: string): void {
+    this.uploadImageInProgress.next(true);
     this.startDiscussion(image, item_id, item_key).pipe(
       switchMap((ret: any) => {
         return this.sendInitMessageNoStream(item_id, item_key);
       })
-    ).subscribe((x: any) => {});
+    ).subscribe((x: any) => {
+      this.uploadImageInProgress.next(false);
+    });
   }    
 
   startDiscussion(image: Blob, item_id: string, item_key: string): Observable<any> {

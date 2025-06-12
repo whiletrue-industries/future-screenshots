@@ -4,7 +4,7 @@ import { ApiService } from '../../api.service';
 import { CollectPropertiesFavorableComponent } from "../collect-properties-favorable/collect-properties-favorable.component";
 import { ActivatedRoute } from '@angular/router';
 import { CollectPropertiesPotentialComponent } from "../collect-properties-potential/collect-properties-potential.component";
-import { timer } from 'rxjs';
+import { filter, firstValueFrom, switchMap, tap, timer } from 'rxjs';
 import { CollectEmailComponent } from "../collect-properties-email/collect-properties-email.component";
 import { sign } from 'node:crypto';
 import { CompleteEvaluationComponent } from "../complete-evaluation/complete-evaluation.component";
@@ -81,7 +81,7 @@ export class CollectPropertiesComponent implements AfterViewInit {
     {
       id: 10,
       instructions: '',
-      skip: () => {
+      skip: async () => {
         const propsUpdate = this.propsUpdate();
         const item_id = this.api.itemId();
         const item_key = this.api.itemKey();
@@ -89,7 +89,14 @@ export class CollectPropertiesComponent implements AfterViewInit {
           for (const _ in propsUpdate) {
             this.api.item.update((item: any) => Object.assign({}, item, propsUpdate));
             console.log('Updating item with props:', propsUpdate);
-            this.api.updateItem(propsUpdate, item_id, item_key).subscribe();
+            this.messages.thinking = true;          
+            await firstValueFrom(this.api.uploadImageInProgress.pipe(
+              filter((inProgress) => inProgress === false),
+              switchMap(() => this.api.updateItem(propsUpdate, item_id, item_key)),
+              tap(() => {
+                this.messages.thinking = false;
+              })
+            ));
             break;
           }
         }
@@ -183,7 +190,9 @@ export class CollectPropertiesComponent implements AfterViewInit {
       const item = this.api.item();
       if (this.viewInit() && step === -1 && item) {
         console.log('Step is -1, adding first step');
-        this.addStep();
+        timer(0).subscribe(async () => {
+          await this.addStep();
+        });
       }
     });
   }
@@ -192,14 +201,14 @@ export class CollectPropertiesComponent implements AfterViewInit {
     this.viewInit.set(true);
   }
 
-  addStep() {
+  async addStep() {
     const actualSteps = this.actualSteps();
     const lastStepId = actualSteps.length > 0 ? actualSteps[actualSteps.length - 1].id : -1;
     for (let i = 0; i < this.steps.length; i++) {
       const step = this.steps[i];
       if (step.id > lastStepId) {
         if (step.skip) {
-          const skipProps = step.skip();
+          const skipProps = await step.skip();
           console.log('Step ID', step.id, 'skipped with props?', skipProps);
           if (skipProps !== null) {
             this.propsUpdate.update(s => Object.assign({}, s, skipProps));
@@ -220,8 +229,8 @@ export class CollectPropertiesComponent implements AfterViewInit {
     this.messages.addMessage(new Message('human', update.message));
     this.propsUpdate.update(s => Object.assign({}, s, update.props));
     this.step.set(99);
-    timer(2000).subscribe(() => {
-      this.addStep();
+    timer(2000).subscribe(async () => {
+      await this.addStep();
     });
   }
 }
