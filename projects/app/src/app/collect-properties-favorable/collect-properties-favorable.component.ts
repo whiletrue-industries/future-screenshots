@@ -26,6 +26,20 @@ export class CollectPropertiesFavorableComponent {
   imageUrl = computed(() => {
     return this.state.currentImageUrl() || this.api.item()?.screenshot_url || null;
   });
+  message = computed(() => {
+    let message = '';
+    const primary = this.primary();
+    const secondary = this.secondary();
+    if (primary === 'prefer') {
+      message += $localize`Prefer`;
+    } else if (primary === 'prevent') {
+      message += $localize`Prevent`;
+    }
+    if (secondary) {
+      message += $localize`-ish`;
+    }
+    return message;
+  });
 
   constructor(public state: StateService, private api: ApiService) {
   }
@@ -46,7 +60,7 @@ export class CollectPropertiesFavorableComponent {
     if (this.secondary()) {
       props['favorable_future'] = 'mostly ' + props['favorable_future'];
     }
-    const message = primary.charAt(0).toUpperCase() + primary.slice(1) + (this.secondary() ? '-ish' : '');
+    const message = this.message();
     this.done.emit({message, props});
   }
 }
