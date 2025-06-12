@@ -1,0 +1,579 @@
+<!DOCTYPE html><html lang="nl" dir="ltr"><head>
+  <meta charset="utf-8">
+  <title>MapFutur.es</title>
+  <base href="/nl/">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no, user-scalable=no">
+  <meta http-equiv="ScreenOrientation" content="autoRotate:disabled">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <script src="https://docs.opencv.org/4.7.0/opencv.js" async=""></script>
+  <!-- warning: loading OpenCV can take some time. Load asynchronously -->
+  <script src="https://cdn.jsdelivr.net/gh/ColonelParrot/jscanify@master/src/jscanify.min.js"></script>
+<link rel="stylesheet" href="styles-2ILWJOCD.css"><style ng-app-id="ng">
+
+[_nghost-ng-c1445418517] {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 24px;
+  background: #FFFDF6;
+}
+[_nghost-ng-c1445418517]   .container[_ngcontent-ng-c1445418517] {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+[_nghost-ng-c1445418517]   .container[_ngcontent-ng-c1445418517]   .map-container[_ngcontent-ng-c1445418517] {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  padding-top: 20px;
+  padding-bottom: 20px;
+  padding-left: 20px;
+  padding-right: 252px;
+  overflow: hidden;
+}
+[_nghost-ng-c1445418517]   .container[_ngcontent-ng-c1445418517]   .frame[_ngcontent-ng-c1445418517] {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  top: 0;
+  left: 0;
+  background-image: url("./media/pps25-screen-frame-w-YZA6GP5U.svg");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+}</style><style ng-app-id="ng">
+
+.font-sans[_ngcontent-ng-c3472746853] {
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+}
+.background-image[_ngcontent-ng-c3472746853] {
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+}
+.message[_ngcontent-ng-c3472746853] {
+  font-size: 18px;
+  padding: 16px 24px;
+  max-width: calc(100% - 32px);
+  transition: border-radius 0.3s ease-in-out;
+}
+.message[_ngcontent-ng-c3472746853]     * {
+  margin: 0;
+}
+.message[_ngcontent-ng-c3472746853]     * a {
+  color: inherit;
+}
+.message.ai[_ngcontent-ng-c3472746853] {
+  background-color: #E7CBFF;
+  color: #4E02B2;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  border-radius: 32px 32px 32px 2px;
+  align-self: flex-start;
+  animation: _ngcontent-ng-c3472746853_fadeInLeft 0.3s ease-in-out;
+}
+.message.human[_ngcontent-ng-c3472746853] {
+  background-color: #4E02B2;
+  color: #FFFFFF;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  border-radius: 32px 32px 2px 32px;
+  align-self: flex-end;
+  animation: _ngcontent-ng-c3472746853_fadeInRight 0.3s ease-in-out;
+  margin-bottom: 4px;
+}
+.message.part[_ngcontent-ng-c3472746853] {
+  border-radius: 32px;
+}
+.buttons[_ngcontent-ng-c3472746853] {
+  width: 100%;
+  display: flex;
+  flex-flow: column;
+  padding: 8px 0;
+  gap: 4px;
+}
+.buttons[_ngcontent-ng-c3472746853]   .button-row[_ngcontent-ng-c3472746853] {
+  width: 100%;
+  display: flex;
+  flex-flow: row;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+.buttons[_ngcontent-ng-c3472746853]   .button-row[_ngcontent-ng-c3472746853]    > .button[_ngcontent-ng-c3472746853] {
+  flex: 1 1 auto;
+}
+.buttons[_ngcontent-ng-c3472746853]   .button[_ngcontent-ng-c3472746853] {
+  height: 52px;
+  padding: 0px 8px;
+  display: flex;
+  flex-flow: row;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  font-size: 16px;
+  line-height: normal;
+  font-weight: 400;
+  border: 1px solid #E7CBFF;
+  background: #FBF5F6;
+  color: #4E02B2;
+  cursor: pointer;
+}
+.buttons[_ngcontent-ng-c3472746853]   .button.primary[_ngcontent-ng-c3472746853] {
+  border: 1px solid #4E02B2;
+  background: #4E02B2;
+  color: #FFFFFF;
+  font-weight: 700;
+}
+.buttons[_ngcontent-ng-c3472746853]   a[_ngcontent-ng-c3472746853] {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+@keyframes _ngcontent-ng-c3472746853_fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes _ngcontent-ng-c3472746853_fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes _ngcontent-ng-c3472746853_slideInUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes _ngcontent-ng-c3472746853_slideInDown {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+[_nghost-ng-c3472746853] {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  overflow: hidden;
+  background: #fffdf6;
+}
+[_nghost-ng-c3472746853]   .map[_ngcontent-ng-c3472746853] {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  transition: transform 1s ease-in-out;
+}
+[_nghost-ng-c3472746853]   .cluster-labels[_ngcontent-ng-c3472746853] {
+  opacity: 0;
+  transition: opacity 1s ease-in-out;
+}
+[_nghost-ng-c3472746853]   .cluster-labels.visible[_ngcontent-ng-c3472746853] {
+  opacity: 1;
+}
+[_nghost-ng-c3472746853]   .cluster-labels[_ngcontent-ng-c3472746853]     text {
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  font-weight: 400;
+  font-style: italic;
+  stroke: #FFFDF6;
+  stroke-width: 0.5em;
+  paint-order: stroke;
+}
+[_nghost-ng-c3472746853]   .cluster-labels[_ngcontent-ng-c3472746853]     .positive text {
+  fill: #B50F0F;
+}
+[_nghost-ng-c3472746853]   .cluster-labels[_ngcontent-ng-c3472746853]     .negative text {
+  fill: #0030CC;
+}
+[_nghost-ng-c3472746853]   .mask[_ngcontent-ng-c3472746853] {
+  opacity: 0;
+  transition: opacity 1s ease-in-out;
+}
+[_nghost-ng-c3472746853]   .mask.visible[_ngcontent-ng-c3472746853] {
+  opacity: 1;
+}
+[_nghost-ng-c3472746853]   .mask[_ngcontent-ng-c3472746853]   rect.blur[_ngcontent-ng-c3472746853] {
+  opacity: 0.85;
+  -webkit-backdrop-filter: grayscale(1);
+  backdrop-filter: grayscale(1);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 20000;
+  pointer-events: none;
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: center;
+  align-items: center;
+  gap: 70px;
+  opacity: 0;
+  transition: opacity 1s ease-in-out;
+  background-color: #FFFDF6;
+}
+[_nghost-ng-c3472746853]   .image-overlay.visible[_ngcontent-ng-c3472746853] {
+  opacity: 1;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853] {
+  max-width: 100%;
+  max-height: 100%;
+  height: 100%;
+  width: 100%;
+  position: absolute;
+  aspect-ratio: 1/1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: _ngcontent-ng-c3472746853_fadeIn 1s ease-in-out;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853] {
+  width: 100%;
+  height: 100%;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .expander[_ngcontent-ng-c3472746853] {
+  transition: transform 3s ease-in-out;
+  transform-origin: center;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .expander.h.expand-p-4[_ngcontent-ng-c3472746853] {
+  transform: translateX(-10%) translateY(201vh) scale(10);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .expander.h.expand-p-3[_ngcontent-ng-c3472746853] {
+  transform: translateX(-10%) translateY(137vh) scale(10);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .expander.h.expand-p-2[_ngcontent-ng-c3472746853] {
+  transform: translateX(-10%) translateY(79vh) scale(10);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .expander.h.expand-p-1[_ngcontent-ng-c3472746853] {
+  transform: translateX(-10%) translateY(26vh) scale(10);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .expander.h.expand-0[_ngcontent-ng-c3472746853] {
+  transform: translateX(-10%) translateY(-25vh) scale(10);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .expander.h.expand-n-1[_ngcontent-ng-c3472746853] {
+  transform: translateX(-10%) translateY(-75vh) scale(10);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .expander.h.expand-n-2[_ngcontent-ng-c3472746853] {
+  transform: translateX(-10%) translateY(-126vh) scale(10);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .expander.h.expand-n-3[_ngcontent-ng-c3472746853] {
+  transform: translateX(-10%) translateY(-183vh) scale(10);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .expander.h.expand-n-4[_ngcontent-ng-c3472746853] {
+  transform: translateX(-10%) translateY(-246vh) scale(10);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .expander.v.expand-p-4[_ngcontent-ng-c3472746853] {
+  transform: translateX(-10%) translateY(164vw) scale(10);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .expander.v.expand-p-3[_ngcontent-ng-c3472746853] {
+  transform: translateX(-10%) translateY(108vw) scale(10);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .expander.v.expand-p-2[_ngcontent-ng-c3472746853] {
+  transform: translateX(-10%) translateY(58vw) scale(10);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .expander.v.expand-p-1[_ngcontent-ng-c3472746853] {
+  transform: translateX(-10%) translateY(10vw) scale(10);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .expander.v.expand-0[_ngcontent-ng-c3472746853] {
+  transform: translateX(-10%) translateY(-36vw) scale(10);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .expander.v.expand-n-1[_ngcontent-ng-c3472746853] {
+  transform: translateX(-10%) translateY(-84vw) scale(10);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .expander.v.expand-n-2[_ngcontent-ng-c3472746853] {
+  transform: translateX(-10%) translateY(-134vw) scale(10);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .expander.v.expand-n-3[_ngcontent-ng-c3472746853] {
+  transform: translateX(-10%) translateY(-188vw) scale(10);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .expander.v.expand-n-4[_ngcontent-ng-c3472746853] {
+  transform: translateX(-10%) translateY(-250vw) scale(10);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .projected[_ngcontent-ng-c3472746853]   .line[_ngcontent-ng-c3472746853] {
+  stroke-dasharray: 700;
+  stroke-dashoffset: 650;
+  animation: _ngcontent-ng-c3472746853_projected-intro 1s ease-in-out forwards 1s;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .projected[_ngcontent-ng-c3472746853]   .label[_ngcontent-ng-c3472746853] {
+  animation: _ngcontent-ng-c3472746853_no-transform 1s ease-in-out forwards 1s;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .cone-line[_ngcontent-ng-c3472746853] {
+  opacity: 0;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .cone-line.preferred[_ngcontent-ng-c3472746853]   text[_ngcontent-ng-c3472746853] {
+  fill: #698CFF;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .cone-line.preferred[_ngcontent-ng-c3472746853]   path[_ngcontent-ng-c3472746853] {
+  stroke: #698CFF;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .cone-line.preferred.probable[_ngcontent-ng-c3472746853] {
+  animation: _ngcontent-ng-c3472746853_probable-preferred 1s ease-in-out 2s forwards;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .cone-line.preferred.plausible[_ngcontent-ng-c3472746853] {
+  animation: _ngcontent-ng-c3472746853_plausible-preferred 1s ease-in-out 2s forwards;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .cone-line.preferred.possible[_ngcontent-ng-c3472746853] {
+  animation: _ngcontent-ng-c3472746853_possible-preferred 1s ease-in-out 2s forwards;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .cone-line.preferred.preposterous[_ngcontent-ng-c3472746853] {
+  animation: _ngcontent-ng-c3472746853_preposterous-preferred 1s ease-in-out 2s forwards;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .cone-line.prevent[_ngcontent-ng-c3472746853]   text[_ngcontent-ng-c3472746853] {
+  fill: #F73C3C;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .cone-line.prevent[_ngcontent-ng-c3472746853]   path[_ngcontent-ng-c3472746853] {
+  stroke: #F73C3C;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .cone-line.prevent.probable[_ngcontent-ng-c3472746853] {
+  animation: _ngcontent-ng-c3472746853_probable-prevent 1s ease-in-out 2s forwards;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .cone-line.prevent.plausible[_ngcontent-ng-c3472746853] {
+  animation: _ngcontent-ng-c3472746853_plausible-prevent 1s ease-in-out 2s forwards;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .cone-line.prevent.possible[_ngcontent-ng-c3472746853] {
+  animation: _ngcontent-ng-c3472746853_possible-prevent 1s ease-in-out 2s forwards;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .cone[_ngcontent-ng-c3472746853]   svg[_ngcontent-ng-c3472746853]   .cone-line.prevent.preposterous[_ngcontent-ng-c3472746853] {
+  animation: _ngcontent-ng-c3472746853_preposterous-prevent 1s ease-in-out 2s forwards;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .item-image[_ngcontent-ng-c3472746853] {
+  aspect-ratio: 53/100;
+  height: 50%;
+  position: relative;
+  display: flex;
+  transition: transform 1s ease-in-out;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .item-image[_ngcontent-ng-c3472746853]   img[_ngcontent-ng-c3472746853] {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .item-image[_ngcontent-ng-c3472746853]   .clothespin[_ngcontent-ng-c3472746853] {
+  width: 40px;
+  height: 214px;
+  position: absolute;
+  transition: opacity 0.5s ease-in-out;
+  transition-property: opacity, transform;
+  opacity: 0;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .item-image[_ngcontent-ng-c3472746853]   .clothespin.visible[_ngcontent-ng-c3472746853] {
+  opacity: 1;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .item-image[_ngcontent-ng-c3472746853]   .clothespin.prefer[_ngcontent-ng-c3472746853] {
+  right: 80px;
+  top: -110px;
+  transform: translateY(200px) translateX(max(-24vh, -41vw)) rotate(270deg);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .item-image[_ngcontent-ng-c3472746853]   .clothespin.prevent[_ngcontent-ng-c3472746853] {
+  left: 80px;
+  top: -110px;
+  transform: translateY(200px) translateX(min(25vh, 41vw)) rotate(-270deg);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .item-image[_ngcontent-ng-c3472746853]   .clothespin.selected[_ngcontent-ng-c3472746853] {
+  transform: translateY(0) translateX(0) rotate(0deg);
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .clothespin-text[_ngcontent-ng-c3472746853] {
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  leading-trim: both;
+  text-edge: cap;
+  font-size: 40px;
+  font-style: normal;
+  font-weight: 400;
+  opacity: 0;
+  transition: opacity 1s ease-in-out;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .clothespin-text.visible[_ngcontent-ng-c3472746853] {
+  opacity: 1;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .clothespin-text.prefer[_ngcontent-ng-c3472746853] {
+  color: #698CFF;
+}
+[_nghost-ng-c3472746853]   .image-overlay[_ngcontent-ng-c3472746853]   .clothespin-text.prevent[_ngcontent-ng-c3472746853] {
+  color: #F73C3C;
+}
+@keyframes _ngcontent-ng-c3472746853_fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes _ngcontent-ng-c3472746853_projected-intro {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes _ngcontent-ng-c3472746853_no-transform {
+  to {
+    transform: translate(0, 0);
+  }
+}
+@keyframes _ngcontent-ng-c3472746853_probable-preferred {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-8deg);
+  }
+}
+@keyframes _ngcontent-ng-c3472746853_probable-prevent {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: rotate(8deg);
+  }
+}
+@keyframes _ngcontent-ng-c3472746853_plausible-preferred {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-16deg);
+  }
+}
+@keyframes _ngcontent-ng-c3472746853_plausible-prevent {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: rotate(16deg);
+  }
+}
+@keyframes _ngcontent-ng-c3472746853_possible-preferred {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-24deg);
+  }
+}
+@keyframes _ngcontent-ng-c3472746853_possible-prevent {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: rotate(24deg);
+  }
+}
+@keyframes _ngcontent-ng-c3472746853_preposterous-preferred {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-32deg);
+  }
+}
+@keyframes _ngcontent-ng-c3472746853_preposterous-prevent {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: rotate(32deg);
+  }
+}</style></head>
+<body><!--nghm-->
+  <app-root ng-version="19.2.5" ngh="1" ng-server-context="ssg"><router-outlet></router-outlet><app-pps25 _nghost-ng-c1445418517="" ngh="0"><div _ngcontent-ng-c1445418517="" class="container"><div _ngcontent-ng-c1445418517="" class="map-container"><app-output-map _ngcontent-ng-c1445418517="" language="hebrew" _nghost-ng-c3472746853="" ngskiphydration=""><div _ngcontent-ng-c3472746853="" class="map" style="transform: rotate(0deg);"></div><div _ngcontent-ng-c3472746853="" style="display: none;"><!----></div><div _ngcontent-ng-c3472746853="" class="mask-overlay" style="display: none;"><svg _ngcontent-ng-c3472746853="" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" class="mask" width="23.5" height="20" viewBox="0 0 23.5 20"><mask _ngcontent-ng-c3472746853="" id="mask"><rect _ngcontent-ng-c3472746853="" fill="white" x="0" y="0" width="23.5" height="20"></rect><g _ngcontent-ng-c3472746853="" transform="translate(0,0)"><rect _ngcontent-ng-c3472746853="" fill="black" x="10" y="10" width="1" height="1"></rect><rect _ngcontent-ng-c3472746853="" fill="black" x="11" y="10" width="1" height="1"></rect><rect _ngcontent-ng-c3472746853="" fill="black" x="10.5" y="11" width="1" height="1"></rect><rect _ngcontent-ng-c3472746853="" fill="black" x="9.5" y="11" width="1" height="1"></rect><rect _ngcontent-ng-c3472746853="" fill="black" x="9" y="10" width="1" height="1"></rect><rect _ngcontent-ng-c3472746853="" fill="black" x="9.5" y="9" width="1" height="1"></rect><rect _ngcontent-ng-c3472746853="" fill="black" x="10.5" y="9" width="1" height="1"></rect><rect _ngcontent-ng-c3472746853="" fill="black" x="11" y="10" width="1" height="1"></rect><rect _ngcontent-ng-c3472746853="" fill="black" x="12" y="10" width="1" height="1"></rect><rect _ngcontent-ng-c3472746853="" fill="black" x="11.5" y="11" width="1" height="1"></rect><rect _ngcontent-ng-c3472746853="" fill="black" x="11" y="12" width="1" height="1"></rect><rect _ngcontent-ng-c3472746853="" fill="black" x="10" y="12" width="1" height="1"></rect><rect _ngcontent-ng-c3472746853="" fill="black" x="9" y="12" width="1" height="1"></rect><rect _ngcontent-ng-c3472746853="" fill="black" x="8.5" y="11" width="1" height="1"></rect><rect _ngcontent-ng-c3472746853="" fill="black" x="8" y="10" width="1" height="1"></rect><rect _ngcontent-ng-c3472746853="" fill="black" x="8.5" y="9" width="1" height="1"></rect><rect _ngcontent-ng-c3472746853="" fill="black" x="9" y="8" width="1" height="1"></rect><rect _ngcontent-ng-c3472746853="" fill="black" x="10" y="8" width="1" height="1"></rect><rect _ngcontent-ng-c3472746853="" fill="black" x="11" y="8" width="1" height="1"></rect><rect _ngcontent-ng-c3472746853="" fill="black" x="11.5" y="9" width="1" height="1"></rect><!----></g></mask><rect _ngcontent-ng-c3472746853="" fill="#fffdf6" mask="url(#mask)" class="blur" x="0" y="0" width="23.5" height="20"></rect></svg></div><div _ngcontent-ng-c3472746853="" class="image-overlay"><!----><div _ngcontent-ng-c3472746853="" class="clothespin-text prefer">Bij voorkeur</div><div _ngcontent-ng-c3472746853="" class="item-image" style="transform: rotate(0deg);"><img _ngcontent-ng-c3472746853="" src=""><div _ngcontent-ng-c3472746853="" class="clothespin prefer"><svg _ngcontent-ng-c3472746853="" xmlns="http://www.w3.org/2000/svg" width="32.2" height="154" viewBox="0 0 46 220" fill="none"><rect _ngcontent-ng-c3472746853="" x="4.56641" y="0.015625" width="36.5346" height="219.943" rx="4.43118" fill="#7BB3EE"></rect><rect _ngcontent-ng-c3472746853="" x="6.782" y="2.23122" width="32.1034" height="215.512" rx="2.21559" stroke="black" stroke-opacity="0.2" stroke-width="4.43118"></rect><rect _ngcontent-ng-c3472746853="" x="9.05078" y="149.234" width="27.5438" height="9.63237" fill="black" fill-opacity="0.2"></rect><path _ngcontent-ng-c3472746853="" d="M9.06641 154.049H43.5711L43.5711 78.8906" stroke="#7BB3EE" stroke-width="4.43118" stroke-linecap="round"></path><path _ngcontent-ng-c3472746853="" d="M9.06641 154.049H43.5711L43.5711 78.8906" stroke="black" stroke-opacity="0.5" stroke-width="4.43118" stroke-linecap="round"></path><path _ngcontent-ng-c3472746853="" d="M2.80859 102.56L2.80859 78.8906" stroke="#7BB3EE" stroke-width="4.43118" stroke-linecap="round"></path><path _ngcontent-ng-c3472746853="" d="M2.80859 102.56L2.80859 78.8906" stroke="black" stroke-opacity="0.5" stroke-width="4.43118" stroke-linecap="round"></path></svg></div><div _ngcontent-ng-c3472746853="" class="clothespin prevent"><svg _ngcontent-ng-c3472746853="" xmlns="http://www.w3.org/2000/svg" width="32.2" height="154" viewBox="0 0 46 220" fill="none"><rect _ngcontent-ng-c3472746853="" x="4.75781" y="0.015625" width="36.5346" height="219.943" rx="4.43118" fill="#F73C3C"></rect><rect _ngcontent-ng-c3472746853="" x="6.9734" y="2.23122" width="32.1034" height="215.512" rx="2.21559" stroke="black" stroke-opacity="0.2" stroke-width="4.43118"></rect><rect _ngcontent-ng-c3472746853="" x="9.24219" y="149.234" width="27.5438" height="9.63237" fill="black" fill-opacity="0.2"></rect><path _ngcontent-ng-c3472746853="" d="M9.25781 154.049H43.7625L43.7625 78.8906" stroke="#F73C3C" stroke-width="4.43118" stroke-linecap="round"></path><path _ngcontent-ng-c3472746853="" d="M9.25781 154.049H43.7625L43.7625 78.8906" stroke="black" stroke-opacity="0.5" stroke-width="4.43118" stroke-linecap="round"></path><path _ngcontent-ng-c3472746853="" d="M3 102.56L3 78.8906" stroke="#F73C3C" stroke-width="4.43118" stroke-linecap="round"></path><path _ngcontent-ng-c3472746853="" d="M3 102.56L3 78.8906" stroke="black" stroke-opacity="0.5" stroke-width="4.43118" stroke-linecap="round"></path></svg></div></div><div _ngcontent-ng-c3472746853="" class="clothespin-text prevent">Voorkomen</div></div></app-output-map></div><div _ngcontent-ng-c1445418517="" class="frame"></div></div></app-pps25><!----></app-root>
+<script src="polyfills-3DTDTEQC.js" type="module"></script><script src="main-AZYGT6IG.js" type="module"></script>
+
+<script id="ng-state" type="application/json">{"1185019828":{"b":{"dim":[23,20],"grid":[{"pos":[8,18],"id":"c1724030-84a4-4a8b-96b2-b159555bf29e","metadata":{"rotate":25.6,"sign":1,"mostly":false,"favorable_future":"preferred","timestamp":"Mon, 05 May 2025 18:21:21 GMT","lang":null,"url":"https://storage.googleapis.com/chronomaps3-eu/3c4496be-258d-4e32-803f-4f2cd67afa15/c1724030-84a4-4a8b-96b2-b159555bf29e/screenshot.jpeg"},"geo_pos":[-72.265625,28.8203125],"geo_bounds":[[-74.21875,27.125],[-70.3125,30.515625]]},{"pos":[20,6],"id":"606b4de2-4b8f-4c15-ae6d-6a7ed06ea44a","metadata":{"rotate":-24,"sign":-1,"mostly":false,"favorable_future":"prevent","timestamp":"2025-05-09T11:58:34.103951+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3-eu/03da8ede-395b-4fd2-b46e-bc2bc7f4035c/606b4de2-4b8f-4c15-ae6d-6a7ed06ea44a/screenshot.jpeg"},"geo_pos":[-25.390625,69.5078125],"geo_bounds":[[-27.34375,67.8125],[-23.4375,71.203125]]},{"pos":[11,4.5],"id":"4ac0ebe7-2ad2-4c03-839f-7555c462a88e","metadata":{"rotate":8.32,"sign":1,"mostly":false,"favorable_future":"preferred","timestamp":"2025-05-09T09:28:26.548842+00:00","lang":"Arabic","url":"https://storage.googleapis.com/chronomaps3-eu/03da8ede-395b-4fd2-b46e-bc2bc7f4035c/4ac0ebe7-2ad2-4c03-839f-7555c462a88e/screenshot.jpeg"},"geo_pos":[-19.53125,38.9921875],"geo_bounds":[[-21.484375,37.296875],[-17.578125,40.6875]]},{"pos":[20,4],"id":"10277fa3-3a89-4562-8fb1-5afa29f4f156","metadata":{"rotate":16,"sign":1,"mostly":false,"favorable_future":"preferred","timestamp":"2025-05-09T07:40:30.126574+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3-eu/03da8ede-395b-4fd2-b46e-bc2bc7f4035c/10277fa3-3a89-4562-8fb1-5afa29f4f156/screenshot.jpeg"},"geo_pos":[-17.578125,69.5078125],"geo_bounds":[[-19.53125,67.8125],[-15.625,71.203125]]},{"pos":[15,7.5],"id":"ad583a66-2c2c-420d-b5ae-57f771eaeb63","metadata":{"rotate":-30.4,"sign":-1,"mostly":false,"favorable_future":"prevent","timestamp":"2025-05-09T06:57:20.058439+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3-eu/03da8ede-395b-4fd2-b46e-bc2bc7f4035c/ad583a66-2c2c-420d-b5ae-57f771eaeb63/screenshot.jpeg"},"geo_pos":[-31.25,52.5546875],"geo_bounds":[[-33.203125,50.859375],[-29.296875,54.25]]},{"pos":[22,10],"id":"a50bc866-994a-4a11-a9a6-88efead6c56f","metadata":{"rotate":0,"sign":-1,"mostly":false,"favorable_future":"prevent","timestamp":"2025-05-09T06:55:05.683005+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3-eu/03da8ede-395b-4fd2-b46e-bc2bc7f4035c/a50bc866-994a-4a11-a9a6-88efead6c56f/screenshot.jpeg"},"geo_pos":[-41.015625,76.2890625],"geo_bounds":[[-42.96875,74.59375],[-39.0625,77.984375]]},{"pos":[4,9],"id":"4f7c0b46-7b21-4d66-9152-5eac54854524","metadata":{"rotate":28.8,"sign":1,"mostly":false,"favorable_future":"preferred","timestamp":"2025-05-09T06:17:05.984595+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3-eu/03da8ede-395b-4fd2-b46e-bc2bc7f4035c/4f7c0b46-7b21-4d66-9152-5eac54854524/screenshot.jpeg"},"geo_pos":[-37.109375,15.2578125],"geo_bounds":[[-39.0625,13.5625],[-35.15625,16.953125]]},{"pos":[13,7.5],"id":"2c432956-607a-4210-836f-29e879f42204","metadata":{"rotate":0,"sign":1,"mostly":false,"favorable_future":"preferred","timestamp":"2025-05-09T06:13:55.219837+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3-eu/03da8ede-395b-4fd2-b46e-bc2bc7f4035c/2c432956-607a-4210-836f-29e879f42204/screenshot.jpeg"},"geo_pos":[-31.25,45.7734375],"geo_bounds":[[-33.203125,44.078125],[-29.296875,47.46875]]},{"pos":[5,14.5],"id":"1776a2af-1a8b-4e2d-8770-1a9b2ed08636","metadata":{"rotate":24,"sign":1,"mostly":true,"favorable_future":"mostly preferred","timestamp":"2025-05-09T06:10:54.626010+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3-eu/03da8ede-395b-4fd2-b46e-bc2bc7f4035c/1776a2af-1a8b-4e2d-8770-1a9b2ed08636/screenshot.jpeg"},"geo_pos":[-58.59375,18.6484375],"geo_bounds":[[-60.546875,16.953125],[-56.640625,20.34375]]},{"pos":[17,15.5],"id":"037e9e94-2d0d-4f4a-aaaf-03d246357db9","metadata":{"rotate":-16,"sign":-1,"mostly":true,"favorable_future":"mostly prevent","timestamp":"2025-05-08T18:57:09.177592+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3-eu/3c4496be-258d-4e32-803f-4f2cd67afa15/037e9e94-2d0d-4f4a-aaaf-03d246357db9/screenshot.jpeg"},"geo_pos":[-62.5,59.3359375],"geo_bounds":[[-64.453125,57.640625],[-60.546875,61.03125]]},{"pos":[19,5.5],"id":"794526aa-198b-4380-8ae8-55d24a2cf463","metadata":{"rotate":-16,"sign":-1,"mostly":false,"favorable_future":"prevent","timestamp":"2025-05-08T17:31:14.761977+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3-eu/3c4496be-258d-4e32-803f-4f2cd67afa15/794526aa-198b-4380-8ae8-55d24a2cf463/screenshot.jpeg"},"geo_pos":[-23.4375,66.1171875],"geo_bounds":[[-25.390625,64.421875],[-21.484375,67.8125]]},{"pos":[7,9.5],"id":"51f1e26e-ae16-4340-a8a6-9149b900e691","metadata":{"rotate":-8,"sign":-1,"mostly":false,"favorable_future":"prevent","timestamp":"2025-05-08T16:59:50.245090+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3-eu/3c4496be-258d-4e32-803f-4f2cd67afa15/51f1e26e-ae16-4340-a8a6-9149b900e691/screenshot.jpeg"},"geo_pos":[-39.0625,25.4296875],"geo_bounds":[[-41.015625,23.734375],[-37.109375,27.125]]},{"pos":[2,4],"id":"4bc86761-54e5-4aef-a6ff-626ea0d10712","metadata":{"rotate":24,"sign":1,"mostly":false,"favorable_future":"preferred","timestamp":"2025-05-08T16:55:50.626278+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3-eu/3c4496be-258d-4e32-803f-4f2cd67afa15/4bc86761-54e5-4aef-a6ff-626ea0d10712/screenshot.jpeg"},"geo_pos":[-17.578125,8.4765625],"geo_bounds":[[-19.53125,6.78125],[-15.625,10.171875]]},{"pos":[12,3],"id":"95db6d54-2d83-4ff9-bfc8-e6d0930b9b05","metadata":{"rotate":12.8,"sign":1,"mostly":false,"favorable_future":"preferred","timestamp":"2025-05-08T16:51:18.813340+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3-eu/3c4496be-258d-4e32-803f-4f2cd67afa15/95db6d54-2d83-4ff9-bfc8-e6d0930b9b05/screenshot.jpeg"},"geo_pos":[-13.671875,42.3828125],"geo_bounds":[[-15.625,40.6875],[-11.71875,44.078125]]},{"pos":[11,3.5],"id":"c01fc075-e634-4b7a-9d36-bf212ec8d59f","metadata":{"rotate":0,"sign":1,"mostly":false,"favorable_future":"preferred","timestamp":"2025-05-08T15:36:29.946654+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3-eu/3c4496be-258d-4e32-803f-4f2cd67afa15/c01fc075-e634-4b7a-9d36-bf212ec8d59f/screenshot.jpeg"},"geo_pos":[-15.625,38.9921875],"geo_bounds":[[-17.578125,37.296875],[-13.671875,40.6875]]},{"pos":[15,15.5],"id":"af84554a-b5c8-48e4-b27e-4e6c7a532393","metadata":{"rotate":8,"sign":1,"mostly":false,"favorable_future":"preferred","timestamp":"2025-05-08T07:51:13.720899+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3-eu/3c4496be-258d-4e32-803f-4f2cd67afa15/af84554a-b5c8-48e4-b27e-4e6c7a532393/screenshot.jpeg"},"geo_pos":[-62.5,52.5546875],"geo_bounds":[[-64.453125,50.859375],[-60.546875,54.25]]},{"pos":[14,11],"id":"9d28ed44-4ebb-4baa-b30d-99c8986534f2","metadata":{"rotate":8,"sign":1,"mostly":false,"favorable_future":"preferred","timestamp":"2025-05-08T06:35:22.294659+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3-eu/3c4496be-258d-4e32-803f-4f2cd67afa15/9d28ed44-4ebb-4baa-b30d-99c8986534f2/screenshot.jpeg"},"geo_pos":[-44.921875,49.1640625],"geo_bounds":[[-46.875,47.46875],[-42.96875,50.859375]]},{"pos":[8,19],"id":"854e892c-fcda-46b8-8dcc-ce806ca71169","metadata":{"rotate":19.2,"sign":1,"mostly":false,"favorable_future":"preferred","timestamp":"2025-05-07T21:51:56.719327+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3-eu/3c4496be-258d-4e32-803f-4f2cd67afa15/854e892c-fcda-46b8-8dcc-ce806ca71169/screenshot.jpeg"},"geo_pos":[-76.171875,28.8203125],"geo_bounds":[[-78.125,27.125],[-74.21875,30.515625]]},{"pos":[12,6],"id":"ba0600d4-4f72-48ff-9cf1-2673e25276d0","metadata":{"rotate":12.8,"sign":1,"mostly":false,"favorable_future":"preferred","timestamp":"2025-05-07T21:45:10.108787+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3-eu/3c4496be-258d-4e32-803f-4f2cd67afa15/ba0600d4-4f72-48ff-9cf1-2673e25276d0/screenshot.jpeg"},"geo_pos":[-25.390625,42.3828125],"geo_bounds":[[-27.34375,40.6875],[-23.4375,44.078125]]},{"pos":[10,3],"id":"565e58b1-7b89-42e3-9e5b-aaed19687698","metadata":{"rotate":19.2,"sign":1,"mostly":false,"favorable_future":"preferred","timestamp":"2025-05-07T21:29:44.824073+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3-eu/3c4496be-258d-4e32-803f-4f2cd67afa15/565e58b1-7b89-42e3-9e5b-aaed19687698/screenshot.jpeg"},"geo_pos":[-13.671875,35.6015625],"geo_bounds":[[-15.625,33.90625],[-11.71875,37.296875]]},{"pos":[5,5.5],"id":"3e3fc6d0-d496-4148-81f0-90709ae1911a","metadata":{"rotate":16,"sign":1,"mostly":false,"favorable_future":"preferred","timestamp":"2025-05-05T19:27:38.275212+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3-eu/3c4496be-258d-4e32-803f-4f2cd67afa15/3e3fc6d0-d496-4148-81f0-90709ae1911a/screenshot.jpeg"},"geo_pos":[-23.4375,18.6484375],"geo_bounds":[[-25.390625,16.953125],[-21.484375,20.34375]]},{"pos":[11,9.5],"id":"56c33eea-0413-45c0-a46a-bf923f218f80","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:29:57.208485+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/56c33eea-0413-45c0-a46a-bf923f218f80/screenshot.jpeg"},"geo_pos":[-39.0625,38.9921875],"geo_bounds":[[-41.015625,37.296875],[-37.109375,40.6875]]},{"pos":[12,8],"id":"2c6cdead-8931-4c8a-833c-d414d9a55f5f","metadata":{"rotate":6.4,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:29:41.146876+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/2c6cdead-8931-4c8a-833c-d414d9a55f5f/screenshot.jpeg"},"geo_pos":[-33.203125,42.3828125],"geo_bounds":[[-35.15625,40.6875],[-31.25,44.078125]]},{"pos":[11,11.5],"id":"feeed0d6-0d14-43cf-a40d-bbe9135f24b3","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:28:44.934935+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/feeed0d6-0d14-43cf-a40d-bbe9135f24b3/screenshot.jpeg"},"geo_pos":[-46.875,38.9921875],"geo_bounds":[[-48.828125,37.296875],[-44.921875,40.6875]]},{"pos":[12,15],"id":"f4a59722-fe63-4d38-aa89-6a0fabce52d3","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:28:32.445044+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/f4a59722-fe63-4d38-aa89-6a0fabce52d3/screenshot.jpeg"},"geo_pos":[-60.546875,42.3828125],"geo_bounds":[[-62.5,40.6875],[-58.59375,44.078125]]},{"pos":[14,10],"id":"9330c60a-2038-4d51-86e7-903e523cfef7","metadata":{"rotate":-12.8,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-17T12:28:18.061029+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/9330c60a-2038-4d51-86e7-903e523cfef7/screenshot.jpeg"},"geo_pos":[-41.015625,49.1640625],"geo_bounds":[[-42.96875,47.46875],[-39.0625,50.859375]]},{"pos":[7,16.5],"id":"c975f470-8e61-44d4-aa9c-60ba682dd800","metadata":{"rotate":11.2,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:28:05.710669+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/c975f470-8e61-44d4-aa9c-60ba682dd800/screenshot.jpeg"},"geo_pos":[-66.40625,25.4296875],"geo_bounds":[[-68.359375,23.734375],[-64.453125,27.125]]},{"pos":[17,8.5],"id":"9aeb48b1-cc17-4847-ab31-b2539346c9c6","metadata":{"rotate":-9.6,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-17T12:27:51.507363+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/9aeb48b1-cc17-4847-ab31-b2539346c9c6/screenshot.jpeg"},"geo_pos":[-35.15625,59.3359375],"geo_bounds":[[-37.109375,57.640625],[-33.203125,61.03125]]},{"pos":[7,14.5],"id":"0e88ea53-2f1f-4b7a-8fd7-e2b7bbf28ccd","metadata":{"rotate":12.8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:27:35.924952+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/0e88ea53-2f1f-4b7a-8fd7-e2b7bbf28ccd/screenshot.jpeg"},"geo_pos":[-58.59375,25.4296875],"geo_bounds":[[-60.546875,23.734375],[-56.640625,27.125]]},{"pos":[11,0.5],"id":"92b78bbb-6d38-4a1d-a2f5-ac1c16d0e61e","metadata":{"rotate":12.8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:27:23.544459+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/92b78bbb-6d38-4a1d-a2f5-ac1c16d0e61e/screenshot.jpeg"},"geo_pos":[-3.90625,38.9921875],"geo_bounds":[[-5.859375,37.296875],[-1.953125,40.6875]]},{"pos":[14,18],"id":"36ee86ff-685b-4221-9664-2d3d44f468b5","metadata":{"rotate":-16,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-17T12:27:11.027862+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/36ee86ff-685b-4221-9664-2d3d44f468b5/screenshot.jpeg"},"geo_pos":[-72.265625,49.1640625],"geo_bounds":[[-74.21875,47.46875],[-70.3125,50.859375]]},{"pos":[16,6],"id":"b1816919-f3ac-41da-b5bf-417922cb4a65","metadata":{"rotate":4.8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:26:40.124346+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/b1816919-f3ac-41da-b5bf-417922cb4a65/screenshot.jpeg"},"geo_pos":[-25.390625,55.9453125],"geo_bounds":[[-27.34375,54.25],[-23.4375,57.640625]]},{"pos":[16,8],"id":"7e74d327-efc7-45f5-9f94-263ba7f9a5f1","metadata":{"rotate":8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:26:11.233050+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/7e74d327-efc7-45f5-9f94-263ba7f9a5f1/screenshot.jpeg"},"geo_pos":[-33.203125,55.9453125],"geo_bounds":[[-35.15625,54.25],[-31.25,57.640625]]},{"pos":[4,14],"id":"8005aac0-10ef-49f0-9ad3-c78021d734a7","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:25:58.472056+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/8005aac0-10ef-49f0-9ad3-c78021d734a7/screenshot.jpeg"},"geo_pos":[-56.640625,15.2578125],"geo_bounds":[[-58.59375,13.5625],[-54.6875,16.953125]]},{"pos":[16,16],"id":"f2bf1320-cd25-4faf-b440-20c7a73f3c30","metadata":{"rotate":-12.8,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-17T12:25:37.062198+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/f2bf1320-cd25-4faf-b440-20c7a73f3c30/screenshot.jpeg"},"geo_pos":[-64.453125,55.9453125],"geo_bounds":[[-66.40625,54.25],[-62.5,57.640625]]},{"pos":[0,10],"id":"082be383-7e9a-478e-a905-533dc81010c9","metadata":{"rotate":-16,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-17T12:25:24.121430+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/082be383-7e9a-478e-a905-533dc81010c9/screenshot.jpeg"},"geo_pos":[-41.015625,1.6953125],"geo_bounds":[[-42.96875,0],[-39.0625,3.390625]]},{"pos":[11,19.5],"id":"80002a9d-1764-4695-b4b3-6412e404ccf8","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:25:11.105087+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/80002a9d-1764-4695-b4b3-6412e404ccf8/screenshot.jpeg"},"geo_pos":[-78.125,38.9921875],"geo_bounds":[[-80.078125,37.296875],[-76.171875,40.6875]]},{"pos":[7,15.5],"id":"871f13df-69ce-4b70-b7a0-2f4730f1487b","metadata":{"rotate":12.8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:24:48.643644+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/871f13df-69ce-4b70-b7a0-2f4730f1487b/screenshot.jpeg"},"geo_pos":[-62.5,25.4296875],"geo_bounds":[[-64.453125,23.734375],[-60.546875,27.125]]},{"pos":[20,3],"id":"f14fabdd-6c9c-4ec3-b1b8-9676267584fe","metadata":{"rotate":4.8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:24:35.190461+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/f14fabdd-6c9c-4ec3-b1b8-9676267584fe/screenshot.jpeg"},"geo_pos":[-13.671875,69.5078125],"geo_bounds":[[-15.625,67.8125],[-11.71875,71.203125]]},{"pos":[4,12],"id":"74c47e6d-7600-4733-aa68-ac1c6ae27108","metadata":{"rotate":12.8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:24:22.346878+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/74c47e6d-7600-4733-aa68-ac1c6ae27108/screenshot.jpeg"},"geo_pos":[-48.828125,15.2578125],"geo_bounds":[[-50.78125,13.5625],[-46.875,16.953125]]},{"pos":[14,13],"id":"0ceebcec-c56b-428e-9e72-501f15fdce38","metadata":{"rotate":8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:24:07.333474+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/0ceebcec-c56b-428e-9e72-501f15fdce38/screenshot.jpeg"},"geo_pos":[-52.734375,49.1640625],"geo_bounds":[[-54.6875,47.46875],[-50.78125,50.859375]]},{"pos":[4,10],"id":"75f660d8-b121-4139-a1e0-d00f4cb60c38","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:23:54.543151+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/75f660d8-b121-4139-a1e0-d00f4cb60c38/screenshot.jpeg"},"geo_pos":[-41.015625,15.2578125],"geo_bounds":[[-42.96875,13.5625],[-39.0625,16.953125]]},{"pos":[12,7],"id":"22e0b9d4-22ee-474f-b7ef-44457a785714","metadata":{"rotate":6.4,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:23:40.335141+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/22e0b9d4-22ee-474f-b7ef-44457a785714/screenshot.jpeg"},"geo_pos":[-29.296875,42.3828125],"geo_bounds":[[-31.25,40.6875],[-27.34375,44.078125]]},{"pos":[4,13],"id":"429df2a6-8173-42ea-b888-d92d65b70373","metadata":{"rotate":8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:23:28.627076+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/429df2a6-8173-42ea-b888-d92d65b70373/screenshot.jpeg"},"geo_pos":[-52.734375,15.2578125],"geo_bounds":[[-54.6875,13.5625],[-50.78125,16.953125]]},{"pos":[12,10],"id":"342f7fbc-b9a8-4d81-a2cb-db7b592fe021","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:23:16.514081+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/342f7fbc-b9a8-4d81-a2cb-db7b592fe021/screenshot.jpeg"},"geo_pos":[-41.015625,42.3828125],"geo_bounds":[[-42.96875,40.6875],[-39.0625,44.078125]]},{"pos":[9,14.5],"id":"bd876579-65e5-4c8b-9ebf-bac0e0585a41","metadata":{"rotate":8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:23:02.356933+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/bd876579-65e5-4c8b-9ebf-bac0e0585a41/screenshot.jpeg"},"geo_pos":[-58.59375,32.2109375],"geo_bounds":[[-60.546875,30.515625],[-56.640625,33.90625]]},{"pos":[10,9],"id":"9afb2df4-9125-47bd-a51f-6296876a1acf","metadata":{"rotate":6.4,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:22:49.355090+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/9afb2df4-9125-47bd-a51f-6296876a1acf/screenshot.jpeg"},"geo_pos":[-37.109375,35.6015625],"geo_bounds":[[-39.0625,33.90625],[-35.15625,37.296875]]},{"pos":[6,11],"id":"e268a53b-f16f-475e-97b1-cd6a3c6841b5","metadata":{"rotate":8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:22:34.253344+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/e268a53b-f16f-475e-97b1-cd6a3c6841b5/screenshot.jpeg"},"geo_pos":[-44.921875,22.0390625],"geo_bounds":[[-46.875,20.34375],[-42.96875,23.734375]]},{"pos":[10,10],"id":"1ef51f9f-687b-4621-bc33-7f1322b29290","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:22:22.155344+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/1ef51f9f-687b-4621-bc33-7f1322b29290/screenshot.jpeg"},"geo_pos":[-41.015625,35.6015625],"geo_bounds":[[-42.96875,33.90625],[-39.0625,37.296875]]},{"pos":[11,17.5],"id":"3f0a20f9-cb52-4eb2-86f8-71ac6ee4bbc3","metadata":{"rotate":6.4,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:22:08.071046+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/3f0a20f9-cb52-4eb2-86f8-71ac6ee4bbc3/screenshot.jpeg"},"geo_pos":[-70.3125,38.9921875],"geo_bounds":[[-72.265625,37.296875],[-68.359375,40.6875]]},{"pos":[9,11.5],"id":"024aadce-0f78-4c12-86d1-d4a179305535","metadata":{"rotate":4.8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:21:47.515179+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/024aadce-0f78-4c12-86d1-d4a179305535/screenshot.jpeg"},"geo_pos":[-46.875,32.2109375],"geo_bounds":[[-48.828125,30.515625],[-44.921875,33.90625]]},{"pos":[2,14],"id":"c2f340e1-7947-4f5f-8174-54542a342530","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:21:27.822975+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/c2f340e1-7947-4f5f-8174-54542a342530/screenshot.jpeg"},"geo_pos":[-56.640625,8.4765625],"geo_bounds":[[-58.59375,6.78125],[-54.6875,10.171875]]},{"pos":[12,13],"id":"a45205b4-bfc6-4bfa-82a9-4c18225e198b","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:21:15.485039+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/a45205b4-bfc6-4bfa-82a9-4c18225e198b/screenshot.jpeg"},"geo_pos":[-52.734375,42.3828125],"geo_bounds":[[-54.6875,40.6875],[-50.78125,44.078125]]},{"pos":[12,14],"id":"f555e926-dbeb-47f8-b067-001bd1a03226","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:21:00.022031+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/f555e926-dbeb-47f8-b067-001bd1a03226/screenshot.jpeg"},"geo_pos":[-56.640625,42.3828125],"geo_bounds":[[-58.59375,40.6875],[-54.6875,44.078125]]},{"pos":[10,0],"id":"aeb6b665-44f8-436d-859d-0362a654ef9f","metadata":{"rotate":4.8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:20:47.409316+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/aeb6b665-44f8-436d-859d-0362a654ef9f/screenshot.jpeg"},"geo_pos":[-1.953125,35.6015625],"geo_bounds":[[-3.90625,33.90625],[0,37.296875]]},{"pos":[17,9.5],"id":"4e6e048a-6723-4d5c-b742-343d6a9493e6","metadata":{"rotate":-6.4,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-17T12:20:31.212295+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/4e6e048a-6723-4d5c-b742-343d6a9493e6/screenshot.jpeg"},"geo_pos":[-39.0625,59.3359375],"geo_bounds":[[-41.015625,57.640625],[-37.109375,61.03125]]},{"pos":[14,6],"id":"f6cfc53d-a4d7-40c1-a939-f756925f8907","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:20:17.611339+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/f6cfc53d-a4d7-40c1-a939-f756925f8907/screenshot.jpeg"},"geo_pos":[-25.390625,49.1640625],"geo_bounds":[[-27.34375,47.46875],[-23.4375,50.859375]]},{"pos":[16,17],"id":"30eee9f1-6580-427e-8c2c-778c940f47af","metadata":{"rotate":-19.2,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-17T12:20:03.892655+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/30eee9f1-6580-427e-8c2c-778c940f47af/screenshot.jpeg"},"geo_pos":[-68.359375,55.9453125],"geo_bounds":[[-70.3125,54.25],[-66.40625,57.640625]]},{"pos":[17,7.5],"id":"7227b9eb-9488-4f17-ba25-41141454df4d","metadata":{"rotate":-9.6,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-17T12:19:50.958802+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/7227b9eb-9488-4f17-ba25-41141454df4d/screenshot.jpeg"},"geo_pos":[-31.25,59.3359375],"geo_bounds":[[-33.203125,57.640625],[-29.296875,61.03125]]},{"pos":[6,17],"id":"912802d7-8083-4822-86db-dbbb6f23a3bb","metadata":{"rotate":8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:19:37.406642+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/912802d7-8083-4822-86db-dbbb6f23a3bb/screenshot.jpeg"},"geo_pos":[-68.359375,22.0390625],"geo_bounds":[[-70.3125,20.34375],[-66.40625,23.734375]]},{"pos":[14,14],"id":"6b870e79-756d-43e0-82b1-43c414c5b91b","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:19:09.886074+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/6b870e79-756d-43e0-82b1-43c414c5b91b/screenshot.jpeg"},"geo_pos":[-56.640625,49.1640625],"geo_bounds":[[-58.59375,47.46875],[-54.6875,50.859375]]},{"pos":[8,14],"id":"9a7b647d-cd19-4c70-b1ff-8f54a09ea448","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:18:55.917348+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/9a7b647d-cd19-4c70-b1ff-8f54a09ea448/screenshot.jpeg"},"geo_pos":[-56.640625,28.8203125],"geo_bounds":[[-58.59375,27.125],[-54.6875,30.515625]]},{"pos":[4,8],"id":"5fbb3ac4-7ee7-42d1-b6f6-8488713931bb","metadata":{"rotate":8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:18:40.807965+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/5fbb3ac4-7ee7-42d1-b6f6-8488713931bb/screenshot.jpeg"},"geo_pos":[-33.203125,15.2578125],"geo_bounds":[[-35.15625,13.5625],[-31.25,16.953125]]},{"pos":[10,15],"id":"a5705e3d-6d4f-49aa-859b-b14a87765fbb","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:18:25.953135+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/a5705e3d-6d4f-49aa-859b-b14a87765fbb/screenshot.jpeg"},"geo_pos":[-60.546875,35.6015625],"geo_bounds":[[-62.5,33.90625],[-58.59375,37.296875]]},{"pos":[8,15],"id":"1ffd3bc6-0be7-40e4-bc24-981ed31a4c2e","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:18:03.174750+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/1ffd3bc6-0be7-40e4-bc24-981ed31a4c2e/screenshot.jpeg"},"geo_pos":[-60.546875,28.8203125],"geo_bounds":[[-62.5,27.125],[-58.59375,30.515625]]},{"pos":[1,14.5],"id":"7d3cce14-7d3e-48d7-be77-4678d121b4e0","metadata":{"rotate":-9.6,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-17T12:17:47.644491+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/7d3cce14-7d3e-48d7-be77-4678d121b4e0/screenshot.jpeg"},"geo_pos":[-58.59375,5.0859375],"geo_bounds":[[-60.546875,3.390625],[-56.640625,6.78125]]},{"pos":[13,8.5],"id":"ee368da4-4527-436f-a12e-32a3eba739bb","metadata":{"rotate":4.8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-17T12:17:28.730125+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/7ffd988c-263b-48e9-ac17-dc16809951a6/ee368da4-4527-436f-a12e-32a3eba739bb/screenshot.jpeg"},"geo_pos":[-35.15625,45.7734375],"geo_bounds":[[-37.109375,44.078125],[-33.203125,47.46875]]},{"pos":[11,8.5],"id":"d64dbc21-76f6-40ba-adb1-7501b72ac961","metadata":{"rotate":6.4,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-16T10:14:25.670715+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/f69809a8-4c44-4973-af49-e4144e1cca52/d64dbc21-76f6-40ba-adb1-7501b72ac961/screenshot.jpeg"},"geo_pos":[-35.15625,38.9921875],"geo_bounds":[[-37.109375,37.296875],[-33.203125,40.6875]]},{"pos":[16,9],"id":"12cc7cc1-3c53-4f4b-a7b1-1b58ca65f4d8","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-16T10:10:05.946669+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/f69809a8-4c44-4973-af49-e4144e1cca52/12cc7cc1-3c53-4f4b-a7b1-1b58ca65f4d8/screenshot.jpeg"},"geo_pos":[-37.109375,55.9453125],"geo_bounds":[[-39.0625,54.25],[-35.15625,57.640625]]},{"pos":[20,5],"id":"e94f8b21-2415-468e-a0a0-0f4614f45338","metadata":{"rotate":8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T18:01:58.045469+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/e94f8b21-2415-468e-a0a0-0f4614f45338/screenshot.jpeg"},"geo_pos":[-21.484375,69.5078125],"geo_bounds":[[-23.4375,67.8125],[-19.53125,71.203125]]},{"pos":[21,3.5],"id":"0d0e52e0-c92e-4632-b61f-962e8de7086a","metadata":{"rotate":8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T18:01:44.622578+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/0d0e52e0-c92e-4632-b61f-962e8de7086a/screenshot.jpeg"},"geo_pos":[-15.625,72.8984375],"geo_bounds":[[-17.578125,71.203125],[-13.671875,74.59375]]},{"pos":[18,8],"id":"f6add55c-2153-4b4b-9c9b-40775a7d679a","metadata":{"rotate":-6.4,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-15T18:01:33.273846+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/f6add55c-2153-4b4b-9c9b-40775a7d679a/screenshot.jpeg"},"geo_pos":[-33.203125,62.7265625],"geo_bounds":[[-35.15625,61.03125],[-31.25,64.421875]]},{"pos":[14,3],"id":"d5ff6e1b-1471-4665-a221-a5d7ca245053","metadata":{"rotate":-12.8,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-15T18:01:18.964612+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/d5ff6e1b-1471-4665-a221-a5d7ca245053/screenshot.jpeg"},"geo_pos":[-13.671875,49.1640625],"geo_bounds":[[-15.625,47.46875],[-11.71875,50.859375]]},{"pos":[12,4],"id":"99457e34-a982-4abe-be9e-b9d3ff85695f","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T18:01:06.946410+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/99457e34-a982-4abe-be9e-b9d3ff85695f/screenshot.jpeg"},"geo_pos":[-17.578125,42.3828125],"geo_bounds":[[-19.53125,40.6875],[-15.625,44.078125]]},{"pos":[16,3],"id":"8ec2d0ab-1d03-42ee-86ac-73a93a4eb111","metadata":{"rotate":-9.6,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-15T18:00:44.223389+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/8ec2d0ab-1d03-42ee-86ac-73a93a4eb111/screenshot.jpeg"},"geo_pos":[-13.671875,55.9453125],"geo_bounds":[[-15.625,54.25],[-11.71875,57.640625]]},{"pos":[5,13.5],"id":"5feac9ea-c58e-4a28-96e0-4d2a2cb482c2","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T18:00:05.241349+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/5feac9ea-c58e-4a28-96e0-4d2a2cb482c2/screenshot.jpeg"},"geo_pos":[-54.6875,18.6484375],"geo_bounds":[[-56.640625,16.953125],[-52.734375,20.34375]]},{"pos":[18,9],"id":"c60f5533-d50b-4e4d-9804-18ee62d16941","metadata":{"rotate":-16,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-15T17:59:53.735260+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/c60f5533-d50b-4e4d-9804-18ee62d16941/screenshot.jpeg"},"geo_pos":[-37.109375,62.7265625],"geo_bounds":[[-39.0625,61.03125],[-35.15625,64.421875]]},{"pos":[5,10.5],"id":"cb16a90f-9db4-4d53-9559-4b5360aaaa48","metadata":{"rotate":12.8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:59:44.762198+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/cb16a90f-9db4-4d53-9559-4b5360aaaa48/screenshot.jpeg"},"geo_pos":[-42.96875,18.6484375],"geo_bounds":[[-44.921875,16.953125],[-41.015625,20.34375]]},{"pos":[7,8.5],"id":"bdfc3047-8cb3-423e-b2aa-488c16f32642","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:59:29.792299+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/bdfc3047-8cb3-423e-b2aa-488c16f32642/screenshot.jpeg"},"geo_pos":[-35.15625,25.4296875],"geo_bounds":[[-37.109375,23.734375],[-33.203125,27.125]]},{"pos":[18,11],"id":"9d9ea0bd-1733-4fa6-b86b-52682017b8f2","metadata":{"rotate":-12.8,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-15T17:59:14.689971+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/9d9ea0bd-1733-4fa6-b86b-52682017b8f2/screenshot.jpeg"},"geo_pos":[-44.921875,62.7265625],"geo_bounds":[[-46.875,61.03125],[-42.96875,64.421875]]},{"pos":[17,4.5],"id":"ac5a7eee-4dd4-426c-aaf8-bfcb6a06bf7a","metadata":{"rotate":-9.6,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-15T17:58:36.756137+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/ac5a7eee-4dd4-426c-aaf8-bfcb6a06bf7a/screenshot.jpeg"},"geo_pos":[-19.53125,59.3359375],"geo_bounds":[[-21.484375,57.640625],[-17.578125,61.03125]]},{"pos":[19,3.5],"id":"bfbdabe9-645a-447d-822e-eacd6ce4217b","metadata":{"rotate":6.4,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:58:25.175756+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/bfbdabe9-645a-447d-822e-eacd6ce4217b/screenshot.jpeg"},"geo_pos":[-15.625,66.1171875],"geo_bounds":[[-17.578125,64.421875],[-13.671875,67.8125]]},{"pos":[7,1.5],"id":"510971d7-b100-462b-9f59-e1186855eaae","metadata":{"rotate":8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:58:12.552542+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/510971d7-b100-462b-9f59-e1186855eaae/screenshot.jpeg"},"geo_pos":[-7.8125,25.4296875],"geo_bounds":[[-9.765625,23.734375],[-5.859375,27.125]]},{"pos":[12,5],"id":"0e976348-ad55-4b81-bc28-b62a331a32da","metadata":{"rotate":-22.4,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-15T17:58:02.492310+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/0e976348-ad55-4b81-bc28-b62a331a32da/screenshot.jpeg"},"geo_pos":[-21.484375,42.3828125],"geo_bounds":[[-23.4375,40.6875],[-19.53125,44.078125]]},{"pos":[16,2],"id":"c7e8e183-7102-465a-a3bf-ba976a13fc44","metadata":{"rotate":-12.8,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-15T17:57:10.031728+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/c7e8e183-7102-465a-a3bf-ba976a13fc44/screenshot.jpeg"},"geo_pos":[-9.765625,55.9453125],"geo_bounds":[[-11.71875,54.25],[-7.8125,57.640625]]},{"pos":[19,4.5],"id":"834abcbd-e8bd-4201-986a-a98ba0fc3e57","metadata":{"rotate":8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:56:53.592614+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/834abcbd-e8bd-4201-986a-a98ba0fc3e57/screenshot.jpeg"},"geo_pos":[-19.53125,66.1171875],"geo_bounds":[[-21.484375,64.421875],[-17.578125,67.8125]]},{"pos":[17,13.5],"id":"2576edf4-ed45-4498-8112-91cbce007d7a","metadata":{"rotate":-16,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-15T17:55:32.083102+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/2576edf4-ed45-4498-8112-91cbce007d7a/screenshot.jpeg"},"geo_pos":[-54.6875,59.3359375],"geo_bounds":[[-56.640625,57.640625],[-52.734375,61.03125]]},{"pos":[1,7.5],"id":"1654563d-d733-4973-93cf-57210eb5af45","metadata":{"rotate":8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:55:24.416987+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/1654563d-d733-4973-93cf-57210eb5af45/screenshot.jpeg"},"geo_pos":[-31.25,5.0859375],"geo_bounds":[[-33.203125,3.390625],[-29.296875,6.78125]]},{"pos":[6,6],"id":"1b3f3c23-7d1a-47f3-804e-93741bcfe97a","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:55:07.474659+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/1b3f3c23-7d1a-47f3-804e-93741bcfe97a/screenshot.jpeg"},"geo_pos":[-25.390625,22.0390625],"geo_bounds":[[-27.34375,20.34375],[-23.4375,23.734375]]},{"pos":[11,5.5],"id":"1f84e3d3-c8ec-47ad-b3b7-f7c73666e916","metadata":{"rotate":8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:54:43.877993+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/1f84e3d3-c8ec-47ad-b3b7-f7c73666e916/screenshot.jpeg"},"geo_pos":[-23.4375,38.9921875],"geo_bounds":[[-25.390625,37.296875],[-21.484375,40.6875]]},{"pos":[16,12],"id":"957d8eae-032d-4fdf-8322-e8594c8b8be3","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:54:31.646490+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/acf0f6b1-f35f-400f-a56b-69491489b89f/957d8eae-032d-4fdf-8322-e8594c8b8be3/screenshot.jpeg"},"geo_pos":[-48.828125,55.9453125],"geo_bounds":[[-50.78125,54.25],[-46.875,57.640625]]},{"pos":[10,11],"id":"9db946e1-363f-4fb3-a5c8-02bedc69105d","metadata":{"rotate":4.8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:54:09.030408+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/9db946e1-363f-4fb3-a5c8-02bedc69105d/screenshot.jpeg"},"geo_pos":[-44.921875,35.6015625],"geo_bounds":[[-46.875,33.90625],[-42.96875,37.296875]]},{"pos":[10,8],"id":"a2de2398-cbd6-4ce4-bf6f-997220833bd1","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:53:55.886581+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/a2de2398-cbd6-4ce4-bf6f-997220833bd1/screenshot.jpeg"},"geo_pos":[-33.203125,35.6015625],"geo_bounds":[[-35.15625,33.90625],[-31.25,37.296875]]},{"pos":[9,16.5],"id":"bd9483b3-bf0c-4483-973e-056dc56dd555","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:53:43.806673+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/bd9483b3-bf0c-4483-973e-056dc56dd555/screenshot.jpeg"},"geo_pos":[-66.40625,32.2109375],"geo_bounds":[[-68.359375,30.515625],[-64.453125,33.90625]]},{"pos":[4,7],"id":"c7bff816-c61c-435e-a350-d1a0593e3184","metadata":{"rotate":8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:53:32.001732+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/c7bff816-c61c-435e-a350-d1a0593e3184/screenshot.jpeg"},"geo_pos":[-29.296875,15.2578125],"geo_bounds":[[-31.25,13.5625],[-27.34375,16.953125]]},{"pos":[9,13.5],"id":"489eaade-f4d8-4bb0-a881-68254b1079e9","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:53:19.871391+00:00","lang":"Arabic","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/489eaade-f4d8-4bb0-a881-68254b1079e9/screenshot.jpeg"},"geo_pos":[-54.6875,32.2109375],"geo_bounds":[[-56.640625,30.515625],[-52.734375,33.90625]]},{"pos":[9,10.5],"id":"cf41eb3a-aa99-4b92-9f8b-3d62867fb2e4","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:53:10.588608+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/cf41eb3a-aa99-4b92-9f8b-3d62867fb2e4/screenshot.jpeg"},"geo_pos":[-42.96875,32.2109375],"geo_bounds":[[-44.921875,30.515625],[-41.015625,33.90625]]},{"pos":[18,10],"id":"4a941a4c-33ed-40f8-963e-fd094c18fccd","metadata":{"rotate":-11.2,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-15T17:53:00.303037+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/4a941a4c-33ed-40f8-963e-fd094c18fccd/screenshot.jpeg"},"geo_pos":[-41.015625,62.7265625],"geo_bounds":[[-42.96875,61.03125],[-39.0625,64.421875]]},{"pos":[14,4],"id":"c54bc2a5-6b27-4869-9350-d2282dc530e4","metadata":{"rotate":-6.4,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-15T17:52:37.422914+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/c54bc2a5-6b27-4869-9350-d2282dc530e4/screenshot.jpeg"},"geo_pos":[-17.578125,49.1640625],"geo_bounds":[[-19.53125,47.46875],[-15.625,50.859375]]},{"pos":[9,17.5],"id":"d7b8a44b-4900-43d6-acd2-f89bfa3bccfd","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:52:25.029912+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/d7b8a44b-4900-43d6-acd2-f89bfa3bccfd/screenshot.jpeg"},"geo_pos":[-70.3125,32.2109375],"geo_bounds":[[-72.265625,30.515625],[-68.359375,33.90625]]},{"pos":[6,14],"id":"b2ef0d4b-a73c-461f-a08f-0d2e7db43c01","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:51:53.898619+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/b2ef0d4b-a73c-461f-a08f-0d2e7db43c01/screenshot.jpeg"},"geo_pos":[-56.640625,22.0390625],"geo_bounds":[[-58.59375,20.34375],[-54.6875,23.734375]]},{"pos":[6,10],"id":"d2555a40-2f02-4027-90a4-e7ffdede536a","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:51:31.295065+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/d2555a40-2f02-4027-90a4-e7ffdede536a/screenshot.jpeg"},"geo_pos":[-41.015625,22.0390625],"geo_bounds":[[-42.96875,20.34375],[-39.0625,23.734375]]},{"pos":[14,15],"id":"847d3cd4-c8ba-4dca-aa57-024c9002b3b2","metadata":{"rotate":-9.6,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-15T17:51:14.836515+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/847d3cd4-c8ba-4dca-aa57-024c9002b3b2/screenshot.jpeg"},"geo_pos":[-60.546875,49.1640625],"geo_bounds":[[-62.5,47.46875],[-58.59375,50.859375]]},{"pos":[21,7.5],"id":"7eb96ae6-34a4-4f1e-bf2a-c5603457182d","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:51:05.224050+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/7eb96ae6-34a4-4f1e-bf2a-c5603457182d/screenshot.jpeg"},"geo_pos":[-31.25,72.8984375],"geo_bounds":[[-33.203125,71.203125],[-29.296875,74.59375]]},{"pos":[7,4.5],"id":"56f9d022-1282-4353-a13c-4e4e1afa6273","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:50:55.354877+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/56f9d022-1282-4353-a13c-4e4e1afa6273/screenshot.jpeg"},"geo_pos":[-19.53125,25.4296875],"geo_bounds":[[-21.484375,23.734375],[-17.578125,27.125]]},{"pos":[3,8.5],"id":"2e572a52-2893-4809-9df5-bf4d05b5f45e","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:50:31.409139+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/2e572a52-2893-4809-9df5-bf4d05b5f45e/screenshot.jpeg"},"geo_pos":[-35.15625,11.8671875],"geo_bounds":[[-37.109375,10.171875],[-33.203125,13.5625]]},{"pos":[6,8],"id":"94ce89d7-9494-45df-8062-275b4ff87bd9","metadata":{"rotate":-6.4,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-15T17:49:55.373405+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/94ce89d7-9494-45df-8062-275b4ff87bd9/screenshot.jpeg"},"geo_pos":[-33.203125,22.0390625],"geo_bounds":[[-35.15625,20.34375],[-31.25,23.734375]]},{"pos":[10,4],"id":"66d21912-5e5b-4c05-b805-cd30f2f232ff","metadata":{"rotate":-12.8,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-15T17:49:44.741280+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/66d21912-5e5b-4c05-b805-cd30f2f232ff/screenshot.jpeg"},"geo_pos":[-17.578125,35.6015625],"geo_bounds":[[-19.53125,33.90625],[-15.625,37.296875]]},{"pos":[4,11],"id":"8c7e95f5-8e47-482c-bc87-2309a62538ec","metadata":{"rotate":6.4,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:49:25.471321+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/8c7e95f5-8e47-482c-bc87-2309a62538ec/screenshot.jpeg"},"geo_pos":[-44.921875,15.2578125],"geo_bounds":[[-46.875,13.5625],[-42.96875,16.953125]]},{"pos":[1,11.5],"id":"ee8d3b7e-cea1-4b33-b783-73a7df89e0d3","metadata":{"rotate":-12.8,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-15T17:49:14.341358+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/ee8d3b7e-cea1-4b33-b783-73a7df89e0d3/screenshot.jpeg"},"geo_pos":[-46.875,5.0859375],"geo_bounds":[[-48.828125,3.390625],[-44.921875,6.78125]]},{"pos":[9,6.5],"id":"5d84dd73-9b25-42ba-b3b1-7ed849c07096","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:49:01.317697+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/5d84dd73-9b25-42ba-b3b1-7ed849c07096/screenshot.jpeg"},"geo_pos":[-27.34375,32.2109375],"geo_bounds":[[-29.296875,30.515625],[-25.390625,33.90625]]},{"pos":[7,13.5],"id":"48cb0ed8-6b3c-46f1-814f-00edfa8ed250","metadata":{"rotate":12.8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:48:28.393246+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/48cb0ed8-6b3c-46f1-814f-00edfa8ed250/screenshot.jpeg"},"geo_pos":[-54.6875,25.4296875],"geo_bounds":[[-56.640625,23.734375],[-52.734375,27.125]]},{"pos":[3,9.5],"id":"d3cb6325-5471-40c6-b490-966ba879dcb4","metadata":{"rotate":6.4,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:48:16.351836+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/d3cb6325-5471-40c6-b490-966ba879dcb4/screenshot.jpeg"},"geo_pos":[-39.0625,11.8671875],"geo_bounds":[[-41.015625,10.171875],[-37.109375,13.5625]]},{"pos":[10,6],"id":"b615a2cb-b3e1-472d-b33d-8d3f402213bb","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:48:04.005589+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/b615a2cb-b3e1-472d-b33d-8d3f402213bb/screenshot.jpeg"},"geo_pos":[-25.390625,35.6015625],"geo_bounds":[[-27.34375,33.90625],[-23.4375,37.296875]]},{"pos":[8,12],"id":"c302c327-b1fd-49ba-be32-a05624bebad3","metadata":{"rotate":8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:47:10.439084+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/54195487-2269-4ce9-a55e-ffe5f2b5f80d/c302c327-b1fd-49ba-be32-a05624bebad3/screenshot.jpeg"},"geo_pos":[-48.828125,28.8203125],"geo_bounds":[[-50.78125,27.125],[-46.875,30.515625]]},{"pos":[3,11.5],"id":"67fd6787-caf1-4783-acb8-91e88777ee27","metadata":{"rotate":12.8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:46:18.436591+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/4d2c04b0-51b7-4aa2-a234-0e4be53447de/67fd6787-caf1-4783-acb8-91e88777ee27/screenshot.jpeg"},"geo_pos":[-46.875,11.8671875],"geo_bounds":[[-48.828125,10.171875],[-44.921875,13.5625]]},{"pos":[8,17],"id":"fb388953-e17d-4e31-8262-9b41d3f6e7f1","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:46:10.567932+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/4d2c04b0-51b7-4aa2-a234-0e4be53447de/fb388953-e17d-4e31-8262-9b41d3f6e7f1/screenshot.jpeg"},"geo_pos":[-68.359375,28.8203125],"geo_bounds":[[-70.3125,27.125],[-66.40625,30.515625]]},{"pos":[13,9.5],"id":"8d146b3b-4534-4dd5-bef1-e2aa4632fa47","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:45:58.764905+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/4d2c04b0-51b7-4aa2-a234-0e4be53447de/8d146b3b-4534-4dd5-bef1-e2aa4632fa47/screenshot.jpeg"},"geo_pos":[-39.0625,45.7734375],"geo_bounds":[[-41.015625,44.078125],[-37.109375,47.46875]]},{"pos":[13,11.5],"id":"555c8dd2-5565-4fd4-8639-64c3769e8c25","metadata":{"rotate":8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:45:38.160334+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/4d2c04b0-51b7-4aa2-a234-0e4be53447de/555c8dd2-5565-4fd4-8639-64c3769e8c25/screenshot.jpeg"},"geo_pos":[-46.875,45.7734375],"geo_bounds":[[-48.828125,44.078125],[-44.921875,47.46875]]},{"pos":[10,17],"id":"a9cba42e-e993-4e8d-baf2-800481b5fa12","metadata":{"rotate":8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:45:20.443276+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/4d2c04b0-51b7-4aa2-a234-0e4be53447de/a9cba42e-e993-4e8d-baf2-800481b5fa12/screenshot.jpeg"},"geo_pos":[-68.359375,35.6015625],"geo_bounds":[[-70.3125,33.90625],[-66.40625,37.296875]]},{"pos":[14,12],"id":"a85857af-42d0-4711-bf27-673550e45b15","metadata":{"rotate":8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:45:10.586700+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/4d2c04b0-51b7-4aa2-a234-0e4be53447de/a85857af-42d0-4711-bf27-673550e45b15/screenshot.jpeg"},"geo_pos":[-48.828125,49.1640625],"geo_bounds":[[-50.78125,47.46875],[-46.875,50.859375]]},{"pos":[13,3.5],"id":"006057fb-7599-4517-95a8-5a8694965fbd","metadata":{"rotate":-12.8,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-15T17:44:52.041413+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/4d2c04b0-51b7-4aa2-a234-0e4be53447de/006057fb-7599-4517-95a8-5a8694965fbd/screenshot.jpeg"},"geo_pos":[-15.625,45.7734375],"geo_bounds":[[-17.578125,44.078125],[-13.671875,47.46875]]},{"pos":[6,13],"id":"1f2932ab-7922-4a23-9c52-8fac43fe2660","metadata":{"rotate":12.8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:44:35.456369+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/4d2c04b0-51b7-4aa2-a234-0e4be53447de/1f2932ab-7922-4a23-9c52-8fac43fe2660/screenshot.jpeg"},"geo_pos":[-52.734375,22.0390625],"geo_bounds":[[-54.6875,20.34375],[-50.78125,23.734375]]},{"pos":[14,2],"id":"a70ca9ef-aa30-4e46-b1eb-c282fdca7143","metadata":{"rotate":-12.8,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-15T17:44:14.511866+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/4d2c04b0-51b7-4aa2-a234-0e4be53447de/a70ca9ef-aa30-4e46-b1eb-c282fdca7143/screenshot.jpeg"},"geo_pos":[-9.765625,49.1640625],"geo_bounds":[[-11.71875,47.46875],[-7.8125,50.859375]]},{"pos":[11,13.5],"id":"bfa3512c-d80f-4745-b48c-387f87ce6ea2","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:44:04.552991+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/4d2c04b0-51b7-4aa2-a234-0e4be53447de/bfa3512c-d80f-4745-b48c-387f87ce6ea2/screenshot.jpeg"},"geo_pos":[-54.6875,38.9921875],"geo_bounds":[[-56.640625,37.296875],[-52.734375,40.6875]]},{"pos":[11,15.5],"id":"2d4eeb3b-066f-4bae-982f-c9cbae68b170","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:43:55.351827+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/4d2c04b0-51b7-4aa2-a234-0e4be53447de/2d4eeb3b-066f-4bae-982f-c9cbae68b170/screenshot.jpeg"},"geo_pos":[-62.5,38.9921875],"geo_bounds":[[-64.453125,37.296875],[-60.546875,40.6875]]},{"pos":[17,0.5],"id":"b7c008eb-6f6a-480b-bade-103bf38cf380","metadata":{"rotate":4.8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:43:32.988678+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/4d2c04b0-51b7-4aa2-a234-0e4be53447de/b7c008eb-6f6a-480b-bade-103bf38cf380/screenshot.jpeg"},"geo_pos":[-3.90625,59.3359375],"geo_bounds":[[-5.859375,57.640625],[-1.953125,61.03125]]},{"pos":[16,5],"id":"5e9c7781-7bac-4e21-b7d9-f495f274b2d5","metadata":{"rotate":4.8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:43:19.634047+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/4d2c04b0-51b7-4aa2-a234-0e4be53447de/5e9c7781-7bac-4e21-b7d9-f495f274b2d5/screenshot.jpeg"},"geo_pos":[-21.484375,55.9453125],"geo_bounds":[[-23.4375,54.25],[-19.53125,57.640625]]},{"pos":[18,5],"id":"a9e3e5bf-f0e4-4457-8c29-2bc4f3a37884","metadata":{"rotate":8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:42:49.312678+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/4d2c04b0-51b7-4aa2-a234-0e4be53447de/a9e3e5bf-f0e4-4457-8c29-2bc4f3a37884/screenshot.jpeg"},"geo_pos":[-21.484375,62.7265625],"geo_bounds":[[-23.4375,61.03125],[-19.53125,64.421875]]},{"pos":[12,9],"id":"cf18ce0c-d685-44a0-bbcf-6b4ea0ebb9fb","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:42:39.338667+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/4d2c04b0-51b7-4aa2-a234-0e4be53447de/cf18ce0c-d685-44a0-bbcf-6b4ea0ebb9fb/screenshot.jpeg"},"geo_pos":[-37.109375,42.3828125],"geo_bounds":[[-39.0625,40.6875],[-35.15625,44.078125]]},{"pos":[16,10],"id":"c608b06c-b7b3-433c-b16b-4316df8a9d29","metadata":{"rotate":12.8,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:42:30.186582+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/4d2c04b0-51b7-4aa2-a234-0e4be53447de/c608b06c-b7b3-433c-b16b-4316df8a9d29/screenshot.jpeg"},"geo_pos":[-41.015625,55.9453125],"geo_bounds":[[-42.96875,54.25],[-39.0625,57.640625]]},{"pos":[19,9.5],"id":"82313a3a-073d-44b1-b33d-5276d6af4c3e","metadata":{"rotate":-9.6,"sign":-1,"mostly":false,"favorable_future":"no","timestamp":"2025-04-15T17:42:02.198402+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/4d2c04b0-51b7-4aa2-a234-0e4be53447de/82313a3a-073d-44b1-b33d-5276d6af4c3e/screenshot.jpeg"},"geo_pos":[-39.0625,66.1171875],"geo_bounds":[[-41.015625,64.421875],[-37.109375,67.8125]]},{"pos":[13,10.5],"id":"205d36ae-4552-4064-b574-959319ebd998","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:41:46.142322+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/4d2c04b0-51b7-4aa2-a234-0e4be53447de/205d36ae-4552-4064-b574-959319ebd998/screenshot.jpeg"},"geo_pos":[-42.96875,45.7734375],"geo_bounds":[[-44.921875,44.078125],[-41.015625,47.46875]]},{"pos":[11,10.5],"id":"89eba1d3-05db-4a2c-abed-a16eac4a20a9","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:41:26.293061+00:00","lang":"Hebrew and Arabic","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/4d2c04b0-51b7-4aa2-a234-0e4be53447de/89eba1d3-05db-4a2c-abed-a16eac4a20a9/screenshot.jpeg"},"geo_pos":[-42.96875,38.9921875],"geo_bounds":[[-44.921875,37.296875],[-41.015625,40.6875]]},{"pos":[7,3.5],"id":"ac51df1b-107a-4c8c-816d-863760057aa8","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:41:14.777076+00:00","lang":"English","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/4d2c04b0-51b7-4aa2-a234-0e4be53447de/ac51df1b-107a-4c8c-816d-863760057aa8/screenshot.jpeg"},"geo_pos":[-15.625,25.4296875],"geo_bounds":[[-17.578125,23.734375],[-13.671875,27.125]]},{"pos":[7,5.5],"id":"caa26faa-145e-48ee-bceb-78f903e3321b","metadata":{"rotate":9.6,"sign":1,"mostly":false,"favorable_future":"yes","timestamp":"2025-04-15T17:41:02.430950+00:00","lang":"Hebrew","url":"https://storage.googleapis.com/chronomaps3.firebasestorage.app/4d2c04b0-51b7-4aa2-a234-0e4be53447de/caa26faa-145e-48ee-bceb-78f903e3321b/screenshot.jpeg"},"geo_pos":[-23.4375,25.4296875],"geo_bounds":[[-25.390625,23.734375],[-21.484375,27.125]]}],"padding_ratio":0.5,"conversion_ratio":[3.390625,3.90625],"cell_ratios":[1.86,1.135],"clusters":[{"title":{"english":"conflict resolution","dutch":"conflict oplossing","hebrew":"פתרון סכסוכים","arabic":"حل النزاعات"},"bounds":[[10,10],[18,19]],"average_rotation":1.1428571428571428,"geo_bounds":[[-74.21875,33.90625],[-39.0625,61.03125]],"x":47.46875,"y":56.640625,"w":27.125,"h":35.15625,"fontSize":{"english":1.9035087719298245,"dutch":2.009259259259259,"hebrew":2.782051282051282,"arabic":3.287878787878788}},{"title":{"english":"regional cooperation","dutch":"regionale samenwerking","hebrew":"שיתוף פעולה אזורי","arabic":"التعاون الإقليمي"},"bounds":[[4,12],[10,18]],"average_rotation":11.105882352941178,"geo_bounds":[[-70.3125,13.5625],[-46.875,33.90625]],"x":23.734375,"y":58.59375,"w":20.34375,"h":23.4375,"fontSize":{"english":1.35625,"dutch":1.2329545454545454,"hebrew":1.5955882352941178,"arabic":1.6953125}},{"title":{"english":"peace-building","dutch":"vredesopbouw","hebrew":"בניית שלום","arabic":"بناء السلام"},"bounds":[[9,7],[14,12.5]],"average_rotation":7.435294117647058,"geo_bounds":[[-48.828125,30.515625],[-27.34375,47.46875]],"x":38.9921875,"y":38.0859375,"w":16.953125,"h":21.484375,"fontSize":{"english":1.6145833333333333,"dutch":1.8836805555555556,"hebrew":2.2604166666666665,"arabic":2.054924242424242}},{"title":{"english":"border redefinition","dutch":"grensherdefiniëring","hebrew":"הגדרת גבולות מחדש","arabic":"إعادة تعريف الحدود"},"bounds":[[0,8],[8,15.5]],"average_rotation":4.053333333333333,"geo_bounds":[[-60.546875,0],[-31.25,27.125]],"x":13.5625,"y":45.8984375,"w":27.125,"h":29.296875,"fontSize":{"english":1.9035087719298245,"dutch":1.9035087719298245,"hebrew":2.127450980392157,"arabic":2.009259259259259}},{"title":{"english":"societal transformation","dutch":"maatschappelijke transformatie","hebrew":"שינוי חברתי","arabic":"تحول اجتماعي"},"bounds":[[7,0],[13,7.5]],"average_rotation":5.7371428571428575,"geo_bounds":[[-29.296875,23.734375],[0,44.078125]],"x":33.90625,"y":14.6484375,"w":20.34375,"h":29.296875,"fontSize":{"english":1.1793478260869565,"dutch":0.9041666666666667,"hebrew":2.465909090909091,"arabic":2.2604166666666665}},{"title":{"english":"environmental adaptation","dutch":"milieu-aanpassing","hebrew":"הסתגלות סביבתית","arabic":"التكيف البيئي"},"bounds":[[16,7.5],[23,12]],"average_rotation":-4.266666666666667,"geo_bounds":[[-46.875,54.25],[-29.296875,77.984375]],"x":66.1171875,"y":38.0859375,"w":23.734375,"h":17.578125,"fontSize":{"english":1.3185763888888888,"dutch":1.8615196078431373,"hebrew":2.109722222222222,"arabic":2.434294871794872}},{"title":{"english":"societal surveillance","dutch":"maatschappelijke surveillance","hebrew":"מעקב חברתי","arabic":"المراقبة المجتمعية"},"bounds":[[13,0.5],[18,8.5]],"average_rotation":-6.690909090909091,"geo_bounds":[[-33.203125,44.078125],[-1.953125,61.03125]],"x":52.5546875,"y":17.578125,"w":16.953125,"h":31.25,"fontSize":{"english":1.0763888888888888,"dutch":0.7794540229885057,"hebrew":2.2604166666666665,"arabic":1.255787037037037}},{"title":{"english":"AI integration","dutch":"AI-integratie","hebrew":"שילוב בינה מלאכותית","arabic":"تكامل الذكاء الاصطناعي"},"bounds":[[17,3],[22,8.5]],"average_rotation":1.7454545454545454,"geo_bounds":[[-33.203125,57.640625],[-11.71875,74.59375]],"x":66.1171875,"y":22.4609375,"w":16.953125,"h":21.484375,"fontSize":{"english":1.6145833333333333,"dutch":1.7387820512820513,"hebrew":1.1896929824561404,"arabic":1.027462121212121}},{"title":{"english":"cross-border opportunities","dutch":"grensoverschrijdende kansen","hebrew":"הזדמנויות חוצות גבולות","arabic":"فرص عبر الحدود"},"bounds":[[1,3.5],[8,9.5]],"average_rotation":11.2,"geo_bounds":[[-37.109375,3.390625],[-13.671875,27.125]],"x":15.2578125,"y":25.390625,"w":23.734375,"h":23.4375,"fontSize":{"english":1.217147435897436,"dutch":1.1720679012345678,"hebrew":1.4384469696969697,"arabic":2.2604166666666665}},{"title":{"english":"national integration","dutch":"nationale integratie","hebrew":"אינטגרציה לאומית","arabic":"الاندماج الوطني"},"bounds":[[8,16.5],[12,20.5]],"average_rotation":12.2,"geo_bounds":[[-80.078125,27.125],[-64.453125,40.6875]],"x":33.90625,"y":72.265625,"w":13.5625,"h":15.625,"fontSize":{"english":0.9041666666666667,"dutch":0.9041666666666667,"hebrew":1.1302083333333333,"arabic":1.2055555555555555}}]},"h":{},"s":200,"st":"OK","u":"https://storage.googleapis.com/chronomaps3-eu/tiles/its_time/10/config.json","rt":"json"},"3406165892":{"b":{"set_id":10},"h":{},"s":200,"st":"OK","u":"https://storage.googleapis.com/chronomaps3-eu/tiles/its_time/config.json","rt":"json"},"__nghData__":[{},{"c":{"0":[{"i":"c1445418517","r":1}]}}]}</script></body></html>
