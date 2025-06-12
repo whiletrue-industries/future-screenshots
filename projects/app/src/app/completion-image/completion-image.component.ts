@@ -21,7 +21,6 @@ export class CompletionImageComponent {
   });
 
   rotate = computed(() => {
-    console.log('ITEM', this.api.item()?.favorable_future, this.api.item()?.plausibility, this.prefer(), this.prevent());
     const sign = this.prefer() ? -1 : 1;
     return (100 - (this.api.item()?.plausibility || 0)) / 100 * 32 * sign;
   });
