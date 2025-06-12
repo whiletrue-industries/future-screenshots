@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
 import { HttpClient } from '@angular/common/http';
-import { switchMap } from 'rxjs/operators';
+import { map, switchMap } from 'rxjs/operators';
 import { from } from 'rxjs';
 import { CompletionImageComponent } from "../completion-image/completion-image.component";
 
@@ -20,23 +20,39 @@ export class CompleteEvaluationComponent {
   constructor(private api: ApiService, private http: HttpClient) {}
 
   downloadImage() {
-    const url = this.api.item().screenshot_url;
+    const item = this.api.item();
+    const url = item.screenshot_url;
     if (!url) {
       return;
     }
     this.http.get(url, { responseType: 'blob' }).pipe(
       switchMap((blob: Blob) => {
-        return from(new Promise<string>(resolve => {
-          let reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.readAsDataURL(blob);
-        }));
+        const files = [new File([blob], 'my-screenshot.png', { type: blob.type })];
+        if (navigator && navigator.canShare && navigator.canShare({ files })) {
+          return from(navigator.share({ files })).pipe(
+            map(() => ({ native: true, url: '' }))
+          );
+        } else {
+          return from(new Promise<string>(resolve => {
+            let reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          })).pipe(
+            map((dataUrl: string) => {
+              return { native: false, url: dataUrl };
+            })
+          );
+        }
       })
-    ).subscribe((dataUrl: string) => {
-      var link = document.createElement('a');
-      link.download = `my-screenshot.png`;
-      link.href = dataUrl;
-      link.click();
+    ).subscribe(({ native, url }) => {
+      if (native) {
+        // Native sharing was successful
+      } else {
+        var link = document.createElement('a');
+        link.download = `my-screenshot.png`;
+        link.href = url;
+        link.click();
+      }
     });
   }
 
