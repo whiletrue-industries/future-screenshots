@@ -1,8 +1,37 @@
+@import '../../common.less';
+
 .container {
   display: flex;
   flex-flow: row nowrap;
   align-items: center;  
-  height: 72px;
+  height: 52px;
   gap: 8px;
-  padding: 0 16px;
+  padding: none;
+
+  .buttons {
+    padding: 16px 8px;
+
+    .button-row {
+      gap: 8px;
+
+      .button {
+        height: 40px;
+        gap: 8px;
+
+        border-radius: 8px;
+        border: 1px solid @color-accent-100;
+        background: @color-creme;
+        color: @color-dark-gray;
+        font-size: 16px;
+        font-weight: 400;
+
+        &.primary {
+          color: @color-primary;
+          font-weight: 700;
+          background: @color-accent-100;
+          pointer-events: none;
+        }
+      }
+    }
+  }
 }

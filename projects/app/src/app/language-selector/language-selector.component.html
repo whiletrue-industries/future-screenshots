@@ -1,3 +1,16 @@
 <div class='container'>
-    <p>(language-selector placeholder)</p>
+    <div class='buttons'>
+        <div class='button-row'>
+            @for (language of LANGUAGES(); track language) {
+                <a class='language button' [class.primary]='language.primary' [href]='language.url || null'>
+                    @if (language.primary) {
+                        <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 25 25" fill="none">
+                            <path d="M18.1176 8.70358L10.7537 16.0675L6.51104 11.8249" stroke="#4E02B2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    }
+                    <span>{{ language.name }}</span>
+                </a>
+            }
+        </div>
+    </div>
 </div>
