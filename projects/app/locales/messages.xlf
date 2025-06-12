@@ -45,6 +45,10 @@
           <context context-type="linenumber">26,27</context>
         </context-group>
         <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.ts</context>
+          <context context-type="linenumber">34</context>
+        </context-group>
+        <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/showcase/output-map/output-map.component.html</context>
           <context context-type="linenumber">86,87</context>
         </context-group>
@@ -59,6 +63,10 @@
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">13,14</context>
         </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.ts</context>
+          <context context-type="linenumber">39</context>
+        </context-group>
       </trans-unit>
       <trans-unit id="7674739602840460559" datatype="html">
         <source>Prevent</source>
@@ -69,6 +77,10 @@
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">30,31</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.ts</context>
+          <context context-type="linenumber">36</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/showcase/output-map/output-map.component.html</context>
@@ -259,23 +271,23 @@ We’re currently analyzing your screenshot and adding it to the Futures Map. Th
 Expect an email soon from **MapFutur.es!**</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
-          <context context-type="linenumber">102</context>
+          <context context-type="linenumber">109</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="3912926066750765140" datatype="html">
+      <trans-unit id="4800490314476591779" datatype="html">
         <source>Got it. Thanks!
 
-We will send another **secret link** to your email address as soon as this screenshot is added to the Futures Map.</source>
+We will send another **secret link** to :EMAIL: as soon as this screenshot is added to the Futures Map.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
-          <context context-type="linenumber">113</context>
+          <context context-type="linenumber">120</context>
         </context-group>
       </trans-unit>
       <trans-unit id="884442091533409805" datatype="html">
         <source>Well, you will lose the option to edit and track your screenshot, but we will try to handle it with care. **Thanks**!</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
-          <context context-type="linenumber">123</context>
+          <context context-type="linenumber">130</context>
         </context-group>
       </trans-unit>
       <trans-unit id="1667655031564191836" datatype="html">
@@ -286,7 +298,7 @@ We added “:TAGLINE:” to the map!
 **Want to see it?**</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
-          <context context-type="linenumber">134</context>
+          <context context-type="linenumber">141</context>
         </context-group>
       </trans-unit>
       <trans-unit id="7811812787841697190" datatype="html">
@@ -295,42 +307,49 @@ We added “:TAGLINE:” to the map!
 **Want to see it?**</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
-          <context context-type="linenumber">145</context>
+          <context context-type="linenumber">152</context>
         </context-group>
       </trans-unit>
       <trans-unit id="6928209535035628388" datatype="html">
         <source>Add Another</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/complete-evaluation/complete-evaluation.component.html</context>
-          <context context-type="linenumber">8,9</context>
+          <context context-type="linenumber">9,10</context>
         </context-group>
       </trans-unit>
       <trans-unit id="3155265313783380285" datatype="html">
         <source>Explore Map</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/complete-evaluation/complete-evaluation.component.html</context>
-          <context context-type="linenumber">14,15</context>
+          <context context-type="linenumber">15,16</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="2908146847463460746" datatype="html">
+        <source>Download Image</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/complete-evaluation/complete-evaluation.component.html</context>
+          <context context-type="linenumber">22,23</context>
         </context-group>
       </trans-unit>
       <trans-unit id="7419704019640008953" datatype="html">
         <source>Share</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/complete-evaluation/complete-evaluation.component.html</context>
-          <context context-type="linenumber">21,22</context>
+          <context context-type="linenumber">28,29</context>
         </context-group>
       </trans-unit>
       <trans-unit id="7393743239484919387" datatype="html">
         <source>Our Future?</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/complete-evaluation/complete-evaluation.component.ts</context>
-          <context context-type="linenumber">52</context>
+          <context context-type="linenumber">70</context>
         </context-group>
       </trans-unit>
       <trans-unit id="9038979569246987154" datatype="html">
         <source>Check out this image!</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/complete-evaluation/complete-evaluation.component.ts</context>
-          <context context-type="linenumber">53</context>
+          <context context-type="linenumber">71</context>
         </context-group>
       </trans-unit>
       <trans-unit id="6492369180328294412" datatype="html">
@@ -351,7 +370,7 @@ We added “:TAGLINE:” to the map!
         <source>Show me</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/direct-to-map/direct-to-map.component.html</context>
-          <context context-type="linenumber">7,8</context>
+          <context context-type="linenumber">9,10</context>
         </context-group>
       </trans-unit>
       <trans-unit id="5739735053002293531" datatype="html">
@@ -435,7 +454,7 @@ We added “:TAGLINE:” to the map!
         <source>Yes, Let’s scan!</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.html</context>
-          <context context-type="linenumber">15,16</context>
+          <context context-type="linenumber">16,17</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
@@ -446,14 +465,14 @@ We added “:TAGLINE:” to the map!
         <source>How do I make one?</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.html</context>
-          <context context-type="linenumber">18,19</context>
+          <context context-type="linenumber">19,20</context>
         </context-group>
       </trans-unit>
       <trans-unit id="512623949609093993" datatype="html">
         <source>Yes, I agree</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.html</context>
-          <context context-type="linenumber">21,22</context>
+          <context context-type="linenumber">22,23</context>
         </context-group>
       </trans-unit>
       <trans-unit id="1218703804763274432" datatype="html">
@@ -478,28 +497,28 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>Hi there…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
-          <context context-type="linenumber">55</context>
+          <context context-type="linenumber">56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="4571274738606596845" datatype="html">
         <source>Thanks for participating in **</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
-          <context context-type="linenumber">56</context>
+          <context context-type="linenumber">57</context>
         </context-group>
       </trans-unit>
       <trans-unit id="9044526817068657586" datatype="html">
         <source>the workshop</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
-          <context context-type="linenumber">56</context>
+          <context context-type="linenumber">57</context>
         </context-group>
       </trans-unit>
       <trans-unit id="4767332476188972747" datatype="html">
         <source>I’m here to help you **scan** your future screenshot and add it to the map.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
-          <context context-type="linenumber">57</context>
+          <context context-type="linenumber">58</context>
         </context-group>
       </trans-unit>
       <trans-unit id="3995298380815881001" datatype="html">

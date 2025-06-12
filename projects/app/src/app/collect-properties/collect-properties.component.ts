@@ -117,7 +117,7 @@ export class CollectPropertiesComponent implements AfterViewInit {
     },  
     {
       id: 12,
-      instructions: $localize`Got it. Thanks!\n\nWe will send another **secret link** to your email address as soon as this screenshot is added to the Futures Map.`,
+      instructions: $localize`Got it. Thanks!\n\nWe will send another **secret link** to :EMAIL: as soon as this screenshot is added to the Futures Map.`,
       skip: () => {
         if (this.emailFromStorage) {
           return null;
@@ -180,7 +180,12 @@ export class CollectPropertiesComponent implements AfterViewInit {
       const expectedLength = actualSteps.length*2 - 1;
       if (messages.length === expectedLength - 1) {
         const stepSpec = actualSteps[actualSteps.length - 1];
-        const message = new Message('ai', stepSpec.instructions.replace(':TAGLINE:', this.api.item()?.future_scenario_tagline || ''));
+        const message = new Message(
+          'ai', 
+          stepSpec.instructions
+            .replace(':TAGLINE:', this.api.item()?.future_scenario_tagline || '')
+            .replace(':EMAIL:', this.api.item()?._private_email || '')
+        );
         this.messages.addMessage(message);
       }
     });

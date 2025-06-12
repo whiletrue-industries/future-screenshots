@@ -17,6 +17,20 @@
         </div>
     </div>
     <div class='menu-container' [style.height.px]='mainMenuOpen() ? menuHeight : 0'>
-        <app-main-menu (explore)='mainMenuOpen.set(false)'></app-main-menu>
+        <app-main-menu 
+            (explore)='mainMenuOpen.set(false)'
+            (about)='about.set(true)'
+        ></app-main-menu>
     </div>
+    @if (about()) {
+        <div class='about'>
+            <div class='about-header'>
+                <a (click)='about.set(false)'>
+                    <div class='back'></div>
+                    <div class='logo'></div>
+                </a>
+            </div>
+            <app-about></app-about>
+        </div>
+    }
 </div>

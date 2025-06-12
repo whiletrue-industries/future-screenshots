@@ -18,6 +18,7 @@
 @color-pink: #F1E5F3;
 @color-primary: @color-purple;
 @color-primary-50: #FBF5F6;
+@color-primary-100: #F1E5F3;
 @color-accent: @color-light-purple;
 @color-accent-100: @color-dark-pink;
 @color-prefer: #698CFF;
@@ -183,6 +184,15 @@
 @keyframes slideInUp {
     from {
         transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInDown {
+    from {
+        transform: translateY(-100%);
     }
     to {
         transform: translateY(0);

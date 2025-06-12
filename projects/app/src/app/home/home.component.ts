@@ -5,10 +5,11 @@ import { PlatformService } from '../../platform.service';
 import { Observable } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
+import { AboutComponent } from '../about/about.component';
 
 @Component({
   selector: 'app-home',
-  imports: [OutputMapComponent, MainMenuComponent],
+  imports: [OutputMapComponent, MainMenuComponent, AboutComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.less'
 })
@@ -18,6 +19,8 @@ export class HomeComponent implements AfterViewInit {
   browser = false;
 
   menuHeight = MAIN_MENU_HEIGHT;
+
+  about = signal(false);
 
   @ViewChild('mapContainer') mapContainer: ElementRef<HTMLElement>;
   @ViewChild(OutputMapComponent) outputMap: OutputMapComponent;

@@ -227,6 +227,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
+          <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">30,31</context>
         </context-group>
       </trans-unit>
@@ -403,18 +404,6 @@ Verwacht binnenkort een e-mail van **MapFutur.es!**</target>
           <context context-type="linenumber">102</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="3912926066750765140" datatype="html">
-        <source>Got it. Thanks!
-
-We will send another **secret link** to your email address as soon as this screenshot is added to the Futures Map.</source>
-        <target state="translated">Begrepen. Bedankt!
-
-We zullen zo snel mogelijk een andere **geheime link** naar je e-mailadres sturen zodra deze screenshot aan de Toekomst Kaart is toegevoegd.</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
-          <context context-type="linenumber">113</context>
-        </context-group>
-      </trans-unit>
       <trans-unit id="884442091533409805" datatype="html">
         <source>Well, you will lose the option to edit and track your screenshot, but we will try to handle it with care. **Thanks**!</source>
         <target state="translated">Nou, je verliest de optie om je screenshot te bewerken en te volgen, maar we zullen proberen het met zorg te behandelen. **Bedankt**!</target>
@@ -453,7 +442,7 @@ We hebben “:TAGLINE:” aan de kaart toegevoegd!
       </trans-unit>
       <trans-unit id="3155265313783380285" datatype="html">
         <source>Explore Map</source>
-        <target state="translated">Verken Kaart</target>
+        <target state="translated">Verken kaart</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/complete-evaluation/complete-evaluation.component.html</context>
           <context context-type="linenumber">14,15</context>
@@ -461,7 +450,7 @@ We hebben “:TAGLINE:” aan de kaart toegevoegd!
       </trans-unit>
       <trans-unit id="6492369180328294412" datatype="html">
         <source>scan again</source>
-        <target state="translated">scan opnieuw</target>
+        <target state="translated">Opnieuw scannen</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/confirm/confirm.component.html</context>
           <context context-type="linenumber">11,12</context>
@@ -556,6 +545,7 @@ Ik ga je ook vragen om **toegang tot de camera**, en dan kunnen we beginnen...</
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
+          <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">43,44</context>
         </context-group>
       </trans-unit>
@@ -637,6 +627,26 @@ Ik ga je ook vragen om **toegang tot de camera**, en dan kunnen we beginnen...</
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.html</context>
           <context context-type="linenumber">21,22</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="4800490314476591779" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Got it. Thanks!
+
+We will send another **secret link** to :EMAIL: as soon as this screenshot is added to the Futures Map.</source>
+        <target state="translated">Begrepen. Bedankt!
+
+We zullen een andere **geheime link** naar :EMAIL: sturen zodra deze screenshot aan de Toekomst Kaart is toegevoegd.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
+          <context context-type="linenumber">120</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="2908146847463460746" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Download Image</source>
+        <target state="translated">Afbeelding downloaden</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/complete-evaluation/complete-evaluation.component.html</context>
+          <context context-type="linenumber">22,23</context>
         </context-group>
       </trans-unit>
     </body>
