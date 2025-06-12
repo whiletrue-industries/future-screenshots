@@ -26,9 +26,12 @@
             width: 50%;
             aspect-ratio: 53 / 100;
             transition: all 0.5s ease-in-out;
-            transition-property: transform, bottom, left, width;
+            transition-property: transform, bottom, left, width, opacity;
+            transform: translate(-50%, 50%);
+            opacity: 1;
 
             &.small {
+                transform: translate(0,0) scale(0.5);
                 width: 10%;
                 bottom: 68px;
                 left: 4px;
@@ -43,21 +46,8 @@
                 z-index: 1;
             }
 
-            .line {
-                position: absolute;
-                top: -2px;
-                left: 50%;
-                transform: translateX(-50%);
-                border: 4px solid @color-purple;
-                width: 200vw;
-
-                &.prefer {
-                    border-color: @color-prefer;
-                }
-
-                &.prevent {
-                    border-color: @color-prevent;
-                }
+            &.completed {
+                opacity: 0;
             }
         }
 
@@ -136,5 +126,13 @@
         width: 100%;
         pointer-events: all;
         z-index: 1;
+    }
+
+    app-complete-evaluation {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 100%;
     }
 }

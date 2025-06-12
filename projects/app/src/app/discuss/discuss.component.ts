@@ -34,27 +34,6 @@ export class DiscussComponent implements AfterViewInit {
   imageUrl = computed<SafeUrl>(() => {
     return this.sanitizer.bypassSecurityTrustUrl(this.item().screenshot_url);
   });
-  imageRotation = computed(() => {
-    let plausibility = this.item().plausibility || 0;
-    if (plausibility < 0) {
-      plausibility = 0;
-    } else if (plausibility > 100) {
-      plausibility = 100;
-    }
-    const favorable_future = this.item().favorable_future
-    const sign = favorable_future ? (
-      favorable_future.indexOf('prefer') >= 0 ? 1 : (
-        favorable_future.indexOf('prevent') >= 0 ? -1 : 0
-      )
-    ) : 0;
-    return -sign * ((100 - plausibility) / 100 * 32);
-  });
-  imageTransform = computed(() => {
-    const translate = this.completed() ?
-      `translate(-50%, calc(100% + 50vh - ${this.messagesComponent.spacerHeight()}px))rotate(${this.imageRotation()}deg)` :
-      (this.small() ? 'translate(0,0)' :'translate(-50%, 50%)');
-    return translate;
-  });
 
   // State
   thinking = signal<boolean>(true);
@@ -64,16 +43,9 @@ export class DiscussComponent implements AfterViewInit {
   visible = computed(() => {
     return this.hasText() && this.imageLoaded();
   });
-  expanded = signal<boolean>(false);
   completed = signal<boolean>(false);
-  small = computed(() => {
-    return this.visible() && !this.expanded() && !this.completed();
-  });
   inputVisible = computed(() => {
-    return this.visible() && !this.buttonsVisible();
-  });
-  buttonsVisible = computed(() => {
-    return !this.small() && this.visible();
+    return this.visible() && !this.completed();
   });
   failed = signal<boolean>(false);
 
