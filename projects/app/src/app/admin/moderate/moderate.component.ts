@@ -65,6 +65,7 @@ export class ModerateComponent {
             this.items.set([]);
           } else {
             this.indexLink.set(null);
+            data = data.filter((item: any) => !!item?.screenshot_url);
             data.forEach((item: any) => {
               item.screenshot_url = this.fix_url(item.screenshot_url);
               item.favorable_future = this.fix_favorable_future(item.favorable_future);
