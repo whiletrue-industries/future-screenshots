@@ -16,7 +16,6 @@ import { CompleteEvaluationComponent } from "../complete-evaluation/complete-eva
   imports: [
     FormsModule,
     MessagesComponent,
-    RouterLink,
     LtrDirective,
     CompleteEvaluationComponent
 ],

@@ -16,7 +16,7 @@
             <span i18n>MENU</span>
         </div>
     </div>
-    <div class='menu-container' [style.height.px]='mainMenuOpen() ? menuHeight : 0'>
+    <div class='menu-container' [style.height.px]='mainMenuOpen() ? state.mainMenuHeight() : 0'>
         <app-main-menu 
             (explore)='mainMenuOpen.set(false)'
             (about)='about.set(true)'

@@ -403,18 +403,6 @@ Expect an email soon from **MapFutur.es!**</source>
           <context context-type="linenumber">102</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="3912926066750765140" datatype="html">
-        <source>Got it. Thanks!
-
-We will send another **secret link** to your email address as soon as this screenshot is added to the Futures Map.</source>
-        <target state="translated">הבנתי. תודה!
-
-נשלח **קישור סודי** נוסף לכתובת האימייל שלך ברגע שצילום המסך הזה יתווסף למפת העתידים.</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
-          <context context-type="linenumber">113</context>
-        </context-group>
-      </trans-unit>
       <trans-unit id="884442091533409805" datatype="html">
         <source>Well, you will lose the option to edit and track your screenshot, but we will try to handle it with care. **Thanks**!</source>
         <target state="translated">ובכן, תאבד את האפשרות לערוך ולעקוב אחר צילום המסך שלך, אבל ננסה לטפל בזה בזהירות. **תודה**!</target>
@@ -497,14 +485,6 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
           <context context-type="linenumber">31,35</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="4571274738606596845" datatype="html">
-        <source>Thanks for participating in **</source>
-        <target state="translated">תודה על השתתפותכם ב-**</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
-          <context context-type="linenumber">56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="9044526817068657586" datatype="html">
@@ -607,22 +587,6 @@ I’m also about to ask you for **access to the camera**, and then we can get go
           <context context-type="linenumber">5,6</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="5958041823400245861" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
-        <source>Join a Workshop</source>
-        <target state="translated">הצטרף לסדנה</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">projects/app/src/app/main-menu/main-menu.component.html</context>
-          <context context-type="linenumber">6,7</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="2868430931337553487" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
-        <source>A Land For All</source>
-        <target state="translated">ארץ לכולם</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">projects/app/src/app/main-menu/main-menu.component.html</context>
-          <context context-type="linenumber">7,8</context>
-        </context-group>
-      </trans-unit>
       <trans-unit id="700463741507627080" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source> Add to Map </source>
         <target state="translated">הוסף למפה</target>
@@ -637,6 +601,56 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.html</context>
           <context context-type="linenumber">21,22</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="4800490314476591779" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Got it. Thanks!
+
+We will send another **secret link** to :EMAIL: as soon as this screenshot is added to the Futures Map.</source>
+        <target state=""></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
+          <context context-type="linenumber">129</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="2908146847463460746" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Download Image</source>
+        <target state=""></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/complete-evaluation/complete-evaluation.component.html</context>
+          <context context-type="linenumber">23,24</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="3634609096631107420" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Share to Group</source>
+        <target state=""></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/complete-evaluation/complete-evaluation.component.html</context>
+          <context context-type="linenumber">53,54</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="8336578779360621109" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Join whatsapp Group</source>
+        <target state=""></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.html</context>
+          <context context-type="linenumber">21,22</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="7287078049434709864" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Thanks for participating in **:EVENT_NAME:**!</source>
+        <target state=""></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
+          <context context-type="linenumber">60</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="8066727882775189410" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>**First, join the chat group** we set up for :EVENT_NAME:.</source>
+        <target state=""></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
+          <context context-type="linenumber">61</context>
         </context-group>
       </trans-unit>
     </body>

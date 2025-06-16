@@ -7,6 +7,7 @@ export class StateService {
 
   currentImage = signal<Blob | null>(null);
   currentImageUrl = signal<string | null>(null);
+  mainMenuHeight = signal<number>(348);
     
   constructor() { }
 

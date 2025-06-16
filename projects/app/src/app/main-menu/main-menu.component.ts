@@ -1,9 +1,11 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, effect, EventEmitter, Output } from '@angular/core';
 import { LanguageSelectorComponent } from "../language-selector/language-selector.component";
 import { RouterLink } from '@angular/router';
+import { ApiService } from '../../api.service';
+import { StateService } from '../../state.service';
 
 // export const MAIN_MENU_HEIGHT = 348; // With the extra two links
-export const MAIN_MENU_HEIGHT = 348 - 2*56;
+const MAIN_MENU_HEIGHT = 348 - 2*56;
 
 @Component({
   selector: 'app-main-menu',
@@ -18,6 +20,14 @@ export class MainMenuComponent {
   @Output() explore = new EventEmitter<void>();
   @Output() about = new EventEmitter<void>();
 
-  public HEIGHT = MAIN_MENU_HEIGHT;
+  constructor(public api: ApiService, public state: StateService) {
+    effect(() => {
+      if (this.api.workspaceId() && this.api.workspace()?.source) {
+        this.state.mainMenuHeight.set(MAIN_MENU_HEIGHT);
+      } else {
+        this.state.mainMenuHeight.set(MAIN_MENU_HEIGHT - 56);
+      }
+    });
+  }
 
 }

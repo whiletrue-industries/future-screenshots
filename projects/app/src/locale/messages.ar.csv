@@ -35,11 +35,6 @@ We’re currently analyzing your screenshot and adding it to the Futures Map. Th
 Expect an email soon from **MapFutur.es!**","رائع! نحن جاهزون.
 
 توقع بريد إلكتروني قريباً من **MapFutur.es!**"
-"Got it. Thanks!
-
-We will send another **secret link** to your email address as soon as this screenshot is added to the Futures Map.","تم. شكراً!
-
-سنرسل **رابطاً سرياً** آخر إلى عنوان بريدك الإلكتروني بمجرد إضافة لقطة الشاشة هذه إلى خريطة المستقبل."
 "Well, you will lose the option to edit and track your screenshot, but we will try to handle it with care. **Thanks**!","حسناً، ستفقد خيار تعديل ومتابعة لقطة الشاشة الخاصة بك، لكننا سنحاول التعامل معها بعناية. **شكراً**!"
 "That’s great!
 
@@ -71,8 +66,6 @@ We added “:TAGLINE:” to the map!
 "Anticipating transition...","جارٍ توقع الانتقال..."
 "Explore the Map","استكشاف الخريطة"
 "About + Contact","حول + تواصل"
-"Join a Workshop","انضم إلى ورشة عمل"
-"A Land For All","أرض للجميع"
 " Add to Map "," أضف إلى الخريطة "
 "Yes, Let’s scan!","نعم، دعنا نفحص!"
 "How do I make one?","كيف أصنع واحدة؟"
@@ -88,7 +81,6 @@ I’m also about to ask you for **access to the camera**, and then we can get go
 
 سأطلب منك أيضاً **الوصول إلى الكاميرا**، وبعدها يمكننا البدء..."
 "Hi there…","مرحباً..."
-"Thanks for participating in **","شكراً لمشاركتك في **"
 "the workshop","ورشة العمل"
 "I’m here to help you **scan** your future screenshot and add it to the map.","أنا هنا لمساعدتك في **مسح** لقطة المستقبل الخاصة بك وإضافتها إلى الخريطة."
 "fit the page to the frame","قم بتناسب الصفحة مع الإطار"
@@ -98,3 +90,11 @@ I’m also about to ask you for **access to the camera**, and then we can get go
 "hold still...","ابقَ ثابتاً..."
 "NOW","الآن"
 "PROJECTED","متوقع"
+"Got it. Thanks!
+
+We will send another **secret link** to :EMAIL: as soon as this screenshot is added to the Futures Map.",""
+"Download Image",""
+"Share to Group",""
+"Join whatsapp Group",""
+"Thanks for participating in **:EVENT_NAME:**!",""
+"**First, join the chat group** we set up for :EVENT_NAME:.",""

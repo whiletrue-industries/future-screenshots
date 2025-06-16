@@ -1,11 +1,13 @@
 import { AfterViewInit, Component, DestroyRef, ElementRef, signal, ViewChild } from '@angular/core';
 import { OutputMapComponent } from "../showcase/output-map/output-map.component";
-import { MAIN_MENU_HEIGHT, MainMenuComponent } from "../main-menu/main-menu.component";
+import { MainMenuComponent } from "../main-menu/main-menu.component";
 import { PlatformService } from '../../platform.service';
 import { Observable } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { AboutComponent } from '../about/about.component';
+import { ApiService } from '../../api.service';
+import { StateService } from '../../state.service';
 
 @Component({
   selector: 'app-home',
@@ -18,14 +20,13 @@ export class HomeComponent implements AfterViewInit {
   mainMenuOpen = signal(false);
   browser = false;
 
-  menuHeight = MAIN_MENU_HEIGHT;
-
   about = signal(false);
 
   @ViewChild('mapContainer') mapContainer: ElementRef<HTMLElement>;
   @ViewChild(OutputMapComponent) outputMap: OutputMapComponent;
 
-  constructor(private platform: PlatformService, private destroyRef: DestroyRef, private route: ActivatedRoute) {
+  constructor(private platform: PlatformService, private destroyRef: DestroyRef, private route: ActivatedRoute, private api: ApiService, public state: StateService) {
+    this.api.updateFromRoute(route.snapshot);
     this.platform.browser(() => {
       this.browser = true;
     });

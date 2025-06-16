@@ -488,14 +488,6 @@ Ik ga je ook vragen om **toegang tot de camera**, en dan kunnen we beginnen...</
           <context context-type="linenumber">31,35</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="4571274738606596845" datatype="html">
-        <source>Thanks for participating in **</source>
-        <target state="translated">Bedankt voor uw deelname aan **</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
-          <context context-type="linenumber">56</context>
-        </context-group>
-      </trans-unit>
       <trans-unit id="9044526817068657586" datatype="html">
         <source>the workshop</source>
         <target state="translated">de workshop</target>
@@ -597,22 +589,6 @@ Ik ga je ook vragen om **toegang tot de camera**, en dan kunnen we beginnen...</
           <context context-type="linenumber">5,6</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="5958041823400245861" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
-        <source>Join a Workshop</source>
-        <target state="translated">Doe mee aan een workshop</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">projects/app/src/app/main-menu/main-menu.component.html</context>
-          <context context-type="linenumber">6,7</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="2868430931337553487" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
-        <source>A Land For All</source>
-        <target state="translated">Een land voor iedereen</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">projects/app/src/app/main-menu/main-menu.component.html</context>
-          <context context-type="linenumber">7,8</context>
-        </context-group>
-      </trans-unit>
       <trans-unit id="700463741507627080" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source> Add to Map </source>
         <target state="translated">Toevoegen aan kaart</target>
@@ -647,6 +623,38 @@ We zullen een andere **geheime link** naar :EMAIL: sturen zodra deze screenshot 
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/complete-evaluation/complete-evaluation.component.html</context>
           <context context-type="linenumber">22,23</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="7287078049434709864" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Thanks for participating in **:EVENT_NAME:**!</source>
+        <target state="translated">Bedankt voor je deelname aan **:EVENT_NAME:**!</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
+          <context context-type="linenumber">60</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="8066727882775189410" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>**First, join the chat group** we set up for :EVENT_NAME:.</source>
+        <target state="translated">**Eerst, sluit je aan bij de chatgroep** die we hebben opgezet voor :EVENT_NAME:.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
+          <context context-type="linenumber">61</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="3634609096631107420" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Share to Group</source>
+        <target state="translated">Delen met groep</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/complete-evaluation/complete-evaluation.component.html</context>
+          <context context-type="linenumber">53,54</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="8336578779360621109" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Join whatsapp Group</source>
+        <target state="translated">Word lid van de WhatsApp-groep</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.html</context>
+          <context context-type="linenumber">21,22</context>
         </context-group>
       </trans-unit>
     </body>
