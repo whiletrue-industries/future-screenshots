@@ -272,30 +272,43 @@
             }
 
             .clothespin {
-                width: 40px;
-                height: 214px;
+                width: 2.4vh;//40px;
+                height: 12.84vh;
                 position: absolute;
                 transition: opacity .5s ease-in-out;
-                transition-property: opacity, transform;
+                transition-property: opacity, transform, top, left, right;
                 opacity: 0;
     
+                svg {
+                    width: 100%;
+                    height: 100%;
+                }
+
                 &.visible {
                     opacity: 1;
                 }
     
                 &.prefer {
-                    right: 80px;
-                    top: -110px;
-                    transform: translateY(200px) translateX(max(-24vh, -41vw)) rotate(270deg);
+                    top: 50%;
+                    left: 0;
+                    transform: translateY(-4vh) rotate(90deg);
+                    transform-origin: top left;
+                    &.selected {
+                        left: 2vh;
+                        top: -7vh;
+                        transform: translateY(0) rotate(-12deg);
+                    }
                 }
                 &.prevent {
-                    left: 80px;
-                    top: -110px;
-                    transform: translateY(200px) translateX(min(25vh, 41vw)) rotate(-270deg);
-                }
-
-                &.selected {
-                    transform: translateY(0)translateX(0)rotate(0deg);
+                    top: 50%;
+                    right: 0;
+                    transform-origin: top right;
+                    transform: translateY(-4vh) rotate(270deg);;
+                    &.selected {
+                        right: 2vh;
+                        top: -4vh;
+                        transform: translateY(0) rotate(16deg);
+                    }
                 }
             }
         }
