@@ -19,13 +19,12 @@
     <div class='menu-container' [style.height.px]='mainMenuOpen() ? state.mainMenuHeight() : 0'>
         <app-main-menu 
             (explore)='mainMenuOpen.set(false)'
-            (about)='about.set(true)'
         ></app-main-menu>
     </div>
-    @if (about()) {
+    @if (state.aboutVisible()) {
         <div class='about'>
             <div class='about-header'>
-                <a (click)='about.set(false)'>
+                <a (click)='state.aboutVisible.set(false)'>
                     <div class='back'></div>
                     <div class='logo'></div>
                 </a>

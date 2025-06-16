@@ -12,6 +12,7 @@ import { Jma25Component } from './showcase/jma25/jma25.component';
 import { OutputMapComponent } from './showcase/output-map/output-map.component';
 import { ModerateComponent } from './admin/moderate/moderate.component';
 import { CollectPropertiesComponent } from './collect-properties/collect-properties.component';
+import { AboutComponent } from './about/about.component';
 
 export const routes: Routes = [
     // Showcase routes
@@ -104,7 +105,14 @@ export const routes: Routes = [
         'data': {
             'redirectTo': '/?workspace=61358757-cf32-483f-847f-3e4eb3855408&api_key=212aa064-4d02-4edb-8f0b-9f649d026fb2',
         }
-    },    
+    },
+    {
+        'path': 'privacy-policy',
+        'component': AboutComponent,
+        'data': {
+            'prefix': 'privacy-policy-',
+        }
+    },
     {
         'path': '',
         'component': HomeComponent

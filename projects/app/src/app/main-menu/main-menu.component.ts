@@ -18,7 +18,6 @@ const MAIN_MENU_HEIGHT = 348 - 2*56;
 })
 export class MainMenuComponent {
   @Output() explore = new EventEmitter<void>();
-  @Output() about = new EventEmitter<void>();
 
   constructor(public api: ApiService, public state: StateService) {
     effect(() => {

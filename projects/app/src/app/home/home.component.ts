@@ -20,8 +20,6 @@ export class HomeComponent implements AfterViewInit {
   mainMenuOpen = signal(false);
   browser = false;
 
-  about = signal(false);
-
   @ViewChild('mapContainer') mapContainer: ElementRef<HTMLElement>;
   @ViewChild(OutputMapComponent) outputMap: OutputMapComponent;
 

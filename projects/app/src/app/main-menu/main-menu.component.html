@@ -2,7 +2,7 @@
     <app-language-selector></app-language-selector>
     <div class='links'>
         <a class='simple' [routerLink]='["/"]' queryParamsHandling="preserve" (click)='explore.next()' i18n>Explore the Map</a>
-        <a class='simple' [routerLink]='["/"]' queryParamsHandling="preserve" (click)='about.next()' i18n>About + Contact</a>
+        <a class='simple' [routerLink]='["/"]' queryParamsHandling="preserve" (click)='state.aboutVisible.set(true)' i18n>About + Contact</a>
         <!-- <a class='simple' href='https://google.com' target="_blank" i18n>Join a Workshop</a>
         <a class='simple' href='https://google.com' target="_blank" i18n>A Land For All</a> -->
         @if (api.workspaceId() && api.workspace().source) {
