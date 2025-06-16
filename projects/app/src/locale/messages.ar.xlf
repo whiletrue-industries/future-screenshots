@@ -501,12 +501,12 @@ We added “:TAGLINE:” to the map!
       <trans-unit id="8317312788503639787" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Great!
 
-But first, please approve the collection, processing, and storage of your screenshot as described in the [Privacy Policy](https://github.com/whiletrue-industries/future-screenshots/blob/main/projects/app/src/privacy-policy.md).
+But first, please approve the collection, processing, and storage of your screenshot as described in the [Privacy Policy](/privacy-policy).
 
 I’m also about to ask you for **access to the camera**, and then we can get going….</source>
         <target state="translated">رائع!
 
-لكن أولاً، يرجى الموافقة على جمع ومعالجة وتخزين لقطة الشاشة الخاصة بك كما هو موضح في [سياسة الخصوصية](https://github.com/whiletrue-industries/future-screenshots/blob/main/projects/app/src/privacy-policy.md).
+لكن أولاً، يرجى الموافقة على جمع ومعالجة وتخزين لقطة الشاشة الخاصة بك كما هو موضح في [سياسة الخصوصية](/privacy-policy).
 
 سأطلب منك أيضاً **الوصول إلى الكاميرا**، وبعدها يمكننا البدء...</target>
         <context-group purpose="location">
