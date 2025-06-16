@@ -195,7 +195,7 @@
                 .projected {
                     .line {
                         stroke-dasharray: 700;
-                        stroke-dashoffset: 650;
+                        stroke-dashoffset: 450;
                         animation: projected-intro @cone-intro-duration ease-in-out forwards @cone-intro-delay;
                     }
 
@@ -319,6 +319,8 @@
             font-weight: 400;
             opacity: 0;
             transition: opacity 1s ease-in-out;
+            width: 150px;
+            text-align: center;
 
             &.visible {
                 opacity: 1;
