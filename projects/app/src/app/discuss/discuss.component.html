@@ -19,28 +19,26 @@
             <app-complete-evaluation class='spacer'></app-complete-evaluation>
         }
     </app-messages>
-    @if (inputVisible()) {
-        <div class='input' ltr>
-            <input
-                class='input-el'
-                [(ngModel)]="inputMessage"
-                (keyup.enter)="submitMessage()"
-                [disabled]='inputDisabled()'
-                lines="2"
-                placeholder="in your own words..."
-                i18n-placeholder
-            />
-            <svg width="40" height="40" viewBox="0 0 41 41" fill="none" xmlns="http://www.w3.org/2000/svg" class='submit' (click)="submitMessage()">
-                <rect x="0.75" y="0.5" width="40" height="40" rx="20" fill="#4E02B2"/>
-                <g clip-path="url(#clip0_1016_4900)">
-                    <path d="M20.75 28.5V12.5M20.75 12.5L26.75 18.5M20.75 12.5L14.75 18.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </g>
-                <defs>
-                    <clipPath id="clip0_1016_4900">
-                    <rect width="24" height="24" fill="white" transform="translate(8.75 8.5)"/>
-                    </clipPath>
-                </defs>
-            </svg>
-        </div>
-    }
+    <div class='input' ltr [class.visible]='inputVisible()'>
+        <textarea
+            class='input-el'
+            [(ngModel)]="inputMessage"
+            (keyup.enter)="submitMessage()"
+            [disabled]='inputDisabled()'
+            rows="1"
+            placeholder="in your own words..."
+            i18n-placeholder
+        ></textarea>
+        <svg width="40" height="40" viewBox="0 0 41 41" fill="none" xmlns="http://www.w3.org/2000/svg" class='submit' (click)="submitMessage()">
+            <rect x="0.75" y="0.5" width="40" height="40" rx="20" [attr.fill]='inputDisabled() ? "#ccc" : "#4E02B2"'/>
+            <g clip-path="url(#clip0_1016_4900)">
+                <path d="M20.75 28.5V12.5M20.75 12.5L26.75 18.5M20.75 12.5L14.75 18.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </g>
+            <defs>
+                <clipPath id="clip0_1016_4900">
+                <rect width="24" height="24" fill="white" transform="translate(8.75 8.5)"/>
+                </clipPath>
+            </defs>
+        </svg>
+    </div>
 </div>

@@ -83,6 +83,14 @@
             flex-flow: row nowrap;
             align-items: center;
             gap: 4px;
+            transition: transform 0.3s ease-out;        
+            transform: translateY(100%);
+            &.visible {
+                transition-delay: 1s;
+                transform: translateY(0);
+            }
+
+            // animation: slideInUp 0.3s ease-out forwards;
 
             .input-el {
                 width: 100%;
@@ -105,12 +113,15 @@
                 }
             }
 
-            .submit {
-                display: none;
+            .submit rect {
+                fill: @color-light-gray;
+                pointer-events: none;
             }
 
             .input-el:not(:placeholder-shown) + .submit {
-                display: block;
+                rect {
+                    fill: @color-purple;
+                }
             }
         }
 
