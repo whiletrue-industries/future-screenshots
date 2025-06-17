@@ -84,7 +84,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/showcase/output-map/output-map.component.html</context>
-          <context context-type="linenumber">112,113</context>
+          <context context-type="linenumber">96,97</context>
         </context-group>
       </trans-unit>
       <trans-unit id="2699388920689322350" datatype="html">
@@ -388,7 +388,7 @@ We added “:TAGLINE:” to the map!
         <source>in your own words...</source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/discuss/discuss.component.html</context>
-          <context context-type="linenumber">30,31</context>
+          <context context-type="linenumber">29,30</context>
         </context-group>
       </trans-unit>
       <trans-unit id="454031185450713879" datatype="html">
@@ -444,7 +444,7 @@ We added “:TAGLINE:” to the map!
         <source> Add to Map </source>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/main-menu/main-menu.component.html</context>
-          <context context-type="linenumber">13</context>
+          <context context-type="linenumber">14</context>
         </context-group>
       </trans-unit>
       <trans-unit id="8336578779360621109" datatype="html">
@@ -486,7 +486,7 @@ We added “:TAGLINE:” to the map!
           <context context-type="linenumber">30</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="8317312788503639787" datatype="html">
+      <trans-unit id="4522713959913549946" datatype="html">
         <source>Great!
 
 But first, please approve the collection, processing, and storage of your screenshot as described in the [Privacy Policy](/privacy-policy).

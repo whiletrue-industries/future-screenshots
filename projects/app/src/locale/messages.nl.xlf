@@ -472,22 +472,6 @@ We hebben “:TAGLINE:” aan de kaart toegevoegd!
           <context context-type="linenumber">7,8</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="8317312788503639787" datatype="html">
-        <source>Great!
-
-But first, please approve the collection, processing, and storage of your screenshot as described in the [Privacy Policy](/privacy-policy).
-
-I’m also about to ask you for **access to the camera**, and then we can get going….</source>
-        <target state="translated">Geweldig!
-
-Maar eerst, keur alstublieft de verzameling, verwerking en opslag van uw screenshot goed zoals beschreven in het [Privacybeleid](/privacy-policy).
-
-Ik ga je ook vragen om **toegang tot de camera**, en dan kunnen we beginnen...</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
-          <context context-type="linenumber">31,35</context>
-        </context-group>
-      </trans-unit>
       <trans-unit id="9044526817068657586" datatype="html">
         <source>the workshop</source>
         <target state="translated">de workshop</target>
@@ -655,6 +639,22 @@ We zullen een andere **geheime link** naar :EMAIL: sturen zodra deze screenshot 
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.html</context>
           <context context-type="linenumber">21,22</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="4522713959913549946" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+        <source>Great!
+
+But first, please approve the collection, processing, and storage of your screenshot as described in the [Privacy Policy](/privacy-policy).
+
+I’m also about to ask you for **access to the camera**, and then we can get going….</source>
+        <target state="">Geweldig!
+
+Maar eerst, keur alstublieft de verzameling, verwerking en opslag van uw screenshot goed zoals beschreven in het [Privacybeleid](/privacy-policy).
+
+Ik ga je ook vragen om **toegang tot de camera**, en dan kunnen we beginnen...</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
+          <context context-type="linenumber">31,35</context>
         </context-group>
       </trans-unit>
     </body>
