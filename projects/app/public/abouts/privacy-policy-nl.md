@@ -13,7 +13,7 @@ Wij doen er alles aan om uw privacy te beschermen en ervoor te zorgen dat uw per
 
 ## Wie we zijn
 
-De Futures Map (https://mapfutur.es) is een kunstproject waarbij deelnemers gescande creatieve bijdragen ("future screenshots") indienen gebaseerd op geleverde sjablonen. Voor vragen over privacy kunt u contact met ons opnemen via: futures@mushon.com
+De Futures Map (https://mapfutur.es) is een kunstproject waarbij deelnemers gescande creatieve bijdragen ("future screenshots") indienen gebaseerd op geleverde sjablonen. Voor vragen over privacy kunt u contact met ons opnemen via: [futures@mushon.com](mailto:futures@mushon.com)
 
 
 ## Welke gegevens we verzamelen
@@ -60,7 +60,7 @@ Het verstrekken van uw e-mailadres is optioneel en gebaseerd op uw toestemming.
 
 U mag:
 
-· zich op elk gewenst moment afmelden voor updates via afmeldlinks (indien aanwezig) of door contact op te nemen met futures@mushon.com
+· zich op elk gewenst moment afmelden voor updates via afmeldlinks (indien aanwezig) of door contact op te nemen met [futures@mushon.com](mailto:futures@mushon.com)
 
 · verzoeken om verwijdering van uw e-mailadres en bijbehorende gegevens
 
@@ -73,7 +73,7 @@ Wij delen uw e-mailadres niet met derden.
 
 Toestemming wordt verkregen via de chatinterface voordat u uw scan verzendt.
 
-U kunt te allen tijde verzoeken om inzage, correctie of verwijdering van uw gegevens door contact met mushon@shual.com op te nemen.
+U kunt te allen tijde verzoeken om inzage, correctie of verwijdering van uw gegevens door contact met [futures@mushon.com](mailto:futures@mushon.com) op te nemen.
 
 
 ## Delen en verwerken van gegevens
@@ -132,4 +132,4 @@ Op grond van de Algemene Verordening Gegevensbescherming (AVG) heeft u recht op:
 
 · Bezwaar maken tegen bepaalde soorten verwerking of deze beperken
 
-Om deze rechten uit te oefenen, kunt u contact met ons opnemen via: futures@mushon.com
+Om deze rechten uit te oefenen, kunt u contact met ons opnemen via: [futures@mushon.com](mailto:futures@mushon.com)
