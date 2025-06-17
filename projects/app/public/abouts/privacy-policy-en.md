@@ -10,7 +10,7 @@ We are committed to protecting your privacy and ensuring that your personal data
 ## Who We Are
 
 **The Futures Map** is an art project where participants submit scanned creative works ("future screenshots") based on provided templates.  
-For any privacy-related inquiries, you can contact us at: [mushon@shual.com](mailto:mushon@shual.com).
+For any privacy-related inquiries, you can contact us at: [futures@mushon.com](mailto:futures@mushon.com).
 
 ## What Data We Collect
 
@@ -37,7 +37,7 @@ If you choose to provide your email address, we will use it for the following pu
 - To occasionally update you about **The Futures Map** project, including exhibitions, research, or ways to get involved
 
 Providing your email is **optional** and based on **your consent**. You may:
-- Opt out of updates at any time via unsubscribe links (if included) or by contacting [mushon@shual.com](mailto:mushon@shual.com)
+- Opt out of updates at any time via unsubscribe links (if included) or by contacting [futures@mushon.com](mailto:futures@mushon.com)
 - Request deletion of your email and associated data
 
 We do **not** share your email address with third parties.
@@ -45,7 +45,7 @@ We do **not** share your email address with third parties.
 ## How We Obtain Consent
 
 Consent is obtained via the chat interface before you submit your scan.  
-You may request access, correction, or deletion of your data at any time by contacting [mushon@shual.com](mailto:mushon@shual.com).
+You may request access, correction, or deletion of your data at any time by contacting [futures@mushon.com](mailto:futures@mushon.com).
 
 ## Data Sharing and Processing
 
@@ -82,4 +82,4 @@ Under the General Data Protection Regulation (GDPR), you have the right to:
 - Request deletion of your data
 - Object to or limit certain types of processing
 
-To exercise these rights, please contact us at: [mushon@shual.com](mailto:mushon@shual.com)
+To exercise these rights, please contact us at: [futures@mushon.com](mailto:futures@mushon.com)
