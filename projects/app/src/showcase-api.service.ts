@@ -1,6 +1,6 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { distinct, distinctUntilChanged, map, ReplaySubject, Subject, switchMap } from "rxjs";
+import { catchError, distinct, distinctUntilChanged, map, ReplaySubject, Subject, switchMap } from "rxjs";
 
 @Injectable({
   providedIn: 'root'
@@ -31,7 +31,11 @@ export class ShowcaseApiService {
             return mergedConfig;
           })
         );
-      })
+      }),
+      catchError(err => { 
+        console.error('Error loading config:', err);
+        return [];
+      }),
     ).subscribe(config => {
       // console.log('Config loaded:', config);
       this._configs.next(config);

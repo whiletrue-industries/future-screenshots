@@ -105,9 +105,6 @@
         opacity: 0;
         transition: opacity 1s ease-in-out;
         background-color: @color-creme;
-        &.visible {
-            opacity: 1;
-        }
 
         .cone {
             max-width: 100%;
@@ -163,31 +160,31 @@
                     }
                     &.v {
                         &.expand-p-4 {
-                            transform: translateX(-10%) translateY(159vw) scale(10);
+                            transform: translateX(-10%) translateY(160vw) scale(10);
                         }
                         &.expand-p-3 {
-                            transform: translateX(-10%) translateY(102vw) scale(10);
+                            transform: translateX(-10%) translateY(103vw) scale(10);
                         }
                         &.expand-p-2 {
-                            transform: translateX(-10%) translateY(52vw) scale(10);
+                            transform: translateX(-10%) translateY(53vw) scale(10);
                         }
                         &.expand-p-1 {
-                            transform: translateX(-10%) translateY(4vw) scale(10);
+                            transform: translateX(-10%) translateY(5vw) scale(10);
                         }
                         &.expand--0 {
-                            transform: translateX(-10%) translateY(-42vw) scale(10);
+                            transform: translateX(-10%) translateY(-41vw) scale(10);
                         }
                         &.expand-n-1 {
-                            transform: translateX(-10%) translateY(-90vw) scale(10);
+                            transform: translateX(-10%) translateY(-88vw) scale(10);
                         }
                         &.expand-n-2 {
-                            transform: translateX(-10%) translateY(-140vw) scale(10);
+                            transform: translateX(-10%) translateY(-138vw) scale(10);
                         }
                         &.expand-n-3 {
-                            transform: translateX(-10%) translateY(-194vw) scale(10);
+                            transform: translateX(-10%) translateY(-193vw) scale(10);
                         }
                         &.expand-n-4 {
-                            transform: translateX(-10%) translateY(-258vw) scale(10);
+                            transform: translateX(-10%) translateY(-257vw) scale(10);
                         }
                     }                        
                 }
@@ -256,10 +253,11 @@
         }
         .item-image {
             aspect-ratio: 53/100;
-            height: 50%;
+            height: 48%;
             position: relative;
             display: flex;
             transition: transform 1s ease-in-out;
+            transition-property: transform, height;
 
             img {
                 width: 100%;
@@ -272,14 +270,14 @@
             }
 
             .clothespin {
-                width: 2.4vh;//40px;
+                width: 3.87vh;
                 height: 12.84vh;
                 position: absolute;
                 transition: opacity .5s ease-in-out;
                 transition-property: opacity, transform, top, left, right;
                 opacity: 0;
     
-                svg {
+                svg, img {
                     width: 100%;
                     height: 100%;
                 }
@@ -333,6 +331,9 @@
             &.prevent {
                 color: @color-prevent;
             }
+        }
+        &.visible {
+            opacity: 1;
         }
     }
 }

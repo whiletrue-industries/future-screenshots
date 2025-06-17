@@ -3,7 +3,7 @@
         @if (browser) {
             <app-output-map [tag]='tag()'></app-output-map>
         }
-        <div class='borders' [class.fullscreen]='!mainMenuOpen()'>
+        <div class='borders' [class.fullscreen]='!mainMenuOpen()' (click)='mainMenuOpen.set(false)'>
             <div class='border b1'></div>
             <div class='border b2'></div>
             <div class='border b3'></div>
