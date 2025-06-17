@@ -311,8 +311,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       if (shape?.valid) {
         this.displayMsgSubject.next($localize`hold still...`);
         this.countDown -= 1;
-        if (!shape.blurry && this.countDown > 10) {
-          this.countDown = 0;
+        if (!shape.blurry && this.countDown > 5) {
+          this.countDown = 5;
         }
         if (this.countDown === 0) {
           frame = scanner.extractPaper(this.canvasEl.nativeElement, 1060, 2000, shape.cornerPoints);        
