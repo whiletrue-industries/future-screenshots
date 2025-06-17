@@ -7,33 +7,29 @@
     flex-flow: column;
     align-items: center;
     position: relative;
-    
+    padding-top: 32px;
+    transform-origin: center;
+
     img {
-        width: 75%;
+        width: 50%;
         position: relative;
         z-index: 1;
     }
 
     .line {
         position: absolute;
-        top: -2px;
-        left: -50%;
-        width: 200%;
+        top: 30px;
+        left: -100%;
+        width: 400%;
         height: 2px;
-        border-top: 4px solid;    
+        border-top: 4px solid;
+        border-top-color: @color-prevent;
     }
 
-    &.prefer {
-        transform-origin: 85% 0;
+    &.preferred {
+        // transform-origin: 70% 0;
         .line {
             border-top-color: @color-prefer;
-        }
-    }
-
-    &.prevent {
-        transform-origin: 15% 0;
-        .line {
-            border-top-color: @color-prevent;
         }
     }
 
@@ -47,15 +43,15 @@
 
     .prefer {
         background-image: url(../../../public/img-pin-prefer-v.svg);
-        top: -48px;
-        left: 20%;
-        transform: rotate(-13deg)scale(1.2);
+        top: -16px;
+        left: 26%;
+        transform: rotate(-13deg)scale(1);
     }
 
     .prevent {
         background-image: url(../../../public/img-pin-prevent-v.svg);
-        top: -36px;
-        left: 62%;
-        transform: rotate(16deg) scale(1.2);    
+        top: -4px;
+        left: 59%;
+        transform: rotate(16deg) scale(1);    
     }
 }

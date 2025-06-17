@@ -17,11 +17,16 @@ export class CompletionImageComponent {
 
   prevent = computed(() => {
     const ff = this.api.item()?.favorable_future || '';
-    return ff.indexOf('prevent') >= 0 || (ff.indexOf('prefer') >= 0 && ff.indexOf('mostly') < 0);
+    return ff.indexOf('prevent') >= 0 || (ff.indexOf('prefer') >= 0 && ff.indexOf('mostly') >= 0);
+  });
+
+  preferred = computed(() => {
+    const ff = this.api.item()?.favorable_future || '';
+    return ff.indexOf('prefer') >= 0;
   });
 
   rotate = computed(() => {
-    const sign = this.prefer() ? -1 : 1;
+    const sign = this.preferred() ? -1 : 1;
     return (100 - (this.api.item()?.plausibility || 0)) / 100 * 32 * sign;
   });
 

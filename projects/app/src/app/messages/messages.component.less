@@ -20,12 +20,11 @@
         padding-bottom: 0px;
     
         .spacer {
-            height: 100vh;
+            height: 0%;
             flex: 0 0 auto;
             position: relative;
             width: calc(100% ~'+' 64px);
             left: -32px;
-            overflow-y: hidden;
 
             .thinking-animation {
                 opacity: 0;
@@ -35,9 +34,19 @@
                 }
                 display: inline-block;
                 width: 80px;
-                margin-left: 32px;
-                margin-top: 4px;
                 height: 45px;
+                position: absolute;
+                top: 4px;
+                left: 32px;
+            }
+
+            .under-spacer {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                z-index: -1;
+                pointer-events: none;
             }
         }
     }

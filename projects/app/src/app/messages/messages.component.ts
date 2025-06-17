@@ -136,7 +136,7 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
         } else if (this.scrollOnAI) {
           this.scroller.next(() => {
             console.log('scrolling spacer', element, element.classList);
-            this.spacerEl.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            this.spacerEl.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'end' });
           });                
         }
       }

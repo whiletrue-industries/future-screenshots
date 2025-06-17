@@ -5,8 +5,9 @@
         </div>
     }
     <ng-content select='.message'></ng-content>
-    <div class='spacer' #spacer [style.height.px]='spacerHeight()'>
+    <div class='spacer'  [style.min-height.px]='spacerHeight()'>
         <div class='thinking-animation' [class.visible]='thinking' #thinkingEl></div>
+        <div class='under-spacer' [style.height.px]='spacerHeight()' #spacer></div>
         <ng-content select='.spacer'></ng-content>
     </div>
 </div>
