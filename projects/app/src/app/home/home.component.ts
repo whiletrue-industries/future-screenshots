@@ -2,7 +2,7 @@ import { AfterViewInit, Component, DestroyRef, ElementRef, signal, ViewChild } f
 import { OutputMapComponent } from "../showcase/output-map/output-map.component";
 import { MainMenuComponent } from "../main-menu/main-menu.component";
 import { PlatformService } from '../../platform.service';
-import { Observable } from 'rxjs';
+import { Observable, take } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { AboutComponent } from '../about/about.component';
@@ -31,6 +31,15 @@ export class HomeComponent implements AfterViewInit {
     this.route.queryParams.subscribe(params => {
       const tag = params['tag'] || 'main';
       this.tag.set(tag);
+    });
+    this.route.fragment.pipe(
+      takeUntilDestroyed(this.destroyRef),
+      take(1),
+    ).subscribe(fragment => {
+      if (fragment === 'about') {
+        this.mainMenuOpen.set(true);
+        this.state.aboutVisible.set(true);
+      }
     });
   }
 
