@@ -451,8 +451,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
   addToQueue() {
     if (this.config()) {
       let item = null;
-      const grid = this.currentIndex > 3 ? [] : this.config().grid;
-      console.log('GRID', this.currentIndex, this.sortCorrectly);
+      const grid = this.config().grid;
       if (grid && grid.length > 0) {
         while (!item) {
           let index = this.currentIndex;
