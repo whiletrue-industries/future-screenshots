@@ -390,12 +390,19 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
           interval(33, animationFrameScheduler).pipe(
             take(count),
             tap((i) => {
+              this.loopStep += 5 / count;
               const total = (this.wdim() ** 2) * 3;
               const amount = ((i+1) / count) ** 5;
               this.maskAmount.set(Math.ceil(amount*total));
             }),
           ),
-          this.moveEnded.pipe(take(1), map(() => item))
+          this.moveEnded.pipe(
+            take(1),
+            map(() => {
+              this.loopStep += 5;
+              return item;
+            }),
+          )
         ]);
       }),
       // Show the cluster labels
