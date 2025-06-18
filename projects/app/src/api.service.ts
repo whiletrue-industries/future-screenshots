@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { effect, Injectable, NgZone, signal } from '@angular/core';
+import { effect, Inject, Injectable, LOCALE_ID, NgZone, signal } from '@angular/core';
 import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
 import { map, Observable, ReplaySubject, switchMap, tap } from 'rxjs';
 
@@ -31,8 +31,10 @@ export class ApiService {
   workspace = signal<any>({});
   isWorkshop = signal<boolean>(false);
   uploadImageInProgress = new ReplaySubject<boolean>(1);
+  locale = 'en';
 
-  constructor(private http: HttpClient, private zone: NgZone) {
+  constructor(private http: HttpClient, private zone: NgZone, @Inject(LOCALE_ID) public locale_: string) {
+    this.locale = locale_.split('-')[0]; // Use the first part of the locale, e.g., 'nl' from 'nl-NL'
     this.uploadImageInProgress.next(false);
     effect(() => {
       const workspaceId = this.workspaceId();
@@ -113,6 +115,7 @@ export class ApiService {
       'item_id': item_id,
       'workspace': this.workspaceId() as string,
       'api_key': this.api_key() as string,
+      'locale': this.locale,
     };
     return this.http.post(this.COMPLETE_FLOW_URL, metadata, { params }).pipe(
       map(() => {
