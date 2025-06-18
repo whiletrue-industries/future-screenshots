@@ -148,7 +148,7 @@
       </trans-unit>
       <trans-unit id="5420590008427243564" datatype="html">
         <source>try on a darker background</source>
-        <target state="translated">Probeer op een donkerdere achtergrond</target>
+        <target state="translated">Probeer op een donkerder achtergrond</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/scanner/scanner.component.ts</context>
           <context context-type="linenumber">161</context>
@@ -386,7 +386,7 @@
 We’re currently analyzing your screenshot and adding it to the Futures Map. This usually takes a few minutes. When it’s ready we will **email** you a **secret link** so you can always find, edit or delete your screenshots from the map.</source>
         <target state="translated">Begrepen. Bedankt!
 
-We analyseren momenteel je screenshot en voegen deze tow aan de Futures Map. Als het klaar is, sturen we je een **beveiligde link** per **e-mail** zodat je je screenshot altijd kunt vinden, bewerken of verwijderen van de Futures Map.</target>
+We analyseren momenteel je screenshot en voegen deze toe aan de Futures Map. Als het klaar is, sturen we je een **link** per **e-mail** zodat je je screenshot altijd kunt vinden, bewerken of verwijderen van de Futures Map.</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
           <context context-type="linenumber">61</context>
@@ -595,7 +595,7 @@ We hebben “:TAGLINE:” aan de Futures Map toegevoegd!
 We will send another **secret link** to :EMAIL: as soon as this screenshot is added to the Futures Map.</source>
         <target state="translated">Begrepen. Bedankt!
 
-We sturen een andere **beveiligde link** naar :EMAIL: zodra deze screenshot aan de Futures Map is toegevoegd.</target>
+We sturen een andere **link** naar :EMAIL: zodra deze screenshot aan de Futures Map is toegevoegd.</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
           <context context-type="linenumber">120</context>
