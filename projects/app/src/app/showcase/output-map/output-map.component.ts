@@ -145,7 +145,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
         tap(() => {
           console.log('WATCHDOG RESETTING');
         }),
-        debounceTime(60000),
+        debounceTime(180000),
         tap(() => {
           Sentry.captureMessage("WATCHDOG RELOADING", {
             extra: {
