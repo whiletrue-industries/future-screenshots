@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, computed, effect, ElementRef, Input, OnInit, signal, ViewChild } from '@angular/core';
 
-import { animationFrameScheduler, catchError, debounceTime, delay, distinct, distinctUntilChanged, filter, forkJoin, from, interval, last, map, max, ReplaySubject, Subject, switchMap, take, tap, timer } from 'rxjs';
+import { animationFrameScheduler, catchError, debounceTime, delay, distinct, distinctUntilChanged, filter, forkJoin, from, interval, last, map, max, merge, ReplaySubject, Subject, switchMap, take, tap, timer } from 'rxjs';
 // import * as L from 'leaflet';
 import { ActivatedRoute } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -300,7 +300,10 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
         this.map().flyToBounds(bounds, {animate: true, duration: 5});
         this.clusterLabelsVisible.set(false);
         this.overlayTransform.set(`rotate(${-item.metadata.rotate}deg)`);
-        return this.moveEnded.pipe(take(1), map(() => item));
+        return merge(
+          this.moveEnded,
+          timer(5000)
+        ).pipe(take(1), map(() => item));
       }),
       // Rotate the map and show the overlay
       tap((item) => {
@@ -386,24 +389,23 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
         const frameRate = 33;
         this.map().flyToBounds(this.bounds(), {animate: true, duration: duration, easeLinearity: 1.0 });
         const count = Math.ceil(duration * 1000 / frameRate);
-        return forkJoin([
-          interval(33, animationFrameScheduler).pipe(
-            take(count),
-            tap((i) => {
-              this.loopStep += 5 / count;
-              const total = (this.wdim() ** 2) * 3;
-              const amount = ((i+1) / count) ** 5;
-              this.maskAmount.set(Math.ceil(amount*total));
-            }),
-          ),
-          this.moveEnded.pipe(
-            take(1),
-            map(() => {
-              this.loopStep += 5;
-              return item;
-            }),
-          )
-        ]);
+        return merge(
+          timer(6000),
+          forkJoin([
+            interval(33, animationFrameScheduler).pipe(
+              take(count),
+              tap((i) => {
+                const total = (this.wdim() ** 2) * 3;
+                const amount = ((i+1) / count) ** 5;
+                this.maskAmount.set(Math.ceil(amount*total));
+              }),
+            ),
+            this.moveEnded
+          ])
+        ).pipe(
+          take(1),
+          map(() => item)
+        );
       }),
       // Show the cluster labels
       tap((item) => {
