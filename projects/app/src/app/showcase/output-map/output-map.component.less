@@ -289,23 +289,23 @@
                 &.prefer {
                     top: 50%;
                     left: 0;
-                    transform: translateY(-4vh) rotate(90deg);
+                    transform: translateY(-4vh) rotate(90deg) scale(0.8) translateY(2vh);
                     transform-origin: top left;
                     &.selected {
                         left: 2vh;
                         top: -7vh;
-                        transform: translateY(0) rotate(-12deg);
+                        transform: translateY(0) rotate(-12deg) scale(1) translateY(0);
                     }
                 }
                 &.prevent {
                     top: 50%;
                     right: 0;
                     transform-origin: top right;
-                    transform: translateY(-4vh) rotate(270deg);;
+                    transform: translateY(-4vh) rotate(270deg) scale(0.8) translateY(2vh);
                     &.selected {
                         right: 2vh;
                         top: -4vh;
-                        transform: translateY(0) rotate(16deg);
+                        transform: translateY(0) rotate(16deg) scale(1) translateY(0);
                     }
                 }
             }

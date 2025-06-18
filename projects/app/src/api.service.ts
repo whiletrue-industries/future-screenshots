@@ -24,7 +24,7 @@ export class ApiService {
 
   item = signal<any>(null);
   api_key = signal<string | null>(null);
-  workspaceId = signal<string>('empty');
+  workspaceId = signal<string | null>(null);
   itemId = signal<string | null>(null);
   itemKey = signal<string | null>(null);
   automatic = signal<boolean>(false);

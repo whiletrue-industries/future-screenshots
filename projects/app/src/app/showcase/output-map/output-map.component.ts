@@ -1,12 +1,14 @@
 import { AfterViewInit, Component, computed, effect, ElementRef, Input, OnInit, signal, ViewChild } from '@angular/core';
 
-import { animationFrameScheduler, catchError, delay, distinct, distinctUntilChanged, filter, forkJoin, from, interval, last, map, max, ReplaySubject, Subject, switchMap, take, tap, timer } from 'rxjs';
+import { animationFrameScheduler, catchError, debounceTime, delay, distinct, distinctUntilChanged, filter, forkJoin, from, interval, last, map, max, ReplaySubject, Subject, switchMap, take, tap, timer } from 'rxjs';
 // import * as L from 'leaflet';
 import { ActivatedRoute } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PlatformService } from '../../../platform.service';
 import { ShowcaseApiService } from '../../../showcase-api.service';
 import { LeafletService } from '../../../leaflet.service';
+
+import * as Sentry from "@sentry/angular";
 // import * as L from '@types/leaflet';
 
 // import { type Map } from 'leaflet';
@@ -78,6 +80,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
   queue = new ReplaySubject<any>(1);
   moveEnded = new Subject<void>();
   mapChangingOpportunity = new Subject<void>();
+  looped = new Subject<void>();
 
   wdim = computed(() => {
     if (this.config()) {
@@ -136,6 +139,28 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
       this.config.set(config);
     });
     this.platform.browser(() => {
+      this.looped.pipe(
+        takeUntilDestroyed(),
+        tap(() => {
+          console.log('WATCHDOG RESETTING');
+        }),
+        debounceTime(60000),
+        tap(() => {
+          Sentry.captureMessage("WATCHDOG RELOADING", {
+            extra: {
+              tag: this.tag,
+              config: this.config(),
+              sortCorrectly: this.sortCorrectly,
+              currentIndex: this.currentIndex,
+            },
+            level: "warning"
+          });
+        }),
+        delay(1000),
+      ).subscribe(() => {
+        console.log('WATCHDOG RELOADING');
+        window.location.reload();
+      });
       this.api.config.pipe(
         filter(config => !!config),
         take(1),
@@ -223,8 +248,10 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
   }
 
   loop(): void {
+    this.looped.next();
     this.queue.pipe(
       tap((item) => {
+        this.looped.next();
         console.log('LANG QUEUE', item?.id);
       }),
       filter((item) => !!item),
@@ -424,21 +451,24 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
   addToQueue() {
     if (this.config()) {
       let item = null;
-      while (!item) {
-        const grid = this.config().grid;
-        let index = this.currentIndex;
-        if (!this.sortCorrectly) {
-          index = Math.floor(Math.random() * grid.length);          
-        } 
-        item = grid[index];
-        this.currentIndex++;
-        if (this.currentIndex >= grid.length) {
-          this.currentIndex = 0;
-          this.sortCorrectly = false;
+      const grid = this.currentIndex > 3 ? [] : this.config().grid;
+      console.log('GRID', this.currentIndex, this.sortCorrectly);
+      if (grid && grid.length > 0) {
+        while (!item) {
+          let index = this.currentIndex;
+          if (!this.sortCorrectly) {
+            index = Math.floor(Math.random() * grid.length);          
+          } 
+          item = grid[index];
+          this.currentIndex++;
+          if (this.currentIndex >= grid.length) {
+            this.currentIndex = 0;
+            this.sortCorrectly = false;
+          }
         }
+        // console.log('ITEM', item);
+        this.queue.next(item);
       }
-      // console.log('ITEM', item);
-      this.queue.next(item);
     }
   }
 
