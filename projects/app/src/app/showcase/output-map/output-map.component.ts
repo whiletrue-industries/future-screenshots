@@ -109,6 +109,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
   bounds = computed<L.LatLngBoundsLiteral>(() => {
     return [[-this.h(), 0], [0, this.w()]];
   });
+  loopStep = 0;
   
   constructor(private api: ShowcaseApiService, private platform: PlatformService, private activatedRoute: ActivatedRoute, private leafletService: LeafletService) {
     this.L = this.leafletService.L;
@@ -152,13 +153,14 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
               config: this.config(),
               sortCorrectly: this.sortCorrectly,
               currentIndex: this.currentIndex,
+              loopStep: this.loopStep,
             },
             level: "warning"
           });
         }),
         delay(1000),
       ).subscribe(() => {
-        console.log('WATCHDOG RELOADING');
+        console.log('WATCHDOG RELOADING - ', this.loopStep);
         window.location.reload();
       });
       this.api.config.pipe(
@@ -251,6 +253,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
     this.looped.next();
     this.queue.pipe(
       tap((item) => {
+        this.loopStep = 0;
         this.looped.next();
         console.log('LANG QUEUE', item?.id);
       }),
@@ -258,22 +261,26 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
       distinctUntilChanged(),
       // Load item & image
       tap((item) => {
+        this.loopStep = 10;
         let url: string = item.metadata.url;
         url = url.replace('https://storage.googleapis.com/chronomaps3.firebasestorage.app/', 'https://storage.googleapis.com/chronomaps3-eu/');
         this.itemImg.set(url);
       }),
       // Show the mask with single item
       tap((item) => {
+        this.loopStep = 20;
         this.maskBase.set({x: item.pos[0], y: item.pos[1]});
         this.maskAmount.set(1);
       }),
       delay(1000),
       tap((item) => {
+        this.loopStep = 30;
         this.maskLayerVisible.set(true);
       }),
       delay(3000),
       // Fit item to bounds
-      switchMap((item) => {      
+      switchMap((item) => {    
+        this.loopStep = 40;  
         console.log('New item in queue:', item);
         const bounds = item.geo_bounds as L.LatLngBoundsLiteral;
         // console.log('BOUNDS PRE', JSON.stringify(bounds), this.config().conversion_ratio);
@@ -297,6 +304,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
       }),
       // Rotate the map and show the overlay
       tap((item) => {
+        this.loopStep = 50;
         this.clusterLabelsVisible.set(false);
         this.mapTransform.set(`rotate(${item.metadata.rotate}deg)`);
         this.overlayTransform.set(`rotate(0deg)`);
@@ -306,12 +314,14 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
       // When image is loaded, show the overlay <-- not checking atm
       // Show clothespins
       tap((item) => {
+        this.loopStep = 60;
         this.clothespinTextVisible.set('both');
         this.clothespinVisible.set('both');
       }),
       delay(1000),
       // Move clothespins to the new position
       tap((item) => {
+        this.loopStep = 70;
         if (item.metadata.sign > 0) {
           this.clothespinTextVisible.set('prefer');
           this.clothespinVisible.set('prefer');
@@ -322,17 +332,20 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
       }),
       delay(500),
       tap((item) => {
+        this.loopStep = 80;
         this.clothespinSelected.set(true);
       }),
       delay(500),
       // Show cone and wait for animation to finish
       tap((item) => {
+        this.loopStep = 90;
         this.clothespinTextVisible.set('none');
         this.coneVisible.set(true);
       }),
       delay(4000),
       // Zoom cone in based on potential, rotate the overlay
       tap((item) => {
+        this.loopStep = 100;
         this.selectedLabel.set(Math.round(item.metadata.rotate / 8));
         let className = '-' + Math.abs(this.selectedLabel());
         if (item.metadata.rotate > 0) {
@@ -356,11 +369,13 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
       delay(5000),
       // Hide the overlay
       tap((item) => {
+        this.loopStep = 110;
         this.itemImgVisible.set(false);
       }),
       delay(1000),
       // fitToBounds map while updating the mask
       switchMap((item) => {
+        this.loopStep = 120;
         this.clothespinSelected.set(false);
         this.coneVisible.set(false);
         this.coneExpand.set('');
@@ -385,14 +400,16 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
       }),
       // Show the cluster labels
       tap((item) => {
+        this.loopStep = 130;
         this.clothespinVisible.set('none');
         this.maskLayerVisible.set(false);
       }),
       delay(3000),
       catchError((err) => {
-        return from(['error: ' + err]);
+        return from(['error: ' + err + ' ' + this.loopStep]);
       }),
     ).subscribe((item) => {
+      this.loopStep = 200;
       console.log('Finished with item', item);
       this.addToQueue();
     });

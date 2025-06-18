@@ -74,7 +74,7 @@
         img {
             object-fit: contain;
             object-position: center;
-            width: 75%;
+            width: 50%;
         }
     }
 
@@ -82,8 +82,8 @@
         width: 100%;
         position: sticky;
         bottom: 0;
-        background-color: @color-creme;
-        box-shadow: 0px 0px 16px 0px rgba(78, 2, 178, 0.20);
+        // background-color: @color-creme;
+        // box-shadow: 0px 0px 16px 0px rgba(78, 2, 178, 0.20);
         padding: 16px;
     }
 
@@ -100,7 +100,7 @@
             width: 145px;
             height: 145px;
             border-radius: 80px;
-            flex-flow: column nowrap;
+            flex-flow: column nowrap;       
             align-items: center;
             justify-content: flex-end;
             padding-bottom: 25px;
@@ -113,6 +113,10 @@
             font-weight: 700;
             position: relative;
 
+            background-color: fade(@color-creme, 75%);
+            border: 2px solid black;
+            backdrop-filter: blur(5px);
+
             .img {
                 position: absolute;
                 top: 50%;
@@ -124,12 +128,12 @@
         }
 
         .prefer {
-            background-color: fade(@color-prefer, 15%);
+            border-color: fade(@color-prefer, 15%);
             color: @color-prefer-dark;
         }
 
         .prevent {
-            background-color: fade(@color-prevent, 15%);
+            border-color: fade(@color-prevent, 15%);
             color: @color-prevent-dark;
             animation-delay: 1s;
         }
@@ -139,16 +143,19 @@
         flex: 0 0 auto;
         display: flex;
         flex-flow: column nowrap;
-        gap: 15px;
         height: fit-content;
         width: 100%;
+        padding: 0;
 
         .ish {        
             display: flex;
             flex-flow: column nowrap;
             align-items: center;
             width: 100%;
-            padding-top: 16px;
+            padding: 16px;
+            padding-top: 24px;
+            background: fade(@color-creme, 75%);
+            backdrop-filter: blur(10px);
             
             .pin {
                 height: 14px;
@@ -203,11 +210,13 @@
         }
 
         .controls {
-            padding: 12px 0;
+            padding: 12px 16px;
             display: flex;
             flex-flow: row nowrap;
             gap: 8px;
             align-items: center;
+            background-color: @color-creme;
+            border-top: 1px solid @color-light-gray;
 
             .undo {
                 display: flex;
