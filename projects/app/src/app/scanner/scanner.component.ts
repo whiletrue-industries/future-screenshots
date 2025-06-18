@@ -63,6 +63,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     return `M${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y} L ${points[2].x} ${points[2].y} L ${points[3].x} ${points[3].y} Z`;
   });
   points = signal<{x: number, y: number}[]>([]);
+  cameraClicked = signal<boolean>(false);
+  displayCameraButton = signal<boolean>(false);
 
   constructor(
     private el: ElementRef, 
@@ -255,7 +257,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     interval(33).pipe(
       takeUntilDestroyed(this.destroyRef),
       takeUntil(this.stopScannerSubject),
-      filter(() => this.countDown > 0),
+      filter(() => this.countDown >= 0),
       map(() => {
         let frame: any = null;
         let resampledFrame: any = null;
@@ -310,11 +312,17 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       }
       if (shape?.valid) {
         this.displayMsgSubject.next($localize`hold still...`);
-        this.countDown -= 1;
+        if (this.countDown > 0) {
+          this.countDown -= 1;
+        }
         if (!shape.blurry && this.countDown > 5) {
-          this.countDown = 5;
+          this.countDown = 0;
         }
         if (this.countDown === 0) {
+          this.displayCameraButton.set(true);
+        }
+        if (this.cameraClicked()) {
+          this.countDown = -1;
           frame = scanner.extractPaper(this.canvasEl.nativeElement, 1060, 2000, shape.cornerPoints);        
           console.log('Extraction result:', frame);
           this.stream?.getTracks().forEach((track) => {
