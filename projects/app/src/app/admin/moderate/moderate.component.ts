@@ -130,8 +130,9 @@ export class ModerateComponent {
 
   fix_favorable_future(future: any) {
     if (future) {
+      future = future.replace('preferred', 'prefer');
       if (future === 'yes') {
-        return 'preferred';
+        return 'prefer';
       }
       if (future === 'no') {
         return 'prevent';
