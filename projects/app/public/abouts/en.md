@@ -6,13 +6,15 @@ The screenshots in the _Futures Map_ are not organized chronologically, but by r
 
 ## From Hope to Action
 
-Both _Future Screenshots_ and the _Futures Map_ respond to the prevalent inability to see a future after October 7th, 2023. IT seems like the space for imagination  between the river and the sea has been narrowing. Many of the contributors to this archive have lost loved ones, and are still struggling through this barrage of violence. These images of the future are not imagined from the sidelines, but from within the ashes, as the fires still burn. Our political imagination is not an escape; it’s a form of resistance. It’s how we imagine and shape the futures we share—even when doing so feels impossible.
+Both [_Future Screenshots_](https://medium.com/@mushon/future-screenshots-cfcf842ad9cf) and the [_Futures Map_](https://mapfutur.es) address a widespread difficulty to see a future. Since October 7th, 2023, it seems like the space for imagination between the river and the sea has been narrowing. Many of the contributors to this archive have lost loved ones, and are still struggling through this barrage of violence. These images of the future are not armchair speculations from the sidelines, they depict true hopes and fears from within the ashes, as the fires still burn. Our political imagination is not an escape; it’s a form of resistance. It’s how we imagine and shape the futures we share—even when doing so may seem preposterous.
 
-These screenshots do not depict complete futures. They’re fragments, peepholes, landmarks in an ocean of uncertainty. Still, when viewed as a growing field, they allow us to ask: what room is there for me in your future? It’s a critical question, and it doesn’t stop there. By seeing where our visions overlap—and where they collide—we begin to locate opportunities for joint action, mutual prevention in the present towards futures that are more than a zero-sum-game. 
+These screenshots do not depict complete futures. They’re fragments, peepholes, landmarks in an ocean of uncertainty. Still, when used as a map, they allow us to ask: _what room is there for me in your future?_ This critical question doesn’t stop there. By finding where our imagined futures overlap—and where they collide—we begin to locate opportunities for joint action in the present both towards and against futures that are more than a zero-sum-game. 
 
-## Getting Involved
+## Get Involved
 
-If you’ve created a future screenshot—as part of a class, a protest, a workshop, or just on your own—add it to the Futures Map. This archive is open and in progress. It grows with the people who engage it. We also welcome collaborations: co-hosting workshops, developing curriculum, or supporting activist strategies. If you're interested, get in touch.
+If you’ve created a future screenshot—as part of a class, a protest, a workshop—add it to the Futures Map. This archive is always in progress. It grows with the people who engage it. We also welcome collaborations: co-hosting workshops, developing curriculum, or supporting activist strategies. If you're interested, get in touch. 
+
+We are working to open the map to individual contributions soon.
 
 ## Credits
 
