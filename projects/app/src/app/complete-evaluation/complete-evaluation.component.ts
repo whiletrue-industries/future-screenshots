@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
 import { HttpClient } from '@angular/common/http';
@@ -16,6 +16,8 @@ import { CompletionImageComponent } from "../completion-image/completion-image.c
   styleUrl: './complete-evaluation.component.less'
 })
 export class CompleteEvaluationComponent {
+
+  thinking = input<boolean>(false);
 
   constructor(public api: ApiService, private http: HttpClient) {}
 

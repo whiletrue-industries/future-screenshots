@@ -1,6 +1,6 @@
 <div class='container'>
     <app-completion-image></app-completion-image>
-    <div class='buttons' ltr>
+    <div class='buttons' ltr [class.hide]='thinking()'>
         @if (!api.isWorkshop()) {
             <div class='button-row'>
                 <a [routerLink]="['/scan']" [queryParams]='{"item-id": null, "key": null}' queryParamsHandling="merge" class="button">

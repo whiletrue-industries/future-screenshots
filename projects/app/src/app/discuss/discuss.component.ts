@@ -98,6 +98,7 @@ export class DiscussComponent implements AfterViewInit {
   submitMessage() {
     this.inputDisabled.set(true);
     this.thinking.set(true);
+    this.messagesComponent.thinking.set(true);
     console.log('thinking...');
     const message = this.inputMessage();
     if (message) {
@@ -140,8 +141,10 @@ export class DiscussComponent implements AfterViewInit {
         });
         console.log('thinking done...');
         this.thinking.set(false);
+        this.messagesComponent.thinking.set(false);
       } else if (ret.kind === 'status' && ret.status) {
         this.thinking.set(false);
+        this.messagesComponent.thinking.set(false);
         this.failed.set(false);
         this.inputDisabled.set(false);
         if (this.reply()) {

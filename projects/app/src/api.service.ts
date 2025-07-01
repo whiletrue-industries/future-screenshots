@@ -116,6 +116,7 @@ export class ApiService {
       'workspace': this.workspaceId() as string,
       'api_key': this.api_key() as string,
       'locale': this.locale,
+      'workshop': this.isWorkshop(),
     };
     return this.http.post(this.COMPLETE_FLOW_URL, metadata, { params }).pipe(
       map(() => {

@@ -2,11 +2,10 @@ import { AfterViewInit, Component, computed, effect, signal, ViewChild } from '@
 import { Message, MessagesComponent } from "../messages/messages.component";
 import { ApiService } from '../../api.service';
 import { CollectPropertiesFavorableComponent } from "../collect-properties-favorable/collect-properties-favorable.component";
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { CollectPropertiesPotentialComponent } from "../collect-properties-potential/collect-properties-potential.component";
 import { filter, firstValueFrom, switchMap, tap, timer } from 'rxjs';
 import { CollectEmailComponent } from "../collect-properties-email/collect-properties-email.component";
-import { sign } from 'node:crypto';
 import { CompleteEvaluationComponent } from "../complete-evaluation/complete-evaluation.component";
 import { DirectToMapComponent } from "../direct-to-map/direct-to-map.component";
 
@@ -98,12 +97,12 @@ export class CollectPropertiesComponent implements AfterViewInit {
           for (const _ in propsUpdate) {
             this.api.item.update((item: any) => Object.assign({}, item, propsUpdate));
             console.log('Updating item with props:', propsUpdate);
-            this.messages.thinking = true;
+            this.messages.thinking.set(true);
             this.api.uploadImageInProgress.pipe(
               filter((inProgress) => inProgress === false),
-              switchMap(() => this.api.updateItem(propsUpdate, item_id, item_key)),
+              switchMap(() => this.api.updateItem(propsUpdate, item_id, item_key, this.api.isWorkshop())),
               tap(() => {
-                this.messages.thinking = false;
+                this.messages.thinking.set(false);
               })
             ).subscribe();
             break;
@@ -147,6 +146,18 @@ export class CollectPropertiesComponent implements AfterViewInit {
     },
     {
       id: 20,
+      instructions: '',
+      skip: () => {
+        if (!this.api.isWorkshop()) {
+          console.log('Skipping potential step, not in workshop mode');
+          return {};
+        }
+        this.router.navigate(['/discuss'], { queryParamsHandling: 'preserve' });
+        return null;
+      }
+    },
+    {
+      id: 21,
       instructions: $localize`That’s great!\n\nWe added “:TAGLINE:” to the map!\n\n**Want to see it?**`,      
       skip: () => {
         const itemKey = this.api.itemKey();
@@ -157,7 +168,7 @@ export class CollectPropertiesComponent implements AfterViewInit {
       }
     },
     {
-      id: 21,
+      id: 22,
       instructions: $localize`We added “:TAGLINE:” to the map!\n\n**Want to see it?**`,      
       skip: () => {
         const itemKey = this.api.itemKey();
@@ -180,7 +191,7 @@ export class CollectPropertiesComponent implements AfterViewInit {
   emailFromStorage = false;
   localStorage = typeof localStorage !== 'undefined' ? localStorage : null;
 
-  constructor(private api: ApiService, private route: ActivatedRoute) {
+  constructor(private api: ApiService, private route: ActivatedRoute, private router: Router) {
     this.api.updateFromRoute(this.route.snapshot);
     this.fragment.set(this.route.snapshot.fragment || null);
     console.log('FRAGMENT', this.fragment());

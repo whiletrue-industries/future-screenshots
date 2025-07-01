@@ -35,11 +35,11 @@ export class Message {
 export class MessagesComponent implements AfterViewInit, OnDestroy {
 
   @Input() bg = false;
-  @Input() thinking = false;
   @Input() scrollOnAI = true;
   @Input() paddingTop = 16;
 
   messages = signal<Message[]>([]);
+  thinking = signal(false);
   @ViewChild('messagesEl') messagesEl!: ElementRef;
   @ViewChild('spacer') spacerEl!: ElementRef;
   scroller = new Subject<() => void>();

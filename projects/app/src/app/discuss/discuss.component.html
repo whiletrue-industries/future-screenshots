@@ -4,7 +4,7 @@
     </div>
 </div>
 <div class='discuss' [class.visible]="visible()" [class.completed]="completed()">
-    <app-messages #messagesComponent [bg]='!completed()' [thinking]='thinking()'>
+    <app-messages #messagesComponent [bg]='!completed()'>
         @if (!thinking() && reply()) {
             <div class='message ai' ltr>
                 <div class='message-text'>{{ reply() }}</div>

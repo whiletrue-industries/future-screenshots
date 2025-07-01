@@ -28,5 +28,11 @@
         display: flex;
         flex-flow: column;
         gap: 8px;
+        transition: transform 0.3s ease-in-out;
+        transform: translateY(0);
+
+        &.hide {
+            transform: translateY(100%);
+        }
     }
 }
