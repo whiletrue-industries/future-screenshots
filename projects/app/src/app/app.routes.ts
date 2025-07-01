@@ -65,13 +65,6 @@ export const routes: Routes = [
         }
     },
     {
-        'path': 'radical2505',
-        'component': RedirectorComponent,
-        'data': {
-            'redirectTo': '/he/?workspace=3c4496be-258d-4e32-803f-4f2cd67afa15&api_key=51760995-7a38-4f7a-b055-5415239f77de',
-        }
-    },
-    {
         'path': 'jma25',
         'component': RedirectorComponent,
         'data': {
@@ -79,31 +72,17 @@ export const routes: Routes = [
         }
     },
     {
-        'path': 'ppsjlm',
-        'component': RedirectorComponent,
-        'data': {
-            'redirectTo': '/he/?workspace=b5c32453-b748-4bac-8e28-5dc04a32c91d&api_key=f52ff81e-75bb-45cf-9363-e8f9a1a30a7d',
-        }
-    },
-    {
-        'path': 'mndl2505',
-        'component': RedirectorComponent,
-        'data': {
-            'redirectTo': '/?workspace=b4ce1eae-9add-4854-bd7c-5d90dbe31134&api_key=fa3d6160-f061-4159-afd1-5e654c29ffc5',
-        }
-    },
-    {
-        'path': '20250612',
-        'component': RedirectorComponent,
-        'data': {
-            'redirectTo': '/?workspace=573006c9-b004-438f-aae3-969751b32fd2&api_key=c5f7e0e7-8cc3-4822-b11d-ddc37339870e&ws=true',
-        }
-    },
-    {
         'path': 'testing',
         'component': RedirectorComponent,
         'data': {
             'redirectTo': '/?workspace=61358757-cf32-483f-847f-3e4eb3855408&api_key=212aa064-4d02-4edb-8f0b-9f649d026fb2',
+        }
+    },
+    {
+        'path': 'testing-ws',
+        'component': RedirectorComponent,
+        'data': {
+            'redirectTo': '/?workspace=61358757-cf32-483f-847f-3e4eb3855408&api_key=212aa064-4d02-4edb-8f0b-9f649d026fb2&ws=true',
         }
     },
     {
