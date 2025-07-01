@@ -100,7 +100,7 @@ export class CollectPropertiesComponent implements AfterViewInit {
             this.messages.thinking.set(true);
             this.api.uploadImageInProgress.pipe(
               filter((inProgress) => inProgress === false),
-              switchMap(() => this.api.updateItem(propsUpdate, item_id, item_key, this.api.isWorkshop())),
+              switchMap(() => this.api.updateItem(propsUpdate, item_id, item_key)),
               tap(() => {
                 this.messages.thinking.set(false);
               })
