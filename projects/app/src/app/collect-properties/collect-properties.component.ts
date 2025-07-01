@@ -148,7 +148,7 @@ export class CollectPropertiesComponent implements AfterViewInit {
       id: 20,
       instructions: '',
       skip: () => {
-        if (!this.api.isWorkshop()) {
+        if (!this.api.isWorkshopFollowup() && !this.api.isWorkshop()) {
           console.log('Skipping potential step, not in workshop mode');
           return {};
         }

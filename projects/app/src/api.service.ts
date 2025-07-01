@@ -30,6 +30,7 @@ export class ApiService {
   automatic = signal<boolean>(false);
   workspace = signal<any>({});
   isWorkshop = signal<boolean>(false);
+  isWorkshopFollowup = signal<boolean>(false);
   uploadImageInProgress = new ReplaySubject<boolean>(1);
   locale = 'en';
 
@@ -60,6 +61,8 @@ export class ApiService {
 
     const isWorkshop = !!route.queryParams['ws'];
     this.isWorkshop.set(isWorkshop);
+    const isWorkshopFollowup = !!route.queryParams['wsf'];
+    this.isWorkshopFollowup.set(isWorkshopFollowup);
 
     const item_key = route.queryParams['key'];
     const item_id = route.queryParams['item-id'];
