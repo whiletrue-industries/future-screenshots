@@ -86,7 +86,7 @@ export const routes: Routes = [
         }
     },
     {
-        'path': 'ajeek',
+        'path': 'ajeec',
         'component': RedirectorComponent,
         'data': {
             'redirectTo': '/he/?workspace=6043fe29-bedb-45cb-8057-b63723b1a26e&api_key=86c03c59-0502-498f-9ccd-23e6f8a17682&ws=true',
