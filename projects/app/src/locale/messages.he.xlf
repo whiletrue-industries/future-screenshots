@@ -124,7 +124,7 @@
       </trans-unit>
       <trans-unit id="4101939369873545738" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>move closer to page</source>
-        <target state="">תתקרבו קצת אל הדף</target>
+        <target state="">אולי קצת קרוב יותר</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/scanner/scanner.component.ts</context>
           <context context-type="linenumber">186</context>
@@ -148,7 +148,7 @@
       </trans-unit>
       <trans-unit id="5420590008427243564" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>try on a darker background</source>
-        <target state="">נסו לצלם מעל רקע כהה יותר</target>
+        <target state="">שווה אולי לנסות רקע כהה יותר</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/scanner/scanner.component.ts</context>
           <context context-type="linenumber">161</context>
@@ -196,7 +196,7 @@
       </trans-unit>
       <trans-unit id="773590849053728767" datatype="html">
         <source>Prefer</source>
-        <target state="translated">מעדיף</target>
+        <target state="translated">מועדף</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">6,7</context>
@@ -208,7 +208,7 @@
       </trans-unit>
       <trans-unit id="2012955752017338899" datatype="html">
         <source>-ish</source>
-        <target state="translated">בערך</target>
+        <target state="translated">-בערך</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">8,9</context>
@@ -248,7 +248,7 @@
       </trans-unit>
       <trans-unit id="1480856902951863661" datatype="html">
         <source>Projected</source>
-        <target state="translated">מוקרנת</target>
+        <target state="translated">חזוי</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">26</context>
@@ -264,7 +264,7 @@
       </trans-unit>
       <trans-unit id="2484260751558990093" datatype="html">
         <source>Probable</source>
-        <target state="translated">סביר</target>
+        <target state="translated">צפוי</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">31</context>
@@ -289,7 +289,7 @@
       </trans-unit>
       <trans-unit id="1134819861441098772" datatype="html">
         <source>Plausible</source>
-        <target state="translated">אפשרי</target>
+        <target state="translated">סביר</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">36</context>
@@ -306,7 +306,7 @@
       </trans-unit>
       <trans-unit id="2626926581880691929" datatype="html">
         <source>not obvious, not surprising</source>
-        <target state="translated">לא ברור, לא מפתיע</target>
+        <target state="translated">לא מובן מאליו, אך גם לא מפתיע</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">37</context>
@@ -331,7 +331,7 @@
       </trans-unit>
       <trans-unit id="7019072582993235227" datatype="html">
         <source>highly unlikely, not impossible</source>
-        <target state="translated">לא סביר מאוד, אבל לא בלתי אפשרי</target>
+        <target state="translated">בלתי סביר, אבל לא בלתי אפשרי</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">42</context>
@@ -339,7 +339,7 @@
       </trans-unit>
       <trans-unit id="8633620612538259053" datatype="html">
         <source>Preposterous</source>
-        <target state="translated">אבסורדי</target>
+        <target state="translated">מופרך</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">46</context>
@@ -365,7 +365,7 @@
       </trans-unit>
       <trans-unit id="1392631183234789308" datatype="html">
         <source>Now, is that a future you would **prefer** would happen or is it a future you’ld rather **prevent**?</source>
-        <target state="translated">האם זה עתיד שתרצה **להעדיף** שיקרה או עתיד שתרצה **למנוע**?</target>
+        <target state="translated">האם מבחינתך זה עתיד **מועדף** או עתיד שברצונך **למנוע**?</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
           <context context-type="linenumber">38</context>
@@ -373,7 +373,7 @@
       </trans-unit>
       <trans-unit id="4243437504159954387" datatype="html">
         <source>And can you evaluate how likely is this future?</source>
-        <target state="translated">האם תוכל להעריך עד כמה עתיד זה סביר?</target>
+        <target state="translated">עד כמה העתיד הזה יתכן מבחינתך?</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
           <context context-type="linenumber">48</context>
@@ -397,7 +397,7 @@ We’re currently analyzing your screenshot and adding it to the Futures Map. Th
 Expect an email soon from **MapFutur.es!**</source>
         <target state="translated">מושלם! אנחנו מוכנים.
 
-צפה לאימייל בקרוב מ-**MapFutur.es!**</target>
+אימייל מ-**MapFutur.es!** בדרך אליך!</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
           <context context-type="linenumber">102</context>
@@ -405,7 +405,7 @@ Expect an email soon from **MapFutur.es!**</source>
       </trans-unit>
       <trans-unit id="884442091533409805" datatype="html">
         <source>Well, you will lose the option to edit and track your screenshot, but we will try to handle it with care. **Thanks**!</source>
-        <target state="translated">ובכן, תאבד את האפשרות לערוך ולעקוב אחר צילום המסך שלך, אבל ננסה לטפל בזה בזהירות. **תודה**!</target>
+        <target state="translated">ובכן, לא נוכל לשמור לך את האפשרות לערוך ולעקוב אחר צילום המסך שלך, אבל ננסה לטפל בזה בזהירות. **תודה**!</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
           <context context-type="linenumber">123</context>
@@ -441,7 +441,7 @@ We added “:TAGLINE:” to the map!
       </trans-unit>
       <trans-unit id="3155265313783380285" datatype="html">
         <source>Explore Map</source>
-        <target state="translated">חקור את המפה</target>
+        <target state="translated">המפה</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/complete-evaluation/complete-evaluation.component.html</context>
           <context context-type="linenumber">14,15</context>
@@ -449,7 +449,7 @@ We added “:TAGLINE:” to the map!
       </trans-unit>
       <trans-unit id="6492369180328294412" datatype="html">
         <source>scan again</source>
-        <target state="translated">סרוק שוב</target>
+        <target state="translated">סריקה חוזרת</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/confirm/confirm.component.html</context>
           <context context-type="linenumber">11,12</context>
@@ -513,7 +513,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
       </trans-unit>
       <trans-unit id="2699388920689322350" datatype="html">
         <source>I’d still rather</source>
-        <target state="translated">אני עדיין מעדיף</target>
+        <target state="translated">אני עדיין אעדיף</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">41</context>
@@ -549,7 +549,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
       </trans-unit>
       <trans-unit id="3656498069730681301" datatype="html">
         <source>prefer</source>
-        <target state="translated">מעדיף</target>
+        <target state="translated">אעדיף</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">43</context>
@@ -557,7 +557,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
       </trans-unit>
       <trans-unit id="3886813665525566856" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>I welcome additional boosts of hopeful activism and political imagination into my inbox</source>
-        <target state="translated">אני מקבל בברכה תוספות של אקטיביזם מלא תקווה ודמיון פוליטי לתיבת הדואר שלי</target>
+        <target state="translated">אקבל בשמחה תוספות של אקטיביזם, תקווה ודמיון פוליטי לתיבת הדואר שלי</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-email/collect-properties-email.component.html</context>
           <context context-type="linenumber">6,7</context>
@@ -573,7 +573,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
       </trans-unit>
       <trans-unit id="2201270596914647255" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Explore the Map</source>
-        <target state="translated">חקור את המפה</target>
+        <target state="translated">המפה</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/main-menu/main-menu.component.html</context>
           <context context-type="linenumber">4,5</context>
@@ -589,7 +589,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
       </trans-unit>
       <trans-unit id="700463741507627080" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source> Add to Map </source>
-        <target state="translated">הוסף למפה</target>
+        <target state="translated">הוספה למפה</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/main-menu/main-menu.component.html</context>
           <context context-type="linenumber">13</context>
@@ -597,7 +597,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
       </trans-unit>
       <trans-unit id="512623949609093993" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Yes, I agree</source>
-        <target state="translated">כן, אני מסכים</target>
+        <target state="translated">כן, יש אישור</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.html</context>
           <context context-type="linenumber">21,22</context>
@@ -607,7 +607,9 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         <source>Got it. Thanks!
 
 We will send another **secret link** to :EMAIL: as soon as this screenshot is added to the Futures Map.</source>
-        <target state=""></target>
+        <target state="">הבנתי. תודה!
+
+ישלח **קישור סודי** נוסף לכתובת :EMAIL: ברגע שצילום המסך הזה יתווסף למפת העתיד.</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
           <context context-type="linenumber">129</context>
@@ -615,7 +617,7 @@ We will send another **secret link** to :EMAIL: as soon as this screenshot is ad
       </trans-unit>
       <trans-unit id="2908146847463460746" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Download Image</source>
-        <target state=""></target>
+        <target state="">להוריד תמונה</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/complete-evaluation/complete-evaluation.component.html</context>
           <context context-type="linenumber">23,24</context>
@@ -623,7 +625,7 @@ We will send another **secret link** to :EMAIL: as soon as this screenshot is ad
       </trans-unit>
       <trans-unit id="3634609096631107420" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Share to Group</source>
-        <target state=""></target>
+        <target state="">לשתף בקבוצה</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/complete-evaluation/complete-evaluation.component.html</context>
           <context context-type="linenumber">53,54</context>
@@ -631,7 +633,7 @@ We will send another **secret link** to :EMAIL: as soon as this screenshot is ad
       </trans-unit>
       <trans-unit id="8336578779360621109" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Join whatsapp Group</source>
-        <target state=""></target>
+        <target state="">להצטרפות לקבוצת וואטסאפ</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.html</context>
           <context context-type="linenumber">21,22</context>
@@ -639,7 +641,7 @@ We will send another **secret link** to :EMAIL: as soon as this screenshot is ad
       </trans-unit>
       <trans-unit id="7287078049434709864" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>Thanks for participating in **:EVENT_NAME:**!</source>
-        <target state=""></target>
+        <target state="">תודה שהשתתפת ב- **:EVENT_NAME:**!</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
           <context context-type="linenumber">60</context>
@@ -647,7 +649,7 @@ We will send another **secret link** to :EMAIL: as soon as this screenshot is ad
       </trans-unit>
       <trans-unit id="8066727882775189410" datatype="html" xmlns="urn:oasis:names:tc:xliff:document:1.2">
         <source>**First, join the chat group** we set up for :EVENT_NAME:.</source>
-        <target state=""></target>
+        <target state="">**ראשית, יש להצטרף לקבוצת הצ'אט** שהקמנו עבור :EVENT_NAME:.</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/prescan/prescan.component.ts</context>
           <context context-type="linenumber">61</context>
