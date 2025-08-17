@@ -137,6 +137,14 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
         this.stream = stream;
         this.videoEl.nativeElement.srcObject = stream;
+        const track = stream.getVideoTracks()[0];
+        const capabilities: any = track.getCapabilities();
+        if (capabilities.torch) {
+          // Turn on the flash by applying the constraint
+          track.applyConstraints({
+              advanced: [{ torch: true } as MediaTrackConstraintSet]
+          }).catch(e => console.error('Torch ON failed:', e));
+        }
       });
     }
   }
