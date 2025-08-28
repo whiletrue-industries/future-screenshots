@@ -514,7 +514,7 @@ We hebben “:TAGLINE:” aan de Futures Map toegevoegd!
       </trans-unit>
       <trans-unit id="73573374824589403" datatype="html">
         <source>some parts of this</source>
-        <target state="translated">Een deel hiervan</target>
+        <target state="translated">&nbsp;</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">41,42</context>

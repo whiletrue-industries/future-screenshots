@@ -98,7 +98,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
           this.addMessage(this.initialInteraction[i]);
           return from([]);
         } else {
-          this.showMoreButton.set(!this.api.isWorkshop());
+          // this.showMoreButton.set(!this.api.isWorkshop());
           this.showWhatsappButton.set(this.api.isWorkshop() && this.api.workspace()?.whatsapp_group);
           this.showScanButton.set(true);
           return this.inputAnswer.pipe(
