@@ -36,7 +36,7 @@
       </trans-unit>
       <trans-unit id="6928209535035628388" datatype="html">
         <source>Add Another</source>
-        <target state="translated">Voeg nog een toe</target>
+        <target state="translated">Voeg er nog een toe</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/discuss/discuss.component.html</context>
           <context context-type="linenumber">21,22</context>
@@ -196,7 +196,7 @@
       </trans-unit>
       <trans-unit id="773590849053728767" datatype="html">
         <source>Prefer</source>
-        <target state="translated">Verkiezen</target>
+        <target state="translated">Gewenst</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">6,7</context>
@@ -208,7 +208,7 @@
       </trans-unit>
       <trans-unit id="2012955752017338899" datatype="html">
         <source>-ish</source>
-        <target state="translated">-achtig</target>
+        <target state="translated">(deels)</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">8,9</context>
@@ -220,7 +220,7 @@
       </trans-unit>
       <trans-unit id="7674739602840460559" datatype="html">
         <source>Prevent</source>
-        <target state="translated">Voorkomen</target>
+        <target state="translated">Gevreesd</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">11,12</context>
@@ -249,7 +249,7 @@
       </trans-unit>
       <trans-unit id="1480856902951863661" datatype="html">
         <source>Projected</source>
-        <target state="translated">Voorspelbaar</target>
+        <target state="translated">Verwacht</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">26</context>
@@ -257,7 +257,7 @@
       </trans-unit>
       <trans-unit id="6076808633385617788" datatype="html">
         <source>will happen for sure</source>
-        <target state="translated">Zal zeker gebeuren</target>
+        <target state="translated">Zal wel gebeuren</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">27</context>
@@ -282,7 +282,7 @@
       </trans-unit>
       <trans-unit id="2738506871935936721" datatype="html">
         <source>almost certain</source>
-        <target state="translated">Bijna zeker</target>
+        <target state="translated">Zou best kunnen</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">32</context>
@@ -290,7 +290,7 @@
       </trans-unit>
       <trans-unit id="1134819861441098772" datatype="html">
         <source>Plausible</source>
-        <target state="translated">Aannemelijk</target>
+        <target state="translated">Geloofwaardig</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">36</context>
@@ -307,7 +307,7 @@
       </trans-unit>
       <trans-unit id="2626926581880691929" datatype="html">
         <source>not obvious, not surprising</source>
-        <target state="translated">Zou kunnen</target>
+        <target state="translated">Kan ook nog</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">37</context>
@@ -332,7 +332,7 @@
       </trans-unit>
       <trans-unit id="7019072582993235227" datatype="html">
         <source>highly unlikely, not impossible</source>
-        <target state="translated">Onwaarschijnlijk maar mogelijk</target>
+        <target state="translated">Niet onmogelijk</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">42</context>
@@ -340,7 +340,7 @@
       </trans-unit>
       <trans-unit id="8633620612538259053" datatype="html">
         <source>Preposterous</source>
-        <target state="translated">Onmogelijk</target>
+        <target state="translated">Absurd</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">46</context>
@@ -358,7 +358,7 @@
       </trans-unit>
       <trans-unit id="9097624115673349291" datatype="html">
         <source>can never happen</source>
-        <target state="translated">Kan nooit gebeuren</target>
+        <target state="translated">Hoogs onwaarschijnlijk</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-potential/collect-properties-potential.component.ts</context>
           <context context-type="linenumber">47</context>
@@ -366,7 +366,7 @@
       </trans-unit>
       <trans-unit id="1392631183234789308" datatype="html">
         <source>Now, is that a future you would **prefer** would happen or is it a future you’ld rather **prevent**?</source>
-        <target state="translated">Is dit een toekomst die je zou **verkiezen**, of een die je liever zou **voorkomen**?</target>
+        <target state="translated">Is dit een toekomst die je **wenst**, of **vreest**?</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties/collect-properties.component.ts</context>
           <context context-type="linenumber">38</context>
@@ -396,7 +396,7 @@ We analyseren momenteel je screenshot en voegen deze toe aan de Futures Map. Als
         <source>Perfect! We’re all set.
 
 Expect an email soon from **MapFutur.es!**</source>
-        <target state="translated">Perfect! We zijn er klaar voor.
+        <target state="translated">Perfect! Helemaal klaar.
 
 Verwacht binnenkort een e-mail van **MapFutur.es!**</target>
         <context-group purpose="location">
@@ -498,7 +498,7 @@ We hebben “:TAGLINE:” aan de Futures Map toegevoegd!
       </trans-unit>
       <trans-unit id="2699388920689322350" datatype="html">
         <source>I’d still rather</source>
-        <target state="translated">Ik geef nog steeds de voorkeur aan</target>
+        <target state="translated">Maar een deel hiervan zou ik willen</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">41</context>
@@ -514,7 +514,7 @@ We hebben “:TAGLINE:” aan de Futures Map toegevoegd!
       </trans-unit>
       <trans-unit id="73573374824589403" datatype="html">
         <source>some parts of this</source>
-        <target state="translated">Sommige delen hiervan</target>
+        <target state="translated">Een deel hiervan</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">41,42</context>
@@ -527,7 +527,7 @@ We hebben “:TAGLINE:” aan de Futures Map toegevoegd!
       </trans-unit>
       <trans-unit id="814054648013397270" datatype="html">
         <source>I do still</source>
-        <target state="translated">Ik geen nog steeds de voorkeur aan</target>
+        <target state="translated">Maar een deel hiervan zou ik nog steeds</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">43</context>
@@ -535,7 +535,7 @@ We hebben “:TAGLINE:” aan de Futures Map toegevoegd!
       </trans-unit>
       <trans-unit id="3656498069730681301" datatype="html">
         <source>prefer</source>
-        <target state="translated">Verkiezen</target>
+        <target state="translated">Wensen</target>
         <context-group purpose="location">
           <context context-type="sourcefile">projects/app/src/app/collect-properties-favorable/collect-properties-favorable.component.html</context>
           <context context-type="linenumber">43</context>
