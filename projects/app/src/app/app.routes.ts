@@ -21,6 +21,9 @@ export const routes: Routes = [
     { path: 'show/jma25', component: Jma25Component },
     { path: 'show', component: OutputMapComponent },
 
+    // Showcase2
+    { path: 'showcase-ws', loadComponent: () => import('./showcase-ws/showcase-ws.component').then(m => m.ShowcaseWsComponent) },
+
     // Admin routes
     {
         'path': 'admin',
