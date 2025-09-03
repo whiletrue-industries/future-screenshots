@@ -423,7 +423,7 @@ export class ShowcaseWsComponent implements AfterViewInit {
       }
 
       let obs: Observable<any> = timer(5000);
-      if (items.length >= 0) {
+      if (items.length > 0) {
         const randomItem = items[Math.floor(Math.random() * items.length)];
         obs = from(this.grid.animateExistingPhoto(randomItem._id));
       }
