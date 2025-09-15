@@ -1,6 +1,6 @@
 import { Component, effect, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { ModerateApiService } from '../../../moderate-api.service';
+import { AdminApiService } from '../../../admin-api.service';
 import { FormsModule } from '@angular/forms';
 
 export type Filter = {
@@ -47,10 +47,12 @@ export class ModerateComponent {
     'highlighted',
   ];
 
-  constructor(private route: ActivatedRoute, private api: ModerateApiService) {
+  constructor(private route: ActivatedRoute, private api: AdminApiService) {
     this.route.queryParams.subscribe(params => {
-      this.workspaceId.set(params['workspace'] || null);
       this.apiKey.set(params['api_key'] || null);
+    });
+    this.route.params.subscribe(params => {
+      this.workspaceId.set(params['workspaceId'] || this.workspaceId());
     });
     effect(() => {
       const workspaceId = this.workspaceId();

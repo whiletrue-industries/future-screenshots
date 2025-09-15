@@ -1,15 +1,27 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { catchError, Observable, of } from 'rxjs';
+import { catchError, map, Observable, of } from 'rxjs';
+import { AuthService } from './app/auth.service';
 
 @Injectable({
   providedIn: 'root'
 })
-export class ModerateApiService {
+export class AdminApiService {
 
   CHRONOMAPS_API_URL = 'https://chronomaps-api-qjzuw7ypfq-ez.a.run.app';
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient, private auth: AuthService) { }
+
+  listWorkspaces(): Observable<any[]> {
+    const headers: any = { 'Authorization': 'Bearer ' + this.auth.token() };
+    return this.http.get<any[]>(`${this.CHRONOMAPS_API_URL}/`, { headers }).pipe(
+      map((response: any) => response.workspaces || []),
+      catchError((error) => {
+        console.error('Error fetching workspaces:', error);
+        return of([]); // Return an empty array on error
+      })
+    );
+  }
 
   getWorkspace(workspace: string, api_key: string): Observable<any> {
     return this.http.get<any>(`${this.CHRONOMAPS_API_URL}/${workspace}`, {

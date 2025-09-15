@@ -13,6 +13,8 @@ import { OutputMapComponent } from './showcase/output-map/output-map.component';
 import { ModerateComponent } from './admin/moderate/moderate.component';
 import { CollectPropertiesComponent } from './collect-properties/collect-properties.component';
 import { AboutComponent } from './about/about.component';
+import { AdminComponent } from './admin/admin/admin.component';
+import { AuthGuard } from './auth.guard';
 
 export const routes: Routes = [
     // Showcase routes
@@ -26,8 +28,17 @@ export const routes: Routes = [
 
     // Admin routes
     {
+        'path': 'admin/login',
+        loadComponent: () => import('./admin/login/login.component').then(m => m.LoginComponent),
+    },
+    {
         'path': 'admin',
-        'component': ModerateComponent
+        loadComponent: () => import('./admin/admin/admin.component').then(m => m.AdminComponent),
+        canActivate: [AuthGuard],
+    },
+    {
+        'path': 'admin/:workspaceId',
+        loadComponent: () => import('./admin/moderate/moderate.component').then(m => m.ModerateComponent),
     },
     {
         'path': 'scan',
