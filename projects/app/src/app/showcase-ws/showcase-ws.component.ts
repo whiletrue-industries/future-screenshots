@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 
-import { AfterViewInit, Component, ElementRef, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, computed, ElementRef, signal, ViewChild } from '@angular/core';
 import { catchError, distinctUntilChanged, filter, forkJoin, from, interval, Observable, of, Subject, timer } from 'rxjs';
 import { PlatformService } from '../../platform.service';
 import { HttpClient } from '@angular/common/http';
-import QRCode from 'qrcode'
 import { ActivatedRoute } from '@angular/router';
+import { QrcodeComponent } from "./qrcode/qrcode.component";
 
 type TweenFn = (dt: number) => boolean;
 
@@ -377,26 +377,30 @@ export class PhotoGrid {
 
 @Component({
   selector: 'app-showcase-ws',
-  imports: [],
+  imports: [QrcodeComponent],
   templateUrl: './showcase-ws.component.html',
   styleUrl: './showcase-ws.component.less'
 })
 export class ShowcaseWsComponent implements AfterViewInit {
   @ViewChild('container', { static: true }) container!: ElementRef;
-  @ViewChild('qrcode', { static: true }) qrCodeEl!: ElementRef;
   grid: PhotoGrid;
   gridOccupancy: any = {};
   minM = 0;
   loop = new Subject<any[]>();
   lastCreatedAt = '0';
-  qrScale = 1;
-  qrSmall = false;
-  workspace: string;
-  api_key: string;
-  qrCodeSize = 0;
-  lang = '';
+  qrSmall = signal(false);
+  workspace = signal('');
+  api_key = signal('');
+  admin_key = signal('');
+  lang = signal('');
+  qrUrl = computed(() => 
+    `https://mapfutur.es/${this.lang()}?workspace=${this.workspace()}&api_key=${this.api_key()}&ws=true`
+  );
 
   constructor(private platform: PlatformService, private http: HttpClient, private el: ElementRef, private activatedRoute: ActivatedRoute) {
+    timer(10000).subscribe(() => {
+      this.qrSmall.set(true);
+    });
     this.loop.pipe(
       distinctUntilChanged()
     ).subscribe(async (items) => {
@@ -410,8 +414,7 @@ export class ShowcaseWsComponent implements AfterViewInit {
         const id = item._id;
         const url = item.screenshot_url;
         if (this.lastCreatedAt === '0') {
-            this.qrScale /= 5;
-            this.qrSmall = true;
+            this.qrSmall.set(true);
         }
         // console.log('ITEM', item);
         try {
@@ -435,9 +438,10 @@ export class ShowcaseWsComponent implements AfterViewInit {
       });
     });
     const qp = this.activatedRoute.snapshot.queryParams;
-    this.workspace = qp['workspace'] || 'WORKSPACE_NOT_SET';
-    this.api_key = qp['api_key'] || 'API_KEY_NOT_SET';
-    this.lang = qp['lang'] ? qp['lang'] + '/' : '';
+    this.workspace.set(qp['workspace'] || 'WORKSPACE_NOT_SET');
+    this.api_key.set(qp['api_key'] || 'API_KEY_NOT_SET');
+    this.admin_key.set(qp['admin_key'] || 'ADMIN_KEY_NOT_SET');
+    this.lang.set(qp['lang'] ? qp['lang'] + '/' : '');
   }
 
   getItems(): Observable<any[]> {
@@ -506,20 +510,10 @@ export class ShowcaseWsComponent implements AfterViewInit {
     this.grid.init();
     // console.log('ZZZ init interval');
     timer(2000).subscribe(() => {
-    this.getItems().subscribe((items) => {
-      this.loop.next(items);
-    });
-    });
-    await QRCode.toCanvas(this.qrCodeEl.nativeElement, 
-      `https://mapfutur.es/${this.lang}?workspace=${this.workspace}&api_key=${this.api_key}&ws=true`, {
-      scale: 16,
-      color: {
-        light: '#FFFDF6',
-        dark: '#4E02B2'
-      }
-    });
-    this.qrCodeSize = this.qrCodeEl.nativeElement.height;
-    this.qrScale = (this.el.nativeElement.clientHeight - 128) / this.qrCodeSize;
+      this.getItems().subscribe((items) => {
+        this.loop.next(items);
+      });
+    });    
   }
 
 }

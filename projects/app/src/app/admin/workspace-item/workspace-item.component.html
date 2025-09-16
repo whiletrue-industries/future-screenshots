@@ -7,10 +7,10 @@
             <a [routerLink]="['/admin', w.id]" [queryParams]="{ api_key: w.keys.admin }">Moderate Workspace</a>
         </div>
         <div class='links'>
-            <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace_id: w.id, api_key: w.keys.collaborate }">Workshop Big Screen</a>
-            <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace_id: w.id, api_key: w.keys.collaborate, lang: 'nl' }">(NL)</a>
-            <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace_id: w.id, api_key: w.keys.collaborate, lang: 'he' }">(HE)</a>
-            <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace_id: w.id, api_key: w.keys.collaborate, lang: 'ar' }">(AR)</a>
+            <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, admin_key: w.keys.admin }">Workshop Big Screen</a>
+            <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, lang: 'nl', admin_key: w.keys.admin }">(NL)</a>
+            <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, lang: 'he', admin_key: w.keys.admin }">(HE)</a>
+            <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, lang: 'ar', admin_key: w.keys.admin }">(AR)</a>
         </div>
         <div class='links'>
             <a [href]='"/" + ingestSuffix()'>Ingest (Regular)</a>

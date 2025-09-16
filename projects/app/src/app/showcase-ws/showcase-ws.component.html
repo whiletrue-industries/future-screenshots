@@ -1,7 +1,4 @@
 <div class='container' #container></div>
-<div class='qr-container' [class.small]='qrSmall' >
-  <canvas class='qrcode' #qrcode 
-          [style.transform]="'translate(' + (qrSmall ? 0 : qrScale*qrCodeSize/2) + 'px,' + (qrSmall ? 0 : -qrScale*qrCodeSize/2) + 'px) scale(' + qrScale + ')'"></canvas>
-</div>
+<app-qrcode [small]='qrSmall()' [url]='qrUrl()'></app-qrcode>
 <div class='logo'>
 </div>
