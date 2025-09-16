@@ -14,7 +14,7 @@ export class WorkspaceItemComponent {
   ingestSuffix = computed(() => {
     const w = this.workspace();
     if (w && w.id && w.keys) {
-      return `?workspace=${w.id}&api_key=${w.keys.contribute}`;
+      return `?workspace=${w.id}&api_key=${w.keys.collaborate}`;
     }
     return '';
   });
