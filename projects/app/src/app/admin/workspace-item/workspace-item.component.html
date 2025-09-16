@@ -1,7 +1,31 @@
 @let w = workspace();
 @if (!!w) {
     <div class="workspace-item">
-    <h2>{{ w.metadata.source }}</h2>
-    <a [routerLink]="['/admin', w.id]" [queryParams]="{ api_key: w.keys.admin }">Manage Workspace</a>
+        <h2>{{ w.metadata.source }}</h2>
+        <small>ID: {{ w.id }}</small>
+        <div class='links'>
+            <a [routerLink]="['/admin', w.id]" [queryParams]="{ api_key: w.keys.admin }">Moderate Workspace</a>
+        </div>
+        <div class='links'>
+            <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace_id: w.id, api_key: w.keys.contribute }">Workshop Big Screen</a>
+            <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace_id: w.id, api_key: w.keys.contribute, lang: 'nl' }">(NL)</a>
+            <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace_id: w.id, api_key: w.keys.contribute, lang: 'he' }">(HE)</a>
+            <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace_id: w.id, api_key: w.keys.contribute, lang: 'ar' }">(AR)</a>
+        </div>
+        <div class='links'>
+            <a [href]='"/" + ingestSuffix()'>Ingest (Regular)</a>
+            <a [href]='"/nl/" + ingestSuffix()'>(NL)</a>
+            <a [href]='"/he/" + ingestSuffix()'>(HE)</a>
+            <a [href]='"/ar/" + ingestSuffix()'>(AR)</a>
+        </div>
+        <div class='links'>
+            <a [href]='"/" + ingestSuffixWorkshop()'>Ingest (Workshop)</a>
+            <a [href]='"/nl/" + ingestSuffixWorkshop()'>(NL)</a>
+            <a [href]='"/he/" + ingestSuffixWorkshop()'>(HE)</a>
+            <a [href]='"/ar/" + ingestSuffixWorkshop()'>(AR)</a>
+        </div>
+        <div class='links'>
+            <a [routerLink]="['/']" [queryParams]="{ workspace: w.id, api_key: w.keys.contribute, automatic: 'true' }">Ingest (Automatic)</a>
+        </div>
     </div>
 }
