@@ -12,7 +12,7 @@ export class AuthService {
   user = new ReplaySubject<User | null>(1);
   token = signal<string | null>(null);
   
-  constructor(private afAuth: Auth, private platform: PlatformService) {
+  constructor(private afAuth: Auth, private router: Router, private platform: PlatformService) {
     this.platform.browser(() => {
       this.afAuth.onAuthStateChanged(user => {
         this.user.next(user);
