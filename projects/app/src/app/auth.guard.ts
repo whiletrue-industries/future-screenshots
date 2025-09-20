@@ -18,6 +18,10 @@ export class AuthGuard implements CanActivate {
       console.log('On server, skipping auth guard');
       return false;
     }
+    const path = route.routeConfig?.path || '';
+    if (path === 'admin/moderate') {
+      return true;
+    }
     const workspaceId = route.queryParams['workspace'] || null;
     if (workspaceId) {
       console.log('Redirecting to workspace-specific admin:', workspaceId);

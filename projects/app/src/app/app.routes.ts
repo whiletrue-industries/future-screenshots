@@ -32,13 +32,13 @@ export const routes: Routes = [
         loadComponent: () => import('./admin/login/login.component').then(m => m.LoginComponent),
     },
     {
+        'path': 'admin/moderate',
+        loadComponent: () => import('./admin/moderate/moderate.component').then(m => m.ModerateComponent),
+    },
+    {
         'path': 'admin',
         loadComponent: () => import('./admin/admin/admin.component').then(m => m.AdminComponent),
         canActivate: [AuthGuard],
-    },
-    {
-        'path': 'admin/moderate',
-        loadComponent: () => import('./admin/moderate/moderate.component').then(m => m.ModerateComponent),
     },
     {
         'path': 'scan',
