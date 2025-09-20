@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { ActivatedRouteSnapshot, CanActivate, Router, RouterStateSnapshot } from '@angular/router';
-import { map, Observable, tap } from 'rxjs';
+import { map, Observable, take, tap } from 'rxjs';
 import { AuthService } from './auth.service';
 import { PlatformService } from '../platform.service';
 
@@ -15,7 +15,7 @@ export class AuthGuard implements CanActivate {
     state: RouterStateSnapshot
   ): Observable<boolean> | Promise<boolean> | boolean {
     const path = route.routeConfig?.path || '';
-    if (path === 'admin/moderate') {
+    if (path.indexOf('admin/moderate') !== -1) {
       return true;
     }
     if (this.platform.server()) {
@@ -30,6 +30,7 @@ export class AuthGuard implements CanActivate {
     } 
 
     return this.auth.user.pipe(
+      take(1),
       map(user => !!user),
       tap(loggedIn => {
         if (!loggedIn) {
