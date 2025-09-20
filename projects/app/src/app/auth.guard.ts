@@ -21,7 +21,7 @@ export class AuthGuard implements CanActivate {
     const workspaceId = route.queryParams['workspace'] || null;
     if (workspaceId) {
       console.log('Redirecting to workspace-specific admin:', workspaceId);
-      this.router.navigate(['/admin', workspaceId], { queryParams: route.queryParams });
+      this.router.navigate(['/admin/moderate'], { queryParams: { ...route.queryParams } });
       return false;
     } 
 
