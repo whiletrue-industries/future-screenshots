@@ -14,13 +14,13 @@ export class AuthGuard implements CanActivate {
     route: ActivatedRouteSnapshot,
     state: RouterStateSnapshot
   ): Observable<boolean> | Promise<boolean> | boolean {
-    if (this.platform.server()) {
-      console.log('On server, skipping auth guard');
-      return false;
-    }
     const path = route.routeConfig?.path || '';
     if (path === 'admin/moderate') {
       return true;
+    }
+    if (this.platform.server()) {
+      console.log('On server, skipping auth guard');
+      return false;
     }
     const workspaceId = route.queryParams['workspace'] || null;
     if (workspaceId) {
