@@ -37,7 +37,7 @@ export const routes: Routes = [
         canActivate: [AuthGuard],
     },
     {
-        'path': 'admin/:workspaceId',
+        'path': 'admin/moderate',
         loadComponent: () => import('./admin/moderate/moderate.component').then(m => m.ModerateComponent),
     },
     {

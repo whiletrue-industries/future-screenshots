@@ -50,9 +50,7 @@ export class ModerateComponent {
   constructor(private route: ActivatedRoute, private api: AdminApiService) {
     this.route.queryParams.subscribe(params => {
       this.apiKey.set(params['api_key'] || null);
-    });
-    this.route.params.subscribe(params => {
-      this.workspaceId.set(params['workspaceId'] || this.workspaceId());
+      this.workspaceId.set(params['workspace'] || this.workspaceId());
     });
     effect(() => {
       const workspaceId = this.workspaceId();

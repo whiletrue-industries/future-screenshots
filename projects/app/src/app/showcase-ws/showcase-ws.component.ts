@@ -513,7 +513,7 @@ export class ShowcaseWsComponent implements AfterViewInit {
       this.getItems().subscribe((items) => {
         this.loop.next(items);
       });
-    });    
+    });
   }
 
 }

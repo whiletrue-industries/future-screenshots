@@ -4,7 +4,7 @@
         <h2>{{ w.metadata.source }}</h2>
         <small>ID: {{ w.id }}</small>
         <div class='links'>
-            <a [routerLink]="['/admin', w.id]" [queryParams]="{ api_key: w.keys.admin }">Moderate Workspace</a>
+            <a [routerLink]="['/admin/moderate']" [queryParams]="{ api_key: w.keys.admin, workspace: w.id }">Moderate Workspace</a>
         </div>
         <div class='links'>
             <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, admin_key: w.keys.admin }">Workshop Big Screen</a>
