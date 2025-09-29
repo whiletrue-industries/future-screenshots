@@ -1,0 +1,345 @@
+import { LayoutStrategy, LayoutPosition, LayoutConfiguration, WebServiceLayoutStrategy } from './layout-strategy.interface';
+import { PhotoData } from './photo-data';
+import { Observable, from } from 'rxjs';
+
+/**
+ * TSNE Layout Strategy that fetches positioning data from a remote configuration service
+ * and positions photos according to TSNE (t-Distributed Stochastic Neighbor Embedding) algorithm results.
+ */
+export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayoutStrategy {
+  private configUrl: string;
+  private tsneData: TsneConfigData | null = null;
+  private isLoading = false;
+  private loadPromise: Promise<void> | null = null;
+  private readonly photoWidth: number;
+  private readonly photoHeight: number;
+  private readonly spacingX: number;
+  private readonly spacingY: number;
+  private readonly cellW: number;
+  private readonly cellH: number;
+
+  /**
+   * Creates a new TSNE layout strategy
+   * @param workspaceId The UUID of the workspace to fetch TSNE data for
+   * @param baseUrl The base URL for the config service (defaults to Google Cloud Storage)
+   */
+  constructor(
+    private workspaceId: string,
+    private baseUrl: string = 'https://storage.googleapis.com/chronomaps3-eu',
+    options: {
+      photoWidth?: number;
+      photoHeight?: number;
+      spacingX?: number;
+      spacingY?: number;
+    } = {}
+  ) {
+    super();
+    this.configUrl = `${this.baseUrl}/tiles/${this.workspaceId}/0/config.json`;
+    
+    // Use same dimensions as grid layout to ensure consistency
+    this.photoWidth = options.photoWidth ?? 530;
+    this.photoHeight = options.photoHeight ?? 1000;
+    this.spacingX = options.spacingX ?? 250;
+    this.spacingY = options.spacingY ?? 30;
+    this.cellW = this.photoWidth + this.spacingX;  // 780
+    this.cellH = this.photoHeight + this.spacingY; // 1030
+  }
+
+  /**
+   * Gets the configuration for this layout strategy
+   */
+  getConfiguration(): LayoutConfiguration {
+    return {
+      name: 'tsne',
+      displayName: 'TSNE Layout',
+      description: 'Positions photos using TSNE coordinates from a web service with proper spacing',
+      supportsInteraction: false,
+      requiresWebService: true,
+      settings: {
+        workspaceId: this.workspaceId,
+        baseUrl: this.baseUrl,
+        photoWidth: this.photoWidth,
+        photoHeight: this.photoHeight,
+        spacingX: this.spacingX,
+        spacingY: this.spacingY
+      }
+    };
+  }
+
+  /**
+   * Fetches the TSNE configuration data from the remote service
+   */
+  private async fetchTsneData(): Promise<void> {
+    if (this.tsneData || this.isLoading) {
+      return this.loadPromise || Promise.resolve();
+    }
+
+    this.isLoading = true;
+    this.loadPromise = this.doFetchTsneData();
+    
+    try {
+      await this.loadPromise;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  private async doFetchTsneData(): Promise<void> {
+    try {
+      const response = await fetch(this.configUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch TSNE config: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      this.tsneData = this.validateTsneConfig(data);
+      
+      console.log(`Loaded TSNE config with ${this.tsneData.grid.length} items, dimensions: ${this.tsneData.dim.join('x')}`);
+    } catch (error) {
+      console.error('Error fetching TSNE configuration:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Validates and type-checks the TSNE configuration data
+   */
+  private validateTsneConfig(data: any): TsneConfigData {
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid TSNE config: not an object');
+    }
+
+    if (!Array.isArray(data.dim) || data.dim.length !== 2) {
+      throw new Error('Invalid TSNE config: dim must be an array of 2 numbers');
+    }
+
+    if (!Array.isArray(data.grid)) {
+      throw new Error('Invalid TSNE config: grid must be an array');
+    }
+
+    // Validate grid items
+    for (let i = 0; i < data.grid.length; i++) {
+      const item = data.grid[i];
+      if (!item || typeof item !== 'object') {
+        throw new Error(`Invalid TSNE config: grid item ${i} is not an object`);
+      }
+      
+      if (!Array.isArray(item.pos) || item.pos.length !== 2) {
+        throw new Error(`Invalid TSNE config: grid item ${i} pos must be an array of 2 numbers`);
+      }
+      
+      if (typeof item.id !== 'string') {
+        throw new Error(`Invalid TSNE config: grid item ${i} id must be a string`);
+      }
+    }
+
+    return {
+      dim: data.dim as [number, number],
+      grid: data.grid as TsneGridItem[],
+      padding_ratio: data.padding_ratio || 0.5,
+      conversion_ratio: data.conversion_ratio || [1, 1],
+      cell_ratios: data.cell_ratios || [1, 1]
+    };
+  }
+
+  /**
+   * Gets the position for a photo based on TSNE coordinates
+   */
+  async getPositionForPhoto(photo: PhotoData, existingPhotos: PhotoData[]): Promise<LayoutPosition> {
+    // Ensure TSNE data is loaded
+    await this.fetchTsneData();
+    
+    if (!this.tsneData) {
+      throw new Error('TSNE data not available');
+    }
+
+    // Find the photo in the TSNE grid data by matching ID
+    const gridItem = this.tsneData.grid.find(item => item.id === photo.id);
+    
+    if (!gridItem) {
+      console.warn(`Photo with id ${photo.id} not found in TSNE data, using default position`);
+      return { x: 0, y: 0 };
+    }
+
+    // Convert TSNE grid coordinates to world coordinates
+    const worldPos = this.convertTsneToWorldCoordinates(gridItem.pos, this.tsneData.dim);
+
+    return {
+      x: worldPos.x,
+      y: worldPos.y,
+      gridKey: `tsne-${gridItem.pos[0]}-${gridItem.pos[1]}`,
+      metadata: {
+        tsnePosition: gridItem.pos,
+        originalMetadata: gridItem.metadata
+      }
+    };
+  }
+
+  /**
+   * Calculate positions for all photos
+   */
+  async calculateAllPositions(photos: PhotoData[]): Promise<LayoutPosition[]> {
+    await this.fetchTsneData();
+    
+    if (!this.tsneData) {
+      throw new Error('TSNE data not available');
+    }
+
+    const positions: LayoutPosition[] = [];
+    
+    for (const photo of photos) {
+      const position = await this.getPositionForPhoto(photo, photos);
+      positions.push(position);
+    }
+    
+    return positions;
+  }
+
+  /**
+   * Fetch layout data from web service (WebServiceLayoutStrategy interface)
+   */
+  fetchLayoutData(photos: PhotoData[]): Observable<{ [photoId: string]: LayoutPosition }> {
+    return from(this.getAllPositionsAsMap(photos));
+  }
+
+  /**
+   * Converts TSNE grid coordinates to Three.js world coordinates
+   * Uses proper cell spacing to prevent image overlapping
+   */
+  private convertTsneToWorldCoordinates(
+    tsnePos: [number, number], 
+    gridDim: [number, number]
+  ): { x: number; y: number } {
+    const [gridX, gridY] = tsnePos;
+    const [maxGridX, maxGridY] = gridDim;
+    
+    // Convert grid coordinates directly to world coordinates using cell dimensions
+    // Center the grid around origin
+    const centerOffsetX = (maxGridX - 1) * this.cellW / 2;
+    const centerOffsetY = (maxGridY - 1) * this.cellH / 2;
+    
+    const worldX = (gridX * this.cellW) - centerOffsetX;
+    const worldY = centerOffsetY - (gridY * this.cellH); // Flip Y axis for screen coordinates
+    
+    return { x: worldX, y: worldY };
+  }
+
+  /**
+   * Gets all positions as a map (for WebServiceLayoutStrategy interface)
+   */
+  private async getAllPositionsAsMap(photos: PhotoData[]): Promise<{ [photoId: string]: LayoutPosition }> {
+    await this.fetchTsneData();
+    
+    if (!this.tsneData) {
+      throw new Error('TSNE data not available');
+    }
+
+    const positions: { [photoId: string]: LayoutPosition } = {};
+    
+    for (const photo of photos) {
+      const position = await this.getPositionForPhoto(photo, photos);
+      positions[photo.id] = position;
+    }
+    
+    return positions;
+  }
+  
+  /**
+   * Gets the layout bounds based on TSNE data
+   */
+  async getLayoutBounds(): Promise<{ width: number; height: number }> {
+    await this.fetchTsneData();
+    
+    if (!this.tsneData) {
+      return { width: this.cellW * 10, height: this.cellH * 10 }; // Default fallback
+    }
+
+    // Calculate dimensions based on TSNE grid size using actual cell dimensions
+    const [maxGridX, maxGridY] = this.tsneData.dim;
+    
+    const width = maxGridX * this.cellW;
+    const height = maxGridY * this.cellH;
+    
+    return { width, height };
+  }  /**
+   * Updates the workspace ID and reloads TSNE data
+   */
+  async setWorkspaceId(workspaceId: string): Promise<void> {
+    if (this.workspaceId === workspaceId) {
+      return;
+    }
+    
+    this.workspaceId = workspaceId;
+    this.configUrl = `${this.baseUrl}/tiles/${this.workspaceId}/0/config.json`;
+    this.tsneData = null;
+    this.isLoading = false;
+    this.loadPromise = null;
+    
+    // Preload new data
+    await this.fetchTsneData();
+  }
+
+  /**
+   * Gets the current workspace ID
+   */
+  getWorkspaceId(): string {
+    return this.workspaceId;
+  }
+
+  /**
+   * Gets information about the loaded TSNE configuration
+   */
+  getTsneInfo(): TsneInfo | null {
+    if (!this.tsneData) {
+      return null;
+    }
+    
+    return {
+      workspaceId: this.workspaceId,
+      gridSize: this.tsneData.dim,
+      itemCount: this.tsneData.grid.length,
+      configUrl: this.configUrl
+    };
+  }
+}
+
+/**
+ * Interface for TSNE configuration data structure
+ */
+interface TsneConfigData {
+  dim: [number, number];
+  grid: TsneGridItem[];
+  padding_ratio: number;
+  conversion_ratio: [number, number];
+  cell_ratios: [number, number];
+}
+
+/**
+ * Interface for individual grid items in TSNE data
+ */
+interface TsneGridItem {
+  pos: [number, number];
+  id: string;
+  metadata?: {
+    rotate?: number;
+    sign?: number;
+    mostly?: boolean;
+    favorable_future?: string;
+    timestamp?: string;
+    lang?: string;
+    url?: string;
+  };
+  geo_pos?: [number, number];
+  geo_bounds?: [[number, number], [number, number]];
+}
+
+/**
+ * Information about the loaded TSNE configuration
+ */
+export interface TsneInfo {
+  workspaceId: string;
+  gridSize: [number, number];
+  itemCount: number;
+  configUrl: string;
+}

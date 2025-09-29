@@ -2,3 +2,19 @@
 <app-qrcode [small]='qrSmall()' [url]='qrUrl()'></app-qrcode>
 <div class='logo'>
 </div>
+
+<!-- Layout Control Buttons -->
+<div class='layout-controls'>
+  <button 
+    class='layout-btn'
+    [class.active]='currentLayout() === "grid"'
+    (click)='switchToGridLayout()'>
+    Grid Layout
+  </button>
+  <button 
+    class='layout-btn'
+    [class.active]='currentLayout() === "tsne"'
+    (click)='switchToTsneLayout()'>
+    TSNE Layout
+  </button>
+</div>
