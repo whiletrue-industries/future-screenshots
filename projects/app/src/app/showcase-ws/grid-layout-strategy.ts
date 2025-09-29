@@ -6,6 +6,7 @@ import {
   LayoutTransitionOptions 
 } from './layout-strategy.interface';
 import { PHOTO_CONSTANTS } from './photo-constants';
+import { ANIMATION_CONSTANTS } from './animation-constants';
 
 export interface GridLayoutOptions {
   photoWidth?: number;     // default PHOTO_CONSTANTS.PHOTO_WIDTH
@@ -212,7 +213,7 @@ export class GridLayoutStrategy extends LayoutStrategy {
   // Optional: Custom transition settings for grid layout
   override getTransitionOptions(): LayoutTransitionOptions {
     return {
-      duration: 1100, // milliseconds
+      duration: ANIMATION_CONSTANTS.GRID_SPIRAL_ANIMATION_DURATION,
       easing: 'easeOut',
       staggerDelay: 50 // Small delay between each photo for wave effect
     };

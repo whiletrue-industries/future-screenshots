@@ -3,6 +3,7 @@ import { Subject, Observable, timer, from, forkJoin } from 'rxjs';
 import { PhotoData, PhotoMetadata, PhotoAnimationState } from './photo-data';
 import { LayoutStrategy, LayoutPosition } from './layout-strategy.interface';
 import { ThreeRendererService } from './three-renderer.service';
+import { ANIMATION_CONSTANTS } from './animation-constants';
 
 export interface PhotoDataRepositoryOptions {
   enableRandomShowcase?: boolean;
@@ -24,12 +25,13 @@ export class PhotoDataRepository {
   
   // Configuration
   private enableRandomShowcase = false;
-  private showcaseInterval = 5000; // 5 seconds
-  private newPhotoAnimationDelay = 3000; // 3 seconds
+  private showcaseInterval: number = ANIMATION_CONSTANTS.SHOWCASE_INTERVAL;
+  private newPhotoAnimationDelay: number = ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DELAY;
   
   // State management
   private showcaseTimer: any = null;
   private isShowcasing = false;
+  private cameraBoundsUpdateTimer: any = null;
   
     // Event subjects for external subscribers
   private photoAddedSubject = new Subject<PhotoData>();
@@ -56,8 +58,8 @@ export class PhotoDataRepository {
     
     // Apply options
     this.enableRandomShowcase = options.enableRandomShowcase ?? false;
-    this.showcaseInterval = options.showcaseInterval ?? 5000;
-    this.newPhotoAnimationDelay = options.newPhotoAnimationDelay ?? 3000;
+    this.showcaseInterval = options.showcaseInterval ?? ANIMATION_CONSTANTS.SHOWCASE_INTERVAL;
+    this.newPhotoAnimationDelay = options.newPhotoAnimationDelay ?? ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DELAY;
 
     // Initialize layout strategy
     await this.layoutStrategy.initialize();
@@ -255,11 +257,11 @@ export class PhotoDataRepository {
 
       // Animate to new position if visible
       if (hasValidPosition && photo.mesh) {
-        return this.renderer!.animateToPosition(
-          photo.mesh, 
+        return this.animateToPositionWithUpdate(
+          photo,
           photo.currentPosition, 
           photo.targetPosition, 
-          0.5 // Quick transition
+          ANIMATION_CONSTANTS.LAYOUT_TRANSITION_DURATION
         );
       }
     });
@@ -267,7 +269,7 @@ export class PhotoDataRepository {
     // Wait for all animations to complete
     await Promise.all(animationPromises.filter(Boolean));
     
-    // Update camera bounds
+    // Update camera bounds (positions are already updated by animateToPositionWithUpdate)
     this.updateCameraBounds();
     
     this.layoutChangedSubject.next();
@@ -280,9 +282,7 @@ export class PhotoDataRepository {
   setRandomShowcaseEnabled(enabled: boolean): void {
     this.enableRandomShowcase = enabled;
     this.updateShowcaseLoop();
-    
-    // Update camera bounds as showcase behavior might affect how we view the grid
-    this.updateCameraBounds();
+    // Note: Camera bounds don't need updating just for showcase behavior change
   }
 
   /**
@@ -308,33 +308,31 @@ export class PhotoDataRepository {
     this.isShowcasing = true;
 
     try {
-      // Move photo forward
+      // Move photo forward to center of screen
       const originalZ = photo.currentPosition.z;
       const showcaseZ = this.renderer.getCameraSpawnZ() - 100;
       
-      await this.renderer.animateToPosition(
-        photo.mesh,
+      const showcaseForwardPos = { x: 0, y: 0, z: showcaseZ };
+      await this.animateToPositionWithUpdate(
+        photo,
         photo.currentPosition,
-        { ...photo.currentPosition, z: showcaseZ },
-        1.0 // Smooth animation
+        showcaseForwardPos,
+        ANIMATION_CONSTANTS.SHOWCASE_FORWARD_DURATION
       );
 
-      // Wait for showcase duration
-      await new Promise(resolve => setTimeout(resolve, this.newPhotoAnimationDelay));
+      // Shorter showcase duration for less disruption
+      await new Promise(resolve => setTimeout(resolve, Math.min(this.newPhotoAnimationDelay, ANIMATION_CONSTANTS.MAX_SHOWCASE_DURATION)));
 
       // Move back to original position
-      await this.renderer.animateToPosition(
-        photo.mesh,
-        { ...photo.currentPosition, z: showcaseZ },
-        { ...photo.targetPosition, z: originalZ },
-        1.0
+      const returnPos = { ...photo.targetPosition, z: originalZ };
+      await this.animateToPositionWithUpdate(
+        photo,
+        photo.currentPosition, // Use updated current position
+        returnPos,
+        ANIMATION_CONSTANTS.SHOWCASE_RETURN_DURATION
       );
-
-      photo.setCurrentPosition({ ...photo.targetPosition, z: originalZ });
       photo.setAnimationState(PhotoAnimationState.POSITIONED);
-      
-      // Update camera bounds after showcase
-      this.updateCameraBounds();
+      // Note: No camera bounds update needed - showcase doesn't change layout positions
 
     } finally {
       this.isShowcasing = false;
@@ -370,6 +368,12 @@ export class PhotoDataRepository {
     if (this.showcaseTimer) {
       clearTimeout(this.showcaseTimer);
       this.showcaseTimer = null;
+    }
+    
+    // Stop camera bounds updates
+    if (this.cameraBoundsUpdateTimer) {
+      clearTimeout(this.cameraBoundsUpdateTimer);
+      this.cameraBoundsUpdateTimer = null;
     }
 
     // Clean up all photos
@@ -408,19 +412,18 @@ export class PhotoDataRepository {
     photoData.setCurrentPosition(spawnPosition);
     this.renderer.updateMeshPosition(photoData.mesh, spawnPosition);
 
-    // Wait before animating
-    await new Promise(resolve => setTimeout(resolve, this.newPhotoAnimationDelay));
+    // Wait before animating (reduced delay for better responsiveness)
+    await new Promise(resolve => setTimeout(resolve, Math.min(this.newPhotoAnimationDelay, ANIMATION_CONSTANTS.MAX_NEW_PHOTO_DELAY)));
 
     // Animate to target position
     photoData.setAnimationState(PhotoAnimationState.FLOATING_BACK);
-    await this.renderer.animateToPosition(
-      photoData.mesh,
+    await this.animateToPositionWithUpdate(
+      photoData,
       spawnPosition,
       photoData.targetPosition,
-      1.1 // Animation duration
+      ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DURATION
     );
 
-    photoData.setCurrentPosition(photoData.targetPosition);
     photoData.setAnimationState(PhotoAnimationState.POSITIONED);
     
     // Update camera bounds
@@ -464,9 +467,23 @@ export class PhotoDataRepository {
   }
 
   /**
-   * Update camera bounds based on visible photos
+   * Update camera bounds based on visible photos (debounced)
    */
   private updateCameraBounds(): void {
+    // Debounce camera bounds updates to prevent excessive calls
+    if (this.cameraBoundsUpdateTimer) {
+      clearTimeout(this.cameraBoundsUpdateTimer);
+    }
+    
+    this.cameraBoundsUpdateTimer = setTimeout(() => {
+      this.performCameraBoundsUpdate();
+    }, ANIMATION_CONSTANTS.CAMERA_BOUNDS_UPDATE_DEBOUNCE);
+  }
+  
+  /**
+   * Actually perform the camera bounds update
+   */
+  private performCameraBoundsUpdate(): void {
     if (!this.renderer) {
       return;
     }
@@ -483,6 +500,28 @@ export class PhotoDataRepository {
 
     const bounds = this.calculateBounds(positions);
     this.renderer.updateCameraTarget(bounds);
+  }
+
+  /**
+   * Animate to position and update PhotoData current position
+   */
+  private async animateToPositionWithUpdate(
+    photoData: PhotoData,
+    fromPosition: { x: number; y: number; z: number },
+    toPosition: { x: number; y: number; z: number },
+    duration: number
+  ): Promise<void> {
+    if (!photoData.mesh) return;
+    
+    await this.renderer!.animateToPosition(
+      photoData.mesh,
+      fromPosition,
+      toPosition,
+      duration
+    );
+    
+    // Always update current position after animation
+    photoData.setCurrentPosition(toPosition);
   }
 
   /**

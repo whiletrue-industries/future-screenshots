@@ -11,6 +11,7 @@ import { GridLayoutStrategy } from './grid-layout-strategy';
 import { TsneLayoutStrategy } from './tsne-layout-strategy';
 import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
+import { ANIMATION_CONSTANTS } from './animation-constants';
 
 @Component({
   selector: 'app-showcase-ws',
@@ -45,7 +46,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     private photoDataRepository: PhotoDataRepository
   ) {
     this.photoRepository = photoDataRepository;
-    timer(10000).subscribe(() => {
+    timer(ANIMATION_CONSTANTS.QR_SHRINK_DELAY).subscribe(() => {
       this.qrSmall.set(true);
     });
     
@@ -60,7 +61,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         console.log('Loading existing photos immediately...');
         this.qrSmall.set(true);
         
-        for (const item of items) {
+        // Process photos in parallel to avoid blocking
+        const photoPromises = items.map(async (item) => {
           const id = item._id;
           const url = item.screenshot_url;
           const metadata: PhotoMetadata = {
@@ -76,49 +78,61 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           } catch (error) {
             console.error('Error loading photo immediately:', error);
           }
-        }
+        });
+        
+        // Wait for all photos to load, but don't block the loop
+        Promise.all(photoPromises).then(() => {
+          console.log(`Loaded ${items.length} existing photos`);
+        });
         
         // Set lastCreatedAt to the most recent item
         const latestItem = items[items.length - 1];
         this.lastCreatedAt = latestItem.created_at;
       } else {
         // Second pass onwards: animate only new photos
-        for (const item of items) {
+        const newItems = items.filter(item => {
           const created_at = item.created_at;
-          if (!created_at || created_at <= this.lastCreatedAt) {
-            continue;
-          }
-          const id = item._id;
-          const url = item.screenshot_url;
-          const metadata: PhotoMetadata = {
-            id,
-            url,
-            created_at,
-            screenshot_url: url
-          };
+          return created_at && created_at > this.lastCreatedAt;
+        });
+        
+        if (newItems.length > 0) {
+          console.log(`Processing ${newItems.length} new photos`);
           
-          try {
-            await this.photoRepository.addPhoto(metadata, true); // Animate new photos
-            this.loadedPhotoIds.add(id);
-          } catch (error) {
-            console.error('Error animating photo:', error);
-          }
-          this.lastCreatedAt = created_at;
+          // Process new photos one by one with delays to avoid blocking
+          newItems.forEach((item, index) => {
+            setTimeout(async () => {
+              const id = item._id;
+              const url = item.screenshot_url;
+              const metadata: PhotoMetadata = {
+                id,
+                url,
+                created_at: item.created_at,
+                screenshot_url: url
+              };
+              
+              try {
+                await this.photoRepository.addPhoto(metadata, true); // Animate new photos
+                this.loadedPhotoIds.add(id);
+                this.lastCreatedAt = item.created_at;
+              } catch (error) {
+                console.error('Error animating photo:', error);
+              }
+            }, index * ANIMATION_CONSTANTS.NEW_PHOTO_STAGGER_DELAY);
+          });
         }
       }
 
       // Update showcase behavior
       this.photoRepository.setRandomShowcaseEnabled(this.enableRandomShowcase());
       
-      // Wait before next poll
-      let obs: Observable<any> = timer(60000);
-      
-      forkJoin([
-        obs,
-        this.getItems()
-      ]).subscribe(([_, items_]) => {
-        this.loop.next(items_);
-      });
+      // Schedule next poll (avoid recursive loop)
+      setTimeout(() => {
+        if (!this.destroy$.closed) {
+          this.getItems().subscribe(items_ => {
+            this.loop.next(items_);
+          });
+        }
+      }, ANIMATION_CONSTANTS.API_POLLING_INTERVAL);
     });
     
     const qp = this.activatedRoute.snapshot.queryParams;
@@ -174,8 +188,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       this.rendererService, 
       {
         enableRandomShowcase: this.enableRandomShowcase(),
-        showcaseInterval: 5000,
-        newPhotoAnimationDelay: 3000
+        showcaseInterval: ANIMATION_CONSTANTS.SHOWCASE_INTERVAL,
+        newPhotoAnimationDelay: ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DELAY
       }
     );
 
@@ -198,12 +212,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         console.log('Layout changed in repository');
       });
     
-    this.platform.browser() &&
-    timer(2000).subscribe(() => {
-      this.getItems().subscribe((items) => {
-        this.loop.next(items);
+    // Start initial polling after component is ready
+    if (this.platform.browser()) {
+      timer(ANIMATION_CONSTANTS.INITIAL_POLLING_DELAY).subscribe(() => {
+        this.getItems().subscribe((items) => {
+          this.loop.next(items);
+        });
       });
-    });
+    }
   }
 
   /**
