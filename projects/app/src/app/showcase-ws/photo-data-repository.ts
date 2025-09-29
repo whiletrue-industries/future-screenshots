@@ -257,9 +257,16 @@ export class PhotoDataRepository {
 
       // Animate to new position if visible
       if (hasValidPosition && photo.mesh) {
+        // Use actual mesh position as starting point for accurate animation
+        const actualCurrentPosition = {
+          x: photo.mesh.position.x,
+          y: photo.mesh.position.y,
+          z: photo.mesh.position.z
+        };
+        
         return this.animateToPositionWithUpdate(
           photo,
-          photo.currentPosition, 
+          actualCurrentPosition, 
           photo.targetPosition, 
           ANIMATION_CONSTANTS.LAYOUT_TRANSITION_DURATION
         );
@@ -313,9 +320,14 @@ export class PhotoDataRepository {
       const showcaseZ = this.renderer.getCameraSpawnZ() - 100;
       
       const showcaseForwardPos = { x: 0, y: 0, z: showcaseZ };
+      const actualStartPos = {
+        x: photo.mesh.position.x,
+        y: photo.mesh.position.y,
+        z: photo.mesh.position.z
+      };
       await this.animateToPositionWithUpdate(
         photo,
-        photo.currentPosition,
+        actualStartPos,
         showcaseForwardPos,
         ANIMATION_CONSTANTS.SHOWCASE_FORWARD_DURATION
       );
@@ -325,9 +337,14 @@ export class PhotoDataRepository {
 
       // Move back to original position
       const returnPos = { ...photo.targetPosition, z: originalZ };
+      const actualReturnStartPos = {
+        x: photo.mesh.position.x,
+        y: photo.mesh.position.y,
+        z: photo.mesh.position.z
+      };
       await this.animateToPositionWithUpdate(
         photo,
-        photo.currentPosition, // Use updated current position
+        actualReturnStartPos,
         returnPos,
         ANIMATION_CONSTANTS.SHOWCASE_RETURN_DURATION
       );
