@@ -1,6 +1,7 @@
 import { LayoutStrategy, LayoutPosition, LayoutConfiguration, WebServiceLayoutStrategy } from './layout-strategy.interface';
 import { PhotoData } from './photo-data';
 import { Observable, from } from 'rxjs';
+import { PHOTO_CONSTANTS } from './photo-constants';
 
 /**
  * TSNE Layout Strategy that fetches positioning data from a remote configuration service
@@ -37,10 +38,10 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
     this.configUrl = `${this.baseUrl}/tiles/${this.workspaceId}/0/config.json`;
     
     // Use same dimensions as grid layout to ensure consistency
-    this.photoWidth = options.photoWidth ?? 530;
-    this.photoHeight = options.photoHeight ?? 1000;
-    this.spacingX = options.spacingX ?? 250;
-    this.spacingY = options.spacingY ?? 30;
+    this.photoWidth = options.photoWidth ?? PHOTO_CONSTANTS.PHOTO_WIDTH;
+    this.photoHeight = options.photoHeight ?? PHOTO_CONSTANTS.PHOTO_HEIGHT;
+    this.spacingX = options.spacingX ?? PHOTO_CONSTANTS.SPACING_X;
+    this.spacingY = options.spacingY ?? PHOTO_CONSTANTS.SPACING_Y;
     this.cellW = this.photoWidth + this.spacingX;  // 780
     this.cellH = this.photoHeight + this.spacingY; // 1030
   }
@@ -146,7 +147,7 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
   /**
    * Gets the position for a photo based on TSNE coordinates
    */
-  async getPositionForPhoto(photo: PhotoData, existingPhotos: PhotoData[]): Promise<LayoutPosition> {
+  async getPositionForPhoto(photo: PhotoData, existingPhotos: PhotoData[]): Promise<LayoutPosition | null> {
     // Ensure TSNE data is loaded
     await this.fetchTsneData();
     
@@ -158,8 +159,8 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
     const gridItem = this.tsneData.grid.find(item => item.id === photo.id);
     
     if (!gridItem) {
-      console.warn(`Photo with id ${photo.id} not found in TSNE data, using default position`);
-      return { x: 0, y: 0 };
+      console.warn(`Photo with id ${photo.id} not found in TSNE data, hiding photo`);
+      return null; // Hide photos not found in TSNE data
     }
 
     // Convert TSNE grid coordinates to world coordinates
@@ -179,14 +180,14 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
   /**
    * Calculate positions for all photos
    */
-  async calculateAllPositions(photos: PhotoData[]): Promise<LayoutPosition[]> {
+  async calculateAllPositions(photos: PhotoData[]): Promise<(LayoutPosition | null)[]> {
     await this.fetchTsneData();
     
     if (!this.tsneData) {
       throw new Error('TSNE data not available');
     }
 
-    const positions: LayoutPosition[] = [];
+    const positions: (LayoutPosition | null)[] = [];
     
     for (const photo of photos) {
       const position = await this.getPositionForPhoto(photo, photos);
@@ -199,7 +200,7 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
   /**
    * Fetch layout data from web service (WebServiceLayoutStrategy interface)
    */
-  fetchLayoutData(photos: PhotoData[]): Observable<{ [photoId: string]: LayoutPosition }> {
+  fetchLayoutData(photos: PhotoData[]): Observable<{ [photoId: string]: LayoutPosition | null }> {
     return from(this.getAllPositionsAsMap(photos));
   }
 
@@ -228,14 +229,14 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
   /**
    * Gets all positions as a map (for WebServiceLayoutStrategy interface)
    */
-  private async getAllPositionsAsMap(photos: PhotoData[]): Promise<{ [photoId: string]: LayoutPosition }> {
+  private async getAllPositionsAsMap(photos: PhotoData[]): Promise<{ [photoId: string]: LayoutPosition | null }> {
     await this.fetchTsneData();
     
     if (!this.tsneData) {
       throw new Error('TSNE data not available');
     }
 
-    const positions: { [photoId: string]: LayoutPosition } = {};
+    const positions: { [photoId: string]: LayoutPosition | null } = {};
     
     for (const photo of photos) {
       const position = await this.getPositionForPhoto(photo, photos);

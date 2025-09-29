@@ -15,6 +15,7 @@ import { CollectPropertiesComponent } from './collect-properties/collect-propert
 import { AboutComponent } from './about/about.component';
 import { AdminComponent } from './admin/admin/admin.component';
 import { AuthGuard } from './auth.guard';
+import { ShowcaseWsComponent } from './showcase-ws/showcase-ws.component';
 
 export const routes: Routes = [
     // Showcase routes
@@ -24,7 +25,8 @@ export const routes: Routes = [
     { path: 'show', component: OutputMapComponent },
 
     // Showcase2
-    { path: 'showcase-ws', loadComponent: () => import('./showcase-ws/showcase-ws.component').then(m => m.ShowcaseWsComponent) },
+    { path: 'showcase-ws', component: ShowcaseWsComponent },
+    // { path: 'showcase-ws', loadComponent: () => import('./showcase-ws/showcase-ws.component').then(m => m.ShowcaseWsComponent) },
 
     // Admin routes
     {

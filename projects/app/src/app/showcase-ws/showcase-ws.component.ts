@@ -1,7 +1,5 @@
-import * as THREE from 'three';
-
-import { AfterViewInit, Component, computed, ElementRef, signal, ViewChild, inject } from '@angular/core';
-import { catchError, distinctUntilChanged, filter, forkJoin, from, interval, Observable, of, Subject, timer } from 'rxjs';
+import { AfterViewInit, Component, computed, ElementRef, signal, ViewChild, inject, OnDestroy } from '@angular/core';
+import { catchError, distinctUntilChanged, filter, forkJoin, from, interval, Observable, of, Subject, timer, takeUntil } from 'rxjs';
 import { PlatformService } from '../../platform.service';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
@@ -11,369 +9,8 @@ import { ThreeRendererService } from './three-renderer.service';
 import { LayoutStrategy } from './layout-strategy.interface';
 import { GridLayoutStrategy } from './grid-layout-strategy';
 import { TsneLayoutStrategy } from './tsne-layout-strategy';
-
-export interface PhotoGridOptions {
-  photoWidth?: number;   // default 530
-  photoHeight?: number;  // default 1000
-  spacingX?: number;      // default 20
-  spacingY?: number;      // default 20
-  fovDeg?: number;       // default 45
-  cameraMargin?: number; // world units, default 120
-  cameraDamp?: number;   // default 6
-  durPreFloat?: number;     // seconds, default 3
-  durFloat?: number;     // seconds, default 1.1
-  durSnap?: number;      // seconds, default 0.18
-  anisotropy?: number;   // default 4
-  background?: number;   // default 0x0b0e13
-  layoutStrategy?: LayoutStrategy;
-  renderer?: ThreeRendererService;
-}
-
-export class PhotoGrid {
-  private readonly PHOTO_W: number;
-  private readonly PHOTO_H: number;
-  private readonly DUR_PRE_FLOAT: number;
-  private readonly DUR_FLOAT: number;
-  private readonly DUR_SNAP: number;
-
-  private photos = new Map<string, PhotoData>();
-  private layoutStrategy: LayoutStrategy;
-  private renderer: ThreeRendererService;
-  private isInitialized = false;
-
-  constructor(
-    private container: HTMLElement, 
-    private options: PhotoGridOptions = {}
-  ) {
-    this.PHOTO_W = options.photoWidth ?? 530;
-    this.PHOTO_H = options.photoHeight ?? 1000;
-    this.DUR_PRE_FLOAT = options.durPreFloat ?? 6;
-    this.DUR_FLOAT = options.durFloat ?? 1.1;
-    this.DUR_SNAP = options.durSnap ?? 0.18;
-
-    this.renderer = options.renderer ?? new ThreeRendererService();
-    this.layoutStrategy = options.layoutStrategy ?? new GridLayoutStrategy({
-      spacingX: options.spacingX ?? 250,
-      spacingY: options.spacingY ?? 30
-    });
-  }
-
-  public async init(): Promise<void> {
-    if (this.isInitialized) {
-      throw new Error('PhotoGrid is already initialized');
-    }
-
-    // Initialize renderer
-    await this.renderer.initialize(this.container, {
-      photoWidth: this.PHOTO_W,
-      photoHeight: this.PHOTO_H,
-      fovDeg: this.options.fovDeg,
-      cameraMargin: this.options.cameraMargin,
-      anisotropy: this.options.anisotropy,
-      background: this.options.background
-    });
-
-    // Initialize layout strategy
-    await this.layoutStrategy.initialize();
-
-    this.isInitialized = true;
-  }
-
-  public async animateInPhoto(id: string, url: string): Promise<void> {
-    if (!this.isInitialized) {
-      throw new Error('PhotoGrid not initialized');
-    }
-
-    // Create PhotoData
-    const metadata: PhotoMetadata = { id, url, created_at: Date.now().toString() };
-    const spawnZ = this.renderer.getCameraSpawnZ();
-    const photoData = new PhotoData(metadata, { x: 0, y: 0, z: spawnZ });
-    
-    // Add to our tracking
-    this.photos.set(id, photoData);
-    this.layoutStrategy.addPhoto(photoData);
-
-    try {
-      // Create mesh and position at spawn point
-      photoData.setAnimationState(PhotoAnimationState.SPAWNING);
-      const mesh = await this.renderer.createPhotoMesh(photoData);
-
-      // Get target position from layout strategy
-      const layoutPosition = await this.layoutStrategy.getPositionForPhoto(
-        photoData, 
-        Array.from(this.photos.values())
-      );
-
-      // Set target position
-      photoData.setTargetPosition({ 
-        x: layoutPosition.x, 
-        y: layoutPosition.y, 
-        z: 0 
-      });
-
-      // Store layout metadata
-      if (layoutPosition.metadata) {
-        Object.entries(layoutPosition.metadata).forEach(([key, value]) => {
-          photoData.setProperty(key, value);
-        });
-      }
-      if (layoutPosition.gridKey) {
-        photoData.setProperty('gridKey', layoutPosition.gridKey);
-      }
-
-      // Wait before starting animation
-      await new Promise((resolve) => setTimeout(resolve, this.DUR_PRE_FLOAT * 1000));
-
-      // Update camera bounds
-      this.updateCameraBounds();
-
-      // Animate to target position
-      await this.animateToTarget(photoData);
-      
-    } catch (error) {
-      // Clean up on error
-      this.photos.delete(id);
-      this.layoutStrategy.removePhoto(id);
-      if (photoData.mesh) {
-        this.renderer.removePhotoMesh(photoData);
-      }
-      throw error;
-    }
-  }
-
-  public async animateExistingPhoto(id: string): Promise<void> {
-    const photoData = this.photos.get(id);
-    if (!photoData || !photoData.mesh) return;
-
-    // Float forward
-    photoData.setAnimationState(PhotoAnimationState.FLOATING_FORWARD);
-    const spawnZ = this.renderer.getCameraSpawnZ();
-    
-    await this.animateFromCurrentToPosition(photoData, { x: 0, y: 0, z: spawnZ });
-
-    // Wait
-    await new Promise((resolve) => setTimeout(resolve, this.DUR_PRE_FLOAT * 1000));
-
-    // Float back
-    await this.animateToTarget(photoData);
-  }
-
-  public dispose(): void {
-    this.photos.forEach(photo => photo.dispose());
-    this.photos.clear();
-    this.layoutStrategy.dispose();
-    this.renderer.dispose();
-    this.isInitialized = false;
-  }
-
-  // Get photo by ID
-  public getPhoto(id: string): PhotoData | undefined {
-    return this.photos.get(id);
-  }
-
-  // Get all photos
-  public getAllPhotos(): PhotoData[] {
-    return Array.from(this.photos.values());
-  }
-
-  // Switch layout strategy
-  public async switchLayout(newStrategy: LayoutStrategy): Promise<void> {
-    if (!this.isInitialized) {
-      throw new Error('PhotoGrid not initialized');
-    }
-
-    // Dispose old strategy
-    await this.layoutStrategy.dispose();
-
-    // Initialize new strategy
-    this.layoutStrategy = newStrategy;
-    await this.layoutStrategy.initialize();
-
-    // Add existing photos to new strategy
-    this.photos.forEach(photo => this.layoutStrategy.addPhoto(photo));
-
-    // Recalculate all positions
-    const allPhotos = Array.from(this.photos.values());
-    const newPositions = await this.layoutStrategy.calculateAllPositions(allPhotos);
-
-    // Animate all photos to new positions
-    const animationPromises = allPhotos.map(async (photo, index) => {
-      const newPos = newPositions[index];
-      photo.setTargetPosition({ x: newPos.x, y: newPos.y, z: 0 });
-      
-      // Update metadata
-      if (newPos.metadata) {
-        Object.entries(newPos.metadata).forEach(([key, value]) => {
-          photo.setProperty(key, value);
-        });
-      }
-      if (newPos.gridKey) {
-        photo.setProperty('gridKey', newPos.gridKey);
-      }
-
-      return this.animateToTarget(photo);
-    });
-
-    await Promise.all(animationPromises);
-    this.updateCameraBounds();
-  }
-
-  private async animateToTarget(photoData: PhotoData): Promise<void> {
-    photoData.setAnimationState(PhotoAnimationState.FLOATING_BACK);
-    
-    const startPos = photoData.currentPosition;
-    const targetPos = photoData.targetPosition;
-
-    const tweenFn = this.renderer.makeTween(this.DUR_FLOAT, (progress) => {
-      const ex = this.renderer.easeOutCubic(progress);
-      const ez = this.renderer.easeOutExpo(progress);
-      
-      // Calculate rotation effects
-      const roll = Math.PI * (0.25 - Math.pow(0.5 - ez, 2));
-      const yaw = Math.PI * (0.25 - Math.pow(0.5 - ez, 2));
-
-      // Interpolate position
-      const currentPos = {
-        x: this.renderer.lerp(startPos.x, targetPos.x, ex),
-        y: this.renderer.lerp(startPos.y, targetPos.y, ex),
-        z: this.renderer.lerp(startPos.z, targetPos.z, ez)
-      };
-
-      photoData.setCurrentPosition(currentPos);
-      
-      if (photoData.mesh) {
-        photoData.mesh.position.set(currentPos.x, currentPos.y, currentPos.z);
-        photoData.mesh.rotation.set(roll, yaw, 0);
-      }
-    });
-
-    await this.renderer.runTween(tweenFn);
-    
-    // Final cleanup - ensure exact target position
-    photoData.setCurrentPosition(targetPos);
-    if (photoData.mesh) {
-      photoData.mesh.position.set(targetPos.x, targetPos.y, targetPos.z);
-      photoData.mesh.rotation.set(0, 0, 0);
-    }
-    
-    photoData.setAnimationState(PhotoAnimationState.POSITIONED);
-  }
-
-  private async animateFromCurrentToPosition(photoData: PhotoData, targetPos: { x: number, y: number, z: number }): Promise<void> {
-    const startPos = photoData.currentPosition;
-
-    const tweenFn = this.renderer.makeTween(this.DUR_FLOAT, (progress) => {
-      const ex = this.renderer.easeOutCubic(progress);
-      const ez = this.renderer.easeOutExpo(progress);
-      
-      const roll = Math.PI * (0.25 - Math.pow(0.5 - ez, 2));
-      const yaw = Math.PI * (0.25 - Math.pow(0.5 - ez, 2));
-
-      const currentPos = {
-        x: this.renderer.lerp(startPos.x, targetPos.x, ex),
-        y: this.renderer.lerp(startPos.y, targetPos.y, ex),
-        z: this.renderer.lerp(startPos.z, targetPos.z, ez)
-      };
-
-      photoData.setCurrentPosition(currentPos);
-      
-      if (photoData.mesh) {
-        photoData.mesh.position.set(currentPos.x, currentPos.y, currentPos.z);
-        photoData.mesh.rotation.set(roll, yaw, 0);
-      }
-    });
-
-    await this.renderer.runTween(tweenFn);
-  }
-
-  private updateCameraBounds(): void {
-    const allPositions = Array.from(this.photos.values()).map(photo => ({
-      x: photo.targetPosition.x,
-      y: photo.targetPosition.y
-    }));
-
-    if (allPositions.length === 0) return;
-
-    const bounds = this.layoutStrategy.calculateLayoutBounds(allPositions, this.PHOTO_W, this.PHOTO_H);
-    this.renderer.updateCameraTarget(bounds);
-  }
-
-  /**
-   * Switch to a new layout strategy and re-position all existing photos
-   */
-  async setLayoutStrategy(newStrategy: LayoutStrategy): Promise<void> {
-    if (!this.isInitialized) {
-      throw new Error('PhotoGrid not initialized');
-    }
-
-    console.log(`Switching from ${this.layoutStrategy.getConfiguration().name} to ${newStrategy.getConfiguration().name} layout`);
-
-    // Initialize the new strategy
-    await newStrategy.initialize();
-
-    // Transfer all photos to the new strategy
-    const currentPhotos = Array.from(this.photos.values());
-    for (const photo of currentPhotos) {
-      newStrategy.addPhoto(photo);
-    }
-
-    // Calculate new positions for all photos
-    const newPositions = await newStrategy.calculateAllPositions(currentPhotos);
-
-    // Update the layout strategy
-    this.layoutStrategy = newStrategy;
-
-    // Animate photos to their new positions
-    for (let i = 0; i < currentPhotos.length; i++) {
-      const photo = currentPhotos[i];
-      const newPosition = newPositions[i];
-      
-      if (photo.mesh) {
-        // Set new target position
-        photo.setTargetPosition({
-          x: newPosition.x,
-          y: newPosition.y,
-          z: photo.targetPosition.z // Keep existing Z position
-        });
-
-        // Animate to new position
-        await this.animatePhotoToTarget(photo);
-      }
-    }
-
-    // Update camera bounds for the new layout
-    this.updateCameraBounds();
-    
-    console.log(`Successfully switched to ${newStrategy.getConfiguration().name} layout`);
-  }
-
-  /**
-   * Animate a photo to its target position
-   */
-  private async animatePhotoToTarget(photoData: PhotoData): Promise<void> {
-    if (!photoData.mesh) return;
-
-    const startPos = photoData.currentPosition;
-    const targetPos = photoData.targetPosition;
-    const duration = this.DUR_SNAP;
-
-    const tweenFn = this.renderer.makeTween(duration, (progress: number) => {
-      const currentPos = {
-        x: this.renderer.lerp(startPos.x, targetPos.x, progress),
-        y: this.renderer.lerp(startPos.y, targetPos.y, progress),
-        z: this.renderer.lerp(startPos.z, targetPos.z, progress)
-      };
-
-      photoData.setCurrentPosition(currentPos);
-      
-      if (photoData.mesh) {
-        photoData.mesh.position.set(currentPos.x, currentPos.y, currentPos.z);
-      }
-    });
-
-    await this.renderer.runTween(tweenFn);
-  }
-}
+import { PhotoDataRepository } from './photo-data-repository';
+import { PHOTO_CONSTANTS } from './photo-constants';
 
 @Component({
   selector: 'app-showcase-ws',
@@ -381,9 +18,10 @@ export class PhotoGrid {
   templateUrl: './showcase-ws.component.html',
   styleUrl: './showcase-ws.component.less'
 })
-export class ShowcaseWsComponent implements AfterViewInit {
+export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   @ViewChild('container', { static: true }) container!: ElementRef;
-  grid: PhotoGrid;
+  private photoRepository: PhotoDataRepository;
+  private destroy$ = new Subject<void>();
   loop = new Subject<any[]>();
   lastCreatedAt = '0';
   qrSmall = signal(false);
@@ -392,6 +30,8 @@ export class ShowcaseWsComponent implements AfterViewInit {
   admin_key = signal('');
   lang = signal('');
   currentLayout = signal<'grid' | 'tsne'>('grid');
+  enableRandomShowcase = signal(false);
+  loadedPhotoIds = new Set<string>();
   qrUrl = computed(() => 
     `https://mapfutur.es/${this.lang()}?workspace=${this.workspace()}&api_key=${this.api_key()}&ws=true`
   );
@@ -401,8 +41,10 @@ export class ShowcaseWsComponent implements AfterViewInit {
     private http: HttpClient, 
     private el: ElementRef, 
     private activatedRoute: ActivatedRoute,
-    private rendererService: ThreeRendererService
+    private rendererService: ThreeRendererService,
+    private photoDataRepository: PhotoDataRepository
   ) {
+    this.photoRepository = photoDataRepository;
     timer(10000).subscribe(() => {
       this.qrSmall.set(true);
     });
@@ -413,30 +55,63 @@ export class ShowcaseWsComponent implements AfterViewInit {
       items = items.sort((item1, item2) => item1.created_at.localeCompare(item2.created_at));
       console.log(`GOT ${items.length} items`);
       
-      for (const item of items) {
-        const created_at = item.created_at;
-        if (!created_at || created_at <= this.lastCreatedAt) {
-          continue;
-        }
-        const id = item._id;
-        const url = item.screenshot_url;
-        if (this.lastCreatedAt === '0') {
-          this.qrSmall.set(true);
+      // First pass: load existing photos immediately
+      if (this.lastCreatedAt === '0' && items.length > 0) {
+        console.log('Loading existing photos immediately...');
+        this.qrSmall.set(true);
+        
+        for (const item of items) {
+          const id = item._id;
+          const url = item.screenshot_url;
+          const metadata: PhotoMetadata = {
+            id,
+            url,
+            created_at: item.created_at,
+            screenshot_url: url
+          };
+          
+          try {
+            await this.photoRepository.addPhoto(metadata, false); // Don't animate existing photos
+            this.loadedPhotoIds.add(id);
+          } catch (error) {
+            console.error('Error loading photo immediately:', error);
+          }
         }
         
-        try {
-          await this.grid.animateInPhoto(id, url);
-        } catch (error) {
-          console.error('Error animating photo:', error);
+        // Set lastCreatedAt to the most recent item
+        const latestItem = items[items.length - 1];
+        this.lastCreatedAt = latestItem.created_at;
+      } else {
+        // Second pass onwards: animate only new photos
+        for (const item of items) {
+          const created_at = item.created_at;
+          if (!created_at || created_at <= this.lastCreatedAt) {
+            continue;
+          }
+          const id = item._id;
+          const url = item.screenshot_url;
+          const metadata: PhotoMetadata = {
+            id,
+            url,
+            created_at,
+            screenshot_url: url
+          };
+          
+          try {
+            await this.photoRepository.addPhoto(metadata, true); // Animate new photos
+            this.loadedPhotoIds.add(id);
+          } catch (error) {
+            console.error('Error animating photo:', error);
+          }
+          this.lastCreatedAt = created_at;
         }
-        this.lastCreatedAt = created_at;
       }
 
-      let obs: Observable<any> = timer(5000);
-      if (items.length > 0) {
-        const randomItem = items[Math.floor(Math.random() * items.length)];
-        obs = from(this.grid.animateExistingPhoto(randomItem._id));
-      }
+      // Update showcase behavior
+      this.photoRepository.setRandomShowcaseEnabled(this.enableRandomShowcase());
+      
+      // Wait before next poll
+      let obs: Observable<any> = timer(60000);
       
       forkJoin([
         obs,
@@ -451,6 +126,15 @@ export class ShowcaseWsComponent implements AfterViewInit {
     this.api_key.set(qp['api_key'] || 'API_KEY_NOT_SET');
     this.admin_key.set(qp['admin_key'] || 'ADMIN_KEY_NOT_SET');
     this.lang.set(qp['lang'] ? qp['lang'] + '/' : '');
+  }
+
+  /**
+   * Toggle the random showcase behavior
+   */
+  toggleRandomShowcase() {
+    this.enableRandomShowcase.set(!this.enableRandomShowcase());
+    this.photoRepository.setRandomShowcaseEnabled(this.enableRandomShowcase());
+    console.log('Random showcase:', this.enableRandomShowcase() ? 'enabled' : 'disabled');
   }
 
   getItems(): Observable<any[]> {
@@ -469,22 +153,52 @@ export class ShowcaseWsComponent implements AfterViewInit {
   }
 
   private async initialize(container: HTMLElement) {
-    // Create PhotoGrid with GridLayoutStrategy that uses random positioning
+    // Initialize Three.js renderer
+    await this.rendererService.initialize(container, {
+      photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
+      photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT
+    });
+
+    // Create initial layout strategy
     const gridStrategy = new GridLayoutStrategy({
-      photoWidth: 530,     // Match the original photo dimensions
-      photoHeight: 1000,   // Match the original photo dimensions  
-      spacingX: 250,       // Original spacing between photos
-      spacingY: 30,        // Original spacing between photos
+      photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
+      photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
+      spacingX: PHOTO_CONSTANTS.SPACING_X,
+      spacingY: PHOTO_CONSTANTS.SPACING_Y,
       useRandomPositioning: true
     });
 
-    this.grid = new PhotoGrid(container, {
-      layoutStrategy: gridStrategy,
-      renderer: this.rendererService
-    });
+    // Initialize PhotoDataRepository
+    await this.photoRepository.initialize(
+      gridStrategy, 
+      this.rendererService, 
+      {
+        enableRandomShowcase: this.enableRandomShowcase(),
+        showcaseInterval: 5000,
+        newPhotoAnimationDelay: 3000
+      }
+    );
+
+    // Set up repository event subscriptions
+    this.photoRepository.photoAdded$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((photoData) => {
+        console.log('Photo added to repository:', photoData.id);
+      });
+
+    this.photoRepository.photoRemoved$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((photoId) => {
+        console.log('Photo removed from repository:', photoId);
+      });
+
+    this.photoRepository.layoutChanged$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        console.log('Layout changed in repository');
+      });
     
-    await this.grid.init();
-    
+    this.platform.browser() &&
     timer(2000).subscribe(() => {
       this.getItems().subscribe((items) => {
         this.loop.next(items);
@@ -496,8 +210,8 @@ export class ShowcaseWsComponent implements AfterViewInit {
    * Switch to TSNE layout using the current workspace ID
    */
   public async switchToTsneLayout() {
-    if (!this.grid || !this.workspace()) {
-      console.error('Grid not initialized or workspace not set');
+    if (!this.workspace()) {
+      console.error('Workspace not set');
       return;
     }
 
@@ -506,17 +220,17 @@ export class ShowcaseWsComponent implements AfterViewInit {
       
       // Create TSNE layout strategy with same dimensions as grid layout
       const tsneStrategy = new TsneLayoutStrategy(this.workspace(), undefined, {
-        photoWidth: 530,
-        photoHeight: 1000,
-        spacingX: 250,
-        spacingY: 30
+        photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
+        photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
+        spacingX: PHOTO_CONSTANTS.SPACING_X,
+        spacingY: PHOTO_CONSTANTS.SPACING_Y
       });
       
       // Initialize the strategy
       await tsneStrategy.initialize();
       
-      // Switch the layout (this will need to be implemented in PhotoGrid)
-      await this.grid.setLayoutStrategy(tsneStrategy);
+      // Switch the layout using PhotoDataRepository
+      await this.photoRepository.setLayoutStrategy(tsneStrategy);
       
       this.currentLayout.set('tsne');
       console.log('Successfully switched to TSNE layout');
@@ -530,28 +244,23 @@ export class ShowcaseWsComponent implements AfterViewInit {
    * Switch back to grid layout
    */
   public async switchToGridLayout() {
-    if (!this.grid) {
-      console.error('Grid not initialized');
-      return;
-    }
-
     try {
       console.log('Switching to Grid layout');
       
       // Create grid layout strategy
       const gridStrategy = new GridLayoutStrategy({
-        photoWidth: 530,
-        photoHeight: 1000,
-        spacingX: 250,
-        spacingY: 30,
+        photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
+        photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
+        spacingX: PHOTO_CONSTANTS.SPACING_X,
+        spacingY: PHOTO_CONSTANTS.SPACING_Y,
         useRandomPositioning: true
       });
       
       // Initialize the strategy
       await gridStrategy.initialize();
       
-      // Switch the layout
-      await this.grid.setLayoutStrategy(gridStrategy);
+      // Switch the layout using PhotoDataRepository
+      await this.photoRepository.setLayoutStrategy(gridStrategy);
       
       this.currentLayout.set('grid');
       console.log('Successfully switched to Grid layout');
@@ -559,5 +268,10 @@ export class ShowcaseWsComponent implements AfterViewInit {
     } catch (error) {
       console.error('Error switching to Grid layout:', error);
     }
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }

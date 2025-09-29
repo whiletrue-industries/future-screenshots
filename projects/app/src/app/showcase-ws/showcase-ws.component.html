@@ -17,4 +17,10 @@
     (click)='switchToTsneLayout()'>
     TSNE Layout
   </button>
+  <button 
+    class='showcase-toggle'
+    [class.active]='enableRandomShowcase()'
+    (click)='toggleRandomShowcase()'>
+    Random Showcase: {{ enableRandomShowcase() ? 'ON' : 'OFF' }}
+  </button>
 </div>

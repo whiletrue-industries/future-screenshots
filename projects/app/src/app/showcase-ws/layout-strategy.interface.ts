@@ -34,19 +34,19 @@ export abstract class LayoutStrategy {
    * Calculate position for a new photo being added to the layout
    * @param photoData The photo being positioned
    * @param existingPhotos Current photos in the scene
-   * @returns Promise that resolves to the layout position
+   * @returns Promise that resolves to the layout position, or null if photo should be hidden
    */
   abstract getPositionForPhoto(
     photoData: PhotoData, 
     existingPhotos: PhotoData[]
-  ): Promise<LayoutPosition>;
+  ): Promise<LayoutPosition | null>;
 
   /**
    * Recalculate positions for all photos (used when switching layouts)
    * @param photos All photos to be positioned
-   * @returns Promise that resolves to array of positions corresponding to input photos
+   * @returns Promise that resolves to array of positions corresponding to input photos (null means hide photo)
    */
-  abstract calculateAllPositions(photos: PhotoData[]): Promise<LayoutPosition[]>;
+  abstract calculateAllPositions(photos: PhotoData[]): Promise<(LayoutPosition | null)[]>;
 
   // Optional lifecycle methods
   async initialize(options?: any): Promise<void> {
@@ -81,13 +81,16 @@ export abstract class LayoutStrategy {
   }
 
   // Layout bounds calculation (used for camera positioning)
-  calculateLayoutBounds(positions: LayoutPosition[], photoWidth: number, photoHeight: number): {
+  calculateLayoutBounds(positions: (LayoutPosition | null)[], photoWidth: number, photoHeight: number): {
     minX: number;
     maxX: number;
     minY: number;
     maxY: number;
   } {
-    if (positions.length === 0) {
+    // Filter out null positions
+    const validPositions = positions.filter((pos): pos is LayoutPosition => pos !== null);
+    
+    if (validPositions.length === 0) {
       return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
     }
 
@@ -97,7 +100,7 @@ export abstract class LayoutStrategy {
     let minX = Infinity, maxX = -Infinity;
     let minY = Infinity, maxY = -Infinity;
 
-    for (const pos of positions) {
+    for (const pos of validPositions) {
       minX = Math.min(minX, pos.x - halfW);
       maxX = Math.max(maxX, pos.x + halfW);
       minY = Math.min(minY, pos.y - halfH);
@@ -135,9 +138,9 @@ export interface WebServiceLayoutStrategy extends LayoutStrategy {
   /**
    * Fetch layout data from web service
    * @param photos Photos that need positioning data
-   * @returns Observable of positioning data
+   * @returns Observable of positioning data (null values mean hide photo)
    */
-  fetchLayoutData(photos: PhotoData[]): Observable<{ [photoId: string]: LayoutPosition }>;
+  fetchLayoutData(photos: PhotoData[]): Observable<{ [photoId: string]: LayoutPosition | null }>;
 }
 
 // Utility interface for interactive layouts

@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { Injectable } from '@angular/core';
 import { PhotoData, PhotoAnimationState } from './photo-data';
+import { PHOTO_CONSTANTS } from './photo-constants';
 
 export interface ThreeRendererOptions {
-  photoWidth?: number;   // default 530
-  photoHeight?: number;  // default 1000
+  photoWidth?: number;   // default PHOTO_CONSTANTS.PHOTO_WIDTH
+  photoHeight?: number;  // default PHOTO_CONSTANTS.PHOTO_HEIGHT
   fovDeg?: number;       // default 45
   cameraMargin?: number; // world units, default 120
   cameraDamp?: number;   // default 6
@@ -57,8 +58,8 @@ export class ThreeRendererService {
 
   constructor() {
     const opts: ThreeRendererOptions = {};
-    this.PHOTO_W = opts.photoWidth ?? 530;
-    this.PHOTO_H = opts.photoHeight ?? 1000;
+    this.PHOTO_W = opts.photoWidth ?? PHOTO_CONSTANTS.PHOTO_WIDTH;
+    this.PHOTO_H = opts.photoHeight ?? PHOTO_CONSTANTS.PHOTO_HEIGHT;
     this.FOV_DEG = opts.fovDeg ?? 45;
     this.CAM_MARGIN = opts.cameraMargin ?? 120;
     this.CAM_DAMP = opts.cameraDamp ?? 0.1 * 10000;
@@ -126,6 +127,47 @@ export class ThreeRendererService {
     }
     
     photoData.setMesh(null);
+  }
+
+  updateMeshPosition(mesh: THREE.Mesh, position: { x: number; y: number; z: number }): void {
+    mesh.position.set(position.x, position.y, position.z);
+  }
+
+  removeMesh(mesh: THREE.Mesh): void {
+    this.root.remove(mesh);
+    
+    // Dispose of geometry and material
+    mesh.geometry.dispose();
+    if (mesh.material instanceof THREE.Material) {
+      mesh.material.dispose();
+    }
+  }
+
+  animateToPosition(
+    mesh: THREE.Mesh, 
+    fromPosition: { x: number; y: number; z: number },
+    toPosition: { x: number; y: number; z: number },
+    durationSec: number
+  ): Promise<void> {
+    return new Promise((resolve) => {
+      const tweenFn = this.makeTween(durationSec, (progress: number) => {
+        const ex = this.easeOutCubic(progress);
+        const ez = this.easeOutExpo(progress);
+        
+        const x = this.lerp(fromPosition.x, toPosition.x, ex);
+        const y = this.lerp(fromPosition.y, toPosition.y, ex);
+        const z = this.lerp(fromPosition.z, toPosition.z, ez);
+        
+        mesh.position.set(x, y, z);
+        
+        if (progress >= 1.0) {
+          mesh.position.set(toPosition.x, toPosition.y, toPosition.z);
+          resolve();
+        }
+      });
+      
+      this.addTween(tweenFn);
+    });
   }
 
   // Camera management

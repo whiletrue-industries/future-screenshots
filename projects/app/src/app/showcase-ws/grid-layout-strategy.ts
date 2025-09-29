@@ -5,12 +5,13 @@ import {
   LayoutPosition, 
   LayoutTransitionOptions 
 } from './layout-strategy.interface';
+import { PHOTO_CONSTANTS } from './photo-constants';
 
 export interface GridLayoutOptions {
-  photoWidth?: number;     // default 530
-  photoHeight?: number;    // default 1000
-  spacingX?: number;      // default 250
-  spacingY?: number;      // default 30
+  photoWidth?: number;     // default PHOTO_CONSTANTS.PHOTO_WIDTH
+  photoHeight?: number;    // default PHOTO_CONSTANTS.PHOTO_HEIGHT
+  spacingX?: number;      // default PHOTO_CONSTANTS.SPACING_X
+  spacingY?: number;      // default PHOTO_CONSTANTS.SPACING_Y
   useRandomPositioning?: boolean; // default true
   hexagonalOffset?: boolean; // default true (offset every other row)
   initialRadius?: number; // for random positioning
@@ -31,10 +32,10 @@ export class GridLayoutStrategy extends LayoutStrategy {
 
   constructor(private options: GridLayoutOptions = {}) {
     super();
-    this.photoWidth = options.photoWidth ?? 530;
-    this.photoHeight = options.photoHeight ?? 1000;
-    this.spacingX = options.spacingX ?? 250;
-    this.spacingY = options.spacingY ?? 30;
+    this.photoWidth = options.photoWidth ?? PHOTO_CONSTANTS.PHOTO_WIDTH;
+    this.photoHeight = options.photoHeight ?? PHOTO_CONSTANTS.PHOTO_HEIGHT;
+    this.spacingX = options.spacingX ?? PHOTO_CONSTANTS.SPACING_X;
+    this.spacingY = options.spacingY ?? PHOTO_CONSTANTS.SPACING_Y;
     this.cellW = this.photoWidth + this.spacingX;
     this.cellH = this.photoHeight + this.spacingY;
     this.useRandomPositioning = options.useRandomPositioning ?? true;
@@ -91,7 +92,7 @@ export class GridLayoutStrategy extends LayoutStrategy {
   async getPositionForPhoto(
     photoData: PhotoData, 
     existingPhotos: PhotoData[]
-  ): Promise<LayoutPosition> {
+  ): Promise<LayoutPosition | null> {
     this.validateInitialized();
 
     const [x, y] = this.useRandomPositioning ? 
@@ -114,7 +115,7 @@ export class GridLayoutStrategy extends LayoutStrategy {
     };
   }
 
-  async calculateAllPositions(photos: PhotoData[]): Promise<LayoutPosition[]> {
+  async calculateAllPositions(photos: PhotoData[]): Promise<(LayoutPosition | null)[]> {
     this.validateInitialized();
 
     // Reset occupancy for recalculation
@@ -122,7 +123,7 @@ export class GridLayoutStrategy extends LayoutStrategy {
     this.gridOccupancy = {};
     this.minM = 0;
 
-    const positions: LayoutPosition[] = [];
+    const positions: (LayoutPosition | null)[] = [];
     
     try {
       for (const photo of photos) {
