@@ -3,7 +3,7 @@
  */
 export const ANIMATION_CONSTANTS = {
   /** Duration for layout strategy transitions (seconds) */
-  LAYOUT_TRANSITION_DURATION: 10,
+  LAYOUT_TRANSITION_DURATION: 5,
   
   /** Duration for new photo animations from spawn to position (seconds) */
   NEW_PHOTO_ANIMATION_DURATION: 0.8,
@@ -42,7 +42,16 @@ export const ANIMATION_CONSTANTS = {
   QR_SHRINK_DELAY: 10000,
   
   /** Initial delay before starting API polling (milliseconds) */
-  INITIAL_POLLING_DELAY: 2000
+  INITIAL_POLLING_DELAY: 2000,
+  
+  /** Duration for opacity fade in/out animations (seconds) */
+  OPACITY_FADE_DURATION: 0.4,
+  
+  /** Duration for photos moving to (0,0) when becoming invisible (seconds) */
+  INVISIBLE_POSITION_TRANSITION_DURATION: 0.6,
+  
+  /** Duration for camera bounds animation transitions (seconds) */
+  CAMERA_BOUNDS_ANIMATION_DURATION: 3.0
 } as const;
 
 /**

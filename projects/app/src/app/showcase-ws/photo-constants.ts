@@ -12,7 +12,10 @@ export const PHOTO_CONSTANTS = {
   SPACING_X: 250,
   
   /** Default vertical spacing between photos */
-  SPACING_Y: 30
+  SPACING_Y: 30,
+  
+  /** Maximum texture dimension in pixels for performance optimization */
+  MAX_TEXTURE_DIMENSION: 200
 } as const;
 
 /**

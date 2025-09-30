@@ -9,6 +9,7 @@ import { ThreeRendererService } from './three-renderer.service';
 import { LayoutStrategy } from './layout-strategy.interface';
 import { GridLayoutStrategy } from './grid-layout-strategy';
 import { TsneLayoutStrategy } from './tsne-layout-strategy';
+import { SvgBackgroundLayoutStrategy } from './svg-background-layout-strategy';
 import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
@@ -30,7 +31,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   api_key = signal('');
   admin_key = signal('');
   lang = signal('');
-  currentLayout = signal<'grid' | 'tsne'>('grid');
+  currentLayout = signal<'grid' | 'tsne' | 'svg'>('grid');
   enableRandomShowcase = signal(false);
   loadedPhotoIds = new Set<string>();
   qrUrl = computed(() => 
@@ -46,9 +47,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     private photoDataRepository: PhotoDataRepository
   ) {
     this.photoRepository = photoDataRepository;
-    timer(ANIMATION_CONSTANTS.QR_SHRINK_DELAY).subscribe(() => {
-      this.qrSmall.set(true);
-    });
     
     this.loop.pipe(
       distinctUntilChanged()
@@ -59,10 +57,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // First pass: load existing photos immediately
       if (this.lastCreatedAt === '0' && items.length > 0) {
         console.log('Loading existing photos immediately...');
-        this.qrSmall.set(true);
         
         // Process photos in parallel to avoid blocking
-        const photoPromises = items.map(async (item) => {
+        await items.forEach(async (item) => {
           const id = item._id;
           const url = item.screenshot_url;
           const metadata: PhotoMetadata = {
@@ -80,10 +77,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           }
         });
         
-        // Wait for all photos to load, but don't block the loop
-        Promise.all(photoPromises).then(() => {
-          console.log(`Loaded ${items.length} existing photos`);
-        });
+        this.qrSmall.set(true);
         
         // Set lastCreatedAt to the most recent item
         const latestItem = items[items.length - 1];
@@ -197,7 +191,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.photoRepository.photoAdded$
       .pipe(takeUntil(this.destroy$))
       .subscribe((photoData) => {
-        console.log('Photo added to repository:', photoData.id);
       });
 
     this.photoRepository.photoRemoved$
@@ -245,6 +238,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Initialize the strategy
       await tsneStrategy.initialize();
       
+      // Remove SVG background if switching from SVG layout
+      this.rendererService.removeSvgBackground();
+      this.rendererService.disableAllDragging();
+      
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(tsneStrategy);
       
@@ -275,6 +272,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Initialize the strategy
       await gridStrategy.initialize();
       
+      // Remove SVG background if switching from SVG layout
+      this.rendererService.removeSvgBackground();
+      this.rendererService.disableAllDragging();
+      
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(gridStrategy);
       
@@ -283,6 +284,46 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       
     } catch (error) {
       console.error('Error switching to Grid layout:', error);
+    }
+  }
+
+  /**
+   * Switch to SVG background layout
+   */
+  public async switchToSvgLayout() {
+    try {
+      // Create SVG background layout strategy
+      const svgStrategy = new SvgBackgroundLayoutStrategy({
+        svgPath: '/showcase-bg.svg',
+        centerX: 0,
+        centerY: 0,
+        circleRadius: 20000,
+        radiusVariation: 2000,
+        onHotspotDrop: async (photoId: string, hotspotGroupId: string) => {
+          console.log(`🎯 Photo dropped on hotspot!`, {
+            photoId: photoId,
+            hotspotGroupId: hotspotGroupId
+          });
+          // TODO: Implement web service call to update photo properties
+        }
+      });
+      
+      // Switch the layout using PhotoDataRepository (this will initialize the strategy)
+      await this.photoRepository.setLayoutStrategy(svgStrategy);
+      
+      // Set up SVG background in Three.js renderer
+      if (svgStrategy.getSvgElement()) {
+        this.rendererService.setSvgBackground(svgStrategy.getSvgElement()!, {
+          scale: 2,
+          offsetX: 0,
+          offsetY: 0
+        });
+      }
+      
+      this.currentLayout.set('svg');
+      
+    } catch (error) {
+      console.error('Error switching to SVG layout:', error);
     }
   }
 

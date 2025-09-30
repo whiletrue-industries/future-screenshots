@@ -119,17 +119,55 @@ export class GridLayoutStrategy extends LayoutStrategy {
   async calculateAllPositions(photos: PhotoData[]): Promise<(LayoutPosition | null)[]> {
     this.validateInitialized();
 
-    // Reset occupancy for recalculation
+    // Save old occupancy for rollback on error
     const oldOccupancy = { ...this.gridOccupancy };
+    
+    // Reset occupancy but preserve existing positions
     this.gridOccupancy = {};
     this.minM = 0;
 
     const positions: (LayoutPosition | null)[] = [];
     
     try {
+      // First pass: restore existing grid positions for photos that already have them
       for (const photo of photos) {
-        const position = await this.getPositionForPhoto(photo, photos);
-        positions.push(position);
+        const existingGridKey = photo.getProperty<string>('gridKey');
+        // Only restore positions that are actually from this grid layout (not TSNE positions)
+        if (existingGridKey && !existingGridKey.startsWith('tsne-')) {
+          // Mark this position as occupied
+          this.gridOccupancy[existingGridKey] = true;
+          
+          // Parse the grid coordinates from the key
+          const [xStr, yStr] = existingGridKey.split(',');
+          const x = parseFloat(xStr);
+          const y = parseFloat(yStr);
+          
+          // Apply cell spacing to get world coordinates
+          const worldX = x * this.cellW;
+          const worldY = y * this.cellH;
+          
+          positions.push({
+            x: worldX,
+            y: worldY,
+            gridKey: existingGridKey,
+            metadata: {
+              gridX: x,
+              gridY: y,
+              spacing: { x: this.spacingX, y: this.spacingY }
+            }
+          });
+        } else {
+          // Placeholder for photos without positions
+          positions.push(null);
+        }
+      }
+      
+      // Second pass: assign new positions to photos that don't have them
+      for (let i = 0; i < photos.length; i++) {
+        if (positions[i] === null) {
+          const position = await this.getPositionForPhoto(photos[i], photos);
+          positions[i] = position;
+        }
       }
     } catch (error) {
       // Restore previous state on error

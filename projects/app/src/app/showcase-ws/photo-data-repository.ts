@@ -1,9 +1,11 @@
 import { Injectable } from '@angular/core';
 import { Subject, Observable, timer, from, forkJoin } from 'rxjs';
+import * as THREE from 'three';
 import { PhotoData, PhotoMetadata, PhotoAnimationState } from './photo-data';
-import { LayoutStrategy, LayoutPosition } from './layout-strategy.interface';
+import { LayoutStrategy, LayoutPosition, isInteractiveLayout } from './layout-strategy.interface';
 import { ThreeRendererService } from './three-renderer.service';
 import { ANIMATION_CONSTANTS } from './animation-constants';
+import { PHOTO_CONSTANTS } from './photo-constants';
 
 export interface PhotoDataRepositoryOptions {
   enableRandomShowcase?: boolean;
@@ -120,19 +122,39 @@ export class PhotoDataRepository {
     const mesh = await this.renderer.createPhotoMesh(photoData);
     photoData.setMesh(mesh);
 
+    // Set mesh-to-photoId mapping for hotspot detection
+    this.renderer.setMeshPhotoId(mesh, photoData.id);
+
+    // Enable dragging for interactive layouts
+    if (this.layoutStrategy && isInteractiveLayout(this.layoutStrategy)) {
+      this.setupInteractiveDragForPhoto(photoData);
+    }
+
     if (animate && hasValidPosition) {
-      // Animate new photo into position
+      // Start with opacity 0 for animation
+      if (mesh.material && 'opacity' in mesh.material) {
+        (mesh.material as any).opacity = 0;
+        (mesh.material as any).transparent = true;
+      }
+      // Animate new photo into position with fade in
       await this.animateNewPhoto(photoData);
     } else if (hasValidPosition) {
-      // Place immediately at target position
+      // Place immediately at target position with full opacity
       photoData.setCurrentPosition(photoData.targetPosition);
       this.renderer.updateMeshPosition(mesh, photoData.targetPosition);
       photoData.setAnimationState(PhotoAnimationState.POSITIONED);
-    }
-
-    // Update renderer opacity
-    if (mesh.material && 'opacity' in mesh.material) {
-      (mesh.material as any).opacity = photoData.getProperty('opacity') ?? 1;
+      
+      // Set full opacity immediately
+      if (mesh.material && 'opacity' in mesh.material) {
+        (mesh.material as any).opacity = photoData.getProperty('opacity') ?? 1;
+        (mesh.material as any).transparent = true;
+      }
+    } else {
+      // Hidden photo - ensure it's invisible and at (0,0)
+      if (mesh.material && 'opacity' in mesh.material) {
+        (mesh.material as any).opacity = 0;
+        (mesh.material as any).transparent = true;
+      }
     }
 
     // Update camera bounds if photo was placed immediately (not animated)
@@ -202,11 +224,12 @@ export class PhotoDataRepository {
    * Switch to a new layout strategy
    */
   async setLayoutStrategy(newStrategy: LayoutStrategy): Promise<void> {
-    if (!this.renderer) {
-      throw new Error('Repository not initialized');
+    if (!this.layoutStrategy || !this.renderer) {
+      throw new Error('PhotoDataRepository not initialized');
     }
 
-    console.log(`Switching layout strategy to ${newStrategy.getConfiguration().name}`);
+    const fromLayout = this.layoutStrategy.getConfiguration().name;
+    const toLayout = newStrategy.getConfiguration().name;
 
     // Initialize new strategy
     await newStrategy.initialize();
@@ -229,8 +252,13 @@ export class PhotoDataRepository {
       
       // Check if photo has valid position in new layout (not null)
       const hasValidPosition = newPosition !== null;
+
+      // Get current opacity from mesh material
+      const currentOpacity = photo.mesh?.material && 'opacity' in photo.mesh.material ? 
+        (photo.mesh.material as any).opacity : 1;
       
       if (hasValidPosition) {
+        // Always make photo visible when it has a valid position
         photo.setProperty('opacity', 1);
         photo.setTargetPosition({
           x: newPosition.x,
@@ -245,42 +273,73 @@ export class PhotoDataRepository {
         if (newPosition.gridKey) {
           photo.setProperty('gridKey', newPosition.gridKey);
         }
-      } else {
-        // Hide photo if no valid position
-        photo.setProperty('opacity', 0);
-      }
-
-      // Update mesh opacity
-      if (photo.mesh?.material && 'opacity' in photo.mesh.material) {
-        (photo.mesh.material as any).opacity = photo.getProperty('opacity') ?? 1;
-      }
-
-      // Animate to new position if visible
-      if (hasValidPosition && photo.mesh) {
-        // Use actual mesh position as starting point for accurate animation
-        const actualCurrentPosition = {
-          x: photo.mesh.position.x,
-          y: photo.mesh.position.y,
-          z: photo.mesh.position.z
-        };
         
-        return this.animateToPositionWithUpdate(
-          photo,
-          actualCurrentPosition, 
-          photo.targetPosition, 
-          ANIMATION_CONSTANTS.LAYOUT_TRANSITION_DURATION
-        );
+        // Animate both position and opacity to visible state
+        if (photo.mesh) {
+          const actualCurrentPosition = {
+            x: photo.mesh.position.x,
+            y: photo.mesh.position.y,
+            z: photo.mesh.position.z
+          };
+          
+          return this.animateToPositionWithOpacityUpdate(
+            photo,
+            actualCurrentPosition,
+            photo.targetPosition,
+            currentOpacity,
+            1, // target opacity
+            ANIMATION_CONSTANTS.LAYOUT_TRANSITION_DURATION
+          );
+        }
+      } else {
+        // Hide photo and move to (0,0)
+        photo.setProperty('opacity', 0);
+        photo.setTargetPosition({ x: 0, y: 0, z: 0 });
+        // Animate to (0,0) and fade out simultaneously
+        if (photo.mesh) {
+          const actualCurrentPosition = {
+            x: photo.mesh.position.x,
+            y: photo.mesh.position.y,
+            z: photo.mesh.position.z
+          };
+          
+          return this.animateToPositionWithOpacityUpdate(
+            photo,
+            actualCurrentPosition,
+            { x: 0, y: 0, z: 0 },
+            currentOpacity,
+            0, // target opacity
+            ANIMATION_CONSTANTS.INVISIBLE_POSITION_TRANSITION_DURATION
+          );
+        }
       }
     });
 
-    // Wait for all animations to complete
-    await Promise.all(animationPromises.filter(Boolean));
+    // Start camera animation simultaneously with photo animations
+    const cameraAnimationPromise = this.updateCameraBoundsAnimated(true);
     
-    // Update camera bounds (positions are already updated by animateToPositionWithUpdate)
-    this.updateCameraBounds();
+    // Wait for both photo animations and camera animation to complete
+    await Promise.all([
+      Promise.all(animationPromises.filter(Boolean)),
+      cameraAnimationPromise
+    ]);
+    
+    // Enable dragging for all existing photos if switching to interactive layout
+    if (isInteractiveLayout(this.layoutStrategy)) {
+      for (const photo of currentPhotos) {
+        if (photo.mesh) {
+          // Set mesh-to-photoId mapping for hotspot detection
+          this.renderer.setMeshPhotoId(photo.mesh, photo.id);
+          
+          this.setupInteractiveDragForPhoto(photo);
+        }
+      }
+    } else {
+      // Disable dragging for all photos when switching to non-interactive layout
+      this.renderer.disableAllDragging();
+    }
     
     this.layoutChangedSubject.next();
-    console.log(`Successfully switched to ${newStrategy.getConfiguration().name} layout`);
   }
 
   /**
@@ -315,6 +374,9 @@ export class PhotoDataRepository {
     this.isShowcasing = true;
 
     try {
+      // Upgrade to high-resolution texture before showcasing
+      await this.renderer.upgradeToHighResTexture(photo.mesh, photo.url);
+
       // Move photo forward to center of screen
       const originalZ = photo.currentPosition.z;
       const showcaseZ = this.renderer.getCameraSpawnZ() - 100;
@@ -349,6 +411,10 @@ export class PhotoDataRepository {
         ANIMATION_CONSTANTS.SHOWCASE_RETURN_DURATION
       );
       photo.setAnimationState(PhotoAnimationState.POSITIONED);
+      
+      // Downgrade back to low-resolution texture to save memory
+      await this.renderer.downgradeToLowResTexture(photo.mesh, photo.url);
+      
       // Note: No camera bounds update needed - showcase doesn't change layout positions
 
     } finally {
@@ -423,7 +489,7 @@ export class PhotoDataRepository {
 
     photoData.setAnimationState(PhotoAnimationState.SPAWNING);
     
-    // Start at spawn position
+    // Start at spawn position with opacity 0
     const spawnZ = this.renderer.getCameraSpawnZ();
     const spawnPosition = { x: 0, y: 0, z: spawnZ };
     photoData.setCurrentPosition(spawnPosition);
@@ -432,19 +498,21 @@ export class PhotoDataRepository {
     // Wait before animating (reduced delay for better responsiveness)
     await new Promise(resolve => setTimeout(resolve, Math.min(this.newPhotoAnimationDelay, ANIMATION_CONSTANTS.MAX_NEW_PHOTO_DELAY)));
 
-    // Animate to target position
+    // Animate to target position with fade in
     photoData.setAnimationState(PhotoAnimationState.FLOATING_BACK);
-    await this.animateToPositionWithUpdate(
+    await this.animateToPositionWithOpacityUpdate(
       photoData,
       spawnPosition,
       photoData.targetPosition,
+      0, // start opacity
+      1, // target opacity
       ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DURATION
     );
 
     photoData.setAnimationState(PhotoAnimationState.POSITIONED);
     
-    // Update camera bounds
-    this.updateCameraBounds();
+    // Update camera bounds with animation for new photos
+    await this.updateCameraBoundsAnimated(true);
   }
 
   /**
@@ -520,6 +588,35 @@ export class PhotoDataRepository {
   }
 
   /**
+   * Update camera bounds with animation after layout changes
+   */
+  private async updateCameraBoundsAnimated(animate: boolean = true): Promise<void> {
+    if (!this.renderer) {
+      return;
+    }
+
+    const visiblePhotos = this.getVisiblePhotos();
+    if (visiblePhotos.length === 0) {
+      return;
+    }
+
+    const positions = visiblePhotos.map(photo => ({
+      x: photo.targetPosition.x,
+      y: photo.targetPosition.y
+    }));
+
+    const bounds = this.calculateBounds(positions);
+    
+    if (animate) {
+      // Use animated camera bounds update for layout changes
+      await this.renderer.animateCameraTarget(bounds, ANIMATION_CONSTANTS.CAMERA_BOUNDS_ANIMATION_DURATION);
+    } else {
+      // Use immediate update for non-layout changes
+      this.renderer.updateCameraTarget(bounds);
+    }
+  }
+
+  /**
    * Animate to position and update PhotoData current position
    */
   private async animateToPositionWithUpdate(
@@ -542,7 +639,59 @@ export class PhotoDataRepository {
   }
 
   /**
-   * Calculate bounds for a set of positions
+   * Animate both position and opacity, then update PhotoData
+   */
+  private async animateToPositionWithOpacityUpdate(
+    photoData: PhotoData,
+    fromPosition: { x: number; y: number; z: number },
+    toPosition: { x: number; y: number; z: number },
+    fromOpacity: number,
+    toOpacity: number,
+    duration: number
+  ): Promise<void> {
+    if (!photoData.mesh) return;
+    
+    await this.renderer!.animatePositionAndOpacity(
+      photoData.mesh,
+      fromPosition,
+      toPosition,
+      fromOpacity,
+      toOpacity,
+      duration
+    );
+    
+    // Update current position and opacity after animation
+    photoData.setCurrentPosition(toPosition);
+    photoData.setProperty('opacity', toOpacity);
+  }
+
+  /**
+   * Set up interactive drag functionality for a photo with layout strategy integration
+   */
+  private setupInteractiveDragForPhoto(photoData: PhotoData): void {
+    if (!photoData.mesh || !this.renderer || !this.layoutStrategy || !isInteractiveLayout(this.layoutStrategy)) {
+      return;
+    }
+
+    const interactiveStrategy = this.layoutStrategy as any; // Cast to access drag methods
+    
+    // Store the layout strategy reference in the renderer for drag integration
+    this.renderer.setLayoutStrategy(interactiveStrategy);
+    
+    // Store PhotoData reference for drag callbacks
+    this.renderer.setMeshPhotoData(photoData.mesh, photoData);
+    
+    this.renderer.enableDragForMesh(photoData.mesh, (position: { x: number; y: number; z: number }) => {
+      // Update photo data position when dragged (this is called during drag move)
+      photoData.setCurrentPosition(position);
+      photoData.setTargetPosition(position);
+      
+      // Note: Layout strategy drag handlers are now called directly by the renderer
+    });
+  }
+
+  /**
+   * Calculate bounds for a set of positions, accounting for photo dimensions
    */
   private calculateBounds(positions: { x: number; y: number }[]): {
     minX: number; maxX: number; minY: number; maxY: number;
@@ -551,16 +700,20 @@ export class PhotoDataRepository {
       return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
     }
 
-    let minX = positions[0].x;
-    let maxX = positions[0].x;
-    let minY = positions[0].y;
-    let maxY = positions[0].y;
+    // Account for photo dimensions (half width/height from center)
+    const halfWidth = PHOTO_CONSTANTS.PHOTO_WIDTH / 2;
+    const halfHeight = PHOTO_CONSTANTS.PHOTO_HEIGHT / 2;
+
+    let minX = positions[0].x - halfWidth;
+    let maxX = positions[0].x + halfWidth;
+    let minY = positions[0].y - halfHeight;
+    let maxY = positions[0].y + halfHeight;
 
     for (const pos of positions) {
-      minX = Math.min(minX, pos.x);
-      maxX = Math.max(maxX, pos.x);
-      minY = Math.min(minY, pos.y);
-      maxY = Math.max(maxY, pos.y);
+      minX = Math.min(minX, pos.x - halfWidth);
+      maxX = Math.max(maxX, pos.x + halfWidth);
+      minY = Math.min(minY, pos.y - halfHeight);
+      maxY = Math.max(maxY, pos.y + halfHeight);
     }
 
     return { minX, maxX, minY, maxY };

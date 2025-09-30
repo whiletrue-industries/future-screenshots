@@ -18,6 +18,12 @@
     TSNE Layout
   </button>
   <button 
+    class='layout-btn'
+    [class.active]='currentLayout() === "svg"'
+    (click)='switchToSvgLayout()'>
+    SVG Layout
+  </button>
+  <button 
     class='showcase-toggle'
     [class.active]='enableRandomShowcase()'
     (click)='toggleRandomShowcase()'>

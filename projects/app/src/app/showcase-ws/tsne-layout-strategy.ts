@@ -159,7 +159,7 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
     const gridItem = this.tsneData.grid.find(item => item.id === photo.id);
     
     if (!gridItem) {
-      console.warn(`Photo with id ${photo.id} not found in TSNE data, hiding photo`);
+    //   console.warn(`Photo with id ${photo.id} not found in TSNE data, hiding photo`);
       return null; // Hide photos not found in TSNE data
     }
 
