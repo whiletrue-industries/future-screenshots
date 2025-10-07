@@ -89,9 +89,17 @@ export class CollectPropertiesComponent implements AfterViewInit {
       id: 10,
       instructions: '',
       skip: () => {
-        const propsUpdate = this.propsUpdate();
         const item_id = this.api.itemId();
         const item_key = this.api.itemKey();
+
+        // Check if item has an author_id field, if not add it
+        const currentItem = this.api.item();
+        if (currentItem && !currentItem.author_id) {
+          const authorId = this.getOrGenerateAuthorId();
+          this.propsUpdate.update(s => Object.assign({}, s, { author_id: authorId }));
+        }
+
+        const propsUpdate = this.propsUpdate();
         console.log('CONSIDERING IF UPDATE IS NEEDED', propsUpdate);
         if (item_id && item_key) {
           for (const _ in propsUpdate) {
@@ -226,6 +234,16 @@ export class CollectPropertiesComponent implements AfterViewInit {
 
   ngAfterViewInit() {
     this.viewInit.set(true);
+  }
+
+  private getOrGenerateAuthorId(): string {
+    let authorId = this.localStorage?.getItem('future_screenshots_author_id');
+    if (!authorId) {
+      // Generate a random author ID
+      authorId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      this.localStorage?.setItem('future_screenshots_author_id', authorId);
+    }
+    return authorId;
   }
 
   async addStep() {
