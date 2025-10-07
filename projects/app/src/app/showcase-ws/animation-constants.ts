@@ -15,16 +15,16 @@ export const ANIMATION_CONSTANTS = {
   SHOWCASE_RETURN_DURATION: 0.6,
   
   /** Delay before animating new photos (milliseconds) */
-  NEW_PHOTO_ANIMATION_DELAY: 3000,
+  NEW_PHOTO_ANIMATION_DELAY: 5000,
   
   /** Interval between random showcase animations (milliseconds) */
-  SHOWCASE_INTERVAL: 5000,
+  SHOWCASE_INTERVAL: 500,
   
   /** Maximum delay for new photo animations (milliseconds) */
   MAX_NEW_PHOTO_DELAY: 1500,
   
   /** Maximum showcase duration (milliseconds) */
-  MAX_SHOWCASE_DURATION: 2000,
+  MAX_SHOWCASE_DURATION: 5000,
   
   /** Debounce delay for camera bounds updates (milliseconds) */
   CAMERA_BOUNDS_UPDATE_DEBOUNCE: 100,

@@ -232,7 +232,7 @@ export class ThreeRendererService {
     return new Promise((resolve) => {
       const tweenFn = this.makeTween(durationSec, (progress: number) => {
         const ex = this.easeOutCubic(progress);
-        const ez = this.easeOutExpo(progress);
+        const ez = this.easeInOutCubic(progress);
         
         const x = this.lerp(fromPosition.x, toPosition.x, ex);
         const y = this.lerp(fromPosition.y, toPosition.y, ex);
@@ -298,7 +298,7 @@ export class ThreeRendererService {
       
       const tweenFn = this.makeTween(durationSec, (progress: number) => {
         const ex = this.easeOutCubic(progress);
-        const ez = this.easeOutExpo(progress);
+        const ez = this.easeInOutCubic(progress);
         
         // Animate position
         const x = this.lerp(fromPosition.x, toPosition.x, ex);
@@ -419,16 +419,12 @@ export class ThreeRendererService {
   // Easing functions
   easeOutCubic(t: number): number {
     t = this.clamp01(t);
-    return 1 - Math.pow(1 - t, 3);
+    return 1 - Math.pow(1 - t, 2);
   }
 
-  easeOutExpo(t: number): number {
+  easeInOutCubic(t: number): number {
     t = this.clamp01(t);
-    const n = 3;
-    const d = Math.pow(2, -n);
-    t = Math.pow(2, -n * t);
-    t = (t - d) / (1 - d);
-    return t === 1 ? 1 : 1 - t;
+    return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
   }
 
   easeOutBack(t: number, s = 1.70158): number {

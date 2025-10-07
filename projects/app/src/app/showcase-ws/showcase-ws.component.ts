@@ -10,6 +10,7 @@ import { LayoutStrategy } from './layout-strategy.interface';
 import { GridLayoutStrategy } from './grid-layout-strategy';
 import { TsneLayoutStrategy } from './tsne-layout-strategy';
 import { SvgBackgroundLayoutStrategy } from './svg-background-layout-strategy';
+import { CirclePackingLayoutStrategy } from './circle-packing-layout-strategy';
 import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
@@ -31,9 +32,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   api_key = signal('');
   admin_key = signal('');
   lang = signal('');
-  currentLayout = signal<'grid' | 'tsne' | 'svg'>('grid');
+  currentLayout = signal<'grid' | 'tsne' | 'svg' | 'circle-packing'>('circle-packing');
   enableRandomShowcase = signal(false);
   loadedPhotoIds = new Set<string>();
+  private layoutChangeInProgress = false;
   qrUrl = computed(() => 
     `https://mapfutur.es/${this.lang()}?workspace=${this.workspace()}&api_key=${this.api_key()}&ws=true`
   );
@@ -58,15 +60,17 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       if (this.lastCreatedAt === '0' && items.length > 0) {
         console.log('Loading existing photos immediately...');
         
-        // Process photos in parallel to avoid blocking
-        await items.forEach(async (item) => {
+        // Process photos sequentially and then refresh layout
+        const photoPromises = items.map(async (item) => {
           const id = item._id;
           const url = item.screenshot_url;
           const metadata: PhotoMetadata = {
             id,
             url,
             created_at: item.created_at,
-            screenshot_url: url
+            screenshot_url: url,
+            author_id: item.author_id,
+            _private_email: item._private_email
           };
           
           try {
@@ -76,6 +80,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             console.error('Error loading photo immediately:', error);
           }
         });
+        
+        await Promise.all(photoPromises);
         
         this.qrSmall.set(true);
         
@@ -101,7 +107,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
                 id,
                 url,
                 created_at: item.created_at,
-                screenshot_url: url
+                screenshot_url: url,
+                author_id: item.author_id,
+                _private_email: item._private_email
               };
               
               try {
@@ -146,7 +154,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   getItems(): Observable<any[]> {
-    return this.http.get<any[]>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${this.workspace()}/items?page_size=10000`).pipe(
+    return this.http.get<any[]>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${this.workspace()}/items?page_size=10000`, {
+      headers: {
+        'Authorization': this.admin_key()
+      }
+    }).pipe(
       catchError((error) => {
         console.error('Error loading items:', error);
         return of([]);
@@ -167,8 +179,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT
     });
 
-    // Create initial layout strategy
-    const gridStrategy = new GridLayoutStrategy({
+    // Initialize PhotoDataRepository with default grid strategy first
+    const defaultGridStrategy = new GridLayoutStrategy({
       photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
       photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
       spacingX: PHOTO_CONSTANTS.SPACING_X,
@@ -176,9 +188,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       useRandomPositioning: true
     });
 
-    // Initialize PhotoDataRepository
     await this.photoRepository.initialize(
-      gridStrategy, 
+      defaultGridStrategy, 
       this.rendererService, 
       {
         enableRandomShowcase: this.enableRandomShowcase(),
@@ -186,6 +197,21 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         newPhotoAnimationDelay: ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DELAY
       }
     );
+
+    // Switch to the desired initial layout if it's not grid
+    if (this.currentLayout() !== 'grid') {
+      switch (this.currentLayout()) {
+        case 'circle-packing':
+          await this.switchToCirclePackingLayout();
+          break;
+        case 'tsne':
+          await this.switchToTsneLayout();
+          break;
+        case 'svg':
+          await this.switchToSvgLayout();
+          break;
+      }
+    }
 
     // Set up repository event subscriptions
     this.photoRepository.photoAdded$
@@ -219,13 +245,22 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Switch to TSNE layout using the current workspace ID
    */
   public async switchToTsneLayout() {
+    if (this.layoutChangeInProgress) {
+      console.log('Layout change already in progress, ignoring request');
+      return;
+    }
+    
     if (!this.workspace()) {
       console.error('Workspace not set');
       return;
     }
 
+    this.layoutChangeInProgress = true;
     try {
       console.log('Switching to TSNE layout for workspace:', this.workspace());
+      
+      // Update UI immediately for responsive feedback
+      this.currentLayout.set('tsne');
       
       // Create TSNE layout strategy with same dimensions as grid layout
       const tsneStrategy = new TsneLayoutStrategy(this.workspace(), undefined, {
@@ -245,11 +280,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(tsneStrategy);
       
-      this.currentLayout.set('tsne');
       console.log('Successfully switched to TSNE layout');
       
     } catch (error) {
       console.error('Error switching to TSNE layout:', error);
+    } finally {
+      this.layoutChangeInProgress = false;
     }
   }
 
@@ -257,8 +293,17 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Switch back to grid layout
    */
   public async switchToGridLayout() {
+    if (this.layoutChangeInProgress) {
+      console.log('Layout change already in progress, ignoring request');
+      return;
+    }
+    
+    this.layoutChangeInProgress = true;
     try {
       console.log('Switching to Grid layout');
+      
+      // Update UI immediately for responsive feedback
+      this.currentLayout.set('grid');
       
       // Create grid layout strategy
       const gridStrategy = new GridLayoutStrategy({
@@ -279,11 +324,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(gridStrategy);
       
-      this.currentLayout.set('grid');
       console.log('Successfully switched to Grid layout');
       
     } catch (error) {
       console.error('Error switching to Grid layout:', error);
+    } finally {
+      this.layoutChangeInProgress = false;
     }
   }
 
@@ -291,7 +337,16 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Switch to SVG background layout
    */
   public async switchToSvgLayout() {
+    if (this.layoutChangeInProgress) {
+      console.log('Layout change already in progress, ignoring request');
+      return;
+    }
+    
+    this.layoutChangeInProgress = true;
     try {
+      // Update UI immediately for responsive feedback
+      this.currentLayout.set('svg');
+      
       // Create SVG background layout strategy
       const svgStrategy = new SvgBackgroundLayoutStrategy({
         svgPath: '/showcase-bg.svg',
@@ -320,12 +375,64 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         });
       }
       
-      this.currentLayout.set('svg');
-      
     } catch (error) {
       console.error('Error switching to SVG layout:', error);
+    } finally {
+      this.layoutChangeInProgress = false;
     }
   }
+
+  /**
+   * Switch to Circle Packing layout
+   */
+  public async switchToCirclePackingLayout() {
+    if (this.layoutChangeInProgress) {
+      console.log('Layout change already in progress, ignoring request');
+      return;
+    }
+    
+    this.layoutChangeInProgress = true;
+    try {
+      // Update UI immediately for responsive feedback
+      this.currentLayout.set('circle-packing');
+      
+      // Create circle packing layout strategy
+      const circlePackingStrategy = new CirclePackingLayoutStrategy({
+        photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
+        photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
+        spacingX: PHOTO_CONSTANTS.SPACING_X,
+        spacingY: PHOTO_CONSTANTS.SPACING_Y,
+        groupBuffer: 1500,  // Ample buffer between groups
+        photoBuffer: 0   // Buffer between photos within groups
+      });
+      
+      // Remove SVG background if switching from SVG layout
+      this.rendererService.removeSvgBackground();
+      this.rendererService.disableAllDragging();
+      
+      // Switch the layout using PhotoDataRepository
+      await this.photoRepository.setLayoutStrategy(circlePackingStrategy);
+      
+      console.log('Successfully switched to Circle Packing layout');
+      
+    } catch (error) {
+      console.error('Error switching to Circle Packing layout:', error);
+    } finally {
+      this.layoutChangeInProgress = false;
+    }
+  }
+
+  /**
+   * Calculate transform for layout selection indicator
+   */
+  getLayoutIndicatorTransform(): string {
+    const layoutIndex = this.currentLayout() === 'grid' ? 0 : 
+                       this.currentLayout() === 'tsne' ? 1 :
+                       this.currentLayout() === 'svg' ? 2 : 3;
+    const translateX = layoutIndex * 48; // 44px width + 4px gap
+    return `translateX(${translateX}px)`;
+  }
+
 
   ngOnDestroy() {
     this.destroy$.next();

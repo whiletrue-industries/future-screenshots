@@ -8,8 +8,11 @@ import { PHOTO_CONSTANTS } from './photo-constants';
  * and positions photos according to TSNE (t-Distributed Stochastic Neighbor Embedding) algorithm results.
  */
 export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayoutStrategy {
-  private configUrl: string;
+  private workspaceConfigUrl: string;
+  private tsneConfigUrl: string | null = null;
   private tsneData: TsneConfigData | null = null;
+  private currentStateHash: string | null = null;
+  private currentSetId: number | null = null;
   private isLoading = false;
   private loadPromise: Promise<void> | null = null;
   private readonly photoWidth: number;
@@ -35,7 +38,7 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
     } = {}
   ) {
     super();
-    this.configUrl = `${this.baseUrl}/tiles/${this.workspaceId}/0/config.json`;
+    this.workspaceConfigUrl = `${this.baseUrl}/tiles/${this.workspaceId}/config.json`;
     
     // Use same dimensions as grid layout to ensure consistency
     this.photoWidth = options.photoWidth ?? PHOTO_CONSTANTS.PHOTO_WIDTH;
@@ -44,6 +47,16 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
     this.spacingY = options.spacingY ?? PHOTO_CONSTANTS.SPACING_Y;
     this.cellW = this.photoWidth + this.spacingX;  // 780
     this.cellH = this.photoHeight + this.spacingY; // 1030
+  }
+
+  /**
+   * Initialize the layout strategy - forces refresh every time we switch to this layout
+   */
+  override async initialize(): Promise<void> {
+    await super.initialize();
+    // Always refresh data when switching to TSNE layout to ensure we have the latest data
+    await this.forceRefresh();
+    console.log('TSNE layout initialized with fresh data');
   }
 
   /**
@@ -68,6 +81,50 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
   }
 
   /**
+   * Forces a refresh of the TSNE data by clearing cache and reloading
+   */
+  public async forceRefresh(): Promise<void> {
+    this.tsneData = null;
+    this.currentStateHash = null;
+    this.currentSetId = null;
+    this.tsneConfigUrl = null;
+    this.isLoading = false;
+    this.loadPromise = null;
+    await this.fetchTsneData();
+  }
+
+  /**
+   * Fetches workspace configuration to get set_id and state_hash
+   */
+  private async fetchWorkspaceConfig(): Promise<WorkspaceConfig> {
+    try {
+      const response = await fetch(this.workspaceConfigUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch workspace config: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (typeof data.set_id !== 'number') {
+        throw new Error('Invalid workspace config: missing or invalid set_id: ' + data.set_id + ' ' + typeof data.set_id);
+      }
+      
+      if (!data.state_hash || typeof data.state_hash !== 'string') {
+        throw new Error('Invalid workspace config: missing or invalid state_hash: ' + data.state_hash);
+      }
+
+      return {
+        set_id: data.set_id,
+        state_hash: data.state_hash
+      };
+    } catch (error) {
+      console.error('Error fetching workspace configuration:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Fetches the TSNE configuration data from the remote service
    */
   private async fetchTsneData(): Promise<void> {
@@ -87,7 +144,24 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
 
   private async doFetchTsneData(): Promise<void> {
     try {
-      const response = await fetch(this.configUrl);
+      // First, fetch workspace configuration to get set_id and state_hash
+      const workspaceConfig = await this.fetchWorkspaceConfig();
+      
+      // Check if we need to refresh based on state_hash
+      if (this.currentStateHash === workspaceConfig.state_hash && this.tsneData) {
+        console.log('TSNE data is up to date (state_hash unchanged), skipping refresh');
+        return;
+      }
+      
+      // Update our tracking variables
+      this.currentStateHash = workspaceConfig.state_hash;
+      this.currentSetId = workspaceConfig.set_id;
+      this.tsneConfigUrl = `${this.baseUrl}/tiles/${this.workspaceId}/${workspaceConfig.set_id}/config.json`;
+      
+      console.log(`Fetching TSNE data for set_id: ${workspaceConfig.set_id}, state_hash: ${workspaceConfig.state_hash}`);
+      
+      // Now fetch the actual TSNE configuration
+      const response = await fetch(this.tsneConfigUrl);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch TSNE config: ${response.status} ${response.statusText}`);
@@ -272,8 +346,11 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
     }
     
     this.workspaceId = workspaceId;
-    this.configUrl = `${this.baseUrl}/tiles/${this.workspaceId}/0/config.json`;
+    this.workspaceConfigUrl = `${this.baseUrl}/tiles/${this.workspaceId}/config.json`;
     this.tsneData = null;
+    this.currentStateHash = null;
+    this.currentSetId = null;
+    this.tsneConfigUrl = null;
     this.isLoading = false;
     this.loadPromise = null;
     
@@ -300,7 +377,10 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
       workspaceId: this.workspaceId,
       gridSize: this.tsneData.dim,
       itemCount: this.tsneData.grid.length,
-      configUrl: this.configUrl
+      workspaceConfigUrl: this.workspaceConfigUrl,
+      tsneConfigUrl: this.tsneConfigUrl || 'not set',
+      setId: this.currentSetId || -1,
+      stateHash: this.currentStateHash || 'not set'
     };
   }
 }
@@ -336,11 +416,22 @@ interface TsneGridItem {
 }
 
 /**
+ * Interface for workspace configuration data
+ */
+interface WorkspaceConfig {
+  set_id: number;
+  state_hash: string;
+}
+
+/**
  * Information about the loaded TSNE configuration
  */
 export interface TsneInfo {
   workspaceId: string;
   gridSize: [number, number];
   itemCount: number;
-  configUrl: string;
+  workspaceConfigUrl: string;
+  tsneConfigUrl: string;
+  setId: number;
+  stateHash: string;
 }

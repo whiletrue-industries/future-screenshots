@@ -80,6 +80,15 @@ export abstract class LayoutStrategy {
     return this.photos.find(p => p.id === id);
   }
 
+  /**
+   * Indicates whether adding a single photo affects all photo positions
+   * For layouts like circle packing, adding one photo changes all positions
+   * @returns true if all photos need repositioning when one is added
+   */
+  requiresFullRecalculationOnAdd(): boolean {
+    return false; // Default: only the new photo needs positioning
+  }
+
   // Layout bounds calculation (used for camera positioning)
   calculateLayoutBounds(positions: (LayoutPosition | null)[], photoWidth: number, photoHeight: number): {
     minX: number;

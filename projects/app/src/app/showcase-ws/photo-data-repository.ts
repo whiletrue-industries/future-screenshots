@@ -87,35 +87,91 @@ export class PhotoDataRepository {
     this.photos.set(metadata.id, photoData);
     this.layoutStrategy.addPhoto(photoData);
 
-    // Get position from layout strategy
-    const layoutPosition = await this.layoutStrategy.getPositionForPhoto(
-      photoData, 
-      Array.from(this.photos.values())
-    );
-
-    // Set visibility based on whether layout strategy provided a position
-    const hasValidPosition = layoutPosition && 
-      (layoutPosition.x !== undefined && layoutPosition.y !== undefined);
+    // Check if this layout requires full recalculation when adding photos
+    let hasValidPosition = false;
     
-    if (hasValidPosition) {
-      photoData.setProperty('opacity', 1);
-      photoData.setTargetPosition({
-        x: layoutPosition.x,
-        y: layoutPosition.y,
-        z: 0
-      });
+    if (this.layoutStrategy.requiresFullRecalculationOnAdd()) {
+      // Recalculate all positions and update all photos
+      const allPhotos = Array.from(this.photos.values());
+      const allPositions = await this.layoutStrategy.calculateAllPositions(allPhotos);
       
-      // Store layout metadata
-      if (layoutPosition.metadata) {
-        photoData.updateMetadata(layoutPosition.metadata);
-      }
-      if (layoutPosition.gridKey) {
-        photoData.setProperty('gridKey', layoutPosition.gridKey);
-      }
+      // Update all photos with new positions
+      allPhotos.forEach((photo, index) => {
+        const layoutPosition = allPositions[index];
+        
+        if (layoutPosition && layoutPosition.x !== undefined && layoutPosition.y !== undefined) {
+          photo.setProperty('opacity', 1);
+          photo.setTargetPosition({
+            x: layoutPosition.x,
+            y: layoutPosition.y,
+            z: 0
+          });
+          
+          // Update mesh position for existing photos (new photo's mesh is created below)
+          if (photo.mesh && photo.id !== photoData.id) {
+            this.renderer!.updateMeshPosition(photo.mesh, photo.targetPosition);
+            if (photo.mesh.material && 'opacity' in photo.mesh.material) {
+              (photo.mesh.material as any).opacity = 1;
+            }
+          }
+          
+          // Store layout metadata
+          if (layoutPosition.metadata) {
+            photo.updateMetadata(layoutPosition.metadata);
+          }
+          if (layoutPosition.gridKey) {
+            photo.setProperty('gridKey', layoutPosition.gridKey);
+          }
+          
+          // Check if the new photo has a valid position
+          if (photo.id === photoData.id) {
+            hasValidPosition = true;
+          }
+        } else {
+          // No valid position - hide the photo
+          photo.setProperty('opacity', 0);
+          photo.setTargetPosition({ x: 0, y: 0, z: 0 });
+          
+          // Update mesh for existing photos
+          if (photo.mesh && photo.id !== photoData.id) {
+            this.renderer!.updateMeshPosition(photo.mesh, { x: 0, y: 0, z: 0 });
+            if (photo.mesh.material && 'opacity' in photo.mesh.material) {
+              (photo.mesh.material as any).opacity = 0;
+            }
+          }
+        }
+      });
     } else {
-      // No valid position from strategy - hide the photo
-      photoData.setProperty('opacity', 0);
-      photoData.setTargetPosition({ x: 0, y: 0, z: 0 });
+      // Only position the new photo (existing behavior for grid, tsne, svg layouts)
+      const layoutPosition = await this.layoutStrategy.getPositionForPhoto(
+        photoData, 
+        Array.from(this.photos.values())
+      );
+
+      // Set visibility based on whether layout strategy provided a position
+      hasValidPosition = !!(layoutPosition && 
+        (layoutPosition.x !== undefined && layoutPosition.y !== undefined));
+      
+      if (hasValidPosition && layoutPosition) {
+        photoData.setProperty('opacity', 1);
+        photoData.setTargetPosition({
+          x: layoutPosition.x,
+          y: layoutPosition.y,
+          z: 0
+        });
+        
+        // Store layout metadata
+        if (layoutPosition.metadata) {
+          photoData.updateMetadata(layoutPosition.metadata);
+        }
+        if (layoutPosition.gridKey) {
+          photoData.setProperty('gridKey', layoutPosition.gridKey);
+        }
+      } else {
+        // No valid position from strategy - hide the photo
+        photoData.setProperty('opacity', 0);
+        photoData.setTargetPosition({ x: 0, y: 0, z: 0 });
+      }
     }
 
     // Create mesh through renderer
