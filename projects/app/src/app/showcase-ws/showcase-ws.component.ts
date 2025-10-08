@@ -367,12 +367,18 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       await this.photoRepository.setLayoutStrategy(svgStrategy);
       
       // Set up SVG background in Three.js renderer
-      if (svgStrategy.getSvgElement()) {
-        this.rendererService.setSvgBackground(svgStrategy.getSvgElement()!, {
-          scale: 2,
+      const svgElement = svgStrategy.getSvgElement();
+      console.log('🖼️ SVG element after initialization:', svgElement);
+      if (svgElement) {
+        console.log('✅ Setting SVG background in Three.js renderer');
+        this.rendererService.setSvgBackground(svgElement, {
+          scale: 1,
           offsetX: 0,
-          offsetY: 0
+          offsetY: 0,
+          radius: 20000 // Use the same radius as the layout strategy
         });
+      } else {
+        console.warn('❌ SVG element is null, cannot set background');
       }
       
     } catch (error) {

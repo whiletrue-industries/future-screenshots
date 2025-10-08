@@ -17,6 +17,7 @@ export interface ThreeRendererOptions {
     scale?: number;
     offsetX?: number;
     offsetY?: number;
+    radius?: number;
   };
 }
 
@@ -68,7 +69,7 @@ export class ThreeRendererService {
   // SVG Background
   private svgBackgroundPlane?: THREE.Mesh;
   private svgBackgroundTexture?: THREE.Texture;
-  private svgBackgroundOptions?: { enabled: boolean; svgElement?: SVGSVGElement; scale?: number; offsetX?: number; offsetY?: number; };
+  private svgBackgroundOptions?: { enabled: boolean; svgElement?: SVGSVGElement; scale?: number; offsetX?: number; offsetY?: number; radius?: number; };
 
   // Drag and Drop
   private raycaster = new THREE.Raycaster();
@@ -443,7 +444,7 @@ export class ThreeRendererService {
   /**
    * Enable or update SVG background
    */
-  setSvgBackground(svgElement: SVGSVGElement, options?: { scale?: number; offsetX?: number; offsetY?: number; }): void {
+  setSvgBackground(svgElement: SVGSVGElement, options?: { scale?: number; offsetX?: number; offsetY?: number; radius?: number; }): void {
     // Remove existing background if present
     if (this.svgBackgroundPlane) {
       this.scene.remove(this.svgBackgroundPlane);
@@ -470,7 +471,8 @@ export class ThreeRendererService {
       svgElement,
       scale: options?.scale ?? 1,
       offsetX: options?.offsetX ?? 0,
-      offsetY: options?.offsetY ?? 0
+      offsetY: options?.offsetY ?? 0,
+      radius: options?.radius
     };
     
     // Create DOM container for SVG hotspot detection
@@ -700,12 +702,12 @@ export class ThreeRendererService {
       
       if (isInside) {
         // Found a hotspot collision, find the parent group
-        const parentGroup = hotspot.closest('g');
+        const parentGroup = hotspot.parentElement?.closest('g');
         if (parentGroup && parentGroup.id) {
           console.log('🎯 Photo center dropped on hotspot!', {
             photoId: photoId,
             hotspotId: hotspot.id,
-            groupId: parentGroup.id,
+            groupId: parentGroup?.id,
             elementType: hotspot.tagName,
             meshCenterCoordinates: { svgX, svgY }
           });
@@ -1249,21 +1251,38 @@ export class ThreeRendererService {
   }
 
   private setupSvgBackground(svgOptions: NonNullable<ThreeRendererOptions['svgBackground']>): void {
-    if (!svgOptions.svgElement) return;
+    if (!svgOptions.svgElement) {
+      console.warn('❌ No SVG element provided to setupSvgBackground');
+      return;
+    }
+
+    console.log('🎨 Setting up SVG background with element:', svgOptions.svgElement);
 
     // Convert SVG to canvas for texture
     const svgString = new XMLSerializer().serializeToString(svgOptions.svgElement);
+    console.log('📄 Serialized SVG string length:', svgString.length);
+    
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d')!;
     
     // Set canvas size based on SVG dimensions or container
-    const svgRect = svgOptions.svgElement.getBoundingClientRect();
-    canvas.width = svgRect.width || this.container!.clientWidth;
-    canvas.height = svgRect.height || this.container!.clientHeight;
+    // Use SVG width/height attributes since getBoundingClientRect() returns 0 for non-DOM elements
+    const svgWidthAttr = svgOptions.svgElement.getAttribute('width');
+    const svgHeightAttr = svgOptions.svgElement.getAttribute('height');
+    console.log('📏 SVG attributes - width:', svgWidthAttr, 'height:', svgHeightAttr);
+    
+    const svgWidth = parseInt(svgWidthAttr || '0') || this.container!.clientWidth;
+    const svgHeight = parseInt(svgHeightAttr || '0') || this.container!.clientHeight;
+    
+    canvas.width = svgWidth;
+    canvas.height = svgHeight;
+    console.log('🖼️ Canvas dimensions (using SVG attributes):', canvas.width, 'x', canvas.height);
     
     // Create an image from SVG data
     const img = new Image();
     img.onload = () => {
+      console.log('🖼️ SVG image loaded successfully');
+      
       // Clear canvas and draw SVG
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -1272,37 +1291,50 @@ export class ThreeRendererService {
       this.svgBackgroundTexture = new THREE.CanvasTexture(canvas);
       this.svgBackgroundTexture.needsUpdate = true;
       
-      // Create plane geometry sized to fit the camera view
-      const aspect = this.container!.clientWidth / this.container!.clientHeight;
-      const distance = this.targetCamZ;
-      const vFOV = THREE.MathUtils.degToRad(this.camera.fov);
-      const height = 2 * Math.tan(vFOV / 2) * distance;
-      const width = height * aspect;
+      console.log('✅ SVG texture created successfully');
       
-      const geometry = new THREE.PlaneGeometry(width, height);
+      // Create plane geometry sized to match the coordinate system used by photos
+      // Use the radius from the layout strategy directly
+      const backgroundRadius = svgOptions.radius || 20000;
+      const geometry = new THREE.PlaneGeometry(backgroundRadius * 2, backgroundRadius * 2);
+      
       const material = new THREE.MeshBasicMaterial({
         map: this.svgBackgroundTexture,
         transparent: true,
-        opacity: 0.3 // Make background semi-transparent
+        opacity: 0.8 // Make background more visible
       });
       
       this.svgBackgroundPlane = new THREE.Mesh(geometry, material);
       
-      // Position the plane far behind the photos
-      this.svgBackgroundPlane.position.z = -distance * 0.8;
+      // Position the plane just behind the photos at z = -0.01
+      this.svgBackgroundPlane.position.set(0, 0, -0.01);
       
       // Apply any offset transformations
       if (svgOptions.offsetX) this.svgBackgroundPlane.position.x += svgOptions.offsetX;
       if (svgOptions.offsetY) this.svgBackgroundPlane.position.y += svgOptions.offsetY;
       if (svgOptions.scale) this.svgBackgroundPlane.scale.setScalar(svgOptions.scale);
       
+      console.log('📐 SVG background plane details:', {
+        width: backgroundRadius * 2,
+        height: backgroundRadius * 2,
+        positionZ: this.svgBackgroundPlane.position.z,
+        scale: svgOptions.scale || 1,
+        opacity: material.opacity
+      });
+      
       // Add to scene
       this.scene.add(this.svgBackgroundPlane);
+      console.log('🎯 SVG background plane added to scene successfully');
+    };
+    
+    img.onerror = (error) => {
+      console.error('❌ Failed to load SVG image:', error);
     };
     
     // Convert SVG to data URL
     const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(svgBlob);
+    console.log('🔗 Created blob URL for SVG:', url);
     img.src = url;
   }
 
@@ -1312,13 +1344,39 @@ export class ThreeRendererService {
     aspect: number,
     margin: number
   ): number {
-    const width = Math.max(bounds.maxX, -bounds.minX) + 2 * margin;
-    const height = Math.max(bounds.maxY, -bounds.minY) + 2 * margin;
-    const hw = width * 0.5;
-    const hh = height * 0.5;
-
-    const ret = Math.sqrt(hw * hw + hh * hh) / Math.tan(fovY * 0.5);
-    return ret * 1.41;
+    // Calculate the actual width and height of the bounds
+    const boundsWidth = bounds.maxX - bounds.minX;
+    const boundsHeight = bounds.maxY - bounds.minY;
+    
+    // Add margin to both dimensions
+    const totalWidth = boundsWidth + 2 * margin;
+    const totalHeight = boundsHeight + 2 * margin;
+    
+    // Calculate camera distance needed to fit the height (vertical FOV constraint)
+    const distanceForHeight = (totalHeight * 0.5) / Math.tan(fovY * 0.5);
+    
+    // Calculate camera distance needed to fit the width (horizontal FOV constraint)
+    // Horizontal FOV = 2 * atan(tan(verticalFOV/2) * aspectRatio)
+    const horizontalFOV = 2 * Math.atan(Math.tan(fovY * 0.5) * aspect);
+    const distanceForWidth = (totalWidth * 0.5) / Math.tan(horizontalFOV * 0.5);
+    
+    // Use the larger distance to ensure both width and height fit
+    // Add 10% safety margin to guarantee all elements are visible
+    const requiredDistance = Math.max(distanceForHeight, distanceForWidth);
+    const safeDistance = requiredDistance * 1.1;
+    
+    console.log(`📐 Camera fit calculation:`, {
+      bounds: { width: boundsWidth, height: boundsHeight },
+      withMargin: { width: totalWidth, height: totalHeight },
+      fovY: THREE.MathUtils.radToDeg(fovY),
+      aspect,
+      distanceForHeight,
+      distanceForWidth,
+      requiredDistance,
+      safeDistance
+    });
+    
+    return safeDistance;
   }
 
   private clamp01(t: number): number {
