@@ -61,8 +61,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // First pass: load existing photos immediately
       if (this.lastCreatedAt === '0' && items.length > 0) {
 
-        items = items.slice(0, 10);
-
         // Process photos sequentially and then refresh layout
         const photoPromises = items.map(async (item) => {
           const id = item._id;
@@ -98,7 +96,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         const newItems = items.filter(item => {
           const created_at = item.created_at;
           return created_at && created_at > this.lastCreatedAt;
-        }).slice(0, 1);
+        });
         console.log('num new items:', newItems.length);
         
         if (newItems.length > 0) {
