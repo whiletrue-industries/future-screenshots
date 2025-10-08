@@ -86,6 +86,13 @@ export class ThreeRendererService {
   // SVG Container for hotspot detection
   private svgContainer: HTMLElement | null = null;
 
+  // Dragging Preview Widget
+  private previewWidget: HTMLElement | null = null;
+  private previewImage: HTMLImageElement | null = null;
+  private previewHotspotInfo: HTMLElement | null = null;
+  private hoveredMesh: THREE.Mesh | null = null;
+  private currentMatchedHotspot: { [key: string]: string | number } | null = null;
+
   constructor() {
     const opts: ThreeRendererOptions = {};
     this.PHOTO_W = opts.photoWidth ?? PHOTO_CONSTANTS.PHOTO_WIDTH;
@@ -556,75 +563,314 @@ export class ThreeRendererService {
   }
 
   /**
-   * Check for hotspot collision when a photo is dropped
-   * Uses the CENTER coordinate of the dragged mesh for collision detection
+   * Create dragging preview widget
    */
-  private checkHotspotCollision(mesh: THREE.Mesh, photoId: string): void {
-    console.log('🔍 Checking hotspot collision for photo:', photoId);
-    console.log('SVG Container:', this.svgContainer);
-    
-    if (!this.svgContainer) {
-      console.log('❌ No SVG container found');
+  private createPreviewWidget(): void {
+    if (!this.container) {
+      console.log('❌ No container element available for preview widget');
       return;
     }
+
+    // Create main widget container
+    this.previewWidget = document.createElement('div');
+    this.previewWidget.style.position = 'absolute';
+    this.previewWidget.style.top = '50%';
+    this.previewWidget.style.transform = 'translateY(-50%)';
+    this.previewWidget.style.height = '50vh';
+    this.previewWidget.style.width = 'auto';
+    this.previewWidget.style.aspectRatio = '530/1000'; // Actual photo proportions (530x1000)
+    this.previewWidget.style.backgroundColor = 'transparent';
+    this.previewWidget.style.borderRadius = '12px';
+    this.previewWidget.style.padding = '0';
+    this.previewWidget.style.pointerEvents = 'none';
+    this.previewWidget.style.zIndex = '1000';
+    this.previewWidget.style.display = 'none';
+    this.previewWidget.style.transition = 'opacity 0.2s ease-in-out, left 0.3s ease-in-out';
+    this.previewWidget.style.fontFamily = 'Arial, sans-serif';
+    this.previewWidget.style.fontSize = '14px';
+    this.previewWidget.style.color = 'white';
+    this.previewWidget.style.filter = 'drop-shadow(0 8px 32px rgba(0, 0, 0, 0.3))';
+
+    // Create image element
+    this.previewImage = document.createElement('img');
+    this.previewImage.style.width = '100%';
+    this.previewImage.style.height = '100%';
+    this.previewImage.style.objectFit = 'contain'; // Changed from 'cover' to 'contain' to prevent cropping
+    this.previewImage.style.borderRadius = '12px';
+    this.previewImage.style.display = 'block';
+
+    // Create hotspot info element
+    this.previewHotspotInfo = document.createElement('div');
+    this.previewHotspotInfo.style.display = 'none';
+    this.previewHotspotInfo.style.position = 'absolute';
+    this.previewHotspotInfo.style.bottom = '10px';
+    this.previewHotspotInfo.style.left = '50%';
+    this.previewHotspotInfo.style.transform = 'translateX(-50%)';
+    this.previewHotspotInfo.style.padding = '8px 12px';
+    this.previewHotspotInfo.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    this.previewHotspotInfo.style.borderRadius = '20px';
+    this.previewHotspotInfo.style.fontWeight = 'bold';
+    this.previewHotspotInfo.style.fontSize = '12px';
+    this.previewHotspotInfo.style.whiteSpace = 'nowrap';
+    this.previewHotspotInfo.style.maxWidth = '90%';
+    this.previewHotspotInfo.style.textAlign = 'center';
+    this.previewHotspotInfo.style.overflow = 'hidden';
+    this.previewHotspotInfo.style.textOverflow = 'ellipsis';
+
+    // Assemble widget
+    this.previewWidget.appendChild(this.previewImage);
+    this.previewWidget.appendChild(this.previewHotspotInfo);
+    this.container.appendChild(this.previewWidget);
+
+    console.log('🎯 Preview widget created and added');
+  }
+
+  /**
+   * Update preview widget position based on mouse position
+   */
+  private updatePreviewWidgetPosition(mouseX: number, mouseY: number): void {
+    if (!this.previewWidget || !this.container) return;
+
+    const containerRect = this.container.getBoundingClientRect();
+    const widgetHeight = containerRect.height * 0.5; // 50vh
+    const widgetWidth = widgetHeight * (530/1000); // Actual photo aspect ratio (530x1000)
+    const margin = 30;
+
+    // Position on opposite side of mouse
+    let left: number;
+    if (mouseX < containerRect.width / 2) {
+      // Mouse on left, put widget on right
+      left = containerRect.width - widgetWidth - margin;
+    } else {
+      // Mouse on right, put widget on left
+      left = margin;
+    }
+
+    this.previewWidget.style.left = `${left}px`;
+  }
+
+  /**
+   * Show preview widget with photo
+   */
+  private showPreviewWidget(mesh: THREE.Mesh): void {
+    if (!this.previewWidget || !this.previewImage || !this.previewHotspotInfo) return;
+
+    const photoData = this.meshToPhotoData.get(mesh);
+    if (!photoData) return;
+
+    // Reset hotspot info and image styles
+    this.previewHotspotInfo.style.display = 'none';
+    this.previewHotspotInfo.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    this.previewHotspotInfo.style.fontSize = '12px';
+    this.previewImage.style.opacity = '1';
+    this.previewImage.style.transition = '';
+    this.currentMatchedHotspot = null;
+
+    // Load high-res image
+    this.previewImage.src = photoData.url;
+    this.previewWidget.style.display = 'block';
+    this.previewWidget.style.opacity = '1';
+
+    console.log('👀 Preview widget shown for photo:', photoData.id);
+  }
+
+  /**
+   * Update preview widget with hotspot info
+   */
+  private updatePreviewWidgetHotspot(hotspotData: { [key: string]: string | number } | null): void {
+    if (!this.previewHotspotInfo) return;
+
+    if (hotspotData) {
+      const displayText = this.formatHotspotDisplay(hotspotData);
+      this.previewHotspotInfo.innerHTML = displayText;
+      this.previewHotspotInfo.style.display = 'block';
+      console.log('🎯 Using hotspot data:', hotspotData);
+    } else {
+      this.previewHotspotInfo.style.display = 'none';
+    }
+
+    this.currentMatchedHotspot = hotspotData;
+  }
+
+  /**
+   * Hide preview widget
+   */
+  private hidePreviewWidget(): void {
+    if (!this.previewWidget) return;
+
+    this.previewWidget.style.opacity = '0';
+    setTimeout(() => {
+      if (this.previewWidget) {
+        this.previewWidget.style.display = 'none';
+      }
+    }, 200);
+
+    console.log('🫥 Preview widget hidden');
+  }
+
+  /**
+   * Animate preview widget disappearance with hotspot highlight
+   */
+  private animatePreviewWidgetDrop(hotspotData: { [key: string]: string | number } | null): void {
+    if (!this.previewWidget || !this.previewImage || !this.previewHotspotInfo) return;
+
+    if (hotspotData) {
+      // First fade out the image
+      this.previewImage.style.transition = 'opacity 0.3s ease-out';
+      this.previewImage.style.opacity = '0';
+
+      // Show hotspot info prominently
+      this.previewHotspotInfo.style.display = 'block';
+      this.previewHotspotInfo.style.backgroundColor = 'rgba(34, 197, 94, 0.9)'; // Green success color
+      this.previewHotspotInfo.style.fontSize = '14px';
+      
+      const displayText = this.formatHotspotDisplay(hotspotData);
+      this.previewHotspotInfo.innerHTML = `✅ ${displayText}`;
+
+      // Hide everything after 2 seconds and fully reset
+      setTimeout(() => {
+        this.hidePreviewWidget();
+        // Reset all styles completely
+        setTimeout(() => {
+          if (this.previewImage) {
+            this.previewImage.style.opacity = '1';
+            this.previewImage.style.transition = '';
+          }
+          if (this.previewHotspotInfo) {
+            this.previewHotspotInfo.style.display = 'none';
+            this.previewHotspotInfo.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            this.previewHotspotInfo.style.fontSize = '12px';
+            this.previewHotspotInfo.innerHTML = '';
+          }
+          this.currentMatchedHotspot = null;
+        }, 300); // Wait for fade out animation
+      }, 2000);
+
+      console.log('🎉 Preview widget animating drop success for hotspot:', hotspotData);
+    } else {
+      // No hotspot, just hide normally
+      this.hidePreviewWidget();
+    }
+  }
+
+  /**
+   * Parse hotspot group ID format: s-key1=value1,key2=value2,key3=value3...
+   * Returns parsed object with key-value pairs
+   */
+  private parseHotspotGroupId(groupId: string): { [key: string]: string | number } | null {
+    if (!groupId || !groupId.startsWith('s-')) {
+      return null;
+    }
     
-    // Get the mesh's CENTER world position (not cursor position)
+    try {
+      const keyValueString = groupId.substring(2); // Remove 's-' prefix
+      const pairs = keyValueString.split(',');
+      const result: { [key: string]: string | number } = {};
+      
+      for (const pair of pairs) {
+        const [key, value] = pair.split('=');
+        if (key && value) {
+          const trimmedValue = value.trim();
+          // Try to parse as integer first, fallback to string
+          const parsedNumber = parseInt(trimmedValue, 10);
+          const finalValue = !isNaN(parsedNumber) && parsedNumber.toString() === trimmedValue 
+            ? parsedNumber 
+            : trimmedValue;
+          result[key.trim()] = finalValue;
+        }
+      }
+      
+      return Object.keys(result).length > 0 ? result : null;
+    } catch (error) {
+      console.warn('Failed to parse hotspot group ID:', groupId, error);
+      return null;
+    }
+  }
+
+  /**
+   * Format hotspot data for display in widget (with HTML line breaks)
+   */
+  private formatHotspotDisplay(hotspotData: { [key: string]: string | number }): string {
+    const entries = Object.entries(hotspotData);
+    if (entries.length === 0) return '';
+    
+    // Format as key: value pairs on separate lines with special transformations
+    return entries
+      .map(([key, value]) => {
+        // Transform key for display
+        let displayKey: string;
+        if (key === 'plausibility') {
+          displayKey = 'Potential';
+        } else {
+          // Remove underscores and capitalize each word
+          displayKey = key
+            .replace(/_/g, ' ')
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+        }
+        
+        // Transform value for display
+        let displayValue: string | number = value;
+        if (key === 'plausibility' && typeof value === 'number') {
+          const plausibilityMap: { [key: number]: string } = {
+            0: 'Preposterous',
+            25: 'Possible',
+            50: 'Plausible',
+            75: 'Probable',
+            100: 'Projected'
+          };
+          displayValue = plausibilityMap[value] || value;
+        } else if (typeof value === 'string') {
+          // Capitalize string values (remove underscores and capitalize each word)
+          displayValue = value
+            .replace(/_/g, ' ')
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+        }
+        
+        return `${displayKey}: ${displayValue}`;
+      })
+      .join('<br>');
+  }
+
+  /**
+   * Find hotspot at mesh position (for live detection during drag)
+   * Returns the parsed hotspot data if found, null otherwise
+   */
+  private findHotspotAtMeshPosition(mesh: THREE.Mesh, photoId: string): { [key: string]: string | number } | null {
+    if (!this.svgContainer) {
+      return null;
+    }
+    
+    // Get the mesh's CENTER world position
     const meshCenterWorld = new THREE.Vector3();
     mesh.getWorldPosition(meshCenterWorld);
-    console.log('Mesh center world position:', { 
-      x: meshCenterWorld.x, 
-      y: meshCenterWorld.y, 
-      z: meshCenterWorld.z 
-    });
     
-    // Project the mesh center to screen coordinates
+    // Project to screen coordinates
     const projectedVector = meshCenterWorld.clone();
     projectedVector.project(this.camera);
     
-    // Convert projected coordinates to screen pixels
     const canvas = this.renderer.domElement;
-    const x = (projectedVector.x * 0.5 + 0.5) * canvas.clientWidth;
-    const y = (projectedVector.y * -0.5 + 0.5) * canvas.clientHeight;
+    const canvasX = (projectedVector.x * 0.5 + 0.5) * canvas.clientWidth;
+    const canvasY = (projectedVector.y * -0.5 + 0.5) * canvas.clientHeight;
     
-    console.log('Mesh center screen coordinates:', { x, y });
-    
-    // Get the SVG element at this position
+    // Get SVG element and convert coordinates
     const svgElement = this.svgContainer.querySelector('svg');
-    console.log('SVG Element found:', !!svgElement);
+    if (!svgElement) return null;
     
-    if (!svgElement) {
-      console.log('❌ No SVG element found in container');
-      return;
-    }
-    
-    // Convert screen coordinates to SVG coordinates
-    const svgRect = svgElement.getBoundingClientRect();
     const canvasRect = canvas.getBoundingClientRect();
+    const viewportX = canvasRect.left + canvasX;
+    const viewportY = canvasRect.top + canvasY;
     
-    console.log('SVG rect:', svgRect);
-    console.log('Canvas rect:', canvasRect);
-    console.log('Screen coordinates (canvas relative):', { x, y });
-    
-    // Convert canvas-relative coordinates to viewport coordinates
-    const viewportX = canvasRect.left + x;
-    const viewportY = canvasRect.top + y;
-    
-    console.log('Viewport coordinates:', { viewportX, viewportY });
-    
-    // More precise approach: get SVG container's actual position
-    const svgContainerRect = this.svgContainer!.getBoundingClientRect();
-    console.log('SVG container rect:', svgContainerRect);
-    
-    // Convert viewport coordinates to SVG container coordinates
+    const svgContainerRect = this.svgContainer.getBoundingClientRect();
     const containerX = viewportX - svgContainerRect.left;
     const containerY = viewportY - svgContainerRect.top;
-    console.log('Container-relative coordinates:', { containerX, containerY });
     
-    // Use SVG's native coordinate transformation with screen coordinates
     let svgX, svgY;
     
     try {
-      // Method 1: Try using SVG's native screen coordinate transformation
       const svgPoint = svgElement.createSVGPoint();
       svgPoint.x = viewportX;
       svgPoint.y = viewportY;
@@ -634,90 +880,83 @@ export class ThreeRendererService {
         const transformedPoint = svgPoint.matrixTransform(screenCTM.inverse());
         svgX = transformedPoint.x;
         svgY = transformedPoint.y;
-        console.log('Using getScreenCTM() transformation:', { svgX, svgY });
       } else {
         throw new Error('No screenCTM available');
       }
     } catch (error) {
-      console.log('getScreenCTM failed, using manual conversion:', error);
-      
-      // Method 2: Manual coordinate conversion using container position
       if (svgElement.viewBox.baseVal.width > 0 && svgElement.viewBox.baseVal.height > 0) {
-        // Scale container coordinates to SVG viewBox coordinate system
+        const svgRect = svgElement.getBoundingClientRect();
         svgX = (containerX / svgRect.width) * svgElement.viewBox.baseVal.width;
         svgY = (containerY / svgRect.height) * svgElement.viewBox.baseVal.height;
-        console.log('Using viewBox scaling:', { 
-          containerX, containerY, 
-          svgRectWidth: svgRect.width, svgRectHeight: svgRect.height,
-          viewBoxWidth: svgElement.viewBox.baseVal.width, viewBoxHeight: svgElement.viewBox.baseVal.height,
-          svgX, svgY 
-        });
       } else {
-        // Use container coordinates directly
         svgX = containerX;
         svgY = containerY;
-        console.log('Using direct container coordinates:', { svgX, svgY });
       }
     }
     
-    console.log('Final SVG coordinates (mesh center):', { svgX, svgY });
-    console.log('SVG viewBox:', svgElement.viewBox.baseVal);
-    console.log('SVG dimensions:', { width: svgRect.width, height: svgRect.height });
-    
-    // Find hotspot elements and test mesh center against them
+    // Test hotspots
     const hotspots = svgElement.querySelectorAll('[id^="hit"]');
-    console.log(`Found ${hotspots.length} hotspots to test against mesh center:`);
     
     for (const hotspot of hotspots) {
       const svgHotspot = hotspot as SVGGraphicsElement;
-      console.log(`Testing hotspot ${hotspot.id}`);
-      
-      // Create SVG point for hit testing (coordinates are already in SVG space)
       const testPoint = svgElement.createSVGPoint();
       testPoint.x = svgX;
       testPoint.y = svgY;
       
       let isInside = false;
       
-      // Use isPointInFill for accurate geometry hit testing
       if ('isPointInFill' in hotspot && typeof hotspot.isPointInFill === 'function') {
         try {
           isInside = (hotspot as any).isPointInFill(testPoint);
-          console.log(`${hotspot.tagName} ${hotspot.id} isPointInFill result:`, isInside);
         } catch (error) {
-          console.warn(`isPointInFill failed for ${hotspot.id}, falling back to bbox:`, error);
-          // Fallback to bounding box
           const bbox = svgHotspot.getBBox();
           isInside = svgX >= bbox.x && svgX <= bbox.x + bbox.width &&
                     svgY >= bbox.y && svgY <= bbox.y + bbox.height;
-          console.log(`${hotspot.id} bbox fallback result:`, isInside);
         }
       } else {
-        // Fallback to bounding box for elements that don't support isPointInFill
         const bbox = svgHotspot.getBBox();
         isInside = svgX >= bbox.x && svgX <= bbox.x + bbox.width &&
                   svgY >= bbox.y && svgY <= bbox.y + bbox.height;
-        console.log(`${hotspot.id} bbox-only result:`, isInside);
       }
       
       if (isInside) {
-        // Found a hotspot collision, find the parent group
         const parentGroup = hotspot.parentElement?.closest('g');
         if (parentGroup && parentGroup.id) {
-          console.log('🎯 Photo center dropped on hotspot!', {
-            photoId: photoId,
-            hotspotId: hotspot.id,
-            groupId: parentGroup?.id,
-            elementType: hotspot.tagName,
-            meshCenterCoordinates: { svgX, svgY }
-          });
-          
-          // Here you would call your web service or callback
-          // this.onHotspotDrop?.(photoId, parentGroup.id);
-          
-          break;
+          // Parse the group ID immediately and return parsed data
+          const parsedHotspot = this.parseHotspotGroupId(parentGroup.id);
+          if (parsedHotspot) {
+            return parsedHotspot;
+          }
+          // Fallback: return raw ID as single-key object
+          return { 'hotspot': parentGroup.id };
         }
       }
+    }
+    
+    return null;
+  }
+
+  /**
+   * Check for hotspot collision when a photo is dropped
+   * Uses the core findHotspotAtMeshPosition method with detailed logging
+   */
+  private checkHotspotCollision(mesh: THREE.Mesh, photoId: string): void {
+    console.log('🔍 Checking hotspot collision for photo:', photoId);
+    
+    // Use the core collision detection method
+    const hotspotData = this.findHotspotAtMeshPosition(mesh, photoId);
+    
+    if (hotspotData) {
+      console.log('🎯 Photo center dropped on hotspot!', {
+        photoId: photoId,
+        hotspotData: hotspotData,
+        displayText: this.formatHotspotDisplay(hotspotData)
+      });
+      
+      // Here you would call your web service or callback
+      // this.onHotspotDrop?.(photoId, hotspotData);
+    } else {
+      console.log('❌ No hotspot collision detected for photo:', photoId);
     }
     
     console.log('✅ Hotspot collision check complete');
@@ -797,6 +1036,9 @@ export class ThreeRendererService {
     const rect = this.container.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    
+    // Update preview widget position based on mouse screen coordinates
+    this.updatePreviewWidgetPosition(event.clientX - rect.left, event.clientY - rect.top);
   }
 
   private updateMousePositionFromTouch(touch: Touch): void {
@@ -805,6 +1047,9 @@ export class ThreeRendererService {
     const rect = this.container.getBoundingClientRect();
     this.mouse.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
+    
+    // Update preview widget position based on touch screen coordinates  
+    this.updatePreviewWidgetPosition(touch.clientX - rect.left, touch.clientY - rect.top);
   }
 
   private onMouseDown(): void {
@@ -859,6 +1104,13 @@ export class ThreeRendererService {
         const newPosition = intersection.sub(this.dragOffset);
         this.draggedMesh.position.copy(newPosition);
         
+        // Check for hotspot collision during drag and update preview widget
+        const photoId = this.findPhotoIdForMesh(this.draggedMesh);
+        if (photoId) {
+          const matchedHotspot = this.findHotspotAtMeshPosition(this.draggedMesh, photoId);
+          this.updatePreviewWidgetHotspot(matchedHotspot);
+        }
+        
         // Call drag callback if registered
         const callback = this.dragCallbacks.get(this.draggedMesh);
         if (callback) {
@@ -888,9 +1140,22 @@ export class ThreeRendererService {
       const intersects = this.raycaster.intersectObjects(this.root.children, false);
       
       if (intersects.length > 0 && this.dragCallbacks.has(intersects[0].object as THREE.Mesh)) {
+        const mesh = intersects[0].object as THREE.Mesh;
         this.renderer.domElement.style.cursor = 'grab';
+        
+        // Show preview widget on hover
+        if (this.hoveredMesh !== mesh) {
+          this.hoveredMesh = mesh;
+          this.showPreviewWidget(mesh);
+        }
       } else {
         this.renderer.domElement.style.cursor = 'default';
+        
+        // Hide preview widget when not hovering
+        if (this.hoveredMesh) {
+          this.hoveredMesh = null;
+          this.hidePreviewWidget();
+        }
       }
     }
   }
@@ -899,6 +1164,9 @@ export class ThreeRendererService {
     if (this.isDragging && this.draggedMesh) {
       const draggedMesh = this.draggedMesh; // Store reference before clearing
       this.isDragging = false;
+      
+      // Animate preview widget drop with current matched hotspot
+      this.animatePreviewWidgetDrop(this.currentMatchedHotspot);
       
       // Call layout strategy drag end if available
       if (this.currentLayoutStrategy && this.currentLayoutStrategy.onPhotoDragEnd) {
@@ -924,6 +1192,8 @@ export class ThreeRendererService {
       }
       
       this.draggedMesh = null;
+      this.hoveredMesh = null; // Clear hovered mesh on drop
+      this.currentMatchedHotspot = null; // Clear matched hotspot
       this.renderer.domElement.style.cursor = 'default';
     }
   }
@@ -974,10 +1244,20 @@ export class ThreeRendererService {
     // Clear SVG background
     this.removeSvgBackground();
 
+    // Clear preview widget
+    if (this.previewWidget) {
+      this.previewWidget.remove();
+      this.previewWidget = null;
+      this.previewImage = null;
+      this.previewHotspotInfo = null;
+    }
+
     // Clear drag callbacks
     this.dragCallbacks.clear();
     this.isDragging = false;
     this.draggedMesh = null;
+    this.hoveredMesh = null;
+    this.currentMatchedHotspot = null;
 
     // Dispose Three.js objects
     this.renderer?.dispose();
@@ -998,6 +1278,9 @@ export class ThreeRendererService {
 
     // Set up drag and drop after canvas is in DOM
     this.setupDragAndDrop();
+
+    // Create preview widget
+    this.createPreviewWidget();
 
     // Scene & camera
     this.scene = new THREE.Scene();
