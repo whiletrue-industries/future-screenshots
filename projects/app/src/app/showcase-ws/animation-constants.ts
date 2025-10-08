@@ -6,7 +6,7 @@ export const ANIMATION_CONSTANTS = {
   LAYOUT_TRANSITION_DURATION: 3,
   
   /** Duration for new photo animations from spawn to position (seconds) */
-  NEW_PHOTO_ANIMATION_DURATION: 1.5,
+  NEW_PHOTO_ANIMATION_DURATION: 3,
   
   /** Duration for photo showcase forward animation (seconds) */
   SHOWCASE_FORWARD_DURATION: 0.6,

@@ -15,6 +15,7 @@ import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
+import e from 'express';
 
 @Component({
   selector: 'app-showcase-ws',
@@ -56,13 +57,13 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       distinctUntilChanged()
     ).subscribe(async (items) => {
       items = items.sort((item1, item2) => item1.created_at.localeCompare(item2.created_at));
-
+      let extraWait = 0;
       
       // First pass: load existing photos immediately
       if (this.lastCreatedAt === '0' && items.length > 0) {
 
         items = items.slice(0, 10);
-        
+
         // Process photos sequentially and then refresh layout
         const photoPromises = items.map(async (item) => {
           const id = item._id;
@@ -97,7 +98,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         // Second pass onwards: animate only new photos
         const newItems = items.filter(item => {
           const created_at = item.created_at;
-          return created_at && created_at > this.lastCreatedAt;
+          const id = item._id;
+          // Filter out photos that are already loaded OR don't meet timestamp criteria
+          return created_at && created_at > this.lastCreatedAt && !this.loadedPhotoIds.has(id);
         });
         console.log('num new items:', newItems.length);
         
@@ -106,6 +109,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           
           // Process new photos one by one with delays to avoid blocking
           newItems.forEach((item, index) => {
+            extraWait = index * ANIMATION_CONSTANTS.NEW_PHOTO_STAGGER_DELAY;
             setTimeout(async () => {
               const id = item._id;
               const url = item.screenshot_url;
@@ -118,13 +122,15 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
               };
               
               try {
+                console.log('🎬 Starting animation for new photo:', id);
                 await this.photoRepository.addPhoto(metadata, true); // Animate new photos
                 this.loadedPhotoIds.add(id);
                 this.lastCreatedAt = item.created_at;
+                console.log('✅ Completed animation for photo:', id);
               } catch (error) {
                 console.error('Error animating photo:', error);
               }
-            }, index * ANIMATION_CONSTANTS.NEW_PHOTO_STAGGER_DELAY);
+            }, extraWait);
           });
         }
       }
@@ -139,7 +145,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             this.loop.next(items_);
           });
         }
-      }, ANIMATION_CONSTANTS.API_POLLING_INTERVAL);
+      }, ANIMATION_CONSTANTS.API_POLLING_INTERVAL + extraWait);
     });
     
     const qp = this.activatedRoute.snapshot.queryParams;

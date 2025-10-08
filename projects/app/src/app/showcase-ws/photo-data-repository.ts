@@ -213,11 +213,13 @@ export class PhotoDataRepository {
     if (animate && hasValidPosition) {
       // Start with opacity 0 for animation
       if (mesh.material && 'opacity' in mesh.material) {
-        (mesh.material as any).opacity = 0;
+        (mesh.material as any).opacity = 0; // Start at 0 opacity for proper fade-in
         (mesh.material as any).transparent = true;
       }
       // Animate new photo into position with fade in
+      console.log('🎬 REPOSITORY: Starting animateNewPhoto for:', photoData.id);
       await this.animateNewPhoto(photoData);
+      console.log('✅ REPOSITORY: Completed animateNewPhoto for:', photoData.id);
     } else if (hasValidPosition) {
       // Place immediately at target position with full opacity
       photoData.setCurrentPosition(photoData.targetPosition);
@@ -564,6 +566,13 @@ export class PhotoDataRepository {
    */
   private async animateNewPhoto(photoData: PhotoData): Promise<void> {
     if (!photoData.mesh || !this.renderer) {
+      return;
+    }
+
+    // Prevent duplicate animations - if already animating or positioned, don't restart
+    if (photoData.animationState === PhotoAnimationState.FLOATING_BACK || 
+        photoData.animationState === PhotoAnimationState.POSITIONED) {
+      console.warn('Attempted to animate photo that is already animating or positioned:', photoData.id);
       return;
     }
 
