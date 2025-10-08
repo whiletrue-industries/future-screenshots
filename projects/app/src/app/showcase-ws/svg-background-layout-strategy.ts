@@ -94,7 +94,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
 
   private async loadSvgBackground(): Promise<void> {
     try {
-      console.log('🔄 Loading SVG background from:', this.options.svgPath);
+
       const response = await fetch(this.options.svgPath);
       
       if (!response.ok) {
@@ -102,16 +102,14 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       }
       
       const svgText = await response.text();
-      console.log('📄 SVG text loaded, length:', svgText.length);
+
       
       // Parse SVG text into DOM element
       const parser = new DOMParser();
       const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
       this.svgElement = svgDoc.documentElement as unknown as SVGSVGElement;
       
-      console.log('✅ SVG background loaded successfully:', this.svgElement);
-      console.log('📏 SVG viewBox:', this.svgElement.getAttribute('viewBox'));
-      console.log('📐 SVG dimensions:', this.svgElement.getAttribute('width'), 'x', this.svgElement.getAttribute('height'));
+
     } catch (error) {
       console.error('❌ Failed to load SVG background:', error);
       throw new Error(`Failed to load SVG background from ${this.options.svgPath}`);
@@ -129,7 +127,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     // Find all elements with IDs starting with "hit"
     const hitElements = this.svgElement.querySelectorAll('[id^="hit"]');
     
-    console.log(`Found ${hitElements.length} hotspot elements`);
+
     
     hitElements.forEach((element) => {
       const hitElement = element as SVGElement;
@@ -158,7 +156,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         };
         
         this.hotspots.push(hotspot);
-        console.log(`Extracted hotspot: ${elementId} (parent: ${parentGroup.id})`);
+
       } else {
         console.warn(`Hotspot element ${elementId} has no parent group with ID`);
       }
@@ -168,20 +166,20 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   async getPositionForPhoto(photoData: PhotoData, existingPhotos: PhotoData[]): Promise<LayoutPosition | null> {
     this.validateInitialized();
     
-    console.log(`🔍 Getting position for photo ${photoData.id}`);
+
     
     // Check if this photo already has a stored position in current strategy
     const existingPosition = this.photoPositions.get(photoData.id);
     if (existingPosition) {
-      console.log(`📍 Found existing position in strategy for photo ${photoData.id}:`, existingPosition);
+
       return existingPosition;
     }
     
     // Check if photo has a saved SVG layout position from previous session
     const savedSvgPosition = photoData.getProperty<LayoutPosition>('svgLayoutPosition');
-    console.log(`💾 Checking saved SVG position for photo ${photoData.id}:`, savedSvgPosition);
+
     if (savedSvgPosition && savedSvgPosition.metadata?.['layoutType'] === 'proportional-circular') {
-      console.log(`✅ Restoring saved proportional SVG position for photo ${photoData.id}:`, savedSvgPosition);
+
       // Store the restored position in current strategy
       this.photoPositions.set(photoData.id, savedSvgPosition);
       return savedSvgPosition;
@@ -193,12 +191,12 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       : this.generateRandomCircularPosition();
     
     const positionType = this.options.useProportionalLayout ? 'proportional' : 'random';
-    console.log(`🎯 Generated new ${positionType} circular position for photo ${photoData.id}:`, position);
+
     
     // Store the position both in strategy and photo properties
     this.photoPositions.set(photoData.id, position);
     photoData.setProperty('svgLayoutPosition', position);
-    console.log(`💾 Saved new ${positionType} position to photo properties for ${photoData.id}`);
+
     
     return position;
   }
@@ -416,7 +414,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   }
 
   private async handlePhotoDrop(photo: PhotoData, hotspot: SvgHotspot): Promise<void> {
-    console.log(`Photo ${photo.id} dropped on hotspot ${hotspot.id} (parent: ${hotspot.parentGroupId})`);
+
     
     // Update the photo's position to the hotspot center
     const newPosition: LayoutPosition = {
@@ -432,7 +430,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     // Store position both in strategy and photo properties for persistence
     this.photoPositions.set(photo.id, newPosition);
     photo.setProperty('svgLayoutPosition', newPosition);
-    console.log(`🎯 Saved hotspot drop position for photo ${photo.id}:`, newPosition);
+
     
     // Call the callback if provided
     if (this.options.onHotspotDrop) {
@@ -444,7 +442,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   override onPhotoDragStart?(photo: PhotoData, startPosition: Position3D): boolean {
     this.draggedPhoto = photo;
     this.isDragging = true;
-    console.log(`Started dragging photo ${photo.id}`);
+
     return true; // Allow drag
   }
 
@@ -465,7 +463,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     // Store position both in strategy and photo properties for persistence
     this.photoPositions.set(photo.id, layoutPosition);
     photo.setProperty('svgLayoutPosition', layoutPosition);
-    console.log(`🎯 Saved drag position for photo ${photo.id}:`, layoutPosition);
+
   }
 
   override async onPhotoDragEnd?(photo: PhotoData, endPosition: Position3D): Promise<boolean> {
@@ -482,7 +480,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     if (hotspot) {
       // Handle hotspot drop
       await this.handlePhotoDrop(photo, hotspot);
-      console.log(`Photo ${photo.id} dropped on hotspot ${hotspot.id}`);
+
       return true; // Drop was handled
     } else {
       // Update position to final drag position
@@ -497,8 +495,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       // Store position both in strategy and photo properties for persistence
       this.photoPositions.set(photo.id, finalPosition);
       photo.setProperty('svgLayoutPosition', finalPosition);
-      console.log(`💾 Saved final drop position for photo ${photo.id}:`, finalPosition);
-      console.log(`Photo ${photo.id} dropped at free position (${endPosition.x}, ${endPosition.y})`);
+
       return true; // Drop was handled
     }
   }

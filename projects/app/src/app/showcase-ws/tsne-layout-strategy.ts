@@ -56,7 +56,7 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
     await super.initialize();
     // Always refresh data when switching to TSNE layout to ensure we have the latest data
     await this.forceRefresh();
-    console.log('TSNE layout initialized with fresh data');
+
   }
 
   /**
@@ -149,7 +149,7 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
       
       // Check if we need to refresh based on state_hash
       if (this.currentStateHash === workspaceConfig.state_hash && this.tsneData) {
-        console.log('TSNE data is up to date (state_hash unchanged), skipping refresh');
+
         return;
       }
       
@@ -158,7 +158,7 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
       this.currentSetId = workspaceConfig.set_id;
       this.tsneConfigUrl = `${this.baseUrl}/tiles/${this.workspaceId}/${workspaceConfig.set_id}/config.json`;
       
-      console.log(`Fetching TSNE data for set_id: ${workspaceConfig.set_id}, state_hash: ${workspaceConfig.state_hash}`);
+
       
       // Now fetch the actual TSNE configuration
       const response = await fetch(this.tsneConfigUrl);
@@ -170,7 +170,7 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
       const data = await response.json();
       this.tsneData = this.validateTsneConfig(data);
       
-      console.log(`Loaded TSNE config with ${this.tsneData.grid.length} items, dimensions: ${this.tsneData.dim.join('x')}`);
+
     } catch (error) {
       console.error('Error fetching TSNE configuration:', error);
       throw error;

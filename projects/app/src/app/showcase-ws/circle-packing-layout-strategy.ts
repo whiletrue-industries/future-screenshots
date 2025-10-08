@@ -38,11 +38,7 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
     // Calculate photo radius (use the larger dimension for circle packing)
     this.photoRadius = Math.sqrt(this.photoWidth ** 2 + this.photoHeight ** 2) / 2 + this.photoBuffer;
     
-    console.log('Circle Packing Layout initialized with:', {
-      photoRadius: this.photoRadius,
-      groupBuffer: this.groupBuffer,
-      photoBuffer: this.photoBuffer
-    });
+
   }
 
   /**
@@ -278,7 +274,7 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
       });
     }
     
-    console.log(`Circle packing layout recalculated: ${sortedGroups.length} groups, ${Array.from(this.photoGroups.values()).reduce((sum, photos) => sum + photos.length, 0)} photos total`);
+
   }
 
   /**
@@ -452,7 +448,7 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
     this.photoGroups.clear();
     this.groupPositions.clear();
     
-    console.log('Circle Packing Layout disposed and cleaned up photo properties');
+
     await super.dispose();
   }
 

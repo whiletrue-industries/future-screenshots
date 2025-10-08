@@ -190,7 +190,7 @@ export class ThreeRendererService {
         mesh.material.map = highResTexture;
         mesh.material.needsUpdate = true;
         
-        console.log(`Mesh texture upgraded to high-res: ${url}`);
+
       }
     } catch (error) {
       console.warn('Failed to upgrade to high-res texture, keeping low-res:', error);
@@ -211,7 +211,7 @@ export class ThreeRendererService {
         mesh.material.map = lowResTexture;
         mesh.material.needsUpdate = true;
         
-        console.log(`Mesh texture downgraded to low-res: ${url}`);
+
       }
     } catch (error) {
       console.warn('Failed to downgrade to low-res texture:', error);
@@ -535,7 +535,6 @@ export class ThreeRendererService {
    */
   private createSvgDomContainer(svgElement: SVGSVGElement): void {
     if (!this.container) {
-      console.log('❌ No container element available for SVG DOM');
       return;
     }
 
@@ -558,8 +557,6 @@ export class ThreeRendererService {
     
     this.svgContainer.appendChild(svgClone);
     this.container.appendChild(this.svgContainer);
-    
-    console.log('📍 SVG DOM container created and added');
   }
 
   /**
@@ -567,7 +564,6 @@ export class ThreeRendererService {
    */
   private createPreviewWidget(): void {
     if (!this.container) {
-      console.log('❌ No container element available for preview widget');
       return;
     }
 
@@ -621,8 +617,6 @@ export class ThreeRendererService {
     this.previewWidget.appendChild(this.previewImage);
     this.previewWidget.appendChild(this.previewHotspotInfo);
     this.container.appendChild(this.previewWidget);
-
-    console.log('🎯 Preview widget created and added');
   }
 
   /**
@@ -670,8 +664,6 @@ export class ThreeRendererService {
     this.previewImage.src = photoData.url;
     this.previewWidget.style.display = 'block';
     this.previewWidget.style.opacity = '1';
-
-    console.log('👀 Preview widget shown for photo:', photoData.id);
   }
 
   /**
@@ -684,7 +676,6 @@ export class ThreeRendererService {
       const displayText = this.formatHotspotDisplay(hotspotData);
       this.previewHotspotInfo.innerHTML = displayText;
       this.previewHotspotInfo.style.display = 'block';
-      console.log('🎯 Using hotspot data:', hotspotData);
     } else {
       this.previewHotspotInfo.style.display = 'none';
     }
@@ -704,8 +695,6 @@ export class ThreeRendererService {
         this.previewWidget.style.display = 'none';
       }
     }, 200);
-
-    console.log('🫥 Preview widget hidden');
   }
 
   /**
@@ -745,8 +734,6 @@ export class ThreeRendererService {
           this.currentMatchedHotspot = null;
         }, 300); // Wait for fade out animation
       }, 2000);
-
-      console.log('🎉 Preview widget animating drop success for hotspot:', hotspotData);
     } else {
       // No hotspot, just hide normally
       this.hidePreviewWidget();
@@ -941,25 +928,13 @@ export class ThreeRendererService {
    * Uses the core findHotspotAtMeshPosition method with detailed logging
    */
   private checkHotspotCollision(mesh: THREE.Mesh, photoId: string): void {
-    console.log('🔍 Checking hotspot collision for photo:', photoId);
-    
     // Use the core collision detection method
     const hotspotData = this.findHotspotAtMeshPosition(mesh, photoId);
     
     if (hotspotData) {
-      console.log('🎯 Photo center dropped on hotspot!', {
-        photoId: photoId,
-        hotspotData: hotspotData,
-        displayText: this.formatHotspotDisplay(hotspotData)
-      });
-      
       // Here you would call your web service or callback
       // this.onHotspotDrop?.(photoId, hotspotData);
-    } else {
-      console.log('❌ No hotspot collision detected for photo:', photoId);
     }
-    
-    console.log('✅ Hotspot collision check complete');
   }
 
   /**
@@ -989,11 +964,11 @@ export class ThreeRendererService {
     }
 
     const canvas = this.renderer.domElement;
-    console.log('Setting up drag and drop on canvas:', canvas);
+
 
     // Mouse down - start dragging
     canvas.addEventListener('mousedown', (event) => {
-      console.log('Canvas mousedown event fired');
+
       this.updateMousePosition(event);
       this.onMouseDown();
     });
@@ -1086,7 +1061,7 @@ export class ThreeRendererService {
               y: intersectedMesh.position.y,
               z: intersectedMesh.position.z
             };
-            console.log(`🎯 Drag started for photo ${photoData.id}`);
+
             this.currentLayoutStrategy.onPhotoDragStart(photoData, startPosition);
           }
         }
@@ -1177,7 +1152,7 @@ export class ThreeRendererService {
             y: draggedMesh.position.y,
             z: draggedMesh.position.z
           };
-          console.log(`🎯 Drag ended for photo ${photoData.id} at:`, endPosition);
+
           // Call the async drag end handler
           this.currentLayoutStrategy.onPhotoDragEnd(photoData, endPosition);
         }
@@ -1421,7 +1396,7 @@ export class ThreeRendererService {
       this.highResTextureCache.set(url, texture);
       this.loadingHighResTextures.delete(url);
       
-      console.log(`High-res texture loaded for showcase: ${url}`);
+
       return texture;
     }).catch(error => {
       console.error('Failed to load high-res texture:', url, error);
@@ -1447,7 +1422,7 @@ export class ThreeRendererService {
           const texture = new THREE.Texture(img);
           texture.needsUpdate = true;
           
-          console.log(`Full-res image loaded: ${img.width}x${img.height}`);
+
           resolve(texture);
           
         } catch (error) {
@@ -1539,11 +1514,8 @@ export class ThreeRendererService {
       return;
     }
 
-    console.log('🎨 Setting up SVG background with element:', svgOptions.svgElement);
-
     // Convert SVG to canvas for texture
     const svgString = new XMLSerializer().serializeToString(svgOptions.svgElement);
-    console.log('📄 Serialized SVG string length:', svgString.length);
     
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d')!;
@@ -1552,20 +1524,16 @@ export class ThreeRendererService {
     // Use SVG width/height attributes since getBoundingClientRect() returns 0 for non-DOM elements
     const svgWidthAttr = svgOptions.svgElement.getAttribute('width');
     const svgHeightAttr = svgOptions.svgElement.getAttribute('height');
-    console.log('📏 SVG attributes - width:', svgWidthAttr, 'height:', svgHeightAttr);
     
     const svgWidth = parseInt(svgWidthAttr || '0') || this.container!.clientWidth;
     const svgHeight = parseInt(svgHeightAttr || '0') || this.container!.clientHeight;
     
     canvas.width = svgWidth;
     canvas.height = svgHeight;
-    console.log('🖼️ Canvas dimensions (using SVG attributes):', canvas.width, 'x', canvas.height);
     
     // Create an image from SVG data
     const img = new Image();
     img.onload = () => {
-      console.log('🖼️ SVG image loaded successfully');
-      
       // Clear canvas and draw SVG
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -1573,8 +1541,6 @@ export class ThreeRendererService {
       // Create texture from canvas
       this.svgBackgroundTexture = new THREE.CanvasTexture(canvas);
       this.svgBackgroundTexture.needsUpdate = true;
-      
-      console.log('✅ SVG texture created successfully');
       
       // Create plane geometry sized to match the coordinate system used by photos
       // Use the radius from the layout strategy directly
@@ -1597,17 +1563,8 @@ export class ThreeRendererService {
       if (svgOptions.offsetY) this.svgBackgroundPlane.position.y += svgOptions.offsetY;
       if (svgOptions.scale) this.svgBackgroundPlane.scale.setScalar(svgOptions.scale);
       
-      console.log('📐 SVG background plane details:', {
-        width: backgroundRadius * 2,
-        height: backgroundRadius * 2,
-        positionZ: this.svgBackgroundPlane.position.z,
-        scale: svgOptions.scale || 1,
-        opacity: material.opacity
-      });
-      
       // Add to scene
       this.scene.add(this.svgBackgroundPlane);
-      console.log('🎯 SVG background plane added to scene successfully');
     };
     
     img.onerror = (error) => {
@@ -1617,7 +1574,6 @@ export class ThreeRendererService {
     // Convert SVG to data URL
     const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(svgBlob);
-    console.log('🔗 Created blob URL for SVG:', url);
     img.src = url;
   }
 
@@ -1647,17 +1603,6 @@ export class ThreeRendererService {
     // Add 10% safety margin to guarantee all elements are visible
     const requiredDistance = Math.max(distanceForHeight, distanceForWidth);
     const safeDistance = requiredDistance * 1.1;
-    
-    console.log(`📐 Camera fit calculation:`, {
-      bounds: { width: boundsWidth, height: boundsHeight },
-      withMargin: { width: totalWidth, height: totalHeight },
-      fovY: THREE.MathUtils.radToDeg(fovY),
-      aspect,
-      distanceForHeight,
-      distanceForWidth,
-      requiredDistance,
-      safeDistance
-    });
     
     return safeDistance;
   }

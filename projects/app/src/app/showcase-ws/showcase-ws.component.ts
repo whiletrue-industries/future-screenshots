@@ -54,11 +54,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       distinctUntilChanged()
     ).subscribe(async (items) => {
       items = items.sort((item1, item2) => item1.created_at.localeCompare(item2.created_at));
-      console.log(`GOT ${items.length} items`);
+
       
       // First pass: load existing photos immediately
       if (this.lastCreatedAt === '0' && items.length > 0) {
-        console.log('Loading existing photos immediately...');
+
         
         // Process photos sequentially and then refresh layout
         const photoPromises = items.map(async (item) => {
@@ -96,7 +96,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         });
         
         if (newItems.length > 0) {
-          console.log(`Processing ${newItems.length} new photos`);
+
           
           // Process new photos one by one with delays to avoid blocking
           newItems.forEach((item, index) => {
@@ -150,7 +150,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   toggleRandomShowcase() {
     this.enableRandomShowcase.set(!this.enableRandomShowcase());
     this.photoRepository.setRandomShowcaseEnabled(this.enableRandomShowcase());
-    console.log('Random showcase:', this.enableRandomShowcase() ? 'enabled' : 'disabled');
+
   }
 
   getItems(): Observable<any[]> {
@@ -222,13 +222,13 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.photoRepository.photoRemoved$
       .pipe(takeUntil(this.destroy$))
       .subscribe((photoId) => {
-        console.log('Photo removed from repository:', photoId);
+
       });
 
     this.photoRepository.layoutChanged$
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
-        console.log('Layout changed in repository');
+
       });
     
     // Start initial polling after component is ready
@@ -246,7 +246,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   public async switchToTsneLayout() {
     if (this.layoutChangeInProgress) {
-      console.log('Layout change already in progress, ignoring request');
       return;
     }
     
@@ -257,7 +256,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
     this.layoutChangeInProgress = true;
     try {
-      console.log('Switching to TSNE layout for workspace:', this.workspace());
+
       
       // Update UI immediately for responsive feedback
       this.currentLayout.set('tsne');
@@ -280,7 +279,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(tsneStrategy);
       
-      console.log('Successfully switched to TSNE layout');
+
       
     } catch (error) {
       console.error('Error switching to TSNE layout:', error);
@@ -294,13 +293,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   public async switchToGridLayout() {
     if (this.layoutChangeInProgress) {
-      console.log('Layout change already in progress, ignoring request');
       return;
     }
     
     this.layoutChangeInProgress = true;
     try {
-      console.log('Switching to Grid layout');
+
       
       // Update UI immediately for responsive feedback
       this.currentLayout.set('grid');
@@ -324,7 +322,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(gridStrategy);
       
-      console.log('Successfully switched to Grid layout');
+
       
     } catch (error) {
       console.error('Error switching to Grid layout:', error);
@@ -338,7 +336,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   public async switchToSvgLayout() {
     if (this.layoutChangeInProgress) {
-      console.log('Layout change already in progress, ignoring request');
       return;
     }
     
@@ -355,10 +352,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         circleRadius: 20000,
         radiusVariation: 2000,
         onHotspotDrop: async (photoId: string, hotspotGroupId: string) => {
-          console.log(`🎯 Photo dropped on hotspot!`, {
-            photoId: photoId,
-            hotspotGroupId: hotspotGroupId
-          });
           // TODO: Implement web service call to update photo properties
         }
       });
@@ -368,9 +361,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       
       // Set up SVG background in Three.js renderer
       const svgElement = svgStrategy.getSvgElement();
-      console.log('🖼️ SVG element after initialization:', svgElement);
+
       if (svgElement) {
-        console.log('✅ Setting SVG background in Three.js renderer');
+
         this.rendererService.setSvgBackground(svgElement, {
           scale: 1,
           offsetX: 0,
@@ -393,7 +386,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   public async switchToCirclePackingLayout() {
     if (this.layoutChangeInProgress) {
-      console.log('Layout change already in progress, ignoring request');
       return;
     }
     
@@ -419,7 +411,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(circlePackingStrategy);
       
-      console.log('Successfully switched to Circle Packing layout');
+
       
     } catch (error) {
       console.error('Error switching to Circle Packing layout:', error);
