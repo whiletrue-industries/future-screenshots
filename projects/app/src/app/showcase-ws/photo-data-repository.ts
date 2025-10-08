@@ -96,23 +96,32 @@ export class PhotoDataRepository {
       const allPositions = await this.layoutStrategy.calculateAllPositions(allPhotos);
       
       // Update all photos with new positions
+      const animationPromises: Promise<void>[] = [];
+      
       allPhotos.forEach((photo, index) => {
         const layoutPosition = allPositions[index];
         
         if (layoutPosition && layoutPosition.x !== undefined && layoutPosition.y !== undefined) {
+          const newPosition = { x: layoutPosition.x, y: layoutPosition.y, z: 0 };
           photo.setProperty('opacity', 1);
-          photo.setTargetPosition({
-            x: layoutPosition.x,
-            y: layoutPosition.y,
-            z: 0
-          });
+          photo.setTargetPosition(newPosition);
           
-          // Update mesh position for existing photos (new photo's mesh is created below)
+          // For existing photos with meshes, animate smoothly to new position
           if (photo.mesh && photo.id !== photoData.id) {
-            this.renderer!.updateMeshPosition(photo.mesh, photo.targetPosition);
-            if (photo.mesh.material && 'opacity' in photo.mesh.material) {
-              (photo.mesh.material as any).opacity = 1;
-            }
+            // Animate from current position to new position
+            const fromPosition = photo.currentPosition;
+            const currentOpacity = photo.getProperty<number>('opacity') || 1;
+            
+            animationPromises.push(
+              this.animateToPositionWithOpacityUpdate(
+                photo,
+                fromPosition,
+                newPosition,
+                currentOpacity,
+                1, // target opacity
+                ANIMATION_CONSTANTS.LAYOUT_TRANSITION_DURATION
+              )
+            );
           }
           
           // Store layout metadata
@@ -129,18 +138,33 @@ export class PhotoDataRepository {
           }
         } else {
           // No valid position - hide the photo
+          const hiddenPosition = { x: 0, y: 0, z: 0 };
           photo.setProperty('opacity', 0);
-          photo.setTargetPosition({ x: 0, y: 0, z: 0 });
+          photo.setTargetPosition(hiddenPosition);
           
-          // Update mesh for existing photos
+          // For existing photos with meshes, animate to hidden position
           if (photo.mesh && photo.id !== photoData.id) {
-            this.renderer!.updateMeshPosition(photo.mesh, { x: 0, y: 0, z: 0 });
-            if (photo.mesh.material && 'opacity' in photo.mesh.material) {
-              (photo.mesh.material as any).opacity = 0;
-            }
+            const fromPosition = photo.currentPosition;
+            const currentOpacity = photo.getProperty<number>('opacity') || 1;
+            
+            animationPromises.push(
+              this.animateToPositionWithOpacityUpdate(
+                photo,
+                fromPosition,
+                hiddenPosition,
+                currentOpacity,
+                0, // target opacity
+                ANIMATION_CONSTANTS.LAYOUT_TRANSITION_DURATION
+              )
+            );
           }
         }
       });
+      
+      // Wait for all position animations to complete before continuing
+      if (animationPromises.length > 0) {
+        await Promise.all(animationPromises);
+      }
     } else {
       // Only position the new photo (existing behavior for grid, tsne, svg layouts)
       const layoutPosition = await this.layoutStrategy.getPositionForPhoto(
@@ -546,13 +570,13 @@ export class PhotoDataRepository {
     photoData.setAnimationState(PhotoAnimationState.SPAWNING);
     
     // Start at spawn position with opacity 0
-    const spawnZ = this.renderer.getCameraSpawnZ();
+    const spawnZ = this.renderer.getCameraSpawnZ() - 100;
     const spawnPosition = { x: 0, y: 0, z: spawnZ };
     photoData.setCurrentPosition(spawnPosition);
     this.renderer.updateMeshPosition(photoData.mesh, spawnPosition);
 
     // Wait before animating (reduced delay for better responsiveness)
-    await new Promise(resolve => setTimeout(resolve, Math.min(this.newPhotoAnimationDelay, ANIMATION_CONSTANTS.MAX_NEW_PHOTO_DELAY)));
+    await new Promise(resolve => setTimeout(resolve, Math.min(this.newPhotoAnimationDelay, ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DELAY)));
 
     // Animate to target position with fade in
     photoData.setAnimationState(PhotoAnimationState.FLOATING_BACK);

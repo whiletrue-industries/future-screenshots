@@ -61,6 +61,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // First pass: load existing photos immediately
       if (this.lastCreatedAt === '0' && items.length > 0) {
 
+        items = items.slice(0, 10);
         
         // Process photos sequentially and then refresh layout
         const photoPromises = items.map(async (item) => {
@@ -72,8 +73,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             created_at: item.created_at,
             screenshot_url: url,
             author_id: item.author_id,
-            _private_email: item._private_email,
-            item_key: item._key // Extract _key from API response
+            layout_x: item.layout_x,
+            layout_y: item.layout_y
           };
           
           try {
@@ -92,11 +93,13 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         const latestItem = items[items.length - 1];
         this.lastCreatedAt = latestItem.created_at;
       } else {
+        console.log('lastCreatedAt:', this.lastCreatedAt);
         // Second pass onwards: animate only new photos
         const newItems = items.filter(item => {
           const created_at = item.created_at;
           return created_at && created_at > this.lastCreatedAt;
         });
+        console.log('num new items:', newItems.length);
         
         if (newItems.length > 0) {
 
@@ -112,8 +115,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
                 created_at: item.created_at,
                 screenshot_url: url,
                 author_id: item.author_id,
-                _private_email: item._private_email,
-                item_key: item._key // Extract _key from API response
               };
               
               try {
@@ -147,6 +148,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.admin_key.set(qp['admin_key'] || 'ADMIN_KEY_NOT_SET');
     this.lang.set(qp['lang'] ? qp['lang'] + '/' : '');
     apiService.updateFromRoute(this.activatedRoute.snapshot);
+    apiService.api_key.set(this.admin_key());
   }
 
   /**
@@ -159,11 +161,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   getItems(): Observable<any[]> {
-    return this.http.get<any[]>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${this.workspace()}/items?page_size=10000`, {
-      headers: {
-        'Authorization': this.admin_key()
-      }
-    }).pipe(
+    return this.http.get<any[]>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${this.workspace()}/items?page_size=10000`).pipe(
       catchError((error) => {
         console.error('Error loading items:', error);
         return of([]);
@@ -363,12 +361,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       this.rendererService.setHotspotDropCallback(async (photoId: string, hotspotData: { [key: string]: string | number }, position: { x: number, y: number, z: number }) => {
         return new Promise<void>((resolve, reject) => {
           try {
-            // Find the photo to get its item_key
             const photo = this.photoRepository.getPhoto(photoId);
             
-            if (photo) {
-              const itemKey = photo.metadata['item_key'] || photoId;
-              
+            if (photo) {              
               // Calculate normalized coordinates [-1, 1] based on circleRadius
               const layout_x = Math.max(-1, Math.min(1, position.x / circleRadius));
               const layout_y = Math.max(-1, Math.min(1, position.y / circleRadius));
@@ -383,12 +378,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
               console.log('🚀 SHOWCASE: Calling updateItem API', {
                 hotspotData: dataWithCoords,
                 photoId,
-                itemKey,
                 normalizedPosition: { layout_x, layout_y },
                 originalPosition: position
               });
               
-              this.apiService.updateProperties(dataWithCoords, photoId, itemKey).subscribe({
+              this.apiService.updateProperties(dataWithCoords, photoId).subscribe({
                 next: (result) => {
                   console.log('Successfully updated item with hotspot data:', result);
                   resolve();

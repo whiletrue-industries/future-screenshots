@@ -4,7 +4,7 @@ import { PHOTO_CONSTANTS } from './photo-constants';
 
 /**
  * Circle Packing Layout Strategy that implements 2-level hierarchical circle packing
- * Groups photos by author_id/_private_email and packs them in circles within larger group circles
+ * Groups photos by author_id and packs them in circles within larger group circles
  */
 export class CirclePackingLayoutStrategy extends LayoutStrategy {
   private readonly photoWidth: number;
@@ -191,7 +191,7 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
   }
 
   /**
-   * Gets the group ID for a photo based on priority: author_id > _private_email > random
+   * Gets the group ID for a photo based on priority: author_id > random
    */
   private getGroupId(photo: PhotoData): string {
     // Priority 1: author_id from metadata
@@ -199,13 +199,7 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
     if (authorId) {
       return `author:${authorId}`;
     }
-    
-    // Priority 2: _private_email from metadata
-    const email = photo.metadata['_private_email'];
-    if (email) {
-      return `email:${email}`;
-    }
-    
+        
     // Priority 3: Generate random group ID and store it as a property
     let randomId = photo.getProperty<string>('_circle_pack_group_id');
     if (!randomId) {

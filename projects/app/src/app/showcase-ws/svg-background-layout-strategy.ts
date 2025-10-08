@@ -355,13 +355,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     if (authorId) {
       return `author:${authorId}`;
     }
-    
-    // Priority 2: _private_email from metadata
-    const email = photo.metadata['_private_email'];
-    if (email) {
-      return `email:${email}`;
-    }
-    
+        
     // Priority 3: Generate random group ID and store it as a property
     let randomId = photo.getProperty<string>('_svg_background_group_id');
     if (!randomId) {

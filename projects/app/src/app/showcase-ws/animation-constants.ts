@@ -6,7 +6,7 @@ export const ANIMATION_CONSTANTS = {
   LAYOUT_TRANSITION_DURATION: 3,
   
   /** Duration for new photo animations from spawn to position (seconds) */
-  NEW_PHOTO_ANIMATION_DURATION: 0.8,
+  NEW_PHOTO_ANIMATION_DURATION: 1.5,
   
   /** Duration for photo showcase forward animation (seconds) */
   SHOWCASE_FORWARD_DURATION: 0.6,
@@ -33,16 +33,16 @@ export const ANIMATION_CONSTANTS = {
   GRID_SPIRAL_ANIMATION_DURATION: 1100,
   
   /** Stagger delay between new photos in component (milliseconds) */
-  NEW_PHOTO_STAGGER_DELAY: 2000,
+  NEW_PHOTO_STAGGER_DELAY: 6500,
   
   /** Polling interval for API updates (milliseconds) */
-  API_POLLING_INTERVAL: 60000,
+  API_POLLING_INTERVAL: 30000,
   
   /** Delay before QR code shrinks (milliseconds) */
   QR_SHRINK_DELAY: 10000,
   
   /** Initial delay before starting API polling (milliseconds) */
-  INITIAL_POLLING_DELAY: 2000,
+  INITIAL_POLLING_DELAY: 1000,
   
   /** Duration for opacity fade in/out animations (seconds) */
   OPACITY_FADE_DURATION: 0.4,
