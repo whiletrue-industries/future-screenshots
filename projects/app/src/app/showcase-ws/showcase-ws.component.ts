@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, computed, ElementRef, signal, ViewChild, inject, OnDestroy } from '@angular/core';
+import { AfterViewInit, Component, computed, ElementRef, signal, ViewChild, inject, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { catchError, distinctUntilChanged, filter, forkJoin, from, interval, Observable, of, Subject, timer, takeUntil } from 'rxjs';
 import { PlatformService } from '../../platform.service';
 import { HttpClient } from '@angular/common/http';
@@ -14,6 +14,7 @@ import { CirclePackingLayoutStrategy } from './circle-packing-layout-strategy';
 import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
+import { ApiService } from '../../api.service';
 
 @Component({
   selector: 'app-showcase-ws',
@@ -24,6 +25,7 @@ import { ANIMATION_CONSTANTS } from './animation-constants';
 export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   @ViewChild('container', { static: true }) container!: ElementRef;
   private photoRepository: PhotoDataRepository;
+  private activatedRoute: ActivatedRoute;
   private destroy$ = new Subject<void>();
   loop = new Subject<any[]>();
   lastCreatedAt = '0';
@@ -41,15 +43,15 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   );
 
   constructor(
-    private platform: PlatformService, 
-    private http: HttpClient, 
-    private el: ElementRef, 
-    private activatedRoute: ActivatedRoute,
-    private rendererService: ThreeRendererService,
-    private photoDataRepository: PhotoDataRepository
+    private route: ActivatedRoute,
+    private changeDetectorRef: ChangeDetectorRef,
+    private apiService: ApiService,
+    private http: HttpClient,
+    private platform: PlatformService,
+    private rendererService: ThreeRendererService
   ) {
-    this.photoRepository = photoDataRepository;
-    
+    this.activatedRoute = route;
+    this.photoRepository = new PhotoDataRepository();
     this.loop.pipe(
       distinctUntilChanged()
     ).subscribe(async (items) => {
@@ -70,7 +72,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             created_at: item.created_at,
             screenshot_url: url,
             author_id: item.author_id,
-            _private_email: item._private_email
+            _private_email: item._private_email,
+            item_key: item._key // Extract _key from API response
           };
           
           try {
@@ -109,7 +112,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
                 created_at: item.created_at,
                 screenshot_url: url,
                 author_id: item.author_id,
-                _private_email: item._private_email
+                _private_email: item._private_email,
+                item_key: item._key // Extract _key from API response
               };
               
               try {
@@ -142,6 +146,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.api_key.set(qp['api_key'] || 'API_KEY_NOT_SET');
     this.admin_key.set(qp['admin_key'] || 'ADMIN_KEY_NOT_SET');
     this.lang.set(qp['lang'] ? qp['lang'] + '/' : '');
+    apiService.updateFromRoute(this.activatedRoute.snapshot);
   }
 
   /**
@@ -344,16 +349,49 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Update UI immediately for responsive feedback
       this.currentLayout.set('svg');
       
-      // Create SVG background layout strategy
+      // Set up hotspot drop callback on three-renderer service
+      this.rendererService.setHotspotDropCallback(async (photoId: string, hotspotData: { [key: string]: string | number }) => {
+        return new Promise<void>((resolve, reject) => {
+          try {
+            // Find the photo to get its item_key
+            const photo = this.photoRepository.getPhoto(photoId);
+            
+            if (photo) {
+              const itemKey = photo.metadata['item_key'] || photoId;
+              console.log('🚀 SHOWCASE: Calling updateItem API', {
+                hotspotData,
+                photoId,
+                itemKey
+              });
+              
+              this.apiService.updateProperties(hotspotData, photoId, itemKey).subscribe({
+                next: (result) => {
+                  console.log('Successfully updated item with hotspot data:', result);
+                  resolve();
+                },
+                error: (error) => {
+                  console.error('Failed to update item with hotspot data:', error);
+                  reject(error);
+                }
+              });
+            } else {
+              console.warn('Photo not found for hotspot drop:', photoId);
+              resolve();
+            }
+          } catch (error) {
+            console.error('Error processing hotspot drop:', error);
+            reject(error);
+          }
+        });
+      });
+
+      // Create SVG background layout strategy (without callback since three-renderer handles it)
       const svgStrategy = new SvgBackgroundLayoutStrategy({
         svgPath: '/showcase-bg.svg',
         centerX: 0,
         centerY: 0,
         circleRadius: 20000,
-        radiusVariation: 2000,
-        onHotspotDrop: async (photoId: string, hotspotGroupId: string) => {
-          // TODO: Implement web service call to update photo properties
-        }
+        radiusVariation: 2000
       });
       
       // Switch the layout using PhotoDataRepository (this will initialize the strategy)

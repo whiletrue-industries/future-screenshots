@@ -23,7 +23,7 @@ export interface SvgLayoutOptions {
   circleRadius?: number;
   radiusVariation?: number;
   useProportionalLayout?: boolean;
-  onHotspotDrop?: (photoId: string, hotspotGroupId: string) => Promise<void>;
+  onHotspotDrop?: (photoId: string, hotspotData: { [key: string]: string | number }) => Promise<void>;
 }
 
 export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements InteractiveLayoutStrategy {
@@ -408,35 +408,12 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       hotspot,
       acceptsPhoto: () => true, // Accept all photos for now
       onPhotoDrop: async (photo: PhotoData) => {
-        await this.handlePhotoDrop(photo, hotspot);
+        // Position is handled by three-renderer collision detection
       }
     }));
   }
 
-  private async handlePhotoDrop(photo: PhotoData, hotspot: SvgHotspot): Promise<void> {
 
-    
-    // Update the photo's position to the hotspot center
-    const newPosition: LayoutPosition = {
-      x: hotspot.bounds.x + hotspot.bounds.width / 2,
-      y: hotspot.bounds.y + hotspot.bounds.height / 2,
-      metadata: {
-        hotspotId: hotspot.id,
-        parentGroupId: hotspot.parentGroupId,
-        layoutType: 'hotspot'
-      }
-    };
-    
-    // Store position both in strategy and photo properties for persistence
-    this.photoPositions.set(photo.id, newPosition);
-    photo.setProperty('svgLayoutPosition', newPosition);
-
-    
-    // Call the callback if provided
-    if (this.options.onHotspotDrop) {
-      await this.options.onHotspotDrop(photo.id, hotspot.parentGroupId);
-    }
-  }
 
   // Drag and drop event handlers
   override onPhotoDragStart?(photo: PhotoData, startPosition: Position3D): boolean {
@@ -474,42 +451,23 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     this.isDragging = false;
     this.draggedPhoto = null;
     
-    // Check if dropped on a hotspot
-    const hotspot = this.findHotspotAtPosition(endPosition.x, endPosition.y);
-    
-    if (hotspot) {
-      // Handle hotspot drop
-      await this.handlePhotoDrop(photo, hotspot);
-
-      return true; // Drop was handled
-    } else {
-      // Update position to final drag position
-      const finalPosition: LayoutPosition = {
-        x: endPosition.x,
-        y: endPosition.y,
-        metadata: {
-          layoutType: 'free'
-        }
-      };
-      
-      // Store position both in strategy and photo properties for persistence
-      this.photoPositions.set(photo.id, finalPosition);
-      photo.setProperty('svgLayoutPosition', finalPosition);
-
-      return true; // Drop was handled
-    }
-  }
-
-  private findHotspotAtPosition(x: number, y: number): SvgHotspot | null {
-    for (const hotspot of this.hotspots) {
-      const bounds = hotspot.bounds;
-      if (x >= bounds.x && x <= bounds.x + bounds.width &&
-          y >= bounds.y && y <= bounds.y + bounds.height) {
-        return hotspot;
+    // Update position to final drag position (three-renderer will handle hotspot collision)
+    const finalPosition: LayoutPosition = {
+      x: endPosition.x,
+      y: endPosition.y,
+      metadata: {
+        layoutType: 'free'
       }
-    }
-    return null;
+    };
+    
+    // Store position both in strategy and photo properties for persistence
+    this.photoPositions.set(photo.id, finalPosition);
+    photo.setProperty('svgLayoutPosition', finalPosition);
+
+    return true; // Let three-renderer handle hotspot collision detection
   }
+
+
 
   // Utility methods
   getSvgElement(): SVGSVGElement | null {
@@ -527,4 +485,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   setPhotoPosition(photoId: string, position: LayoutPosition): void {
     this.photoPositions.set(photoId, position);
   }
+
+
 }

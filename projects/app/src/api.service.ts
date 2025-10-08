@@ -131,6 +131,20 @@ export class ApiService {
     );
   }
 
+  updateProperties(metadata: any, item_id: string, item_key: string): Observable<any> {
+    const headers = {
+      'Authorization': this.api_key() as string,
+    };
+    const params = {
+      'item-key': item_key,
+    };
+    return this.http.put(`${this.CHRONOMAPS_API_URL}/${this.workspaceId()}/${item_id}`, metadata, { headers, params }).pipe(
+      map(() => {
+        return true;
+      })
+    );
+  }
+
   uploadImage(image: Blob, item_id: string, item_key: string): void {
     this.uploadImageInProgress.next(true);
     this.startDiscussion(image, item_id, item_key).pipe(

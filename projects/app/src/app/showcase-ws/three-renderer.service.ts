@@ -85,6 +85,9 @@ export class ThreeRendererService {
   
   // SVG Container for hotspot detection
   private svgContainer: HTMLElement | null = null;
+  
+  // Hotspot drop callback
+  private onHotspotDropCallback?: (photoId: string, hotspotData: { [key: string]: string | number }) => Promise<void>;
 
   // Dragging Preview Widget
   private previewWidget: HTMLElement | null = null;
@@ -510,6 +513,13 @@ export class ThreeRendererService {
   }
 
   /**
+   * Set the hotspot drop callback
+   */
+  setHotspotDropCallback(callback: (photoId: string, hotspotData: { [key: string]: string | number }) => Promise<void>): void {
+    this.onHotspotDropCallback = callback;
+  }
+
+  /**
    * Set PhotoData for a mesh (needed for drag callbacks)
    */
   setMeshPhotoData(mesh: THREE.Mesh, photoData: any): void {
@@ -925,15 +935,18 @@ export class ThreeRendererService {
 
   /**
    * Check for hotspot collision when a photo is dropped
-   * Uses the core findHotspotAtMeshPosition method with detailed logging
+   * Uses the core findHotspotAtMeshPosition method
    */
-  private checkHotspotCollision(mesh: THREE.Mesh, photoId: string): void {
+  private async checkHotspotCollision(mesh: THREE.Mesh, photoId: string): Promise<void> {
     // Use the core collision detection method
     const hotspotData = this.findHotspotAtMeshPosition(mesh, photoId);
     
-    if (hotspotData) {
-      // Here you would call your web service or callback
-      // this.onHotspotDrop?.(photoId, hotspotData);
+    if (hotspotData && this.onHotspotDropCallback) {
+      try {
+        await this.onHotspotDropCallback(photoId, hotspotData);
+      } catch (error) {
+        console.error('Error in hotspot drop callback:', error);
+      }
     }
   }
 
