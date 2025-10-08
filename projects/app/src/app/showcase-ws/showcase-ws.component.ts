@@ -109,9 +109,13 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           
           // Process new photos one by one with delays to avoid blocking
           newItems.forEach((item, index) => {
+            const id = item._id;
+            
+            // Add to loadedPhotoIds immediately to prevent race conditions
+            this.loadedPhotoIds.add(id);
+            
             extraWait = index * ANIMATION_CONSTANTS.NEW_PHOTO_STAGGER_DELAY;
             setTimeout(async () => {
-              const id = item._id;
               const url = item.screenshot_url;
               const metadata: PhotoMetadata = {
                 id,
@@ -124,11 +128,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
               try {
                 console.log('🎬 Starting animation for new photo:', id);
                 await this.photoRepository.addPhoto(metadata, true); // Animate new photos
-                this.loadedPhotoIds.add(id);
                 this.lastCreatedAt = item.created_at;
                 console.log('✅ Completed animation for photo:', id);
               } catch (error) {
                 console.error('Error animating photo:', error);
+                // Remove from loadedPhotoIds on error so it can be retried
+                this.loadedPhotoIds.delete(id);
               }
             }, extraWait);
           });

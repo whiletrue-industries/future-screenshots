@@ -74,13 +74,18 @@ export class PhotoDataRepository {
    * Add a new photo to the repository
    */
   async addPhoto(metadata: PhotoMetadata, animate: boolean = true): Promise<PhotoData> {
+    console.log('📥 ADD_PHOTO called for:', metadata.id, 'animate:', animate);
+    
     if (this.photos.has(metadata.id)) {
+      console.log('♻️ ADD_PHOTO: Photo already exists, returning existing:', metadata.id, 'Stack:', new Error().stack?.split('\n').slice(1, 3).join(' -> '));
       return this.photos.get(metadata.id)!;
     }
 
     if (!this.layoutStrategy || !this.renderer) {
       throw new Error('Repository not initialized');
     }
+
+    console.log('🆕 ADD_PHOTO: Creating new photo:', metadata.id, 'Layout requires full recalc:', this.layoutStrategy.requiresFullRecalculationOnAdd());
 
     // Create PhotoData
     const photoData = new PhotoData(metadata, { x: 0, y: 0, z: 0 });
@@ -565,17 +570,21 @@ export class PhotoDataRepository {
    * Animate a new photo into position
    */
   private async animateNewPhoto(photoData: PhotoData): Promise<void> {
+    console.log('🎬 ANIMATE_NEW_PHOTO called for:', photoData.id, 'Current state:', photoData.animationState, 'Stack trace:', new Error().stack?.split('\n').slice(1, 4).join(' -> '));
+    
     if (!photoData.mesh || !this.renderer) {
+      console.log('❌ ANIMATE_NEW_PHOTO: Missing mesh or renderer for:', photoData.id);
       return;
     }
 
     // Prevent duplicate animations - if already animating or positioned, don't restart
     if (photoData.animationState === PhotoAnimationState.FLOATING_BACK || 
         photoData.animationState === PhotoAnimationState.POSITIONED) {
-      console.warn('Attempted to animate photo that is already animating or positioned:', photoData.id);
+      console.warn('🚫 ANIMATE_NEW_PHOTO: Attempted to animate photo that is already animating or positioned:', photoData.id, 'State:', photoData.animationState);
       return;
     }
 
+    console.log('✅ ANIMATE_NEW_PHOTO: Starting animation for:', photoData.id);
     photoData.setAnimationState(PhotoAnimationState.SPAWNING);
     
     // Start at spawn position with opacity 0
