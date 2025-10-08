@@ -349,8 +349,18 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Update UI immediately for responsive feedback
       this.currentLayout.set('svg');
       
-      // Set up hotspot drop callback on three-renderer service
-      this.rendererService.setHotspotDropCallback(async (photoId: string, hotspotData: { [key: string]: string | number }) => {
+      // Create SVG background layout strategy (without callback since three-renderer handles it)
+      const svgStrategy = new SvgBackgroundLayoutStrategy({
+        svgPath: '/showcase-bg.svg',
+        centerX: 0,
+        centerY: 0,
+        circleRadius: 20000,
+        radiusVariation: 2000
+      });
+      
+      // Set up hotspot drop callback on three-renderer service with access to circleRadius
+      const circleRadius = 20000; // Use same value as SVG strategy
+      this.rendererService.setHotspotDropCallback(async (photoId: string, hotspotData: { [key: string]: string | number }, position: { x: number, y: number, z: number }) => {
         return new Promise<void>((resolve, reject) => {
           try {
             // Find the photo to get its item_key
@@ -358,13 +368,27 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             
             if (photo) {
               const itemKey = photo.metadata['item_key'] || photoId;
+              
+              // Calculate normalized coordinates [-1, 1] based on circleRadius
+              const layout_x = Math.max(-1, Math.min(1, position.x / circleRadius));
+              const layout_y = Math.max(-1, Math.min(1, position.y / circleRadius));
+              
+              // Add normalized coordinates to hotspot data
+              const dataWithCoords = {
+                ...hotspotData,
+                layout_x,
+                layout_y
+              };
+              
               console.log('🚀 SHOWCASE: Calling updateItem API', {
-                hotspotData,
+                hotspotData: dataWithCoords,
                 photoId,
-                itemKey
+                itemKey,
+                normalizedPosition: { layout_x, layout_y },
+                originalPosition: position
               });
               
-              this.apiService.updateProperties(hotspotData, photoId, itemKey).subscribe({
+              this.apiService.updateProperties(dataWithCoords, photoId, itemKey).subscribe({
                 next: (result) => {
                   console.log('Successfully updated item with hotspot data:', result);
                   resolve();
@@ -383,15 +407,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             reject(error);
           }
         });
-      });
-
-      // Create SVG background layout strategy (without callback since three-renderer handles it)
-      const svgStrategy = new SvgBackgroundLayoutStrategy({
-        svgPath: '/showcase-bg.svg',
-        centerX: 0,
-        centerY: 0,
-        circleRadius: 20000,
-        radiusVariation: 2000
       });
       
       // Switch the layout using PhotoDataRepository (this will initialize the strategy)

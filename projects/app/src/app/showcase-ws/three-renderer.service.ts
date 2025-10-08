@@ -87,7 +87,7 @@ export class ThreeRendererService {
   private svgContainer: HTMLElement | null = null;
   
   // Hotspot drop callback
-  private onHotspotDropCallback?: (photoId: string, hotspotData: { [key: string]: string | number }) => Promise<void>;
+  private onHotspotDropCallback?: (photoId: string, hotspotData: { [key: string]: string | number }, position: { x: number, y: number, z: number }) => Promise<void>;
 
   // Dragging Preview Widget
   private previewWidget: HTMLElement | null = null;
@@ -515,7 +515,7 @@ export class ThreeRendererService {
   /**
    * Set the hotspot drop callback
    */
-  setHotspotDropCallback(callback: (photoId: string, hotspotData: { [key: string]: string | number }) => Promise<void>): void {
+  setHotspotDropCallback(callback: (photoId: string, hotspotData: { [key: string]: string | number }, position: { x: number, y: number, z: number }) => Promise<void>): void {
     this.onHotspotDropCallback = callback;
   }
 
@@ -943,7 +943,8 @@ export class ThreeRendererService {
     
     if (hotspotData && this.onHotspotDropCallback) {
       try {
-        await this.onHotspotDropCallback(photoId, hotspotData);
+        const position = { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z };
+        await this.onHotspotDropCallback(photoId, hotspotData, position);
       } catch (error) {
         console.error('Error in hotspot drop callback:', error);
       }
