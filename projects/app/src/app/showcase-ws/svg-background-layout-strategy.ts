@@ -231,8 +231,20 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   async calculateAllPositions(photos: PhotoData[]): Promise<(LayoutPosition | null)[]> {
     this.validateInitialized();
     
-    // Clear existing positions to ensure fresh calculation with proportional layout
+    // Clear existing positions EXCEPT for dragged/free positions that should be preserved
+    const preservedPositions = new Map<string, LayoutPosition>();
+    for (const [photoId, position] of this.photoPositions.entries()) {
+      // Preserve positions that were explicitly dragged by the user
+      if (position.metadata?.['layoutType'] === 'free-dragged' || position.metadata?.['layoutType'] === 'dragging') {
+        preservedPositions.set(photoId, position);
+      }
+    }
+    
+    // Clear all positions, then restore the preserved ones
     this.photoPositions.clear();
+    for (const [photoId, position] of preservedPositions.entries()) {
+      this.photoPositions.set(photoId, position);
+    }
     
     const positions: (LayoutPosition | null)[] = [];
     
@@ -455,12 +467,19 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       return;
     }
     
+    // Calculate normalized coordinates during drag for consistent tracking
+    const layout_x = Math.max(-1, Math.min(1, currentPosition.x / this.options.circleRadius));
+    const layout_y = Math.max(-1, Math.min(1, currentPosition.y / this.options.circleRadius));
+    
     // Update photo position during drag
     const layoutPosition: LayoutPosition = {
       x: currentPosition.x,
       y: currentPosition.y,
       metadata: {
-        layoutType: 'dragging'
+        layoutType: 'dragging',
+        layout_x,
+        layout_y,
+        circleRadius: this.options.circleRadius
       }
     };
     
@@ -478,18 +497,32 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     this.isDragging = false;
     this.draggedPhoto = null;
     
+    // Calculate normalized coordinates for the new drag position
+    const layout_x = Math.max(-1, Math.min(1, endPosition.x / this.options.circleRadius));
+    const layout_y = Math.max(-1, Math.min(1, endPosition.y / this.options.circleRadius));
+    
     // Update position to final drag position (three-renderer will handle hotspot collision)
     const finalPosition: LayoutPosition = {
       x: endPosition.x,
       y: endPosition.y,
       metadata: {
-        layoutType: 'free'
+        layoutType: 'free-dragged',
+        layout_x,
+        layout_y,
+        circleRadius: this.options.circleRadius
       }
     };
     
     // Store position both in strategy and photo properties for persistence
     this.photoPositions.set(photo.id, finalPosition);
     photo.setProperty('svgLayoutPosition', finalPosition);
+    
+    // Update the photo metadata with new normalized coordinates
+    // This ensures the drag position is maintained across layout changes
+    photo.updateMetadata({
+      layout_x,
+      layout_y
+    });
 
     return true; // Let three-renderer handle hotspot collision detection
   }
@@ -511,6 +544,34 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
 
   setPhotoPosition(photoId: string, position: LayoutPosition): void {
     this.photoPositions.set(photoId, position);
+  }
+
+  /**
+   * Update a photo's position and normalized coordinates after a hotspot drop
+   * This ensures consistency between drag positions and API-saved positions
+   */
+  updatePhotoAfterHotspotDrop(photoId: string, position: { x: number, y: number, z: number }, hotspotData: { [key: string]: string | number }): void {
+    const photo = this.photoPositions.has(photoId) ? null : null; // We don't have direct access to PhotoData here
+    
+    // Calculate normalized coordinates for the hotspot drop position
+    const layout_x = Math.max(-1, Math.min(1, position.x / this.options.circleRadius));
+    const layout_y = Math.max(-1, Math.min(1, position.y / this.options.circleRadius));
+    
+    // Create position with hotspot drop metadata
+    const hotspotDropPosition: LayoutPosition = {
+      x: position.x,
+      y: position.y,
+      metadata: {
+        layoutType: 'hotspot-drop',
+        layout_x,
+        layout_y,
+        circleRadius: this.options.circleRadius,
+        hotspotData
+      }
+    };
+    
+    // Update the stored position
+    this.photoPositions.set(photoId, hotspotDropPosition);
   }
 
 
