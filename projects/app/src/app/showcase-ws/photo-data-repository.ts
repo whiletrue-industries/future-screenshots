@@ -35,6 +35,9 @@ export class PhotoDataRepository {
   private isShowcasing = false;
   private cameraBoundsUpdateTimer: any = null;
   
+  // Queue system for new photos awaiting showcase
+  private photoQueue: string[] = [];
+  
     // Event subjects for external subscribers
   private photoAddedSubject = new Subject<PhotoData>();
   private photoRemovedSubject = new Subject<string>();
@@ -72,12 +75,10 @@ export class PhotoDataRepository {
 
   /**
    * Add a new photo to the repository
+   * Photos are added to the queue and will be showcased via the random showcase system
    */
-  async addPhoto(metadata: PhotoMetadata, animate: boolean = true): Promise<PhotoData> {
-    console.log('📥 ADD_PHOTO called for:', metadata.id, 'animate:', animate);
-    
+  async addPhoto(metadata: PhotoMetadata): Promise<PhotoData> {
     if (this.photos.has(metadata.id)) {
-      console.log('♻️ ADD_PHOTO: Photo already exists, returning existing:', metadata.id, 'Stack:', new Error().stack?.split('\n').slice(1, 3).join(' -> '));
       return this.photos.get(metadata.id)!;
     }
 
@@ -85,18 +86,16 @@ export class PhotoDataRepository {
       throw new Error('Repository not initialized');
     }
 
-    console.log('🆕 ADD_PHOTO: Creating new photo:', metadata.id, 'Layout requires full recalc:', this.layoutStrategy.requiresFullRecalculationOnAdd());
-
     // Create PhotoData
     const photoData = new PhotoData(metadata, { x: 0, y: 0, z: 0 });
     this.photos.set(metadata.id, photoData);
     this.layoutStrategy.addPhoto(photoData);
 
-    // Check if this layout requires full recalculation when adding photos
+    // Calculate position using layout strategy
     let hasValidPosition = false;
     
     if (this.layoutStrategy.requiresFullRecalculationOnAdd()) {
-      // Recalculate all positions and update all photos
+      // Recalculate all positions for layouts that need it (like circle-packing)
       const allPhotos = Array.from(this.photos.values());
       const allPositions = await this.layoutStrategy.calculateAllPositions(allPhotos);
       
@@ -171,13 +170,12 @@ export class PhotoDataRepository {
         await Promise.all(animationPromises);
       }
     } else {
-      // Only position the new photo (existing behavior for grid, tsne, svg layouts)
+      // Position just the new photo for other layouts
       const layoutPosition = await this.layoutStrategy.getPositionForPhoto(
         photoData, 
         Array.from(this.photos.values())
       );
 
-      // Set visibility based on whether layout strategy provided a position
       hasValidPosition = !!(layoutPosition && 
         (layoutPosition.x !== undefined && layoutPosition.y !== undefined));
       
@@ -189,7 +187,6 @@ export class PhotoDataRepository {
           z: 0
         });
         
-        // Store layout metadata
         if (layoutPosition.metadata) {
           photoData.updateMetadata(layoutPosition.metadata);
         }
@@ -197,17 +194,14 @@ export class PhotoDataRepository {
           photoData.setProperty('gridKey', layoutPosition.gridKey);
         }
       } else {
-        // No valid position from strategy - hide the photo
         photoData.setProperty('opacity', 0);
         photoData.setTargetPosition({ x: 0, y: 0, z: 0 });
       }
     }
 
-    // Create mesh through renderer
+    // Create mesh
     const mesh = await this.renderer.createPhotoMesh(photoData);
     photoData.setMesh(mesh);
-
-    // Set mesh-to-photoId mapping for hotspot detection
     this.renderer.setMeshPhotoId(mesh, photoData.id);
 
     // Enable dragging for interactive layouts
@@ -215,17 +209,7 @@ export class PhotoDataRepository {
       this.setupInteractiveDragForPhoto(photoData);
     }
 
-    if (animate && hasValidPosition) {
-      // Start with opacity 0 for animation
-      if (mesh.material && 'opacity' in mesh.material) {
-        (mesh.material as any).opacity = 0; // Start at 0 opacity for proper fade-in
-        (mesh.material as any).transparent = true;
-      }
-      // Animate new photo into position with fade in
-      console.log('🎬 REPOSITORY: Starting animateNewPhoto for:', photoData.id);
-      await this.animateNewPhoto(photoData);
-      console.log('✅ REPOSITORY: Completed animateNewPhoto for:', photoData.id);
-    } else if (hasValidPosition) {
+     if (hasValidPosition) {
       // Place immediately at target position with full opacity
       photoData.setCurrentPosition(photoData.targetPosition);
       this.renderer.updateMeshPosition(mesh, photoData.targetPosition);
@@ -244,8 +228,14 @@ export class PhotoDataRepository {
       }
     }
 
+    // Add to showcase queue for new photo introduction
+    if (hasValidPosition) {
+      this.photoQueue.push(metadata.id);
+      console.log('Added photo to queue:', metadata.id, 'Queue length:', this.photoQueue.length);
+    }
+
     // Update camera bounds if photo was placed immediately (not animated)
-    if (!animate && hasValidPosition) {
+    if (hasValidPosition) {
       this.updateCameraBounds();
     }
 
@@ -446,6 +436,27 @@ export class PhotoDataRepository {
   }
 
   /**
+   * Get the current photo queue length
+   */
+  getQueueLength(): number {
+    return this.photoQueue.length;
+  }
+
+  /**
+   * Clear the photo queue
+   */
+  clearQueue(): void {
+    this.photoQueue = [];
+  }
+
+  /**
+   * Get a copy of the current queue
+   */
+  getQueue(): string[] {
+    return [...this.photoQueue];
+  }
+
+  /**
    * Manually trigger showcase of a specific photo
    */
   async showcasePhoto(id: string): Promise<void> {
@@ -570,21 +581,10 @@ export class PhotoDataRepository {
    * Animate a new photo into position
    */
   private async animateNewPhoto(photoData: PhotoData): Promise<void> {
-    console.log('🎬 ANIMATE_NEW_PHOTO called for:', photoData.id, 'Current state:', photoData.animationState, 'Stack trace:', new Error().stack?.split('\n').slice(1, 4).join(' -> '));
-    
     if (!photoData.mesh || !this.renderer) {
-      console.log('❌ ANIMATE_NEW_PHOTO: Missing mesh or renderer for:', photoData.id);
       return;
     }
 
-    // Prevent duplicate animations - if already animating or positioned, don't restart
-    if (photoData.animationState === PhotoAnimationState.FLOATING_BACK || 
-        photoData.animationState === PhotoAnimationState.POSITIONED) {
-      console.warn('🚫 ANIMATE_NEW_PHOTO: Attempted to animate photo that is already animating or positioned:', photoData.id, 'State:', photoData.animationState);
-      return;
-    }
-
-    console.log('✅ ANIMATE_NEW_PHOTO: Starting animation for:', photoData.id);
     photoData.setAnimationState(PhotoAnimationState.SPAWNING);
     
     // Start at spawn position with opacity 0
@@ -638,10 +638,28 @@ export class PhotoDataRepository {
     }
 
     this.showcaseTimer = setTimeout(async () => {
-      const visiblePhotos = this.getVisiblePhotos();
-      if (visiblePhotos.length > 0 && !this.isShowcasing) {
-        const randomPhoto = visiblePhotos[Math.floor(Math.random() * visiblePhotos.length)];
-        await this.showcasePhoto(randomPhoto.id);
+      if (this.isShowcasing) {
+        // Schedule next showcase
+        this.scheduleRandomShowcase();
+        return;
+      }
+
+      let photoIdToShowcase: string | undefined;
+
+      // Prioritize photos from the queue
+      if (this.photoQueue.length > 0) {
+        photoIdToShowcase = this.photoQueue.shift();
+      } else {
+        // Fall back to random selection from visible photos
+        const visiblePhotos = this.getVisiblePhotos();
+        if (visiblePhotos.length > 0) {
+          const randomPhoto = visiblePhotos[Math.floor(Math.random() * visiblePhotos.length)];
+          photoIdToShowcase = randomPhoto.id;
+        }
+      }
+
+      if (photoIdToShowcase) {
+        await this.showcasePhoto(photoIdToShowcase);
       }
       
       // Schedule next showcase

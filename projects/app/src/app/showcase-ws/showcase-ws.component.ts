@@ -57,7 +57,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       distinctUntilChanged()
     ).subscribe(async (items) => {
       items = items.sort((item1, item2) => item1.created_at.localeCompare(item2.created_at));
-      let extraWait = 0;
       
       // First pass: load existing photos immediately
       if (this.lastCreatedAt === '0' && items.length > 0) {
@@ -79,7 +78,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           };
           
           try {
-            await this.photoRepository.addPhoto(metadata, false); // Don't animate existing photos
+            await this.photoRepository.addPhoto(metadata); // Add initial photos
             this.loadedPhotoIds.add(id);
           } catch (error) {
             console.error('Error loading photo immediately:', error);
@@ -95,48 +94,36 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         this.lastCreatedAt = latestItem.created_at;
       } else {
         console.log('lastCreatedAt:', this.lastCreatedAt);
-        // Second pass onwards: animate only new photos
+        // Second pass onwards: add new photos to queue for showcase
         const newItems = items.filter(item => {
           const created_at = item.created_at;
-          const id = item._id;
-          // Filter out photos that are already loaded OR don't meet timestamp criteria
-          return created_at && created_at > this.lastCreatedAt && !this.loadedPhotoIds.has(id);
-        });
+          return created_at && created_at > this.lastCreatedAt;
+        }).slice(0, 1);
         console.log('num new items:', newItems.length);
         
         if (newItems.length > 0) {
-
-          
-          // Process new photos one by one with delays to avoid blocking
-          newItems.forEach((item, index) => {
+          // Process new photos immediately - they'll be added to the showcase queue
+          const photoPromises = newItems.map(async (item) => {
             const id = item._id;
+            const url = item.screenshot_url;
+            const metadata: PhotoMetadata = {
+              id,
+              url,
+              created_at: item.created_at,
+              screenshot_url: url,
+              author_id: item.author_id,
+            };
             
-            // Add to loadedPhotoIds immediately to prevent race conditions
-            this.loadedPhotoIds.add(id);
-            
-            extraWait = index * ANIMATION_CONSTANTS.NEW_PHOTO_STAGGER_DELAY;
-            setTimeout(async () => {
-              const url = item.screenshot_url;
-              const metadata: PhotoMetadata = {
-                id,
-                url,
-                created_at: item.created_at,
-                screenshot_url: url,
-                author_id: item.author_id,
-              };
-              
-              try {
-                console.log('🎬 Starting animation for new photo:', id);
-                await this.photoRepository.addPhoto(metadata, true); // Animate new photos
-                this.lastCreatedAt = item.created_at;
-                console.log('✅ Completed animation for photo:', id);
-              } catch (error) {
-                console.error('Error animating photo:', error);
-                // Remove from loadedPhotoIds on error so it can be retried
-                this.loadedPhotoIds.delete(id);
-              }
-            }, extraWait);
+            try {
+              await this.photoRepository.addPhoto(metadata); // Add to queue for showcase
+              this.loadedPhotoIds.add(id);
+              this.lastCreatedAt = item.created_at;
+            } catch (error) {
+              console.error('Error adding photo to queue:', error);
+            }
           });
+          
+          await Promise.all(photoPromises);
         }
       }
 
@@ -150,7 +137,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             this.loop.next(items_);
           });
         }
-      }, ANIMATION_CONSTANTS.API_POLLING_INTERVAL + extraWait);
+      }, ANIMATION_CONSTANTS.API_POLLING_INTERVAL);
     });
     
     const qp = this.activatedRoute.snapshot.queryParams;
