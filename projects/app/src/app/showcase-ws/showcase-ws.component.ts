@@ -40,7 +40,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   loadedPhotoIds = new Set<string>();
   private layoutChangeInProgress = false;
   qrUrl = computed(() => 
-    `https://mapfutur.es/${this.lang()}?workspace=${this.workspace()}&api_key=${this.api_key()}&ws=true`
+    `https://mapfutur.es/${this.lang()}prescan?workspace=${this.workspace()}&api_key=${this.api_key()}&ws=true`
   );
 
   constructor(
