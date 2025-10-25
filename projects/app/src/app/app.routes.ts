@@ -45,7 +45,7 @@ export const routes: Routes = [
     {
         'path': 'admin/edit/:workspaceId',
         loadComponent: () => import('./admin/workspace-form/workspace-form.component').then(m => m.WorkspaceFormComponent),
-        canActivate: [AuthGuard],
+        canActivate: [],
     },
     {
         'path': 'admin',
