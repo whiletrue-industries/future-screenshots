@@ -1,8 +1,13 @@
 @let w = workspace();
 @if (!!w) {
     <div class="workspace-item">
-        <h2>{{ w.metadata.source }}</h2>
-        <small>ID: {{ w.id }}</small>
+        <div class="workspace-header">
+            <div>
+                <h2>{{ w.metadata.source }}</h2>
+                <small>ID: {{ w.id }}</small>
+            </div>
+            <a [routerLink]="['/admin/edit', w.id]" [queryParams]="{ key: w.keys.admin }" class="settings-btn">Settings</a>
+        </div>
         <div class='links'>
             <a [routerLink]="['/admin/moderate']" [queryParams]="{ api_key: w.keys.admin, workspace: w.id }">Moderate Workspace</a>
         </div>

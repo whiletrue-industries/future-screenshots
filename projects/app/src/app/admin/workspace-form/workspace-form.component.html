@@ -1,0 +1,209 @@
+<div class="workspace-form-container">
+  <h1>{{ isEditMode() ? 'Edit Workspace' : 'Create New Workspace' }}</h1>
+
+  @if (errorMessage()) {
+    <div class="error-message">{{ errorMessage() }}</div>
+  }
+
+  <form (ngSubmit)="onSubmit()" #workspaceForm="ngForm">
+    <!-- Date -->
+    <div class="form-group">
+      <label for="date">Date <span class="required">*</span></label>
+      <input
+        type="date"
+        id="date"
+        name="date"
+        [(ngModel)]="formData().date"
+        (ngModelChange)="onFieldChange()"
+        required
+      />
+    </div>
+
+    <!-- City -->
+    <div class="form-group">
+      <label for="city">City <span class="required">*</span></label>
+      <input
+        type="text"
+        id="city"
+        name="city"
+        [(ngModel)]="formData().city"
+        (ngModelChange)="onFieldChange()"
+        required
+      />
+    </div>
+
+    <!-- Country -->
+    <div class="form-group">
+      <label for="country">Country <span class="required">*</span></label>
+      <input
+        type="text"
+        id="country"
+        name="country"
+        [(ngModel)]="formData().country"
+        required
+      />
+    </div>
+
+    <!-- Venue -->
+    <div class="form-group">
+      <label for="venue">Venue <span class="required">*</span></label>
+      <input
+        type="text"
+        id="venue"
+        name="venue"
+        [(ngModel)]="formData().venue"
+        (ngModelChange)="onFieldChange()"
+        required
+      />
+    </div>
+
+    <!-- Event Name -->
+    <div class="form-group">
+      <label for="event_name">Event Name <span class="required">*</span></label>
+      <input
+        type="text"
+        id="event_name"
+        name="event_name"
+        [(ngModel)]="formData().event_name"
+        (ngModelChange)="onFieldChange()"
+        required
+      />
+    </div>
+
+    <!-- Interactive Workshop -->
+    <div class="form-group checkbox-group">
+      <label>
+        <input
+          type="checkbox"
+          name="interactive_workshop"
+          [(ngModel)]="formData().interactive_workshop"
+          (ngModelChange)="onFieldChange()"
+        />
+        Interactive Workshop
+      </label>
+    </div>
+
+    <!-- Languages -->
+    <div class="form-group">
+      <label>Languages <span class="required">*</span></label>
+      <p class="field-hint">Select at least one language. The first selected language will be the primary one.</p>
+      <div class="multi-select-group">
+        @for (lang of availableLanguages; track lang.code) {
+          <label class="checkbox-item">
+            <input
+              type="checkbox"
+              [checked]="isLanguageSelected(lang.code)"
+              (change)="toggleLanguage(lang.code)"
+            />
+            {{ lang.name }}
+          </label>
+        }
+      </div>
+      @if (formData().languages.length > 0) {
+        <div class="selected-order">
+          <strong>Selected order:</strong>
+          @for (langCode of formData().languages; track $index; let idx = $index) {
+            <span class="order-item">{{ idx + 1 }}. {{ getLanguageName(langCode) }}</span>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Facilitator Names -->
+    <div class="form-group">
+      <label>Facilitator Names <span class="required">*</span></label>
+      @for (name of formData().facilitator_names; track $index; let idx = $index) {
+        <div class="name-input-group">
+          <input
+            type="text"
+            [name]="'facilitator_name_' + idx"
+            [ngModel]="name"
+            (ngModelChange)="updateFacilitatorName(idx, $event)"
+            placeholder="Enter facilitator name"
+            required
+          />
+          @if (formData().facilitator_names.length > 1) {
+            <button type="button" class="remove-btn" (click)="removeFacilitatorName(idx)">Remove</button>
+          }
+        </div>
+      }
+      <button type="button" class="add-btn" (click)="addFacilitatorName()">Add Another Facilitator</button>
+    </div>
+
+    <!-- Keywords -->
+    <div class="form-group">
+      <label>Keywords (optional)</label>
+      <div class="multi-select-group">
+        @for (keyword of availableKeywords; track keyword) {
+          <label class="checkbox-item">
+            <input
+              type="checkbox"
+              [checked]="isKeywordSelected(keyword)"
+              (change)="toggleKeyword(keyword)"
+            />
+            {{ keyword }}
+          </label>
+        }
+      </div>
+    </div>
+
+    <!-- Auto-generated fields (read-only display) -->
+    <div class="auto-generated-section">
+      <h3>Auto-Generated Fields</h3>
+
+      <div class="form-group readonly">
+        <label>Context Label</label>
+        <input type="text" [value]="formData()['context-label']" readonly />
+      </div>
+
+      <div class="form-group readonly">
+        <label>Source</label>
+        <input type="text" [value]="formData().source" readonly />
+      </div>
+
+      <div class="form-group readonly">
+        <label>Email Template</label>
+        <input type="text" [value]="formData()['email-template']" readonly />
+      </div>
+    </div>
+
+    <!-- Visibility Settings -->
+    <div class="visibility-section">
+      <h3>Workspace Settings</h3>
+
+      <div class="form-group checkbox-group">
+        <label>
+          <input
+            type="checkbox"
+            name="publicVisible"
+            [ngModel]="publicVisible()"
+            (ngModelChange)="publicVisible.set($event)"
+          />
+          Public Visibility
+        </label>
+      </div>
+
+      <div class="form-group checkbox-group">
+        <label>
+          <input
+            type="checkbox"
+            name="collaborate"
+            [ngModel]="collaborate()"
+            (ngModelChange)="collaborate.set($event)"
+          />
+          Allow Collaboration (new items can be added)
+        </label>
+      </div>
+    </div>
+
+    <!-- Form Actions -->
+    <div class="form-actions">
+      <button type="button" class="cancel-btn" (click)="cancel()" [disabled]="isSubmitting()">
+        Cancel
+      </button>
+      <button type="submit" class="submit-btn" [disabled]="!isFormValid() || isSubmitting()">
+        {{ isSubmitting() ? 'Saving...' : (isEditMode() ? 'Save Changes' : 'Create Workspace') }}
+      </button>
+    </div>
+  </form>
+</div>

@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { catchError, map, Observable, of } from 'rxjs';
 import { AuthService } from './app/auth.service';
+import { CreateWorkspaceRequest, UpdateWorkspaceRequest, Workspace } from './app/admin/workspace-metadata.interface';
 
 @Injectable({
   providedIn: 'root'
@@ -71,6 +72,23 @@ export class AdminApiService {
         'Authorization': `${api_key}`
       },
     });
+  }
+
+  createWorkspace(request: CreateWorkspaceRequest): Observable<Workspace> {
+    const headers = { 'Authorization': 'Bearer ' + this.auth.token() };
+    return this.http.post<Workspace>(`${this.CHRONOMAPS_API_URL}/`, request, { headers });
+  }
+
+  updateWorkspace(workspaceId: string, adminKey: string, request: UpdateWorkspaceRequest, publicVisible?: boolean, collaborate?: boolean): Observable<any> {
+    const headers = { 'Authorization': adminKey };
+    let params: any = {};
+    if (publicVisible !== undefined) {
+      params.public = publicVisible;
+    }
+    if (collaborate !== undefined) {
+      params.collaborate = collaborate;
+    }
+    return this.http.put<any>(`${this.CHRONOMAPS_API_URL}/${workspaceId}`, request, { headers, params });
   }
 
 }

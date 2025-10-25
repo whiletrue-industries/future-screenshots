@@ -1,3 +1,28 @@
+@import '../../../common-admin.less';
+
+.workspace-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+
+    .settings-btn {
+        padding: 0.5rem 1rem;
+        background-color: @color-dark-pink;
+        color: @color-purple;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+
+        &:hover {
+            background-color: @color-light-purple;
+            color: white;
+        }
+    }
+}
+
 h2 {
     margin: 0;
 }

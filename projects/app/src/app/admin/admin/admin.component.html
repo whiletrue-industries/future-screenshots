@@ -1,3 +1,16 @@
-@for (workspace of workspaces(); track workspace.id) {
-  <app-workspace-item [workspace]="workspace"></app-workspace-item>
-}
+<div class="admin-container">
+  <div class="admin-header">
+    <h1>Workspace Administration</h1>
+    <a routerLink="/admin/new" class="create-workspace-btn">Create New Workspace</a>
+  </div>
+
+  @if (successMessage()) {
+    <div class="success-message">{{ successMessage() }}</div>
+  }
+
+  <div class="workspaces-list">
+    @for (workspace of workspaces(); track workspace.id) {
+      <app-workspace-item [workspace]="workspace"></app-workspace-item>
+    }
+  </div>
+</div>
