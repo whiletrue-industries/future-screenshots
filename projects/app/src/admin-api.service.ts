@@ -1,8 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { catchError, map, Observable, of } from 'rxjs';
+import { catchError, map, Observable, of, switchMap } from 'rxjs';
 import { AuthService } from './app/auth.service';
-import { CreateWorkspaceRequest, UpdateWorkspaceRequest, Workspace } from './app/admin/workspace-metadata.interface';
+import { CreateOrUpdateWorkspaceRequest, Workspace } from './app/admin/workspace-metadata.interface';
 
 @Injectable({
   providedIn: 'root'
@@ -74,21 +74,31 @@ export class AdminApiService {
     });
   }
 
-  createWorkspace(request: CreateWorkspaceRequest): Observable<Workspace> {
+  createWorkspace(request: CreateOrUpdateWorkspaceRequest): Observable<Workspace> {
     const headers = { 'Authorization': 'Bearer ' + this.auth.token() };
-    return this.http.post<Workspace>(`${this.CHRONOMAPS_API_URL}/`, request, { headers });
+    return this.http.post<Workspace>(`${this.CHRONOMAPS_API_URL}/`, request.metadata, { headers }).pipe(
+      switchMap((resp: any) => {
+        const workspace: Workspace = {
+          id: resp.workspace_id,
+          metadata: resp.config.metadata!,
+          keys: resp.config.keys
+        }
+        console.log('Created workspace:', workspace);
+        return this.updateWorkspace(workspace.id, workspace.keys!.admin, {
+          metadata: null, 
+          public: request.public,
+          collaborate: request.collaborate
+        });
+      })
+    );
   }
 
-  updateWorkspace(workspaceId: string, adminKey: string, request: UpdateWorkspaceRequest, publicVisible?: boolean, collaborate?: boolean): Observable<any> {
+  updateWorkspace(workspaceId: string, adminKey: string, request: CreateOrUpdateWorkspaceRequest): Observable<any> {
     const headers = { 'Authorization': adminKey };
     let params: any = {};
-    if (publicVisible !== undefined) {
-      params.public = publicVisible;
-    }
-    if (collaborate !== undefined) {
-      params.collaborate = collaborate;
-    }
-    return this.http.put<any>(`${this.CHRONOMAPS_API_URL}/${workspaceId}`, request, { headers, params });
+    params.public = request.public;
+    params.collaborate = request.collaborate;
+    return this.http.put<any>(`${this.CHRONOMAPS_API_URL}/${workspaceId}`, request.metadata || {}, { headers, params });
   }
 
 }

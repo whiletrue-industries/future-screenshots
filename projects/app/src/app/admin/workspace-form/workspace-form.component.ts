@@ -3,7 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminApiService } from '../../../admin-api.service';
-import { WorkspaceMetadata, CreateWorkspaceRequest, UpdateWorkspaceRequest } from '../workspace-metadata.interface';
+import { WorkspaceMetadata, CreateOrUpdateWorkspaceRequest } from '../workspace-metadata.interface';
 
 interface LanguageOption {
   code: string;
@@ -95,14 +95,16 @@ export class WorkspaceFormComponent implements OnInit {
     if (!id || !key) return;
 
     this.adminApi.getWorkspace(id, key).subscribe({
-      next: (workspace) => {
-        if (workspace.metadata) {
-          const metadata = { ...workspace.metadata };
+      next: (workspace_metadata) => {
+        if (workspace_metadata) {
+          const metadata = { ...workspace_metadata };
 
           // Reverse-engineer missing fields from existing data
           this.reverseEngineerFields(metadata);
 
           this.formData.set(metadata);
+          this.publicVisible.set(workspace_metadata['public'] || false);
+          this.collaborate.set(workspace_metadata['collaborate'] || false);
 
           // Ensure facilitator_names is an array
           if (!this.formData().facilitator_names || this.formData().facilitator_names.length === 0) {
@@ -120,15 +122,19 @@ export class WorkspaceFormComponent implements OnInit {
   reverseEngineerFields(metadata: WorkspaceMetadata) {
     // Try to extract date from source field: '{YYYY}.{MM}.{DD} - {Venue}/{Event Name}'
     if (!metadata.date && metadata.source) {
-      const dateMatch = metadata.source.match(/^(\d{4})\.(\d{2})\.(\d{2})/);
+      const dateMatch = metadata.source.match(/^(\d{2,4})[\.-](\d{2})[\.-](\d{2})/);
       if (dateMatch) {
+        if (dateMatch[1].length === 2) {
+          // Assume 21st century for 2-digit years
+          dateMatch[1] = '20' + dateMatch[1];
+        }
         metadata.date = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`;
       }
     }
 
     // Try to extract venue and event_name from source: '{YYYY}.{MM}.{DD} - {Venue}/{Event Name}'
     if (metadata.source) {
-      const sourceMatch = metadata.source.match(/^\d{4}\.\d{2}\.\d{2} - (.+?)\/(.+)$/);
+      const sourceMatch = metadata.source.match(/^\d{2,4}[\.-]\d{2}[\.-]\d{2}[- ]+(.+?)\/(.+)$/);
       if (sourceMatch) {
         if (!metadata.venue) {
           metadata.venue = sourceMatch[1].trim();
@@ -159,6 +165,7 @@ export class WorkspaceFormComponent implements OnInit {
         metadata.languages = [localeMatch[1]];
       }
     }
+    metadata.languages = metadata.languages || [];
 
     // Ensure facilitator_names is initialized
     if (!metadata.facilitator_names) {
@@ -176,7 +183,7 @@ export class WorkspaceFormComponent implements OnInit {
   }
 
   toggleLanguage(code: string) {
-    const currentLanguages = [...this.formData().languages];
+    const currentLanguages = [...this.formData().languages || []];
     const index = currentLanguages.indexOf(code);
 
     if (index > -1) {
@@ -291,7 +298,7 @@ export class WorkspaceFormComponent implements OnInit {
   }
 
   createWorkspace() {
-    const request: CreateWorkspaceRequest = {
+    const request: CreateOrUpdateWorkspaceRequest = {
       metadata: this.formData(),
       public: this.publicVisible(),
       collaborate: this.collaborate()
@@ -322,11 +329,13 @@ export class WorkspaceFormComponent implements OnInit {
       return;
     }
 
-    const request: UpdateWorkspaceRequest = {
-      metadata: this.formData()
+    const request: CreateOrUpdateWorkspaceRequest = {
+      metadata: this.formData(),
+      public: this.publicVisible(),
+      collaborate: this.collaborate()
     };
 
-    this.adminApi.updateWorkspace(id, key, request, this.publicVisible(), this.collaborate()).subscribe({
+    this.adminApi.updateWorkspace(id, key, request).subscribe({
       next: (response) => {
         console.log('Workspace updated successfully:', response);
         this.router.navigate(['/admin'], {

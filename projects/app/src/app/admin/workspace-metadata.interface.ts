@@ -27,12 +27,8 @@ export interface Workspace {
   };
 }
 
-export interface CreateWorkspaceRequest {
-  metadata: WorkspaceMetadata;
+export interface CreateOrUpdateWorkspaceRequest {
+  metadata: WorkspaceMetadata | null;
   public?: boolean;
   collaborate?: boolean;
-}
-
-export interface UpdateWorkspaceRequest {
-  metadata: WorkspaceMetadata;
 }
