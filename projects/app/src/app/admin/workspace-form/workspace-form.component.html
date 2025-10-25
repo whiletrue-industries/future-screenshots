@@ -133,18 +133,29 @@
     <!-- Keywords -->
     <div class="form-group">
       <label>Keywords (optional)</label>
-      <div class="multi-select-group">
-        @for (keyword of availableKeywords; track keyword) {
-          <label class="checkbox-item">
-            <input
-              type="checkbox"
-              [checked]="isKeywordSelected(keyword)"
-              (change)="toggleKeyword(keyword)"
-            />
-            {{ keyword }}
-          </label>
-        }
+      <p class="field-hint">Press Enter or click Add to create a keyword tag</p>
+
+      <div class="keyword-input-row">
+        <input
+          type="text"
+          [ngModel]="keywordInput()"
+          (ngModelChange)="keywordInput.set($event)"
+          (keypress)="onKeywordKeyPress($event)"
+          placeholder="Type a keyword..."
+        />
+        <button type="button" class="add-btn" (click)="addKeyword()">Add</button>
       </div>
+
+      @if (formData().keywords && formData().keywords!.length > 0) {
+        <div class="keyword-chips">
+          @for (keyword of formData().keywords; track keyword) {
+            <div class="keyword-chip">
+              <span class="keyword-text">{{ keyword }}</span>
+              <button type="button" class="remove-chip-btn" (click)="removeKeyword(keyword)" title="Remove keyword">×</button>
+            </div>
+          }
+        </div>
+      }
     </div>
 
     <!-- Auto-generated fields (read-only display) -->
