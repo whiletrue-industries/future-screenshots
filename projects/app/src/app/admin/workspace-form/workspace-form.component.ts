@@ -97,7 +97,13 @@ export class WorkspaceFormComponent implements OnInit {
     this.adminApi.getWorkspace(id, key).subscribe({
       next: (workspace) => {
         if (workspace.metadata) {
-          this.formData.set({ ...workspace.metadata });
+          const metadata = { ...workspace.metadata };
+
+          // Reverse-engineer missing fields from existing data
+          this.reverseEngineerFields(metadata);
+
+          this.formData.set(metadata);
+
           // Ensure facilitator_names is an array
           if (!this.formData().facilitator_names || this.formData().facilitator_names.length === 0) {
             this.formData.update(data => ({ ...data, facilitator_names: [''] }));
@@ -109,6 +115,60 @@ export class WorkspaceFormComponent implements OnInit {
         this.errorMessage.set('Failed to load workspace data. Please check the admin key.');
       }
     });
+  }
+
+  reverseEngineerFields(metadata: WorkspaceMetadata) {
+    // Try to extract date from source field: '{YYYY}.{MM}.{DD} - {Venue}/{Event Name}'
+    if (!metadata.date && metadata.source) {
+      const dateMatch = metadata.source.match(/^(\d{4})\.(\d{2})\.(\d{2})/);
+      if (dateMatch) {
+        metadata.date = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`;
+      }
+    }
+
+    // Try to extract venue and event_name from source: '{YYYY}.{MM}.{DD} - {Venue}/{Event Name}'
+    if (metadata.source) {
+      const sourceMatch = metadata.source.match(/^\d{4}\.\d{2}\.\d{2} - (.+?)\/(.+)$/);
+      if (sourceMatch) {
+        if (!metadata.venue) {
+          metadata.venue = sourceMatch[1].trim();
+        }
+        if (!metadata.event_name) {
+          metadata.event_name = sourceMatch[2].trim();
+        }
+      }
+    }
+
+    // Try to extract city from context-label: '{City}, {Month Name} {Year}'
+    if (!metadata.city && metadata['context-label']) {
+      const cityMatch = metadata['context-label'].match(/^([^,]+),/);
+      if (cityMatch) {
+        metadata.city = cityMatch[1].trim();
+      }
+    }
+
+    // Try to determine interactive_workshop from email-template
+    if (metadata.interactive_workshop === undefined && metadata['email-template']) {
+      metadata.interactive_workshop = metadata['email-template'].startsWith('to-evaluate-');
+    }
+
+    // Try to extract primary language from email-template: 'after-evaluate-{locale}' or 'to-evaluate-{locale}'
+    if ((!metadata.languages || metadata.languages.length === 0) && metadata['email-template']) {
+      const localeMatch = metadata['email-template'].match(/-(he|ar|en|nl)$/);
+      if (localeMatch) {
+        metadata.languages = [localeMatch[1]];
+      }
+    }
+
+    // Ensure facilitator_names is initialized
+    if (!metadata.facilitator_names) {
+      metadata.facilitator_names = [];
+    }
+
+    // Ensure keywords is initialized
+    if (!metadata.keywords) {
+      metadata.keywords = [];
+    }
   }
 
   isLanguageSelected(code: string): boolean {
