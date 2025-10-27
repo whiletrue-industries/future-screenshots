@@ -1,0 +1,340 @@
+<!DOCTYPE html><html lang="he" dir="rtl"><head>
+  <meta charset="utf-8">
+
+  <title>The Futures Map</title>
+  <meta name="title" content="The Futures Map">
+  <meta name="description" content="Navigating political imagination through screenshots from the futures we may shape together.">
+  
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="/site.webmanifest">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://mapfutur.es/">
+  <meta property="twitter:title" content="The Futures Map">
+  <meta property="twitter:description" content="Navigating political imagination through screenshots from the futures we may shape together.">
+  <meta property="twitter:image" content="https://mapfutur.es/og_image.jpg">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="fb:app_id" content="966242223397117">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://mapfutur.es/">
+  <meta property="og:title" content="The Futures Map">
+  <meta property="og:description" content="Navigating political imagination through screenshots from the futures we may shape together.">
+  <meta property="og:image" itemprop="image" content="https://mapfutur.es/og_image.jpg">
+  <meta property="og:image:secure_url" itemprop="image" content="https://mapfutur.es/og_image.jpg">
+
+  <base href="/he/">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no, user-scalable=no">
+  <meta http-equiv="ScreenOrientation" content="autoRotate:disabled">
+  
+  <script src="https://docs.opencv.org/4.7.0/opencv.js" async=""></script>
+  <!-- warning: loading OpenCV can take some time. Load asynchronously -->
+  <script src="https://cdn.jsdelivr.net/gh/ColonelParrot/jscanify@master/src/jscanify.min.js"></script>
+<link rel="stylesheet" href="styles-2ILWJOCD.css"><style ng-app-id="ng">
+
+.font-sans[_ngcontent-ng-c3049310699] {
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+}
+.background-image[_ngcontent-ng-c3049310699] {
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+}
+.message[_ngcontent-ng-c3049310699] {
+  font-size: 18px;
+  padding: 16px 24px;
+  max-width: calc(100% - 32px);
+  transition: border-radius 0.3s ease-in-out;
+  z-index: 1;
+}
+.message[_ngcontent-ng-c3049310699]     * {
+  margin: 0;
+}
+.message[_ngcontent-ng-c3049310699]     * a {
+  color: inherit;
+}
+.message.ai[_ngcontent-ng-c3049310699] {
+  background-color: #E7CBFF;
+  color: #4E02B2;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  border-radius: 32px 32px 32px 2px;
+  align-self: flex-start;
+  animation: _ngcontent-ng-c3049310699_fadeInLeft 0.3s ease-in-out;
+}
+.message.human[_ngcontent-ng-c3049310699] {
+  background-color: #4E02B2;
+  color: #FFFFFF;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  border-radius: 32px 32px 2px 32px;
+  align-self: flex-end;
+  animation: _ngcontent-ng-c3049310699_fadeInRight 0.3s ease-in-out;
+  margin-bottom: 4px;
+}
+.message.part[_ngcontent-ng-c3049310699] {
+  border-radius: 32px;
+}
+.buttons[_ngcontent-ng-c3049310699] {
+  width: 100%;
+  display: flex;
+  flex-flow: column;
+  padding: 8px 0;
+  gap: 4px;
+}
+.buttons[_ngcontent-ng-c3049310699]   .button-row[_ngcontent-ng-c3049310699] {
+  width: 100%;
+  display: flex;
+  flex-flow: row;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+.buttons[_ngcontent-ng-c3049310699]   .button-row[_ngcontent-ng-c3049310699]    > .button[_ngcontent-ng-c3049310699] {
+  flex: 1 1 auto;
+}
+.buttons[_ngcontent-ng-c3049310699]   .button[_ngcontent-ng-c3049310699] {
+  height: 52px;
+  padding: 0px 8px;
+  display: flex;
+  flex-flow: row;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  font-size: 16px;
+  line-height: normal;
+  font-weight: 400;
+  border: 1px solid #E7CBFF;
+  background: #FBF5F6;
+  color: #4E02B2;
+  cursor: pointer;
+}
+.buttons[_ngcontent-ng-c3049310699]   .button.primary[_ngcontent-ng-c3049310699] {
+  border: 1px solid #4E02B2;
+  background: #4E02B2;
+  color: #FFFFFF;
+  font-weight: 700;
+}
+.buttons[_ngcontent-ng-c3049310699]   a[_ngcontent-ng-c3049310699] {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+@keyframes _ngcontent-ng-c3049310699_fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes _ngcontent-ng-c3049310699_fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes _ngcontent-ng-c3049310699_slideInUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes _ngcontent-ng-c3049310699_slideInUp2 {
+  from {
+    transform: translateY(200%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes _ngcontent-ng-c3049310699_slideInDown {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+[_nghost-ng-c3049310699] {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  position: relative;
+}
+[_nghost-ng-c3049310699]   .container[_ngcontent-ng-c3049310699] {
+  width: 100%;
+  height: 100%;
+}
+[_nghost-ng-c3049310699]   .logo[_ngcontent-ng-c3049310699] {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: 165px;
+  height: 137px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  background-image: url("./media/futures-map-logo-UYVZA7QU.svg");
+  background-size: contain;
+}
+[_nghost-ng-c3049310699]   .controls-container[_ngcontent-ng-c3049310699] {
+  position: absolute;
+  bottom: 0;
+  right: 20px;
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  z-index: 1000;
+}
+[_nghost-ng-c3049310699]   .controls-container[_ngcontent-ng-c3049310699]   .control-tab[_ngcontent-ng-c3049310699] {
+  position: relative;
+  background: white;
+  border-radius: 12px 12px 0 0;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+[_nghost-ng-c3049310699]   .controls-container[_ngcontent-ng-c3049310699]   .control-tab[_ngcontent-ng-c3049310699]   .tab-background[_ngcontent-ng-c3049310699] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+}
+[_nghost-ng-c3049310699]   .controls-container[_ngcontent-ng-c3049310699]   .control-tab[_ngcontent-ng-c3049310699]   .tab-buttons[_ngcontent-ng-c3049310699] {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  padding: 8px;
+  gap: 4px;
+}
+[_nghost-ng-c3049310699]   .controls-container[_ngcontent-ng-c3049310699]   .control-tab[_ngcontent-ng-c3049310699]   .tab-button[_ngcontent-ng-c3049310699] {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  color: #666;
+}
+[_nghost-ng-c3049310699]   .controls-container[_ngcontent-ng-c3049310699]   .control-tab[_ngcontent-ng-c3049310699]   .tab-button[_ngcontent-ng-c3049310699]:hover {
+  color: #333;
+  background: rgba(0, 0, 0, 0.05);
+}
+[_nghost-ng-c3049310699]   .controls-container[_ngcontent-ng-c3049310699]   .control-tab[_ngcontent-ng-c3049310699]   .tab-button.active[_ngcontent-ng-c3049310699] {
+  color: white;
+}
+[_nghost-ng-c3049310699]   .controls-container[_ngcontent-ng-c3049310699]   .control-tab[_ngcontent-ng-c3049310699]   .tab-button[_ngcontent-ng-c3049310699]   .button-icon[_ngcontent-ng-c3049310699] {
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+}
+[_nghost-ng-c3049310699]   .controls-container[_ngcontent-ng-c3049310699]   .layout-tab[_ngcontent-ng-c3049310699]   .selection-indicator[_ngcontent-ng-c3049310699] {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 44px;
+  height: 44px;
+  background: #ccc;
+  border-radius: 8px;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1;
+}
+[_nghost-ng-c3049310699]   .controls-container[_ngcontent-ng-c3049310699]   .showcase-tab[_ngcontent-ng-c3049310699]   .showcase-indicator[_ngcontent-ng-c3049310699] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: transparent;
+  transition: background-color 0.3s ease;
+  border-radius: 12px 12px 0 0;
+}
+[_nghost-ng-c3049310699]   .controls-container[_ngcontent-ng-c3049310699]   .showcase-tab[_ngcontent-ng-c3049310699]   .showcase-indicator.active[_ngcontent-ng-c3049310699] {
+  background: #4CAF50;
+}
+[_nghost-ng-c3049310699]   .controls-container[_ngcontent-ng-c3049310699]   .showcase-tab[_ngcontent-ng-c3049310699]   .showcase-button.active[_ngcontent-ng-c3049310699] {
+  color: white;
+}</style><style ng-app-id="ng">
+
+[_nghost-ng-c3655434874] {
+  position: absolute;
+  z-index: 10;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+[_nghost-ng-c3655434874]   .qr-container[_ngcontent-ng-c3655434874] {
+  display: flex;
+  position: absolute;
+  top: 50%;
+  right: 50%;
+  transition: all 0.5s ease-in-out;
+}
+[_nghost-ng-c3655434874]   .qr-container[_ngcontent-ng-c3655434874]   .qrcode[_ngcontent-ng-c3655434874] {
+  transition: all 0.5s ease-in-out;
+  transform-origin: top right;
+}
+[_nghost-ng-c3655434874]   .qr-container.small[_ngcontent-ng-c3655434874] {
+  top: 0%;
+  right: 0%;
+}</style></head>
+<body><!--nghm--><script type="text/javascript" id="ng-event-dispatch-contract">(()=>{function p(t,n,r,o,e,i,f,m){return{eventType:t,event:n,targetElement:r,eic:o,timeStamp:e,eia:i,eirp:f,eiack:m}}function u(t){let n=[],r=e=>{n.push(e)};return{c:t,q:n,et:[],etc:[],d:r,h:e=>{r(p(e.type,e,e.target,t,Date.now()))}}}function s(t,n,r){for(let o=0;o<n.length;o++){let e=n[o];(r?t.etc:t.et).push(e),t.c.addEventListener(e,t.h,r)}}function c(t,n,r,o,e=window){let i=u(t);e._ejsas||(e._ejsas={}),e._ejsas[n]=i,s(i,r),s(i,o,!0)}window.__jsaction_bootstrap=c;})();
+</script><script>window.__jsaction_bootstrap(document.body,"ng",["click"],[]);</script>
+  <app-root ng-version="19.2.5" ngh="1" ng-server-context="ssg"><router-outlet></router-outlet><app-showcase-ws _nghost-ng-c3049310699="" ngh="0"><div _ngcontent-ng-c3049310699="" class="container"></div><app-qrcode _ngcontent-ng-c3049310699="" _nghost-ng-c3655434874="" ngh="0"><div _ngcontent-ng-c3655434874="" class="qr-container"><canvas _ngcontent-ng-c3655434874="" class="qrcode" style="transform: translate(0px, 0px) scale(1);"></canvas></div></app-qrcode><div _ngcontent-ng-c3049310699="" class="logo"></div><div _ngcontent-ng-c3049310699="" class="controls-container"><div _ngcontent-ng-c3049310699="" class="control-tab layout-tab"><div _ngcontent-ng-c3049310699="" class="tab-background"><div _ngcontent-ng-c3049310699="" class="selection-indicator" style="transform: translateX(144px);"></div></div><div _ngcontent-ng-c3049310699="" class="tab-buttons"><button _ngcontent-ng-c3049310699="" title="Grid Layout" class="tab-button layout-button" jsaction="click:;"><svg _ngcontent-ng-c3049310699="" viewBox="0 0 24 24" class="button-icon"><text _ngcontent-ng-c3049310699="" x="12" y="16" text-anchor="middle" font-family="Arial, sans-serif" font-weight="bold" font-size="14">G</text></svg></button><button _ngcontent-ng-c3049310699="" title="TSNE Layout" class="tab-button layout-button" jsaction="click:;"><svg _ngcontent-ng-c3049310699="" viewBox="0 0 24 24" class="button-icon"><text _ngcontent-ng-c3049310699="" x="12" y="16" text-anchor="middle" font-family="Arial, sans-serif" font-weight="bold" font-size="14">T</text></svg></button><button _ngcontent-ng-c3049310699="" title="SVG Layout" class="tab-button layout-button" jsaction="click:;"><svg _ngcontent-ng-c3049310699="" viewBox="0 0 24 24" class="button-icon"><text _ngcontent-ng-c3049310699="" x="12" y="16" text-anchor="middle" font-family="Arial, sans-serif" font-weight="bold" font-size="14">S</text></svg></button><button _ngcontent-ng-c3049310699="" title="Circle Packing Layout" class="tab-button layout-button active" jsaction="click:;"><svg _ngcontent-ng-c3049310699="" viewBox="0 0 24 24" class="button-icon"><text _ngcontent-ng-c3049310699="" x="12" y="16" text-anchor="middle" font-family="Arial, sans-serif" font-weight="bold" font-size="14">C</text></svg></button></div></div><div _ngcontent-ng-c3049310699="" class="control-tab showcase-tab"><div _ngcontent-ng-c3049310699="" class="tab-background"><div _ngcontent-ng-c3049310699="" class="showcase-indicator"></div></div><div _ngcontent-ng-c3049310699="" class="tab-buttons"><button _ngcontent-ng-c3049310699="" title="Toggle Random Showcase" class="tab-button showcase-button" jsaction="click:;"><svg _ngcontent-ng-c3049310699="" viewBox="0 0 24 24" class="button-icon"><circle _ngcontent-ng-c3049310699="" cx="12" cy="8" r="2" fill="currentColor"></circle><circle _ngcontent-ng-c3049310699="" cx="12" cy="16" r="2" fill="currentColor"></circle><circle _ngcontent-ng-c3049310699="" cx="6" cy="12" r="2" fill="currentColor"></circle><circle _ngcontent-ng-c3049310699="" cx="18" cy="12" r="2" fill="currentColor"></circle></svg></button></div></div></div></app-showcase-ws><!----></app-root>
+<link rel="modulepreload" href="chunk-OWZWZSW6.js"><link rel="modulepreload" href="chunk-UAILVIBX.js"><script src="polyfills-A4QT3QTR.js" type="module"></script><script src="main-SSWTC4SV.js" type="module"></script>
+
+<script id="ng-state" type="application/json">{"__nghData__":[{},{"c":{"0":[{"i":"c3049310699","r":1}]}}]}</script></body></html>
