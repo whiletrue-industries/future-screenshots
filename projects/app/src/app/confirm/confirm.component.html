@@ -10,11 +10,21 @@
     </svg>
     <span i18n>scan again</span>
   </a>
-  <a (click)='upload()' class="confirm">
-    <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 25 25" fill="none">
-      <path d="M5.5 15.5V17.5C5.5 18.0304 5.71071 18.5391 6.08579 18.9142C6.46086 19.2893 6.96957 19.5 7.5 19.5H17.5C18.0304 19.5 18.5391 19.2893 18.9142 18.9142C19.2893 18.5391 19.5 18.0304 19.5 17.5V15.5" stroke="#4E02B2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M12.5 14.4844L12.5 5.98437M12.5 5.98437L9.5 8.98437M12.5 5.98437L15.5 8.98438" stroke="#4E02B2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    <span i18n>Looking Good</span>
-  </a>
+  @if (!api.currentlyUploadingImage()) {
+    <a (click)='upload()' class="confirm">
+      <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 25 25" fill="none">
+        <path d="M5.5 15.5V17.5C5.5 18.0304 5.71071 18.5391 6.08579 18.9142C6.46086 19.2893 6.96957 19.5 7.5 19.5H17.5C18.0304 19.5 18.5391 19.2893 18.9142 18.9142C19.2893 18.5391 19.5 18.0304 19.5 17.5V15.5" stroke="#4E02B2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12.5 14.4844L12.5 5.98437M12.5 5.98437L9.5 8.98437M12.5 5.98437L15.5 8.98438" stroke="#4E02B2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span i18n>Looking Good</span>
+    </a>
+  } @else {
+    <span class="confirm">
+      <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 25 25" fill="none">
+        <path d="M5.5 15.5V17.5C5.5 18.0304 5.71071 18.5391 6.08579 18.9142C6.46086 19.2893 6.96957 19.5 7.5 19.5H17.5C18.0304 19.5 18.5391 19.2893 18.9142 18.9142C19.2893 18.5391 19.5 18.0304 19.5 17.5V15.5" stroke="#4E02B2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12.5 14.4844L12.5 5.98437M12.5 5.98437L9.5 8.98437M12.5 5.98437L15.5 8.98438" stroke="#4E02B2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span i18n>Uploading image...</span>
+    </span>
+  }
 </div>

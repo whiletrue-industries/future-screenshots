@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { effect, Inject, Injectable, LOCALE_ID, NgZone, signal } from '@angular/core';
 import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
-import { map, Observable, ReplaySubject, switchMap, tap } from 'rxjs';
+import { map, Observable, ReplaySubject, switchMap, tap, timer } from 'rxjs';
 
 export type DiscussResult = {
   complete: boolean;
@@ -28,15 +28,20 @@ export class ApiService {
   itemId = signal<string | null>(null);
   itemKey = signal<string | null>(null);
   automatic = signal<boolean>(false);
+  demo = signal<boolean>(false);
   workspace = signal<any>({});
   isWorkshop = signal<boolean>(false);
   isWorkshopFollowup = signal<boolean>(false);
   uploadImageInProgress = new ReplaySubject<boolean>(1);
+  currentlyUploadingImage = signal<boolean>(false);
   locale = 'en';
 
   constructor(private http: HttpClient, private zone: NgZone, @Inject(LOCALE_ID) public locale_: string) {
     this.locale = locale_.split('-')[0]; // Use the first part of the locale, e.g., 'nl' from 'nl-NL'
     this.uploadImageInProgress.next(false);
+    this.uploadImageInProgress.subscribe((inProgress) => {
+      this.currentlyUploadingImage.set(inProgress);
+    });
     effect(() => {
       const workspaceId = this.workspaceId();
       if (workspaceId) {
@@ -49,8 +54,12 @@ export class ApiService {
     const workspace = route.queryParams['workspace'] || this.workspaceId();
     const api_key = route.queryParams['api_key'] || this.api_key();
     const automatic = route.queryParams['automatic'] || this.automatic();
+    const demo = route.queryParams['demo'] || this.demo();
     if (automatic) {
       this.automatic.set(automatic === 'true');
+    }
+    if (demo) {
+      this.demo.set(demo === 'true');
     }
     if (api_key) {
       this.api_key.set(api_key);
@@ -155,6 +164,18 @@ export class ApiService {
       })
     ).subscribe((x: any) => {
     });
+  }    
+
+  uploadImageAuto(image: Blob, item_id: string, item_key: string): Observable<any> {
+    this.uploadImageInProgress.next(true);
+    this.startDiscussion(image, item_id, item_key).pipe(
+      tap(() => {
+        this.uploadImageInProgress.next(false);
+      })
+    ).subscribe(() => {
+      console.log('Auto upload image complete');
+    });
+    return timer(2000);
   }    
 
   startDiscussion(image: Blob, item_id: string, item_key: string): Observable<any> {

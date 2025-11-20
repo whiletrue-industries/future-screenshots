@@ -15,7 +15,7 @@ import { LtrDirective } from '../ltr.directive';
 })
 export class ConfirmComponent {
 
-  constructor(public state: StateService, private router: Router, private api: ApiService, private route: ActivatedRoute) { 
+  constructor(public state: StateService, private router: Router, public api: ApiService, private route: ActivatedRoute) { 
     this.api.updateFromRoute(this.route.snapshot);
     if (!this.state.currentImageUrl()) {
       this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
@@ -30,8 +30,14 @@ export class ConfirmComponent {
           'item-id': res.item_id,
           'key': res.item_key
         };
-        this.api.uploadImage(currentImage, res.item_id, res.item_key);
-        this.router.navigate(['/props'], { queryParams: params, queryParamsHandling: 'merge'});
+        if (!this.api.automatic()) {
+          this.api.uploadImage(currentImage, res.item_id, res.item_key);
+          this.router.navigate(['/props'], { queryParams: params, queryParamsHandling: 'merge'});
+        } else {
+          this.api.uploadImageAuto(currentImage, res.item_id, res.item_key).subscribe(() => {
+            this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
+          });
+        }
       });
     } else {
       this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });

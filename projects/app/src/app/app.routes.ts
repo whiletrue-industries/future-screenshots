@@ -3,7 +3,7 @@ import { ScannerComponent } from './scanner/scanner.component';
 import { ConfirmComponent } from './confirm/confirm.component';
 import { PrescanComponent } from './prescan/prescan.component';
 import { DiscussComponent } from './discuss/discuss.component';
-import { LoaderComponent } from './loader/loader.component';
+// import { LoaderComponent } from './loader/loader.component';
 import { RedirectorComponent } from './redirector/redirector.component';
 import { HomeComponent } from './home/home.component';
 import { Pps25Component } from './showcase/pps25/pps25.component';
@@ -68,10 +68,10 @@ export const routes: Routes = [
         'path': 'discuss',
         'component': DiscussComponent
     },
-    {
-        'path': 'load',
-        'component': LoaderComponent,
-    },
+    // {
+    //     'path': 'load',
+    //     'component': LoaderComponent,
+    // },
     {
         'path': 'prescan',
         'component': PrescanComponent,

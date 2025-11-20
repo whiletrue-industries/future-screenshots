@@ -295,6 +295,14 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
             }
             ret = {valid, snap, blurry, cornerPoints};
           }
+          if (this.api.demo()) {
+            ret = {valid: true, snap: true, blurry: false, cornerPoints: {
+              topLeftCorner: { x: 50, y: 50 },
+              topRightCorner: { x: width - 50, y: 50 },
+              bottomLeftCorner: { x: 50, y: height - 50 },
+              bottomRightCorner: { x: width - 50, y: height - 50 }
+            } };
+          }
         } catch (e) {
           console.error('Error processing video frame', count, e);
           this.restartScanner();
