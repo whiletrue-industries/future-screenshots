@@ -8,10 +8,11 @@ import { ActivatedRoute } from '@angular/router';
 import { AboutComponent } from '../about/about.component';
 import { ApiService } from '../../api.service';
 import { StateService } from '../../state.service';
+import { PasswordPromptComponent } from "../password-prompt/password-prompt.component";
 
 @Component({
   selector: 'app-home',
-  imports: [OutputMapComponent, MainMenuComponent, AboutComponent],
+  imports: [OutputMapComponent, MainMenuComponent, AboutComponent, PasswordPromptComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.less'
 })
@@ -23,7 +24,7 @@ export class HomeComponent implements AfterViewInit {
   @ViewChild('mapContainer') mapContainer: ElementRef<HTMLElement>;
   @ViewChild(OutputMapComponent) outputMap: OutputMapComponent;
 
-  constructor(private platform: PlatformService, private destroyRef: DestroyRef, private route: ActivatedRoute, private api: ApiService, public state: StateService) {
+  constructor(private platform: PlatformService, private destroyRef: DestroyRef, private route: ActivatedRoute, public api: ApiService, public state: StateService) {
     this.api.updateFromRoute(route.snapshot);
     this.platform.browser(() => {
       this.browser = true;

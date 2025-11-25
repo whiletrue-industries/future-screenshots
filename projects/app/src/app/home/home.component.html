@@ -1,7 +1,11 @@
 <div class='container'>
     <div class='map' #mapContainer>
         @if (browser) {
-            <app-output-map [tag]='tag()'></app-output-map>
+            @if (api.passwordProtected() && !state.authenticated()) {
+                <app-password-prompt></app-password-prompt>
+            } @else {
+                <app-output-map [tag]='tag()'></app-output-map>
+            }
         }
         <div class='borders' [class.fullscreen]='!mainMenuOpen()' (click)='mainMenuOpen.set(false)'>
             <div class='border b1'></div>

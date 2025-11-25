@@ -21,7 +21,7 @@ export class MainMenuComponent {
 
   constructor(public api: ApiService, public state: StateService) {
     effect(() => {
-      if (this.api.workspaceId() && this.api.workspace()?.source) {
+      if (this.api.workspaceId() && this.api.api_key() && this.api.workspace()?.source) {
         this.state.mainMenuHeight.set(MAIN_MENU_HEIGHT);
       } else {
         this.state.mainMenuHeight.set(MAIN_MENU_HEIGHT - 56);

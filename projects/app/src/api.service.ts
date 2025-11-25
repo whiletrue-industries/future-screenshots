@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { effect, Inject, Injectable, LOCALE_ID, NgZone, signal } from '@angular/core';
+import { computed, effect, Inject, Injectable, LOCALE_ID, NgZone, signal } from '@angular/core';
 import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
 import { map, Observable, ReplaySubject, switchMap, tap, timer } from 'rxjs';
 
@@ -35,6 +35,15 @@ export class ApiService {
   uploadImageInProgress = new ReplaySubject<boolean>(1);
   currentlyUploadingImage = signal<boolean>(false);
   locale = 'en';
+
+  passwordProtected = computed(() => {
+    const workspace = this.workspace();
+    console.log('WORKSPACE', workspace, 'PASSWORD PROTECTED', workspace?.password_protected);
+    if (workspace && workspace.password_protected) {
+      return true;
+    }
+    return false;
+  });
 
   constructor(private http: HttpClient, private zone: NgZone, @Inject(LOCALE_ID) public locale_: string) {
     this.locale = locale_.split('-')[0]; // Use the first part of the locale, e.g., 'nl' from 'nl-NL'

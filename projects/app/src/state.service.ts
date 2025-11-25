@@ -9,6 +9,7 @@ export class StateService {
   currentImageUrl = signal<string | null>(null);
   mainMenuHeight = signal<number>(348);
   aboutVisible = signal<boolean>(false);
+  authenticated = signal<boolean>(false);
 
   constructor() { }
 

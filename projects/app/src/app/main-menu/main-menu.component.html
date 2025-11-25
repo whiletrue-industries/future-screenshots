@@ -5,7 +5,7 @@
         <a class='simple' [routerLink]='["/"]' queryParamsHandling="preserve" (click)='state.aboutVisible.set(true)' i18n>About + Contact</a>
         <!-- <a class='simple' href='https://google.com' target="_blank" i18n>Join a Workshop</a>
         <a class='simple' href='https://google.com' target="_blank" i18n>A Land For All</a> -->
-        @if (api.workspaceId() && api.workspace().source) {
+        @if (api.workspaceId() && api.api_key() && api.workspace().source) {
             <a class='primary' [routerLink]='["/prescan"]' queryParamsHandling="preserve">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
                     <path d="M12 4.01562C12.5523 4.01563 13 4.46334 13 5.01562V11.0078H18.9951L19.0977 11.0127C19.6017 11.0641 19.9951 11.4902 19.9951 12.0078C19.9951 12.5254 19.6017 12.9515 19.0977 13.0029L18.9951 13.0078H13V19.0029L12.9951 19.1055C12.9437 19.6095 12.5176 20.0029 12 20.0029C11.4824 20.0029 11.0563 19.6095 11.0049 19.1055L11 19.0029V13.0078H5.00781C4.45553 13.0078 4.00781 12.5601 4.00781 12.0078C4.00781 11.4555 4.45553 11.0078 5.00781 11.0078H11V5.01562C11 4.46334 11.4477 4.01562 12 4.01562Z" fill="#FFFDF6"/>
