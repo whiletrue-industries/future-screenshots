@@ -36,7 +36,13 @@ export class AdminComponent implements OnInit {
       console.log('AUTH TOKEN:', this.auth.token());
       this.adminApi.listWorkspaces().subscribe(workspaces => {
         console.log('Workspaces:', workspaces);
-        this.workspaces.set(workspaces);
+        const sorted = [...workspaces].sort((a, b) => {
+          const ad = a?.metadata?.date ?? '';
+          const bd = b?.metadata?.date ?? '';
+          // Reverse chronological: latest first
+          return bd.localeCompare(ad);
+        });
+        this.workspaces.set(sorted);
       });
     });
   }
