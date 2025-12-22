@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "ng build app --configuration development --base-href=/ && npx --yes http-server dist/app -p 4300 -a 0.0.0.0 -c-1",
     "build": "ng build",
     "build:app": "ng build app --base-href=/",
     "build:showcase": "ng build showcase --base-href=/show/",

@@ -30,4 +30,23 @@ export class WorkspaceItemComponent {
     if (!m) return d;
     return `${m[3]}.${m[2]}.${m[1]}`;
   });
+
+  facilitatorsText = computed(() => {
+    const names: string[] = this.workspace()?.metadata?.facilitator_names || [];
+    return names.join(', ');
+  });
+
+  languagesText = computed(() => {
+    const langs: string[] = this.workspace()?.metadata?.languages || [];
+    return langs.join(', ');
+  });
+
+  locationText = computed(() => {
+    const meta = this.workspace()?.metadata;
+    if (!meta) return '';
+    const city = meta.city || '';
+    const country = meta.country || '';
+    if (city && country) return `${city}, ${country}`;
+    return city || country;
+  });
 }
