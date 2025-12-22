@@ -2,14 +2,28 @@
 @if (!!w) {
     <article class="workspace-item" role="listitem" aria-label="Workspace item">
         <div class="row">
-            <div class="cell date">{{ formattedDate() }}</div>
-            <div class="cell title">{{ w.metadata.event_name || w.metadata.source }}</div>
-            <div class="cell facilitators">{{ (w.metadata.facilitator_names || []).join(', ') }}</div>
-            <div class="cell languages">{{ (w.metadata.languages || []).join(', ') }}</div>
-            <div class="cell actions">
-                <a [routerLink]="['/admin/edit', w.id]" [queryParams]="{ key: w.keys.admin }" aria-label="Edit settings">✏️</a>
-                <a [routerLink]="['/admin/moderate']" [queryParams]="{ api_key: w.keys.admin, workspace: w.id }" aria-label="Moderate workspace">🔍</a>
-                <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, admin_key: w.keys.admin }" aria-label="Open workshop screen">📺</a>
+            <div class="cell date">
+                <span class="date-chip">{{ formattedDate() }}</span>
+            </div>
+            <div class="cell title">
+                <div class="title-text">{{ w.metadata.event_name || w.metadata.source }}</div>
+                <div class="meta">{{ locationText() }}</div>
+            </div>
+            <div class="cell facilitators">{{ facilitatorsText() }}</div>
+            <div class="cell languages">{{ languagesText() }}</div>
+            <div class="cell actions" aria-label="Workspace actions">
+                <a [href]="'/' + ingestSuffix()" aria-label="Download ingest" class="icon-btn">
+                    ⬇
+                </a>
+                <a [routerLink]="['/admin/moderate']" [queryParams]="{ api_key: w.keys.admin, workspace: w.id }" aria-label="Moderate workspace" class="icon-btn">
+                    🔍
+                </a>
+                <a [routerLink]="['/admin/edit', w.id]" [queryParams]="{ key: w.keys.admin }" aria-label="Edit settings" class="icon-btn">
+                    ✎
+                </a>
+                <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, admin_key: w.keys.admin }" aria-label="Open workshop screen" class="icon-btn">
+                    📺
+                </a>
             </div>
         </div>
         <div class="links compact" aria-label="Quick actions">
