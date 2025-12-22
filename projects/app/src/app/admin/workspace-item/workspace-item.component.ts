@@ -1,4 +1,4 @@
-import { Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 @Component({
@@ -7,7 +7,8 @@ import { RouterLink } from '@angular/router';
     RouterLink
   ],
   templateUrl: './workspace-item.component.html',
-  styleUrl: './workspace-item.component.less'
+  styleUrl: './workspace-item.component.less',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class WorkspaceItemComponent {
   workspace = input<any>();
@@ -20,5 +21,13 @@ export class WorkspaceItemComponent {
   });
   ingestSuffixWorkshop = computed(() => {
     return this.ingestSuffix() + '&ws=true';
+  });
+
+  formattedDate = computed(() => {
+    const d: string = this.workspace()?.metadata?.date || '';
+    // Expect YYYY-MM-DD -> DD.MM.YYYY
+    const m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(d);
+    if (!m) return d;
+    return `${m[3]}.${m[2]}.${m[1]}`;
   });
 }

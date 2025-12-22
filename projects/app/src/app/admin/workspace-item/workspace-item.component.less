@@ -1,38 +1,27 @@
 @import '../../../common-admin.less';
 
-.workspace-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 8px;
-
-    .settings-btn {
-        padding: 0.5rem 1rem;
-        background-color: @color-dark-pink;
-        color: @color-purple;
-        text-decoration: none;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 0.9rem;
-        transition: all 0.2s;
-
-        &:hover {
-            background-color: @color-light-purple;
-            color: white;
-        }
-    }
+.workspace-item {
+    width: 100%;
+    background: @color-primary-50;
+    border: 1px solid fade(@color-purple, 20%);
+    border-radius: 12px;
+    padding: 8px 12px;
 }
 
-h2 {
-    margin: 0;
-}
-small {
-    display: block;
-}
-.links {
-    margin-top: 8px;
-    display: flex;
-    flex-direction: row;
+.row {
+    display: grid;
+    grid-template-columns: 120px 1.6fr 1fr 1fr 120px;
     align-items: center;
-    gap: 8px 24px;
+    gap: 12px;
+}
+
+.cell { color: @color-purple; }
+.date { color: @color-gray; }
+.title { font-weight: 600; }
+.actions { display: flex; gap: 8px; a { text-decoration: none; } }
+
+.links.compact {
+    margin-top: 6px;
+    display: flex; gap: 12px; align-items: center;
+    a { color: @color-purple; text-decoration: none; }
 }

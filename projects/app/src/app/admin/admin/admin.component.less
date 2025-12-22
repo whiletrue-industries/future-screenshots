@@ -3,7 +3,7 @@
 :host {
     display: flex;
     flex-flow: column;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 16px;
     padding: 16px;
     width: 100%;
@@ -11,49 +11,70 @@
     overflow: auto;
 }
 
-.admin-container {
-    width: 100%;
-}
+.admin-container { width: 100%; }
 
-.admin-header {
+.topbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 2rem;
+    padding: 8px 0;
+    border-bottom: 1px solid fade(@color-purple, 20%);
 
-    h1 {
-        color: @color-purple;
-        font-size: 2rem;
-        margin: 0;
-    }
-
-    .create-workspace-btn {
-        padding: 0.75rem 1.5rem;
-        background-color: @color-purple;
-        color: white;
-        text-decoration: none;
-        border-radius: 16px;
-        font-weight: 600;
-        transition: background-color 0.2s;
-
-        &:hover {
-            background-color: @color-light-purple;
+    .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        h1 {
+            color: @color-purple;
+            margin: 0;
+            font-size: 20px;
+        }
+        .logo {
+            background: @color-dark-pink;
+            color: @color-purple;
+            border-radius: 50%;
+            width: 24px; height: 24px;
+            display: inline-flex;
+            align-items: center; justify-content: center;
         }
     }
+    .actions {
+        display: flex; align-items: center; gap: 12px;
+        .reviewed-toggle { display: inline-flex; align-items: center; gap: 6px; color: @color-gray; }
+        .create-workspace-btn {
+            padding: 4px 10px;
+            background-color: @color-purple;
+            color: white; text-decoration: none; border-radius: 12px; font-weight: 600;
+        }
+        .settings { color: @color-purple; text-decoration: none; }
+    }
+}
+
+.filters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    align-items: end;
+    label { color: @color-gray; font-size: 12px; }
+    select, input[type="search"] {
+        height: 32px; border: 1px solid fade(@color-purple, 30%);
+        border-radius: 8px; padding: 0 8px; background: @color-primary-50; color: @color-purple;
+    }
+    .chips { display: flex; gap: 6px; }
+    .chip { height: 28px; padding: 0 10px; border-radius: 14px; border: 1px solid fade(@color-purple, 40%); background: @color-pink; color: @color-purple; }
 }
 
 .success-message {
     background-color: #e8f5e9;
     color: #2e7d32;
-    padding: 1rem;
+    padding: 8px 12px;
     border-radius: 8px;
-    margin-bottom: 1.5rem;
     border: 1px solid #81c784;
 }
 
 .workspaces-list {
     display: flex;
     flex-flow: column;
-    gap: 16px;
+    gap: 8px;
     width: 100%;
 }
