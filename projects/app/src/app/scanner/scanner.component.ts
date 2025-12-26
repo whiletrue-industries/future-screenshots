@@ -437,7 +437,12 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       method: 'POST',
       body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`Upload failed with status ${response.status}`);
+      }
+      return response.json();
+    })
     .then((data: any) => {
       console.log('Image replaced successfully:', data);
       this.displayMsg.set('Image replaced successfully!');

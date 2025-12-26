@@ -35,16 +35,23 @@ export class ImageReplacementModalComponent {
     
     if (option === 'existing') {
       // Fetch workspace items
-      this.api.getItems(this.workspaceId(), this.apiKey(), 0, '').subscribe((items: any) => {
-        if (Array.isArray(items)) {
-          // Filter out the current item and items without screenshots
-          const filtered = items.filter((item: any) => 
-            item._id !== this.itemId() && !!item.screenshot_url
-          );
-          filtered.forEach((item: any) => {
-            item.screenshot_url = this.fix_url(item.screenshot_url);
-          });
-          this.workspaceItems.set(filtered);
+      this.api.getItems(this.workspaceId(), this.apiKey(), 0, '').subscribe({
+        next: (items: any) => {
+          if (Array.isArray(items)) {
+            // Filter out the current item and items without screenshots
+            const filtered = items.filter((item: any) => 
+              item._id !== this.itemId() && !!item.screenshot_url
+            );
+            filtered.forEach((item: any) => {
+              item.screenshot_url = this.fix_url(item.screenshot_url);
+            });
+            this.workspaceItems.set(filtered);
+          }
+        },
+        error: (error) => {
+          console.error('Error fetching workspace items:', error);
+          // Display error feedback to the user
+          this.workspaceItems.set([]);
         }
       });
     }
@@ -78,19 +85,26 @@ export class ImageReplacementModalComponent {
       method: 'POST',
       body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`Upload failed with status ${response.status}`);
+      }
+      return response.json();
+    })
     .then((data: any) => {
       this.uploading.set(false);
       if (data.metadata && data.metadata.screenshot_url) {
         this.imageReplaced.emit({ screenshot_url: this.fix_url(data.metadata.screenshot_url) });
         this.close();
+      } else {
+        throw new Error('Invalid response: missing screenshot URL');
       }
     })
     .catch(error => {
       console.error('Error uploading image:', error);
       this.uploading.set(false);
       // Display error in the modal instead of alert
-      // Could be improved with a toast notification service
+      // TODO: Improve with a toast notification service
       alert('Failed to upload image. Please try again.');
     });
   }

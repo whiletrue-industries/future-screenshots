@@ -99,7 +99,7 @@
     </div>    
 }
 
-@if (replacingImageItemId()) {
+@if (replacingImageItemId() && workspaceId() && apiKey()) {
     <app-image-replacement-modal
         [workspaceId]="workspaceId()!"
         [apiKey]="apiKey()!"
