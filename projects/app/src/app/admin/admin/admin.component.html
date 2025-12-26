@@ -5,10 +5,6 @@
       <h1>MapFutures Admin</h1>
     </div>
     <div class="actions">
-      <label class="reviewed-toggle" aria-label="Toggle reviewed filter">
-        <span>reviewed:</span>
-        <input type="checkbox" [checked]="reviewedOnly()" (change)="reviewedOnly.set($any($event.target).checked)" />
-      </label>
       <a routerLink="/admin/new" class="create-workspace-btn" aria-label="Create new workspace">+ add</a>
       <a routerLink="/settings" class="settings" aria-label="Settings">⚙️</a>
     </div>
@@ -19,34 +15,63 @@
   }
 
   <section class="filters" aria-label="Filters">
-    <div class="filter-group">
-      <label for="language">Language:</label>
-      <select id="language" [value]="languageFilter()" (change)="languageFilter.set($any($event.target).value)">
-        <option value="all">all</option>
-        <option value="en">English</option>
-        <option value="nl">Dutch</option>
-        <option value="he">Hebrew</option>
-        <option value="ar">Arabic</option>
-      </select>
-    </div>
-    <div class="filter-group">
-      <label for="type">Type:</label>
-      <div class="chips" id="type" aria-label="Type chips">
-        <button type="button" class="chip" aria-pressed="false">AI</button>
-        <button type="button" class="chip" aria-pressed="false">Love</button>
-        <button type="button" class="chip" aria-pressed="false">Protest</button>
+    <div class="filter-row">
+      <div class="filter-group">
+        <label for="status">Status:</label>
+        <select id="status" [value]="statusFilter()" (change)="statusFilter.set($any($event.target).value)">
+          <option value="all">all</option>
+          <option value="upcoming">Upcoming</option>
+          <option value="active">Active</option>
+          <option value="in-review">In Review</option>
+          <option value="done">Done</option>
+        </select>
       </div>
-    </div>
-    <div class="filter-group search">
-      <label for="search">Search:</label>
-      <input id="search" type="search" placeholder="any text" [value]="searchQuery()" (input)="searchQuery.set($any($event.target).value)" />
-    </div>
-    <div class="filter-group order">
-      <label for="order">Order by:</label>
-      <select id="order" [value]="orderBy()" (change)="orderBy.set($any($event.target).value)">
-        <option value="date">Date</option>
-        <option value="title">Title</option>
-      </select>
+
+      <div class="filter-group">
+        <label for="language">Language:</label>
+        <select id="language" [value]="languageFilter()" (change)="languageFilter.set($any($event.target).value)">
+          <option value="all">all</option>
+          <option value="en">English</option>
+          <option value="nl">Dutch</option>
+          <option value="he">Hebrew</option>
+          <option value="ar">Arabic</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="facilitator">Facilitator:</label>
+        <select id="facilitator" [value]="facilitatorFilter()" (change)="facilitatorFilter.set($any($event.target).value)">
+          <option value="all">all</option>
+          @for (facilitator of allFacilitators(); track facilitator) {
+            <option [value]="facilitator">{{ facilitator }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="filter-group search-group">
+        <label for="search">Search:</label>
+        <input 
+          id="search" 
+          type="search" 
+          placeholder="any text" 
+          list="keywords-list"
+          [value]="searchQuery()" 
+          (input)="searchQuery.set($any($event.target).value)" />
+        <datalist id="keywords-list">
+          @for (keyword of allKeywords(); track keyword) {
+            <option [value]="keyword">{{ keyword }}</option>
+          }
+        </datalist>
+      </div>
+
+      <div class="filter-group">
+        <label for="order">Order by:</label>
+        <select id="order" [value]="orderBy()" (change)="orderBy.set($any($event.target).value)">
+          <option value="date">Date</option>
+          <option value="screenshots">Screenshots</option>
+          <option value="completion">Completion</option>
+        </select>
+      </div>
     </div>
   </section>
 
