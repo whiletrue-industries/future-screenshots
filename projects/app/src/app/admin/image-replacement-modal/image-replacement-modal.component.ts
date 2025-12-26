@@ -1,6 +1,8 @@
-import { Component, output, input, signal } from '@angular/core';
+import { Component, output, input, signal, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { AdminApiService } from '../../../admin-api.service';
+import { ApiService } from '../../../api.service';
 
 @Component({
   selector: 'app-image-replacement-modal',
@@ -22,6 +24,9 @@ export class ImageReplacementModalComponent {
   workspaceItems = signal<any[]>([]);
   selectedItemId = signal<string | null>(null);
   uploading = signal<boolean>(false);
+  
+  private router = inject(Router);
+  private apiService = inject(ApiService);
   
   constructor(private api: AdminApiService) {}
   
@@ -63,15 +68,13 @@ export class ImageReplacementModalComponent {
     const formData = new FormData();
     formData.append('image', file);
     
-    // Use the screenshot handler to upload the image
-    const SCREENSHOT_HANDLER_URL = 'https://screenshot-handler-qjzuw7ypfq-ez.a.run.app';
     const params = {
       workspace: this.workspaceId(),
       api_key: this.apiKey(),
       item_id: this.itemId(),
     };
     
-    fetch(`${SCREENSHOT_HANDLER_URL}?${new URLSearchParams(params).toString()}`, {
+    fetch(`${this.apiService.SCREENSHOT_HANDLER_URL}?${new URLSearchParams(params).toString()}`, {
       method: 'POST',
       body: formData
     })
@@ -86,6 +89,8 @@ export class ImageReplacementModalComponent {
     .catch(error => {
       console.error('Error uploading image:', error);
       this.uploading.set(false);
+      // Display error in the modal instead of alert
+      // Could be improved with a toast notification service
       alert('Failed to upload image. Please try again.');
     });
   }
@@ -127,19 +132,22 @@ export class ImageReplacementModalComponent {
       error: (error) => {
         console.error('Error updating item:', error);
         this.uploading.set(false);
+        // Display error in the modal instead of alert
+        // Could be improved with a toast notification service
         alert('Failed to replace image. Please try again.');
       }
     });
   }
   
   scanAgain() {
-    // Navigate to scanner with item context
-    const workspace = this.workspaceId();
-    const apiKey = this.apiKey();
-    const itemId = this.itemId();
-    
-    const scanUrl = `/scan?workspace=${workspace}&api_key=${apiKey}&replace_item=${itemId}`;
-    window.location.href = scanUrl;
+    // Navigate to scanner with item context using Angular Router
+    this.router.navigate(['/scan'], {
+      queryParams: {
+        workspace: this.workspaceId(),
+        api_key: this.apiKey(),
+        replace_item: this.itemId()
+      }
+    });
   }
   
   fix_url(url: string) {

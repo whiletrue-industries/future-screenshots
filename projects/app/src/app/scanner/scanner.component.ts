@@ -427,14 +427,13 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     const formData = new FormData();
     formData.append('image', blob);
     
-    const SCREENSHOT_HANDLER_URL = 'https://screenshot-handler-qjzuw7ypfq-ez.a.run.app';
     const params = {
       workspace: this.api.workspaceId() as string,
       api_key: this.api.api_key() as string,
       item_id: itemId,
     };
     
-    fetch(`${SCREENSHOT_HANDLER_URL}?${new URLSearchParams(params).toString()}`, {
+    fetch(`${this.api.SCREENSHOT_HANDLER_URL}?${new URLSearchParams(params).toString()}`, {
       method: 'POST',
       body: formData
     })
@@ -442,11 +441,14 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     .then((data: any) => {
       console.log('Image replaced successfully:', data);
       this.displayMsg.set('Image replaced successfully!');
-      // Navigate back to the moderate page after a short delay
+      // Navigate back to the moderate page using Angular Router
       setTimeout(() => {
-        const workspace = this.api.workspaceId();
-        const apiKey = this.api.api_key();
-        window.location.href = `/admin/moderate?workspace=${workspace}&api_key=${apiKey}`;
+        this.router.navigate(['/admin/moderate'], {
+          queryParams: {
+            workspace: this.api.workspaceId(),
+            api_key: this.api.api_key()
+          }
+        });
       }, 1500);
     })
     .catch(error => {
