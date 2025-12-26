@@ -2,6 +2,7 @@ import { Component, effect, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AdminApiService } from '../../../admin-api.service';
 import { FormsModule } from '@angular/forms';
+import { ImageReplacementModalComponent } from '../image-replacement-modal/image-replacement-modal.component';
 
 export type Filter = {
   name: string;
@@ -11,7 +12,8 @@ export type Filter = {
 @Component({
   selector: 'app-moderate',
   imports: [
-    FormsModule
+    FormsModule,
+    ImageReplacementModalComponent
   ],
   templateUrl: './moderate.component.html',
   styleUrl: './moderate.component.less'
@@ -34,6 +36,7 @@ export class ModerateComponent {
   page = signal<number>(0);
   filter = signal<Filter>(this.FILTERS[this.FILTERS.length - 1]);
   editTagline = signal<boolean>(false);
+  replacingImageItemId = signal<string | null>(null);
 
   items = signal<any[]>([]);
   indexLink = signal<string | null>(null);
@@ -180,5 +183,25 @@ export class ModerateComponent {
         this.editTagline.set(false);
       });
     }
+  }
+
+  openImageReplacementModal(itemId: string) {
+    this.replacingImageItemId.set(itemId);
+  }
+
+  closeImageReplacementModal() {
+    this.replacingImageItemId.set(null);
+  }
+
+  onImageReplaced(itemId: string, data: { screenshot_url: string }) {
+    // Update the item in the local items array
+    this.items.update(items => {
+      return items.map(item => {
+        if (item._id === itemId) {
+          return { ...item, screenshot_url: data.screenshot_url };
+        }
+        return item;
+      });
+    });
   }
 }

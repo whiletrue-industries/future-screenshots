@@ -55,8 +55,43 @@
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             .font-sans;
     
-            img {
-                border: 1px solid @color-purple;
+            .image-container {
+                position: relative;
+                
+                img {
+                    border: 1px solid @color-purple;
+                    display: block;
+                    width: 100%;
+                }
+                
+                .edit-image-button {
+                    position: absolute;
+                    top: 8px;
+                    right: 8px;
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 50%;
+                    border: none;
+                    background: rgba(255, 255, 255, 0.9);
+                    color: @color-purple;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+                    transition: all 0.2s;
+                    opacity: 0;
+                    
+                    &:hover {
+                        background: @color-purple;
+                        color: white;
+                        transform: scale(1.1);
+                    }
+                }
+                
+                &:hover .edit-image-button {
+                    opacity: 1;
+                }
             }
     
             .status {

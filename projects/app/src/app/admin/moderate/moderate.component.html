@@ -29,7 +29,14 @@
     <div class='items'>
         @for (item of items(); track item._id) {
             <div class='item'>
-                <img [src]='item.screenshot_url'>
+                <div class='image-container'>
+                    <img [src]='item.screenshot_url'>
+                    <button class='edit-image-button' (click)='openImageReplacementModal(item._id)' aria-label='Replace image'>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M14.166 2.5c.442 0 .866.176 1.179.488l1.667 1.667c.312.313.488.737.488 1.179 0 .441-.176.865-.488 1.178L7.345 16.679c-.209.209-.488.321-.779.321H3.333c-.92 0-1.666-.746-1.666-1.667v-3.233c0-.291.112-.57.321-.779L11.655 2.988c.313-.312.737-.488 1.179-.488h1.333zm-.179 2.345l-1.154 1.154 2.334 2.333 1.154-1.154-2.334-2.333z" fill="currentColor"/>
+                        </svg>
+                    </button>
+                </div>
                 @if (editTagline()) {
                     <div class='tagline-edit'>
                         <input type='text' [(ngModel)]='item.future_scenario_tagline' placeholder='Tagline'>
@@ -90,4 +97,14 @@
             </div>
         }
     </div>    
+}
+
+@if (replacingImageItemId()) {
+    <app-image-replacement-modal
+        [workspaceId]="workspaceId()!"
+        [apiKey]="apiKey()!"
+        [itemId]="replacingImageItemId()!"
+        (closed)="closeImageReplacementModal()"
+        (imageReplaced)="onImageReplaced(replacingImageItemId()!, $event)"
+    />
 }
