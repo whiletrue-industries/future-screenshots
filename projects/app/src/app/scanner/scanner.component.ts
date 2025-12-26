@@ -65,6 +65,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   points = signal<{x: number, y: number}[]>([]);
   cameraClicked = signal<boolean>(false);
   displayCameraButton = signal<boolean>(false);
+  replaceItemId = signal<string | null>(null);
 
   constructor(
     private el: ElementRef, 
@@ -76,6 +77,11 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     private api: ApiService,
   ) {
     this.api.updateFromRoute(this.route.snapshot);
+    // Check if we're replacing an existing item
+    const replaceItem = this.route.snapshot.queryParams['replace_item'];
+    if (replaceItem) {
+      this.replaceItemId.set(replaceItem);
+    }
     this.displayMsgSubject.pipe(
       takeUntilDestroyed(),
       distinctUntilChanged(),
@@ -351,8 +357,15 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
           // Convert the result to a JPEG image
           frame.toBlob((blob: Blob) => {
             if (blob) {
-              this.state.setImage(blob);
-              this.router.navigate(['/confirm'], { queryParamsHandling: 'merge' });
+              const replaceItemId = this.replaceItemId();
+              if (replaceItemId) {
+                // We're replacing an existing item's image
+                this.uploadReplacementImage(blob, replaceItemId);
+              } else {
+                // Normal flow
+                this.state.setImage(blob);
+                this.router.navigate(['/confirm'], { queryParamsHandling: 'merge' });
+              }
             }
           }, 'image/jpeg', 0.95);
         }
@@ -405,6 +418,43 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     console.log('RESTARTING SCANNER');
     timer(500).subscribe(() => {
       this.startScanner();
+    });
+  }
+
+  uploadReplacementImage(blob: Blob, itemId: string) {
+    this.displayMsg.set('Uploading replacement image...');
+    
+    const formData = new FormData();
+    formData.append('image', blob);
+    
+    const SCREENSHOT_HANDLER_URL = 'https://screenshot-handler-qjzuw7ypfq-ez.a.run.app';
+    const params = {
+      workspace: this.api.workspaceId() as string,
+      api_key: this.api.api_key() as string,
+      item_id: itemId,
+    };
+    
+    fetch(`${SCREENSHOT_HANDLER_URL}?${new URLSearchParams(params).toString()}`, {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => response.json())
+    .then((data: any) => {
+      console.log('Image replaced successfully:', data);
+      this.displayMsg.set('Image replaced successfully!');
+      // Navigate back to the moderate page after a short delay
+      setTimeout(() => {
+        const workspace = this.api.workspaceId();
+        const apiKey = this.api.api_key();
+        window.location.href = `/admin/moderate?workspace=${workspace}&api_key=${apiKey}`;
+      }, 1500);
+    })
+    .catch(error => {
+      console.error('Error uploading replacement image:', error);
+      this.displayMsg.set('Failed to upload image. Please try again.');
+      setTimeout(() => {
+        this.restartScanner();
+      }, 2000);
     });
   }
 }
