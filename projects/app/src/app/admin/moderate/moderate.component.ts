@@ -18,6 +18,8 @@ export type Filter = {
 })
 export class ModerateComponent {
 
+  Array = Array; // Make Array available in template
+
   FILTERS = [
     {name: 'highlighted', filter:'metadata._private_moderation == 5'},
     {name: 'approved', filter:'metadata._private_moderation == 4'},
@@ -32,7 +34,23 @@ export class ModerateComponent {
   workspace = signal<any>({});
   apiKey = signal<string | null>(null);
   page = signal<number>(0);
-  filter = signal<Filter>(this.FILTERS[this.FILTERS.length - 1]);
+  
+  // Individual filters
+  filterStatus = signal<string>('all');
+  filterAuthor = signal<string>('all');
+  filterPreference = signal<string>('all');
+  filterPotential = signal<string>('all');
+  filterType = signal<string>('all');
+  searchText = signal<string>('');
+  orderBy = signal<string>('date');
+  
+  // Item counts for dropdown options
+  statusCounts = signal<Map<string, number>>(new Map());
+  authorCounts = signal<Map<string, number>>(new Map());
+  preferenceCounts = signal<Map<string, number>>(new Map());
+  potentialCounts = signal<Map<string, number>>(new Map());
+  typeCounts = signal<Map<string, number>>(new Map());
+  
   editTagline = signal<string | null>(null);
   editDescription = signal<string | null>(null);
   editTags = signal<string | null>(null);
@@ -40,6 +58,9 @@ export class ModerateComponent {
   showDescription = signal<Set<string>>(new Set());
   userItemCounts = signal<Map<string, number>>(new Map());
   allItemsForCounting = signal<any[]>([]); // Store all items for accurate counting
+  allFetchedItems = signal<any[]>([]); // Store all fetched items for client-side filtering
+  viewMode = signal<'list' | 'grid'>('list');
+  selectedItem = signal<any | null>(null);
 
   items = signal<any[]>([]);
   indexLink = signal<string | null>(null);
@@ -58,17 +79,35 @@ export class ModerateComponent {
       this.apiKey.set(params['api_key'] || null);
       this.workspaceId.set(params['workspace'] || this.workspaceId());
     });
+    
+    // Read filters from hash parameters
+    this.route.fragment.subscribe(fragment => {
+      if (fragment) {
+        const params = new URLSearchParams(fragment);
+        this.filterStatus.set(params.get('status') || 'all');
+        this.filterAuthor.set(params.get('author') || 'all');
+        this.filterPreference.set(params.get('preference') || 'all');
+        this.filterPotential.set(params.get('potential') || 'all');
+        this.filterType.set(params.get('type') || 'all');
+        this.searchText.set(params.get('search') || '');
+        this.orderBy.set(params.get('order') || 'date');
+        const view = params.get('view');
+        if (view === 'grid' || view === 'list') {
+          this.viewMode.set(view);
+        }
+      }
+    });
     effect(() => {
       const workspaceId = this.workspaceId();
       const apiKey = this.apiKey();
-      const currentFilter = this.filter();
       const page = this.page();
-      console.log('page', page, 'filter', currentFilter.filter, 'workspaceId', workspaceId, 'apiKey', apiKey);
+      console.log('page', page, 'workspaceId', workspaceId, 'apiKey', apiKey);
       if (workspaceId && apiKey) {
-        this.api.getItems(workspaceId, apiKey, page, currentFilter.filter).subscribe((data: any) => {
+        // Only fetch from API - no filtering on server
+        this.api.getItems(workspaceId, apiKey, page, '').subscribe((data: any) => {
           if (data['index-required']) {
             this.indexLink.set(data['index-required'] || null);
-            this.items.set([]);
+            this.allFetchedItems.set([]);
           } else {
             this.indexLink.set(null);
             data = data.filter((item: any) => !!item?.screenshot_url);
@@ -86,27 +125,14 @@ export class ModerateComponent {
                 }
               }
             });
-            this.items.set(data);
             
-            // Add current page items to the all items collection for counting
-            const allItems = [...this.allItemsForCounting()];
-            data.forEach((item: any) => {
-              const authorId = item.author_id || 'unknown';
-              const email = item.email || item.user_email || 'unknown@user.com';
-              // Only add if not already in the collection (based on _id)
-              if (!allItems.find(i => i._id === item._id)) {
-                allItems.push({ _id: item._id, author_id: authorId, email });
-              }
-            });
-            this.allItemsForCounting.set(allItems);
+            // Store all fetched items
+            const existing = this.allFetchedItems();
+            const newItems = data.filter((item: any) => !existing.find((i: any) => i._id === item._id));
+            this.allFetchedItems.set([...existing, ...newItems]);
             
-            // Calculate user item counts from all collected items (by author_id)
-            const counts = new Map<string, number>();
-            allItems.forEach((item: any) => {
-              const authorId = item.author_id || 'unknown';
-              counts.set(authorId, (counts.get(authorId) || 0) + 1);
-            });
-            this.userItemCounts.set(counts);
+            // Apply client-side filtering and sorting
+            this.applyFiltersAndSort();
           }
         });
       }
@@ -121,10 +147,18 @@ export class ModerateComponent {
       }
     });
     effect(() => {
-      const currentFilter = this.filter();
-      this.page.set(0);
-      // Reset counting when filter changes
-      this.allItemsForCounting.set([]);
+      // Watch all filter changes and apply client-side
+      this.filterStatus();
+      this.filterAuthor();
+      this.filterPreference();
+      this.filterPotential();
+      this.filterType();
+      this.searchText();
+      this.orderBy();
+      this.viewMode();
+      
+      this.updateHashParams();
+      this.applyFiltersAndSort();
     });
   }
 
@@ -157,17 +191,264 @@ export class ModerateComponent {
     this.updateModeration(itemId, 2);
   }
 
-  set _filter(idx: number) {
-    this.filter.set(this.FILTERS[idx]);
+  applyFiltersAndSort(): void {
+    let filtered = [...this.allFetchedItems()];
+    
+    // Status filter
+    if (this.filterStatus() !== 'all') {
+      const statusMap: any = {
+        'new': 2,
+        'flagged': 1,
+        'approved': 4,
+        'rejected': 0,
+        'highlighted': 5
+      };
+      const value = statusMap[this.filterStatus()];
+      if (value !== undefined) {
+        filtered = filtered.filter(item => item._private_moderation === value);
+      }
+    }
+    
+    // Author filter
+    if (this.filterAuthor() !== 'all') {
+      if (this.filterAuthor() === 'unattributed') {
+        filtered = filtered.filter(item => !item.author_id || item.author_id === 'unknown');
+      } else {
+        filtered = filtered.filter(item => item.author_id === this.filterAuthor());
+      }
+    }
+    
+    // Preference filter
+    if (this.filterPreference() !== 'all') {
+      filtered = filtered.filter(item => item.favorable_future === this.filterPreference());
+    }
+    
+    // Potential filter
+    if (this.filterPotential() !== 'all') {
+      const potentialValue = parseInt(this.filterPotential(), 10);
+      filtered = filtered.filter(item => item.plausibility === potentialValue);
+    }
+    
+    // Type filter
+    if (this.filterType() !== 'all') {
+      filtered = filtered.filter(item => item.screenshot_type === this.filterType());
+    }
+    
+    // Language filter
+    // Search filter
+    if (this.searchText()) {
+      const searchLower = this.searchText().toLowerCase();
+      filtered = filtered.filter(item => {
+        const tagline = (item.future_scenario_tagline || '').toLowerCase();
+        const description = (item.future_scenario_description || '').toLowerCase();
+        const content = (item.content || '').toLowerCase();
+        return tagline.includes(searchLower) || description.includes(searchLower) || content.includes(searchLower);
+      });
+    }
+    
+    // Calculate counts from ALL fetched items (not filtered)
+    this.calculateFilterCounts(this.allFetchedItems());
+    
+    // Update user item counts from all fetched items
+    const allItems = this.allFetchedItems();
+    const userCounts = new Map<string, number>();
+    allItems.forEach((item: any) => {
+      const authorId = item.author_id || 'unknown';
+      userCounts.set(authorId, (userCounts.get(authorId) || 0) + 1);
+    });
+    this.userItemCounts.set(userCounts);
+    
+    // Sort and set items
+    const sorted = this.sortItems(filtered);
+    this.items.set(sorted);
   }
   
-  get _filter(): number {
-    return this.FILTERS.indexOf(this.filter());
+  buildFilterQuery(): string {
+    const filters: string[] = [];
+    
+    // Status filter
+    if (this.filterStatus() !== 'all') {
+      const statusMap: any = {
+        'new': '2',
+        'flagged': '1',
+        'approved': '4',
+        'rejected': '0',
+        'highlighted': '5'
+      };
+      const value = statusMap[this.filterStatus()];
+      if (value) filters.push(`metadata._private_moderation == ${value}`);
+    }
+    
+    // Author filter
+    if (this.filterAuthor() !== 'all') {
+      if (this.filterAuthor() === 'unattributed') {
+        filters.push('NOT metadata.author_id');
+      } else {
+        filters.push(`metadata.author_id == "${this.filterAuthor()}"`);
+      }
+    }
+    
+    // Preference filter
+    if (this.filterPreference() !== 'all') {
+      filters.push(`metadata.favorable_future == "${this.filterPreference()}"`);
+    }
+    
+    // Potential filter
+    if (this.filterPotential() !== 'all') {
+      filters.push(`metadata.plausibility == ${this.filterPotential()}`);
+    }
+    
+    // Type filter
+    if (this.filterType() !== 'all') {
+      filters.push(`metadata.screenshot_type == "${this.filterType()}"`);
+    }
+    
+    // Search filter (searches all text fields)
+    if (this.searchText()) {
+      const searchTerm = this.searchText();
+      filters.push(`(metadata.future_scenario_tagline CONTAINS "${searchTerm}" OR metadata.future_scenario_description CONTAINS "${searchTerm}" OR metadata.content CONTAINS "${searchTerm}")`);
+    }
+    
+    return filters.length > 0 ? filters.join(' AND ') : '';
   }
-
-  getFilterIcon(index: number): string {
-    const icons = ['🚫', '⚠️', '⏳', '📋', '✓', '★', '📊'];
-    return icons[index] || '•';
+  
+  updateHashParams(): void {
+    const params = new URLSearchParams();
+    if (this.filterStatus() !== 'all') params.set('status', this.filterStatus());
+    if (this.filterAuthor() !== 'all') params.set('author', this.filterAuthor());
+    if (this.filterPreference() !== 'all') params.set('preference', this.filterPreference());
+    if (this.filterPotential() !== 'all') params.set('potential', this.filterPotential());
+    if (this.filterType() !== 'all') params.set('type', this.filterType());
+    if (this.searchText()) params.set('search', this.searchText());
+    if (this.orderBy() !== 'date') params.set('order', this.orderBy());
+    params.set('view', this.viewMode());
+    
+    const fragment = params.toString();
+    window.location.hash = fragment;
+  }
+  
+  clearAllFilters(): void {
+    this.filterStatus.set('all');
+    this.filterAuthor.set('all');
+    this.filterPreference.set('all');
+    this.filterPotential.set('all');
+    this.filterType.set('all');
+    this.searchText.set('');
+    this.page.set(0);
+    this.allFetchedItems.set([]);
+  }
+  
+  calculateFilterCounts(data: any[]): void {
+    const status = new Map<string, number>();
+    const author = new Map<string, number>();
+    const preference = new Map<string, number>();
+    const potential = new Map<string, number>();
+    const type = new Map<string, number>();
+    
+    data.forEach((item: any) => {
+      // Status counts
+      const statusKey = this.LEVELS[item._private_moderation] || 'pending';
+      status.set(statusKey, (status.get(statusKey) || 0) + 1);
+      
+      // Author counts
+      const authorId = item.author_id || 'unknown';
+      author.set(authorId, (author.get(authorId) || 0) + 1);
+      
+      // Preference counts
+      if (item.favorable_future) {
+        preference.set(item.favorable_future, (preference.get(item.favorable_future) || 0) + 1);
+      }
+      
+      // Potential counts
+      if (item.plausibility !== null && item.plausibility !== undefined) {
+        const key = String(item.plausibility);
+        potential.set(key, (potential.get(key) || 0) + 1);
+      }
+      
+      // Type counts
+      if (item.screenshot_type) {
+        type.set(item.screenshot_type, (type.get(item.screenshot_type) || 0) + 1);
+      }
+      
+      // Language counts
+    });
+    
+    this.statusCounts.set(status);
+    this.authorCounts.set(author);
+    this.preferenceCounts.set(preference);
+    this.potentialCounts.set(potential);
+    this.typeCounts.set(type);
+  }
+  
+  sortItems(items: any[]): any[] {
+    const orderBy = this.orderBy();
+    const sorted = [...items];
+    
+    switch (orderBy) {
+      case 'date':
+        return sorted.sort((a, b) => {
+          const dateA = new Date(a.created_at || 0).getTime();
+          const dateB = new Date(b.created_at || 0).getTime();
+          return dateB - dateA; // Newest first
+        });
+      
+      case 'status':
+        return sorted.sort((a, b) => {
+          return (b._private_moderation || 0) - (a._private_moderation || 0);
+        });
+      
+      case 'author':
+        return sorted.sort((a, b) => {
+          const authorA = a.author_id || 'unknown';
+          const authorB = b.author_id || 'unknown';
+          
+          // Keep unknown at the end
+          if (authorA === 'unknown' && authorB !== 'unknown') return 1;
+          if (authorA !== 'unknown' && authorB === 'unknown') return -1;
+          
+          // Sort by item count (descending)
+          const countA = this.getUserItemCount(authorA);
+          const countB = this.getUserItemCount(authorB);
+          return countB - countA;
+        });
+      
+      case 'confidence':
+        return sorted.sort((a, b) => {
+          return this.getAIConfidence(b) - this.getAIConfidence(a);
+        });
+      
+      case 'type':
+        return sorted.sort((a, b) => {
+          const typeA = a.screenshot_type || '';
+          const typeB = b.screenshot_type || '';
+          return typeA.localeCompare(typeB);
+        });
+      
+      case 'preference':
+        return sorted.sort((a, b) => {
+          const prefOrder = ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'];
+          const prefA = a.favorable_future || 'uncertain';
+          const prefB = b.favorable_future || 'uncertain';
+          return prefOrder.indexOf(prefA) - prefOrder.indexOf(prefB);
+        });
+      
+      default:
+        return sorted;
+    }
+  }
+  
+  getAuthorsSortedByCount(): string[] {
+    const counts = this.authorCounts();
+    const authors = Array.from(counts.keys());
+    return authors.sort((a, b) => {
+      if (a === 'unknown') return 1;
+      if (b === 'unknown') return -1;
+      return (counts.get(b) || 0) - (counts.get(a) || 0);
+    });
+  }
+  
+  getCount(map: Map<string, number>, key: string): number {
+    return map.get(key) || 0;
   }
 
   getTruncatedAuthorId(authorId: string): string {
@@ -195,13 +476,9 @@ export class ModerateComponent {
 
   filterByUser(authorId: string) {
     if (!authorId || authorId === 'unknown') {
-      // Filter for items without author_id
-      const filter = 'NOT metadata.author_id';
-      this.filter.set({name: 'unattributed', filter});
+      this.filterAuthor.set('unattributed');
     } else {
-      // Filter for specific author
-      const filter = `metadata.author_id == "${authorId}"`;
-      this.filter.set({name: `author:${authorId.substring(0, 8)}`, filter});
+      this.filterAuthor.set(authorId);
     }
   }
 
@@ -378,5 +655,21 @@ export class ModerateComponent {
         console.log('tags updated, re-analysis triggered', data);
       });
     }
+  }
+
+  toggleViewMode(): void {
+    const newMode = this.viewMode() === 'list' ? 'grid' : 'list';
+    this.viewMode.set(newMode);
+    if (newMode === 'list') {
+      this.selectedItem.set(null);
+    }
+  }
+
+  selectItem(item: any): void {
+    this.selectedItem.set(item);
+  }
+
+  closeSidebar(): void {
+    this.selectedItem.set(null);
   }
 }

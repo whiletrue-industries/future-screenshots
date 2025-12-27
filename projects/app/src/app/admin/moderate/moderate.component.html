@@ -8,46 +8,116 @@
       }
     </div>
     <div class="actions">
+      <div class="cred-inline">
+        <input 
+          type="text" 
+          [(ngModel)]="workspaceId" 
+          placeholder="workspace"
+          aria-label="Workspace ID" />
+        <input 
+          type="text" 
+          [(ngModel)]="apiKey" 
+          placeholder="api key"
+          aria-label="API key" />
+      </div>
       <a href="/admin" class="back-link" aria-label="Back to admin">← Back</a>
     </div>
   </header>
 
-  <section class="credentials" aria-label="Credentials">
-    <div class="creds-row">
-      <div class="input-group">
-        <label for="workspace-id">Workspace ID</label>
-        <input 
-          id="workspace-id"
-          type="text" 
-          [(ngModel)]="workspaceId" 
-          placeholder="Enter workspace ID" />
+  <section class="filters-bar" aria-label="Filters">
+    <div class="filters-row">
+      <div class="filter-group">
+        <label for="filter-status">Status:</label>
+        <select id="filter-status" [(ngModel)]="filterStatus">
+          <option value="all">all</option>
+          <option value="new">New ({{ getCount(statusCounts(), 'pending') }})</option>
+          <option value="flagged">Flagged ({{ getCount(statusCounts(), 'flagged') }})</option>
+          <option value="approved">Approved ({{ getCount(statusCounts(), 'approved') }})</option>
+          <option value="rejected">Rejected ({{ getCount(statusCounts(), 'banned') }})</option>
+          <option value="highlighted">Highlighted ({{ getCount(statusCounts(), 'highlighted') }})</option>
+        </select>
       </div>
-      <div class="input-group">
-        <label for="api-key">API Key</label>
-        <input 
-          id="api-key"
-          type="text" 
-          [(ngModel)]="apiKey" 
-          placeholder="Enter API key" />
-      </div>
-    </div>
-  </section>
 
-  <section class="filters-section" aria-label="Status filters">
-    <div class="filter-chips">
-      @for (f of FILTERS; track $index) {
-        <button 
-          class="filter-chip"
-          [class.active]="_filter === $index"
-          (click)="_filter = $index"
-          [attr.aria-pressed]="_filter === $index">
-          <span class="chip-icon">{{ getFilterIcon($index) }}</span>
-          <span class="chip-label">{{ f.name }}</span>
-          @if (_filter === $index && items().length > 0) {
-            <span class="chip-count">{{ items().length }}</span>
+      <div class="filter-group">
+        <label for="filter-author">Author:</label>
+        <select id="filter-author" [(ngModel)]="filterAuthor">
+          <option value="all">all</option>
+          @for (author of getAuthorsSortedByCount(); track author) {
+            @if (author === 'unknown') {
+              <option value="unattributed">unattributed ({{ getCount(authorCounts(), author) }})</option>
+            } @else {
+              <option [value]="author">{{ getTruncatedAuthorId(author) }} ({{ getCount(authorCounts(), author) }})</option>
+            }
           }
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="filter-preference">Preference:</label>
+        <select id="filter-preference" [(ngModel)]="filterPreference">
+          <option value="all">all</option>
+          <option value="prefer">prefer ({{ getCount(preferenceCounts(), 'prefer') }})</option>
+          <option value="mostly prefer">prefer-ish ({{ getCount(preferenceCounts(), 'mostly prefer') }})</option>
+          <option value="uncertain">uncertain ({{ getCount(preferenceCounts(), 'uncertain') }})</option>
+          <option value="mostly prevent">prevent-ish ({{ getCount(preferenceCounts(), 'mostly prevent') }})</option>
+          <option value="prevent">prevent ({{ getCount(preferenceCounts(), 'prevent') }})</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="filter-potential">Potential:</label>
+        <select id="filter-potential" [(ngModel)]="filterPotential">
+          <option value="all">all</option>
+          <option value="100">Projected ({{ getCount(potentialCounts(), '100') }})</option>
+          <option value="75">Probable ({{ getCount(potentialCounts(), '75') }})</option>
+          <option value="50">Plausible ({{ getCount(potentialCounts(), '50') }})</option>
+          <option value="25">Possible ({{ getCount(potentialCounts(), '25') }})</option>
+          <option value="0">Preposterous ({{ getCount(potentialCounts(), '0') }})</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="filter-type">Type:</label>
+        <select id="filter-type" [(ngModel)]="filterType">
+          <option value="all">all</option>
+          <option value="sign_in_a_demonstration">🪧 Sign ({{ getCount(typeCounts(), 'sign_in_a_demonstration') }})</option>
+          <option value="social_media_post">📣 Social ({{ getCount(typeCounts(), 'social_media_post') }})</option>
+          <option value="chat_conversation">💬 Chat ({{ getCount(typeCounts(), 'chat_conversation') }})</option>
+          <option value="notification_alert">🔔 Alert ({{ getCount(typeCounts(), 'notification_alert') }})</option>
+          <option value="ai_agent_query">🤖 AI ({{ getCount(typeCounts(), 'ai_agent_query') }})</option>
+          <option value="review">⭐ Review ({{ getCount(typeCounts(), 'review') }})</option>
+          <option value="map_visualization">🗺️ Map ({{ getCount(typeCounts(), 'map_visualization') }})</option>
+          <option value="photograph">📸 Photo ({{ getCount(typeCounts(), 'photograph') }})</option>
+        </select>
+      </div>
+
+      <div class="filter-group search-group">
+        <label for="filter-search">Search:</label>
+        <input 
+          id="filter-search" 
+          type="text" 
+          [(ngModel)]="searchText" 
+          placeholder="any text" />
+      </div>
+
+      <div class="filter-group">
+        <label for="order-by">Order by:</label>
+        <select id="order-by" [(ngModel)]="orderBy">
+          <option value="date">Date</option>
+          <option value="status">Status</option>
+          <option value="author">Author</option>
+          <option value="confidence">AI Confidence</option>
+          <option value="type">Type</option>
+          <option value="preference">Preference</option>
+        </select>
+      </div>
+
+      <div class="filter-info">
+        <span class="count-display">{{ items().length }} / {{ allFetchedItems().length }}</span>
+        <button class="view-toggle-btn" (click)="toggleViewMode()" [attr.aria-label]="viewMode() === 'list' ? 'Switch to grid view' : 'Switch to list view'" [title]="viewMode() === 'list' ? 'Grid view' : 'List view'">
+          {{ viewMode() === 'list' ? '⊞' : '☰' }}
         </button>
-      }
+      </div>
     </div>
   </section>
 
@@ -77,22 +147,229 @@
       <a [href]="indexLink()" target="_blank" class="index-link">Create index</a>
     </div>
   } @else {
-    <div class="items-grid" role="list">
-      @for (item of items(); track item._id) {
-        <article class="item-card" [attr.data-status]="LEVELS[item._private_moderation]" role="listitem">
-          <div class="card-header">
-            <button class="user-info" (click)="filterByUser(item.author_id)" [title]="getEmail(item)">
-              @if (item.author_id && item.author_id !== 'unknown') {
-                <span class="user-count-link">{{ getUserItemCount(item.author_id) }} items</span>
-              } @else {
-                <span class="user-count-link">{{ getUserItemCount('unknown') }} unattributed</span>
-              }
-            </button>
-            <span class="screenshot-type" [title]="item.screenshot_type || 'screenshot'">{{ getScreenshotTypeEmoji(item.screenshot_type) }}</span>
-          </div>
+    @if (viewMode() === 'grid') {
+      <div class="grid-layout">
+        <div class="thumbnails-grid" role="list">
+          @for (item of items(); track item._id) {
+            <div class="thumbnail-item" (click)="selectItem(item)" role="button" tabindex="0" [class.selected]="selectedItem()?._id === item._id">
+              <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
+            </div>
+          }
+        </div>
+        @if (selectedItem()) {
+          <aside class="item-sidebar" role="complementary">
+            <div class="sidebar-header">
+              <h2>Item Details</h2>
+              <button class="close-sidebar-btn" (click)="closeSidebar()" aria-label="Close sidebar">×</button>
+            </div>
+            <div class="sidebar-content">
+              <article class="item-card" [attr.data-status]="LEVELS[selectedItem()._private_moderation]">
+                <div class="card-header">
+                  <button class="user-info" (click)="filterByUser(selectedItem().author_id)" [title]="getEmail(selectedItem())">
+                    @if (selectedItem().author_id && selectedItem().author_id !== 'unknown') {
+                      <span class="user-count-link">{{ getUserItemCount(selectedItem().author_id) }} items</span>
+                    } @else {
+                      <span class="user-count-link">{{ getUserItemCount('unknown') }} unattributed</span>
+                    }
+                  </button>
+                  <span class="screenshot-type" [title]="selectedItem().screenshot_type || 'screenshot'">{{ getScreenshotTypeEmoji(selectedItem().screenshot_type) }}</span>
+                </div>
 
-          <div class="screenshot-container">
-            @if (!isShowingDescription(item._id)) {
+                <div class="screenshot-container">
+                  @if (!isShowingDescription(selectedItem()._id)) {
+                    <img [src]="selectedItem().screenshot_url" alt="Future scenario screenshot" />
+                    <button class="toggle-view-btn" (click)="toggleDescriptionView(selectedItem()._id)" aria-label="Show description">
+                      ℹ️
+                    </button>
+                  } @else {
+                    @if (editDescription() === selectedItem()._id) {
+                      <div class="description-edit">
+                        <div class="field-group">
+                          <label>Content</label>
+                          <textarea 
+                            [(ngModel)]="selectedItem().content" 
+                            placeholder="Enter content"
+                            rows="4"
+                            aria-label="Edit content"></textarea>
+                        </div>
+                        <div class="field-group">
+                          <label>Description</label>
+                          <textarea 
+                            [(ngModel)]="selectedItem().future_scenario_description" 
+                            placeholder="Enter description"
+                            rows="4"
+                            aria-label="Edit description"></textarea>
+                        </div>
+                        <div class="edit-actions">
+                          <button class="btn-icon btn-save" (click)="setDescription(selectedItem())" aria-label="Save">✓</button>
+                          <button class="btn-icon btn-cancel" (click)="editDescription.set(null)" aria-label="Cancel">✕</button>
+                        </div>
+                      </div>
+                    } @else {
+                      <div class="description-view" (click)="editDescription.set(selectedItem()._id)" role="button" tabindex="0">
+                        @if (selectedItem().content || selectedItem().future_scenario_description) {
+                          @if (selectedItem().content) {
+                            <div class="field-display">
+                              <strong>Content:</strong>
+                              <p>{{ selectedItem().content }}</p>
+                            </div>
+                          }
+                          @if (selectedItem().future_scenario_description) {
+                            <div class="field-display">
+                              <strong>Description:</strong>
+                              <p>{{ selectedItem().future_scenario_description }}</p>
+                            </div>
+                          }
+                        } @else {
+                          <p class="description-empty">+ Add content and description</p>
+                        }
+                      </div>
+                    }
+                    <button class="toggle-view-btn" (click)="toggleDescriptionView(selectedItem()._id)" aria-label="Show image">
+                      🖼️
+                    </button>
+                  }
+                </div>
+
+                <div class="card-metadata">
+                  <div class="metadata-row">
+                    <span class="date">{{ formatDate(selectedItem().created_at) }}</span>
+                    <button 
+                      class="icon-btn star-btn" 
+                      [class.active]="selectedItem()._private_moderation === 5"
+                      (click)="highlight(selectedItem()._id)"
+                      aria-label="Highlight">
+                      {{ selectedItem()._private_moderation === 5 ? '★' : '☆' }}
+                    </button>
+                    <span class="ai-confidence" [attr.data-confidence]="getConfidenceLevel(selectedItem())">
+                      AI: {{ getAIConfidence(selectedItem()) }}%
+                    </span>
+                    <button class="icon-btn trash-btn" (click)="reject(selectedItem()._id)" aria-label="Archive">
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+
+                <div class="card-content">
+                  <div class="tagline-section">
+                    @if (editTagline() === selectedItem()._id) {
+                      <div class="tagline-edit">
+                        <textarea 
+                          [(ngModel)]="selectedItem().future_scenario_tagline" 
+                          placeholder="Enter tagline"
+                          rows="3"
+                          aria-label="Edit tagline"></textarea>
+                        <div class="edit-actions">
+                          <button class="btn-icon btn-save" (click)="setTagline(selectedItem())" aria-label="Save">✓</button>
+                          <button class="btn-icon btn-cancel" (click)="editTagline.set(null)" aria-label="Cancel">✕</button>
+                        </div>
+                      </div>
+                    } @else {
+                      @if (selectedItem().future_scenario_tagline) {
+                        <div class="tagline" (click)="editTagline.set(selectedItem()._id)" role="button" tabindex="0">
+                          {{ selectedItem().future_scenario_tagline }}
+                        </div>
+                      } @else {
+                        <div class="tagline tagline-empty" (click)="editTagline.set(selectedItem()._id)" role="button" tabindex="0">
+                          + Add tagline
+                        </div>
+                      }
+                    }
+                  </div>
+
+                  <div class="tags-section">
+                    <div class="tags-container">
+                      @if (selectedItem().tags && selectedItem().tags.length > 0) {
+                        @for (tag of selectedItem().tags; track $index) {
+                          <span class="tag">
+                            {{ tag }}
+                            <button class="tag-remove" (click)="removeTag(selectedItem(), $index)" aria-label="Remove tag">×</button>
+                          </span>
+                        }
+                      }
+                      <div class="tag-input-wrapper">
+                        <input 
+                          #tagInput
+                          type="text" 
+                          class="tag-input" 
+                          placeholder="+ Add tag"
+                          (keydown.enter)="addTag(selectedItem(), tagInput)"
+                          aria-label="Add new tag" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="properties-selectors">
+                    <div class="property-selector">
+                      <select 
+                        [(ngModel)]="selectedItem().favorable_future" 
+                        (change)="setFavorable(selectedItem())"
+                        [class]="'desirability-select ' + getDesirabilityClass(selectedItem().favorable_future)"
+                        aria-label="Set desirability">
+                        <option [value]="null">Desirability?</option>
+                        <option value="prefer">prefer</option>
+                        <option value="mostly prefer">prefer-ish</option>
+                        <option value="uncertain">uncertain</option>
+                        <option value="mostly prevent">prevent-ish</option>
+                        <option value="prevent">prevent</option>
+                      </select>
+                    </div>
+                    <div class="property-selector">
+                      <select 
+                        [(ngModel)]="selectedItem().plausibility" 
+                        (change)="setPlausibility(selectedItem())"
+                        [class]="'plausibility-select ' + getPlausibilityClass(selectedItem().plausibility)"
+                        aria-label="Set plausibility">
+                        <option [value]="null">Plausibility?</option>
+                        <option [value]="100">Projected</option>
+                        <option [value]="75">Probable</option>
+                        <option [value]="50">Plausible</option>
+                        <option [value]="25">Possible</option>
+                        <option [value]="0">Preposterous</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="card-footer">
+                  <button 
+                    class="publish-btn"
+                    [class.published]="selectedItem()._private_moderation >= 4"
+                    [class.archived]="selectedItem()._private_moderation === 0"
+                    (click)="selectedItem()._private_moderation === 0 ? unarchive(selectedItem()._id) : approve(selectedItem()._id)"
+                    [attr.aria-label]="selectedItem()._private_moderation === 0 ? 'Unarchive' : (selectedItem()._private_moderation >= 4 ? 'Published' : 'Publish')">
+                    @if (selectedItem()._private_moderation === 0) {
+                      <span class="btn-default">ARCHIVED 🗑️</span>
+                      <span class="btn-hover">UNARCHIVE</span>
+                    } @else if (selectedItem()._private_moderation >= 4) {
+                      PUBLISHED ✓
+                    } @else {
+                      PUBLISH
+                    }
+                  </button>
+                </div>
+              </article>
+            </div>
+          </aside>
+        }
+      </div>
+    } @else {
+      <div class="items-grid" role="list">
+        @for (item of items(); track item._id) {
+          <article class="item-card" [attr.data-status]="LEVELS[item._private_moderation]" role="listitem">
+            <div class="card-header">
+              <button class="user-info" (click)="filterByUser(item.author_id)" [title]="getEmail(item)">
+                @if (item.author_id && item.author_id !== 'unknown') {
+                  <span class="user-count-link">{{ getUserItemCount(item.author_id) }} items</span>
+                } @else {
+                  <span class="user-count-link">{{ getUserItemCount('unknown') }} unattributed</span>
+                }
+              </button>
+              <span class="screenshot-type" [title]="item.screenshot_type || 'screenshot'">{{ getScreenshotTypeEmoji(item.screenshot_type) }}</span>
+            </div>
+
+            <div class="screenshot-container">
+              @if (!isShowingDescription(item._id)) {
               <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
               <button class="toggle-view-btn" (click)="toggleDescriptionView(item._id)" aria-label="Show description">
                 ℹ️
@@ -268,4 +545,4 @@
       }
     </div>
   }
-</div>
+}</div>
