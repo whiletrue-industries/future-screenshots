@@ -81,14 +81,70 @@
       @for (item of items(); track item._id) {
         <article class="item-card" [attr.data-status]="LEVELS[item._private_moderation]" role="listitem">
           <div class="card-header">
-            <button class="user-info" (click)="filterByUser(item.email || item.user_email)" [title]="'Filter by ' + (item.email || item.user_email || 'unknown')">
-              <span class="user-email">{{ item.email || item.user_email || 'unknown@user.com' }}</span>
-              <span class="user-count">({{ getUserItemCount(item.email || item.user_email) }})</span>
+            <button class="user-info" (click)="filterByUser(item.author_id)" [title]="getEmail(item)">
+              @if (item.author_id && item.author_id !== 'unknown') {
+                <span class="user-count-link">{{ getUserItemCount(item.author_id) }} items</span>
+              } @else {
+                <span class="user-count-link">{{ getUserItemCount('unknown') }} unattributed</span>
+              }
             </button>
+            <span class="screenshot-type" [title]="item.screenshot_type || 'screenshot'">{{ getScreenshotTypeEmoji(item.screenshot_type) }}</span>
           </div>
 
           <div class="screenshot-container">
-            <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
+            @if (!isShowingDescription(item._id)) {
+              <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
+              <button class="toggle-view-btn" (click)="toggleDescriptionView(item._id)" aria-label="Show description">
+                ℹ️
+              </button>
+            } @else {
+              @if (editDescription() === item._id) {
+                <div class="description-edit">
+                  <div class="field-group">
+                    <label>Content</label>
+                    <textarea 
+                      [(ngModel)]="item.content" 
+                      placeholder="Enter content"
+                      rows="4"
+                      aria-label="Edit content"></textarea>
+                  </div>
+                  <div class="field-group">
+                    <label>Description</label>
+                    <textarea 
+                      [(ngModel)]="item.future_scenario_description" 
+                      placeholder="Enter description"
+                      rows="4"
+                      aria-label="Edit description"></textarea>
+                  </div>
+                  <div class="edit-actions">
+                    <button class="btn-icon btn-save" (click)="setDescription(item)" aria-label="Save">✓</button>
+                    <button class="btn-icon btn-cancel" (click)="editDescription.set(null)" aria-label="Cancel">✕</button>
+                  </div>
+                </div>
+              } @else {
+                <div class="description-view" (click)="editDescription.set(item._id)" role="button" tabindex="0">
+                  @if (item.content || item.future_scenario_description) {
+                    @if (item.content) {
+                      <div class="field-display">
+                        <strong>Content:</strong>
+                        <p>{{ item.content }}</p>
+                      </div>
+                    }
+                    @if (item.future_scenario_description) {
+                      <div class="field-display">
+                        <strong>Description:</strong>
+                        <p>{{ item.future_scenario_description }}</p>
+                      </div>
+                    }
+                  } @else {
+                    <p class="description-empty">+ Add content and description</p>
+                  }
+                </div>
+              }
+              <button class="toggle-view-btn" (click)="toggleDescriptionView(item._id)" aria-label="Show image">
+                🖼️
+              </button>
+            }
           </div>
 
           <div class="card-metadata">
@@ -138,11 +194,25 @@
             </div>
 
             <div class="tags-section">
-              @if (item.tags && item.tags.length > 0) {
-                @for (tag of item.tags; track tag) {
-                  <span class="tag">{{ tag }}</span>
+              <div class="tags-container">
+                @if (item.tags && item.tags.length > 0) {
+                  @for (tag of item.tags; track $index) {
+                    <span class="tag">
+                      {{ tag }}
+                      <button class="tag-remove" (click)="removeTag(item, $index)" aria-label="Remove tag">×</button>
+                    </span>
+                  }
                 }
-              }
+                <div class="tag-input-wrapper">
+                  <input 
+                    #tagInput
+                    type="text" 
+                    class="tag-input" 
+                    placeholder="+ Add tag"
+                    (keydown.enter)="addTag(item, tagInput)"
+                    aria-label="Add new tag" />
+                </div>
+              </div>
             </div>
 
             <div class="properties-selectors">
