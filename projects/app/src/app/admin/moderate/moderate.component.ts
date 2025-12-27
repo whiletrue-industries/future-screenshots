@@ -33,7 +33,9 @@ export class ModerateComponent {
   apiKey = signal<string | null>(null);
   page = signal<number>(0);
   filter = signal<Filter>(this.FILTERS[this.FILTERS.length - 1]);
-  editTagline = signal<boolean>(false);
+  editTagline = signal<string | null>(null);
+  userItemCounts = signal<Map<string, number>>(new Map());
+  allItemsForCounting = signal<any[]>([]); // Store all items for accurate counting
 
   items = signal<any[]>([]);
   indexLink = signal<string | null>(null);
@@ -69,8 +71,41 @@ export class ModerateComponent {
             data.forEach((item: any) => {
               item.screenshot_url = this.fix_url(item.screenshot_url);
               item.favorable_future = this.fix_favorable_future(item.favorable_future);
+              // Parse tags if they're a string
+              if (typeof item.tags === 'string') {
+                item.tags = item.tags.split(',').map((t: string) => t.trim()).filter((t: string) => t);
+              } else if (!Array.isArray(item.tags)) {
+                item.tags = [];
+              }
+              // Also check for keywords field as alternative
+              if ((!item.tags || item.tags.length === 0) && item.keywords) {
+                if (typeof item.keywords === 'string') {
+                  item.tags = item.keywords.split(',').map((t: string) => t.trim()).filter((t: string) => t);
+                } else if (Array.isArray(item.keywords)) {
+                  item.tags = item.keywords;
+                }
+              }
             });
             this.items.set(data);
+            
+            // Add current page items to the all items collection for counting
+            const allItems = [...this.allItemsForCounting()];
+            data.forEach((item: any) => {
+              const email = item.email || item.user_email || 'unknown@user.com';
+              // Only add if not already in the collection (based on _id)
+              if (!allItems.find(i => i._id === item._id)) {
+                allItems.push({ _id: item._id, email });
+              }
+            });
+            this.allItemsForCounting.set(allItems);
+            
+            // Calculate user item counts from all collected items
+            const counts = new Map<string, number>();
+            allItems.forEach((item: any) => {
+              const email = item.email || 'unknown@user.com';
+              counts.set(email, (counts.get(email) || 0) + 1);
+            });
+            this.userItemCounts.set(counts);
           }
         });
       }
@@ -87,6 +122,8 @@ export class ModerateComponent {
     effect(() => {
       const currentFilter = this.filter();
       this.page.set(0);
+      // Reset counting when filter changes
+      this.allItemsForCounting.set([]);
     });
   }
 
@@ -115,12 +152,69 @@ export class ModerateComponent {
     this.updateModeration(itemId, 5);
   }
 
+  unarchive(itemId: string) {
+    this.updateModeration(itemId, 2);
+  }
+
   set _filter(idx: number) {
     this.filter.set(this.FILTERS[idx]);
   }
   
   get _filter(): number {
     return this.FILTERS.indexOf(this.filter());
+  }
+
+  getFilterIcon(index: number): string {
+    const icons = ['🚫', '⚠️', '⏳', '📋', '✓', '★', '📊'];
+    return icons[index] || '•';
+  }
+
+  filterByUser(email: string) {
+    // TODO: Implement user filtering
+    console.log('Filter by user:', email);
+  }
+
+  getUserItemCount(email: string): number {
+    return this.userItemCounts().get(email) || 0;
+  }
+
+  getAIConfidence(item: any): number {
+    // Calculate confidence based on content_certainty and transition_bar_certainty
+    const content = item.content_certainty || 0;
+    const transition = item.transition_bar_certainty || 0;
+    return Math.round((content + transition) / 2);
+  }
+
+  getConfidenceLevel(item: any): string {
+    const confidence = this.getAIConfidence(item);
+    if (confidence >= 80) return 'high';
+    if (confidence >= 50) return 'medium';
+    return 'low';
+  }
+
+  getDesirabilityClass(value: string): string {
+    if (!value) return '';
+    if (value.includes('prefer')) return 'prefer';
+    if (value.includes('prevent')) return 'prevent';
+    return 'uncertain';
+  }
+
+  getPlausibilityClass(value: number): string {
+    if (!value) return '';
+    if (value >= 75) return 'high';
+    if (value >= 25) return 'medium';
+    return 'low';
+  }
+
+  formatDate(dateString: string): string {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = String(date.getFullYear()).slice(-2);
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${day}.${month}.${year} ${hours}:${minutes}`;
   }
 
   fix_url(url: string) {
@@ -177,7 +271,7 @@ export class ModerateComponent {
         embedding: null
       }).subscribe(data => {
         console.log('item updated', data);
-        this.editTagline.set(false);
+        this.editTagline.set(null);
       });
     }
   }
