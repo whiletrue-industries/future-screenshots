@@ -326,7 +326,9 @@ export class ModerateComponent {
     params.set('view', this.viewMode());
     
     const fragment = params.toString();
-    window.location.hash = fragment;
+    if (typeof window !== 'undefined') {
+      window.location.hash = fragment;
+    }
   }
   
   clearAllFilters(): void {
@@ -674,15 +676,27 @@ export class ModerateComponent {
     this.selectedItemIndex.set(index);
     this.lightboxSidebarOpen.set(false);
     // Scroll to top when opening lightbox
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }
 
   closeSidebar(): void {
+    const currentItem = this.selectedItem();
+    if (currentItem) {
+      // Trigger re-analysis when closing
+      this.triggerReanalysis(currentItem);
+    }
     this.selectedItem.set(null);
     this.lightboxSidebarOpen.set(false);
   }
 
   nextItem(): void {
+    const currentItem = this.selectedItem();
+    if (currentItem) {
+      // Trigger re-analysis before moving to next item
+      this.triggerReanalysis(currentItem);
+    }
     const index = this.selectedItemIndex();
     if (index < this.items().length - 1) {
       this.selectItem(this.items()[index + 1]);
@@ -690,9 +704,37 @@ export class ModerateComponent {
   }
 
   prevItem(): void {
+    const currentItem = this.selectedItem();
+    if (currentItem) {
+      // Trigger re-analysis before moving to previous item
+      this.triggerReanalysis(currentItem);
+    }
     const index = this.selectedItemIndex();
     if (index > 0) {
       this.selectItem(this.items()[index - 1]);
+    }
+  }
+
+  triggerReanalysis(item: any): void {
+    const workspaceId = this.workspaceId();
+    const apiKey = this.apiKey();
+    if (workspaceId && apiKey && item) {
+      // Clear embedding and automated analysis fields to trigger backend re-analysis
+      const updateData: any = {
+        embedding: null,
+        future_scenario_topics: null,
+        content_certainty: null,
+        transition_bar_certainty: null,
+        transition_bar_event_prediction: null,
+      };
+      this.api.updateItem(workspaceId, apiKey, item._id, updateData).subscribe(
+        data => {
+          console.log('item re-analysis triggered', data);
+        },
+        error => {
+          console.error('Error triggering re-analysis', error);
+        }
+      );
     }
   }
 

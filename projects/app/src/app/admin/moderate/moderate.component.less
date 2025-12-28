@@ -1073,12 +1073,11 @@
 .lightbox-info-boxes {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    width: 280px;
-    max-width: 280px;
-    height: 70vh;
+    gap: 25px;
+    width: 370px;
+    max-width: 370px;
+    height: 741px;
     flex-shrink: 0;
-    overflow-y: auto;
 
     .info-box {
         flex-shrink: 0;
@@ -1087,46 +1086,61 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            min-height: 600px;
+
+            label {
+                flex-shrink: 0;
+                margin-bottom: 4px;
+            }
 
             textarea {
                 flex: 1;
                 resize: none;
             }
         }
+
+        &.info-box-screenshot-type,
+        &.info-box-transition {
+            height: 58px;
+            justify-content: center;
+            gap: 0;
+        }
     }
 }
 
 .info-box {
-    background: @color-white;
+    background: transparent;
     border-radius: 8px;
-    padding: 12px;
+    padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    gap: 8px;
+    box-shadow: none;
+    border: 1px solid #F1E5F3;
+    box-sizing: border-box;
 
     label {
         font-size: 11px;
         font-weight: 700;
-        color: @color-purple;
+        color: #F1E5F3;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
 
     select, input, textarea {
-        font-family: inherit;
-        font-size: 13px;
-        padding: 8px;
-        border: 1px solid @color-primary-100;
-        border-radius: 6px;
-        background: @color-white;
-        color: @color-dark-gray;
+        font-family: 'Source Sans Pro', sans-serif;
+        font-size: 16px;
+        line-height: 20px;
+        padding: 0;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        color: @color-white;
 
         &:focus {
             outline: none;
-            border-color: @color-purple;
-            box-shadow: 0 0 0 2px rgba(78, 2, 178, 0.1);
+            border: none;
+            box-shadow: none;
         }
 
         &::placeholder {
@@ -1135,45 +1149,119 @@
         }
     }
 
+    select {
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='white' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0 center;
+        padding-right: 24px;
+    }
+
     textarea {
-        resize: vertical;
-        min-height: 60px;
+        resize: none;
+        min-height: auto;
     }
 }
 
 .radio-group {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
+    flex-direction: row;
+    gap: 48px;
+    justify-content: center;
+    margin-top: 8px;
+}
+
+.radio-group-inline {
+    display: flex;
+    flex-direction: row;
+    gap: 32px;
+    align-items: center;
 }
 
 .radio-label {
     display: flex;
+    flex-direction: column;
     align-items: center;
     gap: 6px;
     cursor: pointer;
-    font-size: 13px;
-    color: @color-dark-gray;
+    font-family: 'Source Sans Pro', sans-serif;
+    font-size: 14px;
+    line-height: 18px;
+    color: #6C707B;
 
     input[type="radio"] {
+        appearance: none;
         cursor: pointer;
         width: 16px;
         height: 16px;
+        background: #0D001F;
+        border: 1px solid #6C707B;
+        border-radius: 8px;
+        position: relative;
+        margin: 0;
+
+        &:checked {
+            border-color: #F1E5F3;
+
+            &::after {
+                content: '';
+                position: absolute;
+                width: 10px;
+                height: 10px;
+                background: #F1E5F3;
+                border-radius: 8px;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+            }
+        }
     }
 
     span {
-        flex: 1;
+        flex: none;
     }
 
-    &:hover {
-        color: @color-purple;
+    &:has(input:checked) {
+        color: #F1E5F3;
+    }
+}
+
+.transition-content {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+
+    .transition-event-input {
+        flex: 0 0 auto;
+        
+        input {
+            width: auto;
+            min-width: 120px;
+        }
+    }
+
+    .transition-arrows {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+    }
+
+    .radio-group-inline {
+        flex: 1;
+        justify-content: flex-end;
     }
 }
 
 .radio-disabled {
-    font-size: 12px;
-    color: @color-gray;
+    font-family: 'Source Sans Pro', sans-serif;
+    font-size: 14px;
+    line-height: 18px;
+    color: #6C707B;
     font-style: italic;
+    text-align: center;
 }
 
 .nav-btn {
