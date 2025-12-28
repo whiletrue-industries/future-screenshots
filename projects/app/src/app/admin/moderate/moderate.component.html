@@ -252,7 +252,7 @@
               </div>
 
               @if (lightboxSidebarOpen()) {
-                <aside class="lightbox-sidebar" role="complementary">
+                <aside class="lightbox-sidebar" role="complementary" (click)="$event.stopPropagation()">
                   <div class="sidebar-header">
                     <h2>Item Details</h2>
                     <button class="close-sidebar-btn" (click)="toggleLightboxSidebar()" aria-label="Close sidebar">×</button>
