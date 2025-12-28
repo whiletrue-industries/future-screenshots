@@ -61,6 +61,8 @@ export class ModerateComponent {
   allFetchedItems = signal<any[]>([]); // Store all fetched items for client-side filtering
   viewMode = signal<'list' | 'grid'>('grid');
   selectedItem = signal<any | null>(null);
+  lightboxSidebarOpen = signal<boolean>(false);
+  selectedItemIndex = signal<number>(-1);
 
   items = signal<any[]>([]);
   indexLink = signal<string | null>(null);
@@ -667,11 +669,78 @@ export class ModerateComponent {
 
   selectItem(item: any): void {
     this.selectedItem.set(item);
+    // Find and set the index of the selected item
+    const index = this.items().findIndex(i => i._id === item._id);
+    this.selectedItemIndex.set(index);
+    this.lightboxSidebarOpen.set(false);
     // Scroll to top when opening lightbox
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   closeSidebar(): void {
     this.selectedItem.set(null);
+    this.lightboxSidebarOpen.set(false);
+  }
+
+  nextItem(): void {
+    const index = this.selectedItemIndex();
+    if (index < this.items().length - 1) {
+      this.selectItem(this.items()[index + 1]);
+    }
+  }
+
+  prevItem(): void {
+    const index = this.selectedItemIndex();
+    if (index > 0) {
+      this.selectItem(this.items()[index - 1]);
+    }
+  }
+
+  toggleLightboxSidebar(): void {
+    this.lightboxSidebarOpen.update(v => !v);
+  }
+
+  autoSaveScreenshotType(item: any): void {
+    const workspaceId = this.workspaceId();
+    const apiKey = this.apiKey();
+    if (workspaceId && apiKey) {
+      this.api.updateItem(workspaceId, apiKey, item._id, { screenshot_type: item.screenshot_type }).subscribe(
+        data => console.log('screenshot_type updated', data),
+        error => console.error('Error updating screenshot_type', error)
+      );
+    }
+  }
+
+  autoSaveContent(item: any): void {
+    const workspaceId = this.workspaceId();
+    const apiKey = this.apiKey();
+    if (workspaceId && apiKey) {
+      this.api.updateItem(workspaceId, apiKey, item._id, { content: item.content }).subscribe(
+        data => console.log('content updated', data),
+        error => console.error('Error updating content', error)
+      );
+    }
+  }
+
+  autoSaveTransitionBarEvent(item: any): void {
+    const workspaceId = this.workspaceId();
+    const apiKey = this.apiKey();
+    if (workspaceId && apiKey) {
+      this.api.updateItem(workspaceId, apiKey, item._id, { transition_bar_event: item.transition_bar_event || null }).subscribe(
+        data => console.log('transition_bar_event updated', data),
+        error => console.error('Error updating transition_bar_event', error)
+      );
+    }
+  }
+
+  autoSaveTransitionBarPosition(item: any): void {
+    const workspaceId = this.workspaceId();
+    const apiKey = this.apiKey();
+    if (workspaceId && apiKey) {
+      this.api.updateItem(workspaceId, apiKey, item._id, { transition_bar_position: item.transition_bar_position || null }).subscribe(
+        data => console.log('transition_bar_position updated', data),
+        error => console.error('Error updating transition_bar_position', error)
+      );
+    }
   }
 }

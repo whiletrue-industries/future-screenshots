@@ -151,18 +151,116 @@
       <div class="grid-layout">
         @if (selectedItem()) {
           <div class="lightbox-overlay" (click)="closeSidebar()" role="dialog" aria-modal="true" aria-labelledby="lightbox-title">
-            <div class="lightbox-content" (click)="$event.stopPropagation()">
-              <div class="lightbox-image-container">
-                <img [src]="selectedItem().screenshot_url" alt="Future scenario screenshot" id="lightbox-title" />
+            <div class="lightbox-container" [class.sidebar-open]="lightboxSidebarOpen()">
+              <div class="lightbox-content" (click)="$event.stopPropagation()">
                 <button class="lightbox-close-btn" (click)="closeSidebar()" aria-label="Close lightbox">×</button>
-              </div>
-              <aside class="item-sidebar" role="complementary">
-                <div class="sidebar-header">
-                  <h2>Item Details</h2>
-                  <button class="close-sidebar-btn" (click)="closeSidebar()" aria-label="Close sidebar">×</button>
+                <button class="lightbox-sidebar-toggle-btn" (click)="toggleLightboxSidebar()" aria-label="Toggle sidebar">⋮</button>
+                
+                <div class="lightbox-main">
+                  <button class="nav-btn nav-prev" (click)="prevItem()" [disabled]="selectedItemIndex() <= 0" aria-label="Previous item">←</button>
+                  
+                  <div class="lightbox-info-boxes">
+                    <div class="info-box">
+                      <label for="screenshot-type">Screenshot Type</label>
+                      <select 
+                        id="screenshot-type"
+                        [(ngModel)]="selectedItem().screenshot_type"
+                        (change)="autoSaveScreenshotType(selectedItem())"
+                        aria-label="Select screenshot type">
+                        <option [value]="null">Select type...</option>
+                        <option value="sign_in_a_demonstration">🪧 Sign</option>
+                        <option value="social_media_post">📣 Social</option>
+                        <option value="chat_conversation">💬 Chat</option>
+                        <option value="notification_alert">🔔 Alert</option>
+                        <option value="ai_agent_query">🤖 AI</option>
+                        <option value="review">⭐ Review</option>
+                        <option value="map_visualization">🗺️ Map</option>
+                        <option value="photograph">📸 Photo</option>
+                      </select>
+                    </div>
+
+                    <div class="info-box info-box-content">
+                      <label for="content-input">Content</label>
+                      <textarea 
+                        id="content-input"
+                        [(ngModel)]="selectedItem().content"
+                        (change)="autoSaveContent(selectedItem())"
+                        placeholder="Enter content..."
+                        aria-label="Edit content"></textarea>
+                    </div>
+
+                    <div class="info-box">
+                      <label for="transition-event">Transition Event</label>
+                      <input 
+                        id="transition-event"
+                        type="text"
+                        [(ngModel)]="selectedItem().transition_bar_event"
+                        (change)="autoSaveTransitionBarEvent(selectedItem())"
+                        [placeholder]="!selectedItem().transition_bar_event ? 'unclear' : ''"
+                        aria-label="Edit transition event" />
+                    </div>
+
+                    <div class="info-box">
+                      <label>Transition Position</label>
+                      <div class="radio-group">
+                        @if (selectedItem().transition_bar_event && selectedItem().transition_bar_event !== 'unclear') {
+                          <label class="radio-label">
+                            <input 
+                              type="radio"
+                              name="position"
+                              value="before"
+                              [(ngModel)]="selectedItem().transition_bar_position"
+                              (change)="autoSaveTransitionBarPosition(selectedItem())"
+                              aria-label="Before" />
+                            <span>Before</span>
+                          </label>
+                          <label class="radio-label">
+                            <input 
+                              type="radio"
+                              name="position"
+                              value="during"
+                              [(ngModel)]="selectedItem().transition_bar_position"
+                              (change)="autoSaveTransitionBarPosition(selectedItem())"
+                              aria-label="During" />
+                            <span>During</span>
+                          </label>
+                          <label class="radio-label">
+                            <input 
+                              type="radio"
+                              name="position"
+                              value="after"
+                              [(ngModel)]="selectedItem().transition_bar_position"
+                              (change)="autoSaveTransitionBarPosition(selectedItem())"
+                              aria-label="After" />
+                            <span>After</span>
+                          </label>
+                        } @else {
+                          <span class="radio-disabled">Select transition event to set position</span>
+                        }
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="lightbox-image-section">
+                    <div class="lightbox-image-container">
+                      <img [src]="selectedItem().screenshot_url" alt="Future scenario screenshot" id="lightbox-title" />
+                    </div>
+                  </div>
+
+                  <button class="nav-btn nav-next" (click)="nextItem()" [disabled]="selectedItemIndex() >= items().length - 1" aria-label="Next item">→</button>
                 </div>
-                <div class="sidebar-content">
-                  <article class="item-card" [attr.data-status]="LEVELS[selectedItem()._private_moderation]">
+
+                <div class="lightbox-counter">{{ selectedItemIndex() + 1 }} / {{ items().length }}</div>
+              </div>
+
+              @if (lightboxSidebarOpen()) {
+                <aside class="lightbox-sidebar" role="complementary">
+                  <div class="sidebar-header">
+                    <h2>Item Details</h2>
+                    <button class="close-sidebar-btn" (click)="toggleLightboxSidebar()" aria-label="Close sidebar">×</button>
+                  </div>
+                  <div class="sidebar-content">
+                    <article class="item-card" [attr.data-status]="LEVELS[selectedItem()._private_moderation]">
                     <div class="card-header">
                       <button class="user-info" (click)="filterByUser(selectedItem().author_id)" [title]="getEmail(selectedItem())">
                     @if (selectedItem().author_id && selectedItem().author_id !== 'unknown') {
@@ -291,8 +389,9 @@
                       </button>
                     </div>
                   </article>
-                </div>
-              </aside>
+                  </div>
+                </aside>
+              }
             </div>
           </div>
         }
@@ -496,4 +595,4 @@
       }
     </div>
   }
-}</div>
+}
