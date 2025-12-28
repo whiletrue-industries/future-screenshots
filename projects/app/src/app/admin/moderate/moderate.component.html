@@ -26,16 +26,69 @@
 
   <section class="filters-bar" aria-label="Filters">
     <div class="filters-row">
-      <div class="filter-group">
-        <label for="filter-status">Status:</label>
-        <select id="filter-status" [(ngModel)]="filterStatus">
-          <option value="all">all</option>
-          <option value="new">New ({{ getCount(statusCounts(), 'pending') }})</option>
-          <option value="flagged">Flagged ({{ getCount(statusCounts(), 'flagged') }})</option>
-          <option value="approved">Approved ({{ getCount(statusCounts(), 'approved') }})</option>
-          <option value="rejected">Rejected ({{ getCount(statusCounts(), 'banned') }})</option>
-          <option value="highlighted">Highlighted ({{ getCount(statusCounts(), 'highlighted') }})</option>
-        </select>
+      <div class="filter-group custom-multiselect">
+        <label>Status:</label>
+        <div class="multiselect-container">
+          <button 
+            type="button"
+            class="multiselect-trigger" 
+            (click)="toggleStatusDropdown()">
+            <span class="multiselect-label">
+              @if (getSelectedStatusCount() === 0) {
+                Select status...
+              } @else if (getSelectedStatusCount() === 5) {
+                All statuses
+              } @else {
+                {{ getSelectedStatusCount() }} selected
+              }
+            </span>
+            <span class="multiselect-arrow">▼</span>
+          </button>
+          @if (statusDropdownOpen()) {
+            <div class="multiselect-dropdown" (click)="$event.stopPropagation()">
+              <label class="multiselect-option">
+                <input 
+                  type="checkbox" 
+                  [checked]="isStatusSelected('new')"
+                  (change)="toggleStatusFilter('new')" />
+                <span class="option-label">New</span>
+                <span class="option-count">{{ getCount(statusCounts(), 'pending') }}</span>
+              </label>
+              <label class="multiselect-option">
+                <input 
+                  type="checkbox" 
+                  [checked]="isStatusSelected('flagged')"
+                  (change)="toggleStatusFilter('flagged')" />
+                <span class="option-label">Flagged</span>
+                <span class="option-count">{{ getCount(statusCounts(), 'flagged') }}</span>
+              </label>
+              <label class="multiselect-option">
+                <input 
+                  type="checkbox" 
+                  [checked]="isStatusSelected('approved')"
+                  (change)="toggleStatusFilter('approved')" />
+                <span class="option-label">Approved</span>
+                <span class="option-count">{{ getCount(statusCounts(), 'approved') }}</span>
+              </label>
+              <label class="multiselect-option">
+                <input 
+                  type="checkbox" 
+                  [checked]="isStatusSelected('rejected')"
+                  (change)="toggleStatusFilter('rejected')" />
+                <span class="option-label">Rejected</span>
+                <span class="option-count">{{ getCount(statusCounts(), 'banned') }}</span>
+              </label>
+              <label class="multiselect-option">
+                <input 
+                  type="checkbox" 
+                  [checked]="isStatusSelected('highlighted')"
+                  (change)="toggleStatusFilter('highlighted')" />
+                <span class="option-label">Highlighted</span>
+                <span class="option-count">{{ getCount(statusCounts(), 'highlighted') }}</span>
+              </label>
+            </div>
+          }
+        </div>
       </div>
 
       <div class="filter-group">
