@@ -395,7 +395,7 @@
         }
         <div class="thumbnails-grid" role="list">
           @for (item of items(); track item._id) {
-            <div class="thumbnail-item" (click)="selectItem(item)" role="button" tabindex="0" [class.selected]="selectedItem()?._id === item._id">
+            <div class="thumbnail-item" [attr.data-status]="LEVELS[item._private_moderation]" (click)="selectItem(item)" role="button" tabindex="0" [class.selected]="selectedItem()?._id === item._id">
               <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
             </div>
           }
