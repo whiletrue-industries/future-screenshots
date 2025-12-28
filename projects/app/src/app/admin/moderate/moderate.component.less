@@ -305,7 +305,7 @@
 
     // Status-based border colors
     &[data-status="highlighted"] {
-        border-color: gold;
+        border: 3px solid #ffc107; // yellow frame
     }
 
     &[data-status="approved"] {
@@ -318,6 +318,11 @@
 
     &[data-status="banned"] {
         border-color: @color-darker-purple;
+    }
+
+    // Archived (banned) items appear dimmed
+    &[data-status="banned"] {
+        opacity: 0.5;
     }
 
     .card-header {
@@ -1451,6 +1456,7 @@
     overflow: hidden;
     cursor: pointer;
     transition: all 0.2s;
+    border: 2px solid @color-primary-100;
 
     &:hover {
         border: 2px solid @color-purple;
@@ -1465,6 +1471,15 @@
     &.selected {
         border-color: @color-purple;
         box-shadow: 0 0 0 2px rgba(78, 1, 178, 0.5) inset;
+    }
+
+    // Status-based styling
+    &[data-status="highlighted"] {
+        border: 3px solid #ffc107; // yellow frame
+    }
+
+    &[data-status="banned"] {
+        opacity: 0.5;
     }
 
     img {
