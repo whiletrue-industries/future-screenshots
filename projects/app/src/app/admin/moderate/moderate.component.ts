@@ -59,7 +59,7 @@ export class ModerateComponent {
   userItemCounts = signal<Map<string, number>>(new Map());
   allItemsForCounting = signal<any[]>([]); // Store all items for accurate counting
   allFetchedItems = signal<any[]>([]); // Store all fetched items for client-side filtering
-  viewMode = signal<'list' | 'grid'>('list');
+  viewMode = signal<'list' | 'grid'>('grid');
   selectedItem = signal<any | null>(null);
 
   items = signal<any[]>([]);
@@ -667,6 +667,8 @@ export class ModerateComponent {
 
   selectItem(item: any): void {
     this.selectedItem.set(item);
+    // Scroll to top when opening lightbox
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   closeSidebar(): void {

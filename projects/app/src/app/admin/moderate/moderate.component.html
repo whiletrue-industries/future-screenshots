@@ -149,22 +149,22 @@
   } @else {
     @if (viewMode() === 'grid') {
       <div class="grid-layout">
-        <div class="thumbnails-grid" role="list">
-          @for (item of items(); track item._id) {
-            <div class="thumbnail-item" (click)="selectItem(item)" role="button" tabindex="0" [class.selected]="selectedItem()?._id === item._id">
-              <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
-            </div>
-          }
-        </div>
         @if (selectedItem()) {
-          <aside class="item-sidebar" role="complementary">
-            <div class="sidebar-header">
-              <h2>Item Details</h2>
-              <button class="close-sidebar-btn" (click)="closeSidebar()" aria-label="Close sidebar">×</button>
-            </div>
-            <div class="sidebar-content">
-              <article class="item-card" [attr.data-status]="LEVELS[selectedItem()._private_moderation]">
-                <div class="card-header">
+          <div class="lightbox-overlay" (click)="closeSidebar()" role="dialog" aria-modal="true" aria-labelledby="lightbox-title">
+            <div class="lightbox-content" (click)="$event.stopPropagation()">
+              <div class="lightbox-image-container">
+                <img [src]="selectedItem().screenshot_url" alt="Future scenario screenshot" id="lightbox-title" />
+                <button class="lightbox-close-btn" (click)="closeSidebar()" aria-label="Close lightbox">×</button>
+              </div>
+              <aside class="item-sidebar" role="complementary">
+              <aside class="item-sidebar" role="complementary">
+                <div class="sidebar-header">
+                  <h2>Item Details</h2>
+                  <button class="close-sidebar-btn" (click)="closeSidebar()" aria-label="Close sidebar">×</button>
+                </div>
+                <div class="sidebar-content">
+                  <article class="item-card" [attr.data-status]="LEVELS[selectedItem()._private_moderation]">
+                    <div class="card-header">
                   <button class="user-info" (click)="filterByUser(selectedItem().author_id)" [title]="getEmail(selectedItem())">
                     @if (selectedItem().author_id && selectedItem().author_id !== 'unknown') {
                       <span class="user-count-link">{{ getUserItemCount(selectedItem().author_id) }} items</span>
@@ -172,66 +172,10 @@
                       <span class="user-count-link">{{ getUserItemCount('unknown') }} unattributed</span>
                     }
                   </button>
-                  <span class="screenshot-type" [title]="selectedItem().screenshot_type || 'screenshot'">{{ getScreenshotTypeEmoji(selectedItem().screenshot_type) }}</span>
-                </div>
+                      <span class="screenshot-type" [title]="selectedItem().screenshot_type || 'screenshot'">{{ getScreenshotTypeEmoji(selectedItem().screenshot_type) }}</span>
+                    </div>
 
-                <div class="screenshot-container">
-                  @if (!isShowingDescription(selectedItem()._id)) {
-                    <img [src]="selectedItem().screenshot_url" alt="Future scenario screenshot" />
-                    <button class="toggle-view-btn" (click)="toggleDescriptionView(selectedItem()._id)" aria-label="Show description">
-                      ℹ️
-                    </button>
-                  } @else {
-                    @if (editDescription() === selectedItem()._id) {
-                      <div class="description-edit">
-                        <div class="field-group">
-                          <label>Content</label>
-                          <textarea 
-                            [(ngModel)]="selectedItem().content" 
-                            placeholder="Enter content"
-                            rows="4"
-                            aria-label="Edit content"></textarea>
-                        </div>
-                        <div class="field-group">
-                          <label>Description</label>
-                          <textarea 
-                            [(ngModel)]="selectedItem().future_scenario_description" 
-                            placeholder="Enter description"
-                            rows="4"
-                            aria-label="Edit description"></textarea>
-                        </div>
-                        <div class="edit-actions">
-                          <button class="btn-icon btn-save" (click)="setDescription(selectedItem())" aria-label="Save">✓</button>
-                          <button class="btn-icon btn-cancel" (click)="editDescription.set(null)" aria-label="Cancel">✕</button>
-                        </div>
-                      </div>
-                    } @else {
-                      <div class="description-view" (click)="editDescription.set(selectedItem()._id)" role="button" tabindex="0">
-                        @if (selectedItem().content || selectedItem().future_scenario_description) {
-                          @if (selectedItem().content) {
-                            <div class="field-display">
-                              <strong>Content:</strong>
-                              <p>{{ selectedItem().content }}</p>
-                            </div>
-                          }
-                          @if (selectedItem().future_scenario_description) {
-                            <div class="field-display">
-                              <strong>Description:</strong>
-                              <p>{{ selectedItem().future_scenario_description }}</p>
-                            </div>
-                          }
-                        } @else {
-                          <p class="description-empty">+ Add content and description</p>
-                        }
-                      </div>
-                    }
-                    <button class="toggle-view-btn" (click)="toggleDescriptionView(selectedItem()._id)" aria-label="Show image">
-                      🖼️
-                    </button>
-                  }
-                </div>
-
-                <div class="card-metadata">
+                    <div class="card-metadata">
                   <div class="metadata-row">
                     <span class="date">{{ formatDate(selectedItem().created_at) }}</span>
                     <button 
@@ -347,11 +291,20 @@
                       PUBLISH
                     }
                   </button>
+                    </div>
+                  </article>
                 </div>
-              </article>
+              </aside>
             </div>
-          </aside>
+          </div>
         }
+        <div class="thumbnails-grid" role="list">
+          @for (item of items(); track item._id) {
+            <div class="thumbnail-item" (click)="selectItem(item)" role="button" tabindex="0" [class.selected]="selectedItem()?._id === item._id">
+              <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
+            </div>
+          }
+        </div>
       </div>
     } @else {
       <div class="items-grid" role="list">
