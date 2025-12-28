@@ -160,7 +160,7 @@
                   <button class="nav-btn nav-prev" (click)="prevItem()" [disabled]="selectedItemIndex() <= 0" aria-label="Previous item">←</button>
                   
                   <div class="lightbox-info-boxes">
-                    <div class="info-box">
+                    <div class="info-box info-box-screenshot-type">
                       <label for="screenshot-type">Screenshot Type</label>
                       <select 
                         id="screenshot-type"
@@ -189,54 +189,60 @@
                         aria-label="Edit content"></textarea>
                     </div>
 
-                    <div class="info-box">
-                      <label for="transition-event">Transition Event</label>
-                      <input 
-                        id="transition-event"
-                        type="text"
-                        [(ngModel)]="selectedItem().transition_bar_event"
-                        (change)="autoSaveTransitionBarEvent(selectedItem())"
-                        [placeholder]="!selectedItem().transition_bar_event ? 'unclear' : ''"
-                        aria-label="Edit transition event" />
-                    </div>
-
-                    <div class="info-box">
-                      <label>Transition Position</label>
-                      <div class="radio-group">
+                    <div class="info-box info-box-transition">
+                      <div class="transition-content">
+                        <div class="transition-event-input">
+                          <input 
+                            id="transition-event"
+                            type="text"
+                            [(ngModel)]="selectedItem().transition_bar_event"
+                            (change)="autoSaveTransitionBarEvent(selectedItem())"
+                            [placeholder]="!selectedItem().transition_bar_event ? 'unclear' : ''"
+                            aria-label="Edit transition event" />
+                        </div>
+                        
                         @if (selectedItem().transition_bar_event && selectedItem().transition_bar_event !== 'unclear') {
-                          <label class="radio-label">
-                            <input 
-                              type="radio"
-                              name="position"
-                              value="before"
-                              [(ngModel)]="selectedItem().transition_bar_position"
-                              (change)="autoSaveTransitionBarPosition(selectedItem())"
-                              aria-label="Before" />
-                            <span>Before</span>
-                          </label>
-                          <label class="radio-label">
-                            <input 
-                              type="radio"
-                              name="position"
-                              value="during"
-                              [(ngModel)]="selectedItem().transition_bar_position"
-                              (change)="autoSaveTransitionBarPosition(selectedItem())"
-                              aria-label="During" />
-                            <span>During</span>
-                          </label>
-                          <label class="radio-label">
-                            <input 
-                              type="radio"
-                              name="position"
-                              value="after"
-                              [(ngModel)]="selectedItem().transition_bar_position"
-                              (change)="autoSaveTransitionBarPosition(selectedItem())"
-                              aria-label="After" />
-                            <span>After</span>
-                          </label>
-                        } @else {
-                          <span class="radio-disabled">Select transition event to set position</span>
+                          <div class="transition-arrows">
+                            <svg width="20" height="12" viewBox="0 0 20 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M2 6H18M2 6L6 2M2 6L6 10M18 6L14 2M18 6L14 10" stroke="#6C707B" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                          </div>
                         }
+
+                        <div class="radio-group-inline">
+                          @if (selectedItem().transition_bar_event && selectedItem().transition_bar_event !== 'unclear') {
+                            <label class="radio-label">
+                              <input 
+                                type="radio"
+                                name="position"
+                                value="before"
+                                [(ngModel)]="selectedItem().transition_bar_position"
+                                (change)="autoSaveTransitionBarPosition(selectedItem())"
+                                aria-label="Before" />
+                              <span>Before</span>
+                            </label>
+                            <label class="radio-label">
+                              <input 
+                                type="radio"
+                                name="position"
+                                value="during"
+                                [(ngModel)]="selectedItem().transition_bar_position"
+                                (change)="autoSaveTransitionBarPosition(selectedItem())"
+                                aria-label="During" />
+                              <span>During</span>
+                            </label>
+                            <label class="radio-label">
+                              <input 
+                                type="radio"
+                                name="position"
+                                value="after"
+                                [(ngModel)]="selectedItem().transition_bar_position"
+                                (change)="autoSaveTransitionBarPosition(selectedItem())"
+                                aria-label="After" />
+                              <span>After</span>
+                            </label>
+                          }
+                        </div>
                       </div>
                     </div>
                   </div>
