@@ -156,9 +156,10 @@
                 <button class="lightbox-close-btn" (click)="closeSidebar()" aria-label="Close lightbox">×</button>
                 <button class="lightbox-sidebar-toggle-btn" (click)="toggleLightboxSidebar()" aria-label="Toggle sidebar">⋮</button>
                 
+                <button class="nav-btn nav-prev" (click)="prevItem()" [disabled]="selectedItemIndex() <= 0" aria-label="Previous item">←</button>
+                <button class="nav-btn nav-next" (click)="nextItem()" [disabled]="selectedItemIndex() >= items().length - 1" aria-label="Next item">→</button>
+                
                 <div class="lightbox-main">
-                  <button class="nav-btn nav-prev" (click)="prevItem()" [disabled]="selectedItemIndex() <= 0" aria-label="Previous item">←</button>
-                  
                   <div class="lightbox-info-boxes">
                     <div class="info-box info-box-screenshot-type">
                       <label for="screenshot-type">Screenshot Type</label>
@@ -239,13 +240,9 @@
                     </div>
                   </div>
 
-                  <div class="lightbox-image-section">
-                    <div class="lightbox-image-container">
-                      <img [src]="selectedItem().screenshot_url" alt="Future scenario screenshot" id="lightbox-title" />
-                    </div>
+                  <div class="lightbox-image-container">
+                    <img [src]="selectedItem().screenshot_url" alt="Future scenario screenshot" id="lightbox-title" />
                   </div>
-
-                  <button class="nav-btn nav-next" (click)="nextItem()" [disabled]="selectedItemIndex() >= items().length - 1" aria-label="Next item">→</button>
                 </div>
 
                 <div class="lightbox-counter">{{ selectedItemIndex() + 1 }} / {{ items().length }}</div>
