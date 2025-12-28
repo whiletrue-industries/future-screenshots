@@ -929,7 +929,7 @@
     flex: 1;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(106px, 106px));
-    gap: 8px;
+    gap: 4px;
     padding: 8px;
     overflow-y: auto;
     background: @color-primary-50;
@@ -943,25 +943,24 @@
     position: relative;
     width: 106px;
     height: 200px;
-    border-radius: 10px;
+    border-radius: 2px;
     overflow: hidden;
     cursor: pointer;
-    border: 3px solid transparent;
     transition: all 0.2s;
 
     &:hover {
-        border-color: @color-purple;
+        border: 2px solid @color-purple;
         transform: scale(1.02);
     }
 
     &:focus {
-        outline: 3px solid @color-accent;
+        outline: 2px solid @color-accent;
         outline-offset: 2px;
     }
 
     &.selected {
         border-color: @color-purple;
-        box-shadow: 0 0 0 4px fade(@color-purple, 20%);
+        box-shadow: 0 0 0 2px rgba(78, 1, 178, 0.5) inset;
     }
 
     img {
