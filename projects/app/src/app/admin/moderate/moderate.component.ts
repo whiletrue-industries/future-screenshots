@@ -1,4 +1,4 @@
-import { Component, effect, signal } from '@angular/core';
+import { Component, effect, signal, HostListener } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AdminApiService } from '../../../admin-api.service';
 import { FormsModule } from '@angular/forms';
@@ -36,7 +36,7 @@ export class ModerateComponent {
   page = signal<number>(0);
   
   // Individual filters
-  filterStatus = signal<string>('all');
+  filterStatus = signal<string[]>(['new', 'flagged', 'approved', 'highlighted']);
   filterAuthor = signal<string>('all');
   filterPreference = signal<string>('all');
   filterPotential = signal<string>('all');
@@ -63,9 +63,18 @@ export class ModerateComponent {
   selectedItem = signal<any | null>(null);
   lightboxSidebarOpen = signal<boolean>(false);
   selectedItemIndex = signal<number>(-1);
+   statusDropdownOpen = signal<boolean>(false);
 
   items = signal<any[]>([]);
   indexLink = signal<string | null>(null);
+
+    @HostListener('document:click', ['$event'])
+    onDocumentClick(event: MouseEvent): void {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.custom-multiselect')) {
+        this.statusDropdownOpen.set(false);
+      }
+    }
 
   LEVELS = [
     'banned',
@@ -86,7 +95,8 @@ export class ModerateComponent {
     this.route.fragment.subscribe(fragment => {
       if (fragment) {
         const params = new URLSearchParams(fragment);
-        this.filterStatus.set(params.get('status') || 'all');
+        const statusParam = params.get('status');
+        this.filterStatus.set(statusParam ? statusParam.split(',') : ['new', 'flagged', 'approved', 'highlighted']);
         this.filterAuthor.set(params.get('author') || 'all');
         this.filterPreference.set(params.get('preference') || 'all');
         this.filterPotential.set(params.get('potential') || 'all');
@@ -197,7 +207,7 @@ export class ModerateComponent {
     let filtered = [...this.allFetchedItems()];
     
     // Status filter
-    if (this.filterStatus() !== 'all') {
+    if (this.filterStatus().length > 0) {
       const statusMap: any = {
         'new': 2,
         'flagged': 1,
@@ -205,9 +215,9 @@ export class ModerateComponent {
         'rejected': 0,
         'highlighted': 5
       };
-      const value = statusMap[this.filterStatus()];
-      if (value !== undefined) {
-        filtered = filtered.filter(item => item._private_moderation === value);
+      const allowedValues = this.filterStatus().map(status => statusMap[status]).filter(v => v !== undefined);
+      if (allowedValues.length > 0) {
+        filtered = filtered.filter(item => allowedValues.includes(item._private_moderation));
       }
     }
     
@@ -269,7 +279,7 @@ export class ModerateComponent {
     const filters: string[] = [];
     
     // Status filter
-    if (this.filterStatus() !== 'all') {
+    if (this.filterStatus().length > 0) {
       const statusMap: any = {
         'new': '2',
         'flagged': '1',
@@ -277,8 +287,15 @@ export class ModerateComponent {
         'rejected': '0',
         'highlighted': '5'
       };
-      const value = statusMap[this.filterStatus()];
-      if (value) filters.push(`metadata._private_moderation == ${value}`);
+      const values = this.filterStatus().map(status => statusMap[status]).filter(v => v !== undefined);
+      if (values.length > 0) {
+        if (values.length === 1) {
+          filters.push(`metadata._private_moderation == ${values[0]}`);
+        } else {
+          const conditions = values.map(v => `metadata._private_moderation == ${v}`).join(' OR ');
+          filters.push(`(${conditions})`);
+        }
+      }
     }
     
     // Author filter
@@ -316,7 +333,7 @@ export class ModerateComponent {
   
   updateHashParams(): void {
     const params = new URLSearchParams();
-    if (this.filterStatus() !== 'all') params.set('status', this.filterStatus());
+    if (this.filterStatus().length > 0) params.set('status', this.filterStatus().join(','));
     if (this.filterAuthor() !== 'all') params.set('author', this.filterAuthor());
     if (this.filterPreference() !== 'all') params.set('preference', this.filterPreference());
     if (this.filterPotential() !== 'all') params.set('potential', this.filterPotential());
@@ -331,8 +348,31 @@ export class ModerateComponent {
     }
   }
   
+    toggleStatusDropdown(): void {
+      this.statusDropdownOpen.set(!this.statusDropdownOpen());
+    }
+
+    toggleStatusFilter(status: string): void {
+      const current = this.filterStatus();
+      if (current.includes(status)) {
+        this.filterStatus.set(current.filter(s => s !== status));
+      } else {
+        this.filterStatus.set([...current, status]);
+      }
+      this.updateHashParams();
+      this.applyFiltersAndSort();
+    }
+
+    isStatusSelected(status: string): boolean {
+      return this.filterStatus().includes(status);
+    }
+
+    getSelectedStatusCount(): number {
+      return this.filterStatus().length;
+    }
+
   clearAllFilters(): void {
-    this.filterStatus.set('all');
+    this.filterStatus.set(['new', 'flagged', 'approved', 'highlighted']);
     this.filterAuthor.set('all');
     this.filterPreference.set('all');
     this.filterPotential.set('all');
