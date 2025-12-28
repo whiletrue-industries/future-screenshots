@@ -157,7 +157,6 @@
                 <button class="lightbox-close-btn" (click)="closeSidebar()" aria-label="Close lightbox">×</button>
               </div>
               <aside class="item-sidebar" role="complementary">
-              <aside class="item-sidebar" role="complementary">
                 <div class="sidebar-header">
                   <h2>Item Details</h2>
                   <button class="close-sidebar-btn" (click)="closeSidebar()" aria-label="Close sidebar">×</button>
@@ -165,132 +164,131 @@
                 <div class="sidebar-content">
                   <article class="item-card" [attr.data-status]="LEVELS[selectedItem()._private_moderation]">
                     <div class="card-header">
-                  <button class="user-info" (click)="filterByUser(selectedItem().author_id)" [title]="getEmail(selectedItem())">
+                      <button class="user-info" (click)="filterByUser(selectedItem().author_id)" [title]="getEmail(selectedItem())">
                     @if (selectedItem().author_id && selectedItem().author_id !== 'unknown') {
                       <span class="user-count-link">{{ getUserItemCount(selectedItem().author_id) }} items</span>
                     } @else {
                       <span class="user-count-link">{{ getUserItemCount('unknown') }} unattributed</span>
                     }
                   </button>
-                      <span class="screenshot-type" [title]="selectedItem().screenshot_type || 'screenshot'">{{ getScreenshotTypeEmoji(selectedItem().screenshot_type) }}</span>
                     </div>
 
                     <div class="card-metadata">
-                  <div class="metadata-row">
-                    <span class="date">{{ formatDate(selectedItem().created_at) }}</span>
-                    <button 
-                      class="icon-btn star-btn" 
-                      [class.active]="selectedItem()._private_moderation === 5"
-                      (click)="highlight(selectedItem()._id)"
-                      aria-label="Highlight">
-                      {{ selectedItem()._private_moderation === 5 ? '★' : '☆' }}
-                    </button>
-                    <span class="ai-confidence" [attr.data-confidence]="getConfidenceLevel(selectedItem())">
-                      AI: {{ getAIConfidence(selectedItem()) }}%
-                    </span>
-                    <button class="icon-btn trash-btn" (click)="reject(selectedItem()._id)" aria-label="Archive">
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-
-                <div class="card-content">
-                  <div class="tagline-section">
-                    @if (editTagline() === selectedItem()._id) {
-                      <div class="tagline-edit">
-                        <textarea 
-                          [(ngModel)]="selectedItem().future_scenario_tagline" 
-                          placeholder="Enter tagline"
-                          rows="3"
-                          aria-label="Edit tagline"></textarea>
-                        <div class="edit-actions">
-                          <button class="btn-icon btn-save" (click)="setTagline(selectedItem())" aria-label="Save">✓</button>
-                          <button class="btn-icon btn-cancel" (click)="editTagline.set(null)" aria-label="Cancel">✕</button>
-                        </div>
+                          <div class="metadata-row">
+                        <span class="date">{{ formatDate(selectedItem().created_at) }}</span>
+                        <button 
+                          class="icon-btn star-btn" 
+                          [class.active]="selectedItem()._private_moderation === 5"
+                          (click)="highlight(selectedItem()._id)"
+                          aria-label="Highlight">
+                          {{ selectedItem()._private_moderation === 5 ? '★' : '☆' }}
+                        </button>
+                        <span class="ai-confidence" [attr.data-confidence]="getConfidenceLevel(selectedItem())">
+                          AI: {{ getAIConfidence(selectedItem()) }}%
+                        </span>
+                        <button class="icon-btn trash-btn" (click)="reject(selectedItem()._id)" aria-label="Archive">
+                          🗑️
+                        </button>
                       </div>
-                    } @else {
-                      @if (selectedItem().future_scenario_tagline) {
-                        <div class="tagline" (click)="editTagline.set(selectedItem()._id)" role="button" tabindex="0">
-                          {{ selectedItem().future_scenario_tagline }}
-                        </div>
-                      } @else {
-                        <div class="tagline tagline-empty" (click)="editTagline.set(selectedItem()._id)" role="button" tabindex="0">
-                          + Add tagline
-                        </div>
-                      }
-                    }
-                  </div>
+                    </div>
 
-                  <div class="tags-section">
-                    <div class="tags-container">
-                      @if (selectedItem().tags && selectedItem().tags.length > 0) {
-                        @for (tag of selectedItem().tags; track $index) {
-                          <span class="tag">
-                            {{ tag }}
-                            <button class="tag-remove" (click)="removeTag(selectedItem(), $index)" aria-label="Remove tag">×</button>
-                          </span>
+                    <div class="card-content">
+                      <div class="tagline-section">
+                        @if (editTagline() === selectedItem()._id) {
+                          <div class="tagline-edit">
+                            <textarea 
+                              [(ngModel)]="selectedItem().future_scenario_tagline" 
+                              placeholder="Enter tagline"
+                              rows="3"
+                              aria-label="Edit tagline"></textarea>
+                            <div class="edit-actions">
+                              <button class="btn-icon btn-save" (click)="setTagline(selectedItem())" aria-label="Save">✓</button>
+                              <button class="btn-icon btn-cancel" (click)="editTagline.set(null)" aria-label="Cancel">✕</button>
+                            </div>
+                          </div>
+                        } @else {
+                          @if (selectedItem().future_scenario_tagline) {
+                            <div class="tagline" (click)="editTagline.set(selectedItem()._id)" role="button" tabindex="0">
+                              {{ selectedItem().future_scenario_tagline }}
+                            </div>
+                          } @else {
+                            <div class="tagline tagline-empty" (click)="editTagline.set(selectedItem()._id)" role="button" tabindex="0">
+                              + Add tagline
+                            </div>
+                          }
                         }
-                      }
-                      <div class="tag-input-wrapper">
-                        <input 
-                          #tagInput
-                          type="text" 
-                          class="tag-input" 
-                          placeholder="+ Add tag"
-                          (keydown.enter)="addTag(selectedItem(), tagInput)"
-                          aria-label="Add new tag" />
+                      </div>
+
+                      <div class="tags-section">
+                        <div class="tags-container">
+                          @if (selectedItem().tags && selectedItem().tags.length > 0) {
+                            @for (tag of selectedItem().tags; track $index) {
+                              <span class="tag">
+                                {{ tag }}
+                                <button class="tag-remove" (click)="removeTag(selectedItem(), $index)" aria-label="Remove tag">×</button>
+                              </span>
+                            }
+                          }
+                          <div class="tag-input-wrapper">
+                            <input 
+                              #tagInput
+                              type="text" 
+                              class="tag-input" 
+                              placeholder="+ Add tag"
+                              (keydown.enter)="addTag(selectedItem(), tagInput)"
+                              aria-label="Add new tag" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="properties-selectors">
+                        <div class="property-selector">
+                          <select 
+                            [(ngModel)]="selectedItem().favorable_future" 
+                            (change)="setFavorable(selectedItem())"
+                            [class]="'desirability-select ' + getDesirabilityClass(selectedItem().favorable_future)"
+                            aria-label="Set desirability">
+                            <option [value]="null">Desirability?</option>
+                            <option value="prefer">prefer</option>
+                            <option value="mostly prefer">prefer-ish</option>
+                            <option value="uncertain">uncertain</option>
+                            <option value="mostly prevent">prevent-ish</option>
+                            <option value="prevent">prevent</option>
+                          </select>
+                        </div>
+                        <div class="property-selector">
+                          <select 
+                            [(ngModel)]="selectedItem().plausibility" 
+                            (change)="setPlausibility(selectedItem())"
+                            [class]="'plausibility-select ' + getPlausibilityClass(selectedItem().plausibility)"
+                            aria-label="Set plausibility">
+                            <option [value]="null">Plausibility?</option>
+                            <option [value]="100">Projected</option>
+                            <option [value]="75">Probable</option>
+                            <option [value]="50">Plausible</option>
+                            <option [value]="25">Possible</option>
+                            <option [value]="0">Preposterous</option>
+                          </select>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div class="properties-selectors">
-                    <div class="property-selector">
-                      <select 
-                        [(ngModel)]="selectedItem().favorable_future" 
-                        (change)="setFavorable(selectedItem())"
-                        [class]="'desirability-select ' + getDesirabilityClass(selectedItem().favorable_future)"
-                        aria-label="Set desirability">
-                        <option [value]="null">Desirability?</option>
-                        <option value="prefer">prefer</option>
-                        <option value="mostly prefer">prefer-ish</option>
-                        <option value="uncertain">uncertain</option>
-                        <option value="mostly prevent">prevent-ish</option>
-                        <option value="prevent">prevent</option>
-                      </select>
-                    </div>
-                    <div class="property-selector">
-                      <select 
-                        [(ngModel)]="selectedItem().plausibility" 
-                        (change)="setPlausibility(selectedItem())"
-                        [class]="'plausibility-select ' + getPlausibilityClass(selectedItem().plausibility)"
-                        aria-label="Set plausibility">
-                        <option [value]="null">Plausibility?</option>
-                        <option [value]="100">Projected</option>
-                        <option [value]="75">Probable</option>
-                        <option [value]="50">Plausible</option>
-                        <option [value]="25">Possible</option>
-                        <option [value]="0">Preposterous</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="card-footer">
-                  <button 
-                    class="publish-btn"
-                    [class.published]="selectedItem()._private_moderation >= 4"
-                    [class.archived]="selectedItem()._private_moderation === 0"
-                    (click)="selectedItem()._private_moderation === 0 ? unarchive(selectedItem()._id) : approve(selectedItem()._id)"
-                    [attr.aria-label]="selectedItem()._private_moderation === 0 ? 'Unarchive' : (selectedItem()._private_moderation >= 4 ? 'Published' : 'Publish')">
-                    @if (selectedItem()._private_moderation === 0) {
-                      <span class="btn-default">ARCHIVED 🗑️</span>
-                      <span class="btn-hover">UNARCHIVE</span>
-                    } @else if (selectedItem()._private_moderation >= 4) {
-                      PUBLISHED ✓
-                    } @else {
-                      PUBLISH
-                    }
-                  </button>
+                    <div class="card-footer">
+                      <button 
+                        class="publish-btn"
+                        [class.published]="selectedItem()._private_moderation >= 4"
+                        [class.archived]="selectedItem()._private_moderation === 0"
+                        (click)="selectedItem()._private_moderation === 0 ? unarchive(selectedItem()._id) : approve(selectedItem()._id)"
+                        [attr.aria-label]="selectedItem()._private_moderation === 0 ? 'Unarchive' : (selectedItem()._private_moderation >= 4 ? 'Published' : 'Publish')">
+                        @if (selectedItem()._private_moderation === 0) {
+                          <span class="btn-default">ARCHIVED 🗑️</span>
+                          <span class="btn-hover">UNARCHIVE</span>
+                        } @else if (selectedItem()._private_moderation >= 4) {
+                          PUBLISHED ✓
+                        } @else {
+                          PUBLISH
+                        }
+                      </button>
                     </div>
                   </article>
                 </div>
