@@ -105,28 +105,134 @@
         </select>
       </div>
 
-      <div class="filter-group">
-        <label for="filter-preference">Preference:</label>
-        <select id="filter-preference" [(ngModel)]="filterPreference">
-          <option value="all">all</option>
-          <option value="prefer">prefer ({{ getCount(preferenceCounts(), 'prefer') }})</option>
-          <option value="mostly prefer">prefer-ish ({{ getCount(preferenceCounts(), 'mostly prefer') }})</option>
-          <option value="uncertain">uncertain ({{ getCount(preferenceCounts(), 'uncertain') }})</option>
-          <option value="mostly prevent">prevent-ish ({{ getCount(preferenceCounts(), 'mostly prevent') }})</option>
-          <option value="prevent">prevent ({{ getCount(preferenceCounts(), 'prevent') }})</option>
-        </select>
+      <div class="filter-group custom-multiselect">
+        <label>Preference:</label>
+        <div class="multiselect-container">
+          <button 
+            type="button"
+            class="multiselect-trigger" 
+            (click)="togglePreferenceDropdown()">
+            <span class="multiselect-label">
+              @if (getSelectedPreferenceCount() === 0) {
+                Select preference...
+              } @else if (getSelectedPreferenceCount() === preferenceOptions.length) {
+                All preferences
+              } @else {
+                {{ getSelectedPreferenceCount() }} selected
+              }
+            </span>
+            <span class="multiselect-arrow">▼</span>
+          </button>
+          @if (preferenceDropdownOpen()) {
+            <div class="multiselect-dropdown" (click)="$event.stopPropagation()">
+              <label class="multiselect-option">
+                <input 
+                  type="checkbox" 
+                  [checked]="isPreferenceSelected('prefer')"
+                  (change)="togglePreferenceFilter('prefer')" />
+                <span class="option-label">prefer</span>
+                <span class="option-count">{{ getCount(preferenceCounts(), 'prefer') }}</span>
+              </label>
+              <label class="multiselect-option">
+                <input 
+                  type="checkbox" 
+                  [checked]="isPreferenceSelected('mostly prefer')"
+                  (change)="togglePreferenceFilter('mostly prefer')" />
+                <span class="option-label">prefer-ish</span>
+                <span class="option-count">{{ getCount(preferenceCounts(), 'mostly prefer') }}</span>
+              </label>
+              <label class="multiselect-option">
+                <input 
+                  type="checkbox" 
+                  [checked]="isPreferenceSelected('uncertain')"
+                  (change)="togglePreferenceFilter('uncertain')" />
+                <span class="option-label">uncertain</span>
+                <span class="option-count">{{ getCount(preferenceCounts(), 'uncertain') }}</span>
+              </label>
+              <label class="multiselect-option">
+                <input 
+                  type="checkbox" 
+                  [checked]="isPreferenceSelected('mostly prevent')"
+                  (change)="togglePreferenceFilter('mostly prevent')" />
+                <span class="option-label">prevent-ish</span>
+                <span class="option-count">{{ getCount(preferenceCounts(), 'mostly prevent') }}</span>
+              </label>
+              <label class="multiselect-option">
+                <input 
+                  type="checkbox" 
+                  [checked]="isPreferenceSelected('prevent')"
+                  (change)="togglePreferenceFilter('prevent')" />
+                <span class="option-label">prevent</span>
+                <span class="option-count">{{ getCount(preferenceCounts(), 'prevent') }}</span>
+              </label>
+            </div>
+          }
+        </div>
       </div>
 
-      <div class="filter-group">
-        <label for="filter-potential">Potential:</label>
-        <select id="filter-potential" [(ngModel)]="filterPotential">
-          <option value="all">all</option>
-          <option value="100">Projected ({{ getCount(potentialCounts(), '100') }})</option>
-          <option value="75">Probable ({{ getCount(potentialCounts(), '75') }})</option>
-          <option value="50">Plausible ({{ getCount(potentialCounts(), '50') }})</option>
-          <option value="25">Possible ({{ getCount(potentialCounts(), '25') }})</option>
-          <option value="0">Preposterous ({{ getCount(potentialCounts(), '0') }})</option>
-        </select>
+      <div class="filter-group custom-multiselect">
+        <label>Potential:</label>
+        <div class="multiselect-container">
+          <button 
+            type="button"
+            class="multiselect-trigger" 
+            (click)="togglePotentialDropdown()">
+            <span class="multiselect-label">
+              @if (getSelectedPotentialCount() === 0) {
+                Select potential...
+              } @else if (getSelectedPotentialCount() === potentialOptions.length) {
+                All potentials
+              } @else {
+                {{ getSelectedPotentialCount() }} selected
+              }
+            </span>
+            <span class="multiselect-arrow">▼</span>
+          </button>
+          @if (potentialDropdownOpen()) {
+            <div class="multiselect-dropdown" (click)="$event.stopPropagation()">
+              <label class="multiselect-option">
+                <input 
+                  type="checkbox" 
+                  [checked]="isPotentialSelected('100')"
+                  (change)="togglePotentialFilter('100')" />
+                <span class="option-label">Projected</span>
+                <span class="option-count">{{ getCount(potentialCounts(), '100') }}</span>
+              </label>
+              <label class="multiselect-option">
+                <input 
+                  type="checkbox" 
+                  [checked]="isPotentialSelected('75')"
+                  (change)="togglePotentialFilter('75')" />
+                <span class="option-label">Probable</span>
+                <span class="option-count">{{ getCount(potentialCounts(), '75') }}</span>
+              </label>
+              <label class="multiselect-option">
+                <input 
+                  type="checkbox" 
+                  [checked]="isPotentialSelected('50')"
+                  (change)="togglePotentialFilter('50')" />
+                <span class="option-label">Plausible</span>
+                <span class="option-count">{{ getCount(potentialCounts(), '50') }}</span>
+              </label>
+              <label class="multiselect-option">
+                <input 
+                  type="checkbox" 
+                  [checked]="isPotentialSelected('25')"
+                  (change)="togglePotentialFilter('25')" />
+                <span class="option-label">Possible</span>
+                <span class="option-count">{{ getCount(potentialCounts(), '25') }}</span>
+              </label>
+              <label class="multiselect-option">
+                <input 
+                  type="checkbox" 
+                  [checked]="isPotentialSelected('0')"
+                  (change)="togglePotentialFilter('0')" />
+                <span class="option-label">Preposterous</span>
+                <span class="option-count">{{ getCount(potentialCounts(), '0') }}</span>
+              </label>
+            </div>
+          }
+        </div>
       </div>
 
       <div class="filter-group">
