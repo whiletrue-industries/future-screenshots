@@ -1,4 +1,4 @@
-import { Component, effect, signal } from '@angular/core';
+import { Component, effect, signal, HostListener } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AdminApiService } from '../../../admin-api.service';
 import { FormsModule } from '@angular/forms';
@@ -36,10 +36,13 @@ export class ModerateComponent {
   page = signal<number>(0);
   
   // Individual filters
-  filterStatus = signal<string>('all');
+  filterStatus = signal<string[]>(['new', 'flagged', 'approved', 'highlighted']);
   filterAuthor = signal<string>('all');
-  filterPreference = signal<string>('all');
-  filterPotential = signal<string>('all');
+  preferenceOptions = ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'];
+  potentialOptions = ['100', '75', '50', '25', '0'];
+
+  filterPreference = signal<string[]>([...this.preferenceOptions]);
+  filterPotential = signal<string[]>([...this.potentialOptions]);
   filterType = signal<string>('all');
   searchText = signal<string>('');
   orderBy = signal<string>('date');
@@ -59,11 +62,24 @@ export class ModerateComponent {
   userItemCounts = signal<Map<string, number>>(new Map());
   allItemsForCounting = signal<any[]>([]); // Store all items for accurate counting
   allFetchedItems = signal<any[]>([]); // Store all fetched items for client-side filtering
-  viewMode = signal<'list' | 'grid'>('list');
+  viewMode = signal<'list' | 'grid'>('grid');
   selectedItem = signal<any | null>(null);
+  lightboxSidebarOpen = signal<boolean>(false);
+  selectedItemIndex = signal<number>(-1);
+   statusDropdownOpen = signal<boolean>(false);
+  preferenceDropdownOpen = signal<boolean>(false);
+  potentialDropdownOpen = signal<boolean>(false);
 
   items = signal<any[]>([]);
   indexLink = signal<string | null>(null);
+
+    @HostListener('document:click', ['$event'])
+    onDocumentClick(event: MouseEvent): void {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.custom-multiselect')) {
+        this.statusDropdownOpen.set(false);
+      }
+    }
 
   LEVELS = [
     'banned',
@@ -84,10 +100,13 @@ export class ModerateComponent {
     this.route.fragment.subscribe(fragment => {
       if (fragment) {
         const params = new URLSearchParams(fragment);
-        this.filterStatus.set(params.get('status') || 'all');
+        const statusParam = params.get('status');
+        this.filterStatus.set(statusParam ? statusParam.split(',') : ['new', 'flagged', 'approved', 'highlighted']);
         this.filterAuthor.set(params.get('author') || 'all');
-        this.filterPreference.set(params.get('preference') || 'all');
-        this.filterPotential.set(params.get('potential') || 'all');
+        const preferenceParam = params.get('preference');
+        this.filterPreference.set(preferenceParam ? preferenceParam.split(',') : [...this.preferenceOptions]);
+        const potentialParam = params.get('potential');
+        this.filterPotential.set(potentialParam ? potentialParam.split(',') : [...this.potentialOptions]);
         this.filterType.set(params.get('type') || 'all');
         this.searchText.set(params.get('search') || '');
         this.orderBy.set(params.get('order') || 'date');
@@ -195,7 +214,7 @@ export class ModerateComponent {
     let filtered = [...this.allFetchedItems()];
     
     // Status filter
-    if (this.filterStatus() !== 'all') {
+    if (this.filterStatus().length > 0) {
       const statusMap: any = {
         'new': 2,
         'flagged': 1,
@@ -203,9 +222,9 @@ export class ModerateComponent {
         'rejected': 0,
         'highlighted': 5
       };
-      const value = statusMap[this.filterStatus()];
-      if (value !== undefined) {
-        filtered = filtered.filter(item => item._private_moderation === value);
+      const allowedValues = this.filterStatus().map(status => statusMap[status]).filter(v => v !== undefined);
+      if (allowedValues.length > 0) {
+        filtered = filtered.filter(item => allowedValues.includes(item._private_moderation));
       }
     }
     
@@ -219,14 +238,13 @@ export class ModerateComponent {
     }
     
     // Preference filter
-    if (this.filterPreference() !== 'all') {
-      filtered = filtered.filter(item => item.favorable_future === this.filterPreference());
+    if (this.filterPreference().length > 0 && this.filterPreference().length < this.preferenceOptions.length) {
+      filtered = filtered.filter(item => this.filterPreference().includes(item.favorable_future));
     }
     
     // Potential filter
-    if (this.filterPotential() !== 'all') {
-      const potentialValue = parseInt(this.filterPotential(), 10);
-      filtered = filtered.filter(item => item.plausibility === potentialValue);
+    if (this.filterPotential().length > 0 && this.filterPotential().length < this.potentialOptions.length) {
+      filtered = filtered.filter(item => this.filterPotential().includes(String(item.plausibility)));
     }
     
     // Type filter
@@ -267,7 +285,7 @@ export class ModerateComponent {
     const filters: string[] = [];
     
     // Status filter
-    if (this.filterStatus() !== 'all') {
+    if (this.filterStatus().length > 0) {
       const statusMap: any = {
         'new': '2',
         'flagged': '1',
@@ -275,8 +293,15 @@ export class ModerateComponent {
         'rejected': '0',
         'highlighted': '5'
       };
-      const value = statusMap[this.filterStatus()];
-      if (value) filters.push(`metadata._private_moderation == ${value}`);
+      const values = this.filterStatus().map(status => statusMap[status]).filter(v => v !== undefined);
+      if (values.length > 0) {
+        if (values.length === 1) {
+          filters.push(`metadata._private_moderation == ${values[0]}`);
+        } else {
+          const conditions = values.map(v => `metadata._private_moderation == ${v}`).join(' OR ');
+          filters.push(`(${conditions})`);
+        }
+      }
     }
     
     // Author filter
@@ -289,13 +314,13 @@ export class ModerateComponent {
     }
     
     // Preference filter
-    if (this.filterPreference() !== 'all') {
-      filters.push(`metadata.favorable_future == "${this.filterPreference()}"`);
+    if (this.filterPreference().length > 0 && this.filterPreference().length < this.preferenceOptions.length) {
+      filters.push(`metadata.favorable_future IN [${this.filterPreference().map(p => `"${p}"`).join(', ')}]`);
     }
     
     // Potential filter
-    if (this.filterPotential() !== 'all') {
-      filters.push(`metadata.plausibility == ${this.filterPotential()}`);
+    if (this.filterPotential().length > 0 && this.filterPotential().length < this.potentialOptions.length) {
+      filters.push(`metadata.plausibility IN [${this.filterPotential().map(p => parseInt(p)).join(', ')}]`);
     }
     
     // Type filter
@@ -314,24 +339,110 @@ export class ModerateComponent {
   
   updateHashParams(): void {
     const params = new URLSearchParams();
-    if (this.filterStatus() !== 'all') params.set('status', this.filterStatus());
+    if (this.filterStatus().length > 0) params.set('status', this.filterStatus().join(','));
     if (this.filterAuthor() !== 'all') params.set('author', this.filterAuthor());
-    if (this.filterPreference() !== 'all') params.set('preference', this.filterPreference());
-    if (this.filterPotential() !== 'all') params.set('potential', this.filterPotential());
+    if (this.filterPreference().length > 0 && this.filterPreference().length < this.preferenceOptions.length) params.set('preference', this.filterPreference().join(','));
+    if (this.filterPotential().length > 0 && this.filterPotential().length < this.potentialOptions.length) params.set('potential', this.filterPotential().join(','));
     if (this.filterType() !== 'all') params.set('type', this.filterType());
     if (this.searchText()) params.set('search', this.searchText());
     if (this.orderBy() !== 'date') params.set('order', this.orderBy());
     params.set('view', this.viewMode());
     
     const fragment = params.toString();
-    window.location.hash = fragment;
+    if (typeof window !== 'undefined') {
+      window.location.hash = fragment;
+    }
   }
   
+  toggleStatusDropdown(): void {
+    const next = !this.statusDropdownOpen();
+    this.statusDropdownOpen.set(next);
+    if (next) {
+      this.preferenceDropdownOpen.set(false);
+      this.potentialDropdownOpen.set(false);
+    }
+  }
+
+    toggleStatusFilter(status: string): void {
+      const current = this.filterStatus();
+      if (current.includes(status)) {
+        this.filterStatus.set(current.filter(s => s !== status));
+      } else {
+        this.filterStatus.set([...current, status]);
+      }
+      this.updateHashParams();
+      this.applyFiltersAndSort();
+    }
+
+    isStatusSelected(status: string): boolean {
+      return this.filterStatus().includes(status);
+    }
+
+    getSelectedStatusCount(): number {
+      return this.filterStatus().length;
+    }
+
+    togglePreferenceDropdown(): void {
+      const next = !this.preferenceDropdownOpen();
+      this.preferenceDropdownOpen.set(next);
+      if (next) {
+        this.statusDropdownOpen.set(false);
+        this.potentialDropdownOpen.set(false);
+      }
+    }
+
+    togglePreferenceFilter(value: string): void {
+      const current = this.filterPreference();
+      if (current.includes(value)) {
+        this.filterPreference.set(current.filter(v => v !== value));
+      } else {
+        this.filterPreference.set([...current, value]);
+      }
+      this.updateHashParams();
+      this.applyFiltersAndSort();
+    }
+
+    isPreferenceSelected(value: string): boolean {
+      return this.filterPreference().includes(value);
+    }
+
+    getSelectedPreferenceCount(): number {
+      return this.filterPreference().length;
+    }
+
+    togglePotentialDropdown(): void {
+      const next = !this.potentialDropdownOpen();
+      this.potentialDropdownOpen.set(next);
+      if (next) {
+        this.statusDropdownOpen.set(false);
+        this.preferenceDropdownOpen.set(false);
+      }
+    }
+
+    togglePotentialFilter(value: string): void {
+      const current = this.filterPotential();
+      if (current.includes(value)) {
+        this.filterPotential.set(current.filter(v => v !== value));
+      } else {
+        this.filterPotential.set([...current, value]);
+      }
+      this.updateHashParams();
+      this.applyFiltersAndSort();
+    }
+
+    isPotentialSelected(value: string): boolean {
+      return this.filterPotential().includes(value);
+    }
+
+    getSelectedPotentialCount(): number {
+      return this.filterPotential().length;
+    }
+
   clearAllFilters(): void {
-    this.filterStatus.set('all');
+    this.filterStatus.set(['new', 'flagged', 'approved', 'highlighted']);
     this.filterAuthor.set('all');
-    this.filterPreference.set('all');
-    this.filterPotential.set('all');
+    this.filterPreference.set([...this.preferenceOptions]);
+    this.filterPotential.set([...this.potentialOptions]);
     this.filterType.set('all');
     this.searchText.set('');
     this.page.set(0);
@@ -667,9 +778,118 @@ export class ModerateComponent {
 
   selectItem(item: any): void {
     this.selectedItem.set(item);
+    // Find and set the index of the selected item
+    const index = this.items().findIndex(i => i._id === item._id);
+    this.selectedItemIndex.set(index);
+    this.lightboxSidebarOpen.set(false);
+    // Scroll to top when opening lightbox
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }
 
   closeSidebar(): void {
+    const currentItem = this.selectedItem();
+    if (currentItem) {
+      // Trigger re-analysis when closing
+      this.triggerReanalysis(currentItem);
+    }
     this.selectedItem.set(null);
+    this.lightboxSidebarOpen.set(false);
+  }
+
+  nextItem(): void {
+    const currentItem = this.selectedItem();
+    if (currentItem) {
+      // Trigger re-analysis before moving to next item
+      this.triggerReanalysis(currentItem);
+    }
+    const index = this.selectedItemIndex();
+    if (index < this.items().length - 1) {
+      this.selectItem(this.items()[index + 1]);
+    }
+  }
+
+  prevItem(): void {
+    const currentItem = this.selectedItem();
+    if (currentItem) {
+      // Trigger re-analysis before moving to previous item
+      this.triggerReanalysis(currentItem);
+    }
+    const index = this.selectedItemIndex();
+    if (index > 0) {
+      this.selectItem(this.items()[index - 1]);
+    }
+  }
+
+  triggerReanalysis(item: any): void {
+    const workspaceId = this.workspaceId();
+    const apiKey = this.apiKey();
+    if (workspaceId && apiKey && item) {
+      // Clear embedding and automated analysis fields to trigger backend re-analysis
+      const updateData: any = {
+        embedding: null,
+        future_scenario_topics: null,
+        content_certainty: null,
+        transition_bar_certainty: null,
+        transition_bar_event_prediction: null,
+      };
+      this.api.updateItem(workspaceId, apiKey, item._id, updateData).subscribe(
+        data => {
+          console.log('item re-analysis triggered', data);
+        },
+        error => {
+          console.error('Error triggering re-analysis', error);
+        }
+      );
+    }
+  }
+
+  toggleLightboxSidebar(): void {
+    this.lightboxSidebarOpen.update(v => !v);
+  }
+
+  autoSaveScreenshotType(item: any): void {
+    const workspaceId = this.workspaceId();
+    const apiKey = this.apiKey();
+    if (workspaceId && apiKey) {
+      this.api.updateItem(workspaceId, apiKey, item._id, { screenshot_type: item.screenshot_type }).subscribe(
+        data => console.log('screenshot_type updated', data),
+        error => console.error('Error updating screenshot_type', error)
+      );
+    }
+  }
+
+  autoSaveContent(item: any): void {
+    const workspaceId = this.workspaceId();
+    const apiKey = this.apiKey();
+    if (workspaceId && apiKey) {
+      this.api.updateItem(workspaceId, apiKey, item._id, { content: item.content }).subscribe(
+        data => console.log('content updated', data),
+        error => console.error('Error updating content', error)
+      );
+    }
+  }
+
+  autoSaveTransitionBarEvent(item: any): void {
+    const workspaceId = this.workspaceId();
+    const apiKey = this.apiKey();
+    if (workspaceId && apiKey) {
+      this.api.updateItem(workspaceId, apiKey, item._id, { transition_bar_event: item.transition_bar_event || null }).subscribe(
+        data => console.log('transition_bar_event updated', data),
+        error => console.error('Error updating transition_bar_event', error)
+      );
+    }
+  }
+
+  autoSaveTransitionBarPosition(item: any): void {
+    const workspaceId = this.workspaceId();
+    const apiKey = this.apiKey();
+    if (workspaceId && apiKey) {
+      this.api.updateItem(workspaceId, apiKey, item._id, { transition_bar_position: item.transition_bar_position || null }).subscribe(
+        data => console.log('transition_bar_position updated', data),
+        error => console.error('Error updating transition_bar_position', error)
+      );
+    }
   }
 }
