@@ -342,7 +342,76 @@ Showcases are public-facing visualizations of workspace data.
 ng g c app/showcase/my-showcase
 ```
 
-### 2. Add Showcase Route
+### 2. Lightbox with Chat Feature
+
+The platform includes a lightbox component with integrated chat functionality for discussing items in showcase views. This feature allows users to click on any photo in a showcase to:
+
+- View it in full screen
+- Open a chat sidebar to discuss and analyze the item
+- Receive AI-powered insights about the image
+- Use pre-baked conversation options
+- Approve metadata changes
+
+#### Using the Lightbox
+
+The lightbox is integrated into the showcase-ws component:
+
+```typescript
+import { LightboxService } from './lightbox.service';
+import { ThreeRendererService } from './three-renderer.service';
+
+export class ShowcaseComponent {
+  private lightboxService = inject(LightboxService);
+  private rendererService = inject(ThreeRendererService);
+
+  ngOnInit() {
+    // Set up photo click handler
+    this.rendererService.setPhotoClickCallback((photoId: string, photoData: PhotoData) => {
+      this.lightboxService.openLightbox(photoData.metadata);
+    });
+  }
+}
+```
+
+#### Lightbox Service API
+
+```typescript
+// Open lightbox with photo
+lightboxService.openLightbox(photoMetadata: PhotoMetadata);
+
+// Close lightbox
+lightboxService.closeLightbox();
+
+// Toggle chat sidebar
+lightboxService.toggleChat();
+
+// Update photo metadata
+lightboxService.updatePhotoMetadata(metadata: Partial<PhotoMetadata>);
+```
+
+#### Customizing the Chat
+
+The chat component supports:
+- Initial AI analysis display
+- Pre-baked response options
+- Metadata change approval workflow
+- Backup creation for previous content
+
+To customize pre-baked options:
+
+```typescript
+export class LightboxChatComponent {
+  prebakedOptions: PrebakedOption[] = [
+    {
+      id: 'custom-option',
+      label: 'Your Label',
+      prompt: 'The full prompt text to send'
+    }
+  ];
+}
+```
+
+### 3. Add Showcase Route
 
 ```typescript
 // app.routes.ts
