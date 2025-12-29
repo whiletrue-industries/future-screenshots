@@ -38,8 +38,11 @@ export class ModerateComponent {
   // Individual filters
   filterStatus = signal<string[]>(['new', 'flagged', 'approved', 'highlighted']);
   filterAuthor = signal<string>('all');
-  filterPreference = signal<string>('all');
-  filterPotential = signal<string>('all');
+  preferenceOptions = ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'];
+  potentialOptions = ['100', '75', '50', '25', '0'];
+
+  filterPreference = signal<string[]>([...this.preferenceOptions]);
+  filterPotential = signal<string[]>([...this.potentialOptions]);
   filterType = signal<string>('all');
   searchText = signal<string>('');
   orderBy = signal<string>('date');
@@ -64,6 +67,8 @@ export class ModerateComponent {
   lightboxSidebarOpen = signal<boolean>(false);
   selectedItemIndex = signal<number>(-1);
    statusDropdownOpen = signal<boolean>(false);
+  preferenceDropdownOpen = signal<boolean>(false);
+  potentialDropdownOpen = signal<boolean>(false);
 
   items = signal<any[]>([]);
   indexLink = signal<string | null>(null);
@@ -98,8 +103,10 @@ export class ModerateComponent {
         const statusParam = params.get('status');
         this.filterStatus.set(statusParam ? statusParam.split(',') : ['new', 'flagged', 'approved', 'highlighted']);
         this.filterAuthor.set(params.get('author') || 'all');
-        this.filterPreference.set(params.get('preference') || 'all');
-        this.filterPotential.set(params.get('potential') || 'all');
+        const preferenceParam = params.get('preference');
+        this.filterPreference.set(preferenceParam ? preferenceParam.split(',') : [...this.preferenceOptions]);
+        const potentialParam = params.get('potential');
+        this.filterPotential.set(potentialParam ? potentialParam.split(',') : [...this.potentialOptions]);
         this.filterType.set(params.get('type') || 'all');
         this.searchText.set(params.get('search') || '');
         this.orderBy.set(params.get('order') || 'date');
@@ -231,14 +238,13 @@ export class ModerateComponent {
     }
     
     // Preference filter
-    if (this.filterPreference() !== 'all') {
-      filtered = filtered.filter(item => item.favorable_future === this.filterPreference());
+    if (this.filterPreference().length > 0 && this.filterPreference().length < this.preferenceOptions.length) {
+      filtered = filtered.filter(item => this.filterPreference().includes(item.favorable_future));
     }
     
     // Potential filter
-    if (this.filterPotential() !== 'all') {
-      const potentialValue = parseInt(this.filterPotential(), 10);
-      filtered = filtered.filter(item => item.plausibility === potentialValue);
+    if (this.filterPotential().length > 0 && this.filterPotential().length < this.potentialOptions.length) {
+      filtered = filtered.filter(item => this.filterPotential().includes(String(item.plausibility)));
     }
     
     // Type filter
@@ -308,13 +314,13 @@ export class ModerateComponent {
     }
     
     // Preference filter
-    if (this.filterPreference() !== 'all') {
-      filters.push(`metadata.favorable_future == "${this.filterPreference()}"`);
+    if (this.filterPreference().length > 0 && this.filterPreference().length < this.preferenceOptions.length) {
+      filters.push(`metadata.favorable_future IN [${this.filterPreference().map(p => `"${p}"`).join(', ')}]`);
     }
     
     // Potential filter
-    if (this.filterPotential() !== 'all') {
-      filters.push(`metadata.plausibility == ${this.filterPotential()}`);
+    if (this.filterPotential().length > 0 && this.filterPotential().length < this.potentialOptions.length) {
+      filters.push(`metadata.plausibility IN [${this.filterPotential().map(p => parseInt(p)).join(', ')}]`);
     }
     
     // Type filter
@@ -335,8 +341,8 @@ export class ModerateComponent {
     const params = new URLSearchParams();
     if (this.filterStatus().length > 0) params.set('status', this.filterStatus().join(','));
     if (this.filterAuthor() !== 'all') params.set('author', this.filterAuthor());
-    if (this.filterPreference() !== 'all') params.set('preference', this.filterPreference());
-    if (this.filterPotential() !== 'all') params.set('potential', this.filterPotential());
+    if (this.filterPreference().length > 0 && this.filterPreference().length < this.preferenceOptions.length) params.set('preference', this.filterPreference().join(','));
+    if (this.filterPotential().length > 0 && this.filterPotential().length < this.potentialOptions.length) params.set('potential', this.filterPotential().join(','));
     if (this.filterType() !== 'all') params.set('type', this.filterType());
     if (this.searchText()) params.set('search', this.searchText());
     if (this.orderBy() !== 'date') params.set('order', this.orderBy());
@@ -348,9 +354,14 @@ export class ModerateComponent {
     }
   }
   
-    toggleStatusDropdown(): void {
-      this.statusDropdownOpen.set(!this.statusDropdownOpen());
+  toggleStatusDropdown(): void {
+    const next = !this.statusDropdownOpen();
+    this.statusDropdownOpen.set(next);
+    if (next) {
+      this.preferenceDropdownOpen.set(false);
+      this.potentialDropdownOpen.set(false);
     }
+  }
 
     toggleStatusFilter(status: string): void {
       const current = this.filterStatus();
@@ -371,11 +382,67 @@ export class ModerateComponent {
       return this.filterStatus().length;
     }
 
+    togglePreferenceDropdown(): void {
+      const next = !this.preferenceDropdownOpen();
+      this.preferenceDropdownOpen.set(next);
+      if (next) {
+        this.statusDropdownOpen.set(false);
+        this.potentialDropdownOpen.set(false);
+      }
+    }
+
+    togglePreferenceFilter(value: string): void {
+      const current = this.filterPreference();
+      if (current.includes(value)) {
+        this.filterPreference.set(current.filter(v => v !== value));
+      } else {
+        this.filterPreference.set([...current, value]);
+      }
+      this.updateHashParams();
+      this.applyFiltersAndSort();
+    }
+
+    isPreferenceSelected(value: string): boolean {
+      return this.filterPreference().includes(value);
+    }
+
+    getSelectedPreferenceCount(): number {
+      return this.filterPreference().length;
+    }
+
+    togglePotentialDropdown(): void {
+      const next = !this.potentialDropdownOpen();
+      this.potentialDropdownOpen.set(next);
+      if (next) {
+        this.statusDropdownOpen.set(false);
+        this.preferenceDropdownOpen.set(false);
+      }
+    }
+
+    togglePotentialFilter(value: string): void {
+      const current = this.filterPotential();
+      if (current.includes(value)) {
+        this.filterPotential.set(current.filter(v => v !== value));
+      } else {
+        this.filterPotential.set([...current, value]);
+      }
+      this.updateHashParams();
+      this.applyFiltersAndSort();
+    }
+
+    isPotentialSelected(value: string): boolean {
+      return this.filterPotential().includes(value);
+    }
+
+    getSelectedPotentialCount(): number {
+      return this.filterPotential().length;
+    }
+
   clearAllFilters(): void {
     this.filterStatus.set(['new', 'flagged', 'approved', 'highlighted']);
     this.filterAuthor.set('all');
-    this.filterPreference.set('all');
-    this.filterPotential.set('all');
+    this.filterPreference.set([...this.preferenceOptions]);
+    this.filterPotential.set([...this.potentialOptions]);
     this.filterType.set('all');
     this.searchText.set('');
     this.page.set(0);
