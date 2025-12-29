@@ -15,11 +15,13 @@ import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
+import { LightboxComponent } from './lightbox/lightbox.component';
+import { LightboxService } from './lightbox.service';
 import e from 'express';
 
 @Component({
   selector: 'app-showcase-ws',
-  imports: [QrcodeComponent],
+  imports: [QrcodeComponent, LightboxComponent],
   templateUrl: './showcase-ws.component.html',
   styleUrl: './showcase-ws.component.less'
 })
@@ -49,7 +51,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     private apiService: ApiService,
     private http: HttpClient,
     private platform: PlatformService,
-    private rendererService: ThreeRendererService
+    private rendererService: ThreeRendererService,
+    private lightboxService: LightboxService
   ) {
     this.activatedRoute = route;
     this.photoRepository = new PhotoDataRepository();
@@ -230,6 +233,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
       });
     
+    // Set up photo click handler for lightbox
+    this.rendererService.setPhotoClickCallback((photoId: string, photoData: PhotoData) => {
+      this.onPhotoClick(photoId, photoData);
+    });
+    
     // Start initial polling after component is ready
     if (this.platform.browser()) {
       timer(ANIMATION_CONSTANTS.INITIAL_POLLING_DELAY).subscribe(() => {
@@ -238,6 +246,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         });
       });
     }
+  }
+
+  /**
+   * Handle photo click to open lightbox
+   */
+  private onPhotoClick(photoId: string, photoData: PhotoData): void {
+    // Open lightbox with the clicked photo's metadata
+    this.lightboxService.openLightbox(photoData.metadata);
   }
 
   /**

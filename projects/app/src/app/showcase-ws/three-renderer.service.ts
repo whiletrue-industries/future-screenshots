@@ -83,6 +83,11 @@ export class ThreeRendererService {
   private meshToPhotoData = new Map<THREE.Mesh, any>(); // Store PhotoData for drag callbacks
   private currentLayoutStrategy: any = null; // Store reference to current layout strategy
   
+  // Click detection
+  private mouseDownPosition = new THREE.Vector2();
+  private mouseDownTime = 0;
+  private onPhotoClickCallback?: (photoId: string, photoData: any) => void;
+  
   // SVG Container for hotspot detection
   private svgContainer: HTMLElement | null = null;
   
@@ -971,6 +976,13 @@ export class ThreeRendererService {
     }
   }
 
+  /**
+   * Set callback for photo click events
+   */
+  setPhotoClickCallback(callback: (photoId: string, photoData: any) => void): void {
+    this.onPhotoClickCallback = callback;
+  }
+
   private setupDragAndDrop(): void {
     if (!this.container) {
       console.warn('Container not available for drag setup');
@@ -1042,6 +1054,10 @@ export class ThreeRendererService {
   }
 
   private onMouseDown(): void {
+    // Record mouse down position and time for click detection
+    this.mouseDownPosition.copy(this.mouse);
+    this.mouseDownTime = Date.now();
+    
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(this.root.children, false);
 
@@ -1150,6 +1166,12 @@ export class ThreeRendererService {
   }
 
   private onMouseUp(): void {
+    // Check if this was a click (not a drag)
+    const mouseUpTime = Date.now();
+    const timeDiff = mouseUpTime - this.mouseDownTime;
+    const distance = this.mouse.distanceTo(this.mouseDownPosition);
+    const wasClick = timeDiff < 300 && distance < 0.05; // Click threshold: 300ms and small movement
+    
     if (this.isDragging && this.draggedMesh) {
       const draggedMesh = this.draggedMesh; // Store reference before clearing
       this.isDragging = false;
@@ -1180,10 +1202,33 @@ export class ThreeRendererService {
         }
       }
       
+      // Handle click event if it was a click, not a drag
+      if (wasClick && this.onPhotoClickCallback) {
+        const photoId = this.findPhotoIdForMesh(draggedMesh);
+        const photoData = this.meshToPhotoData.get(draggedMesh);
+        if (photoId && photoData) {
+          this.onPhotoClickCallback(photoId, photoData);
+        }
+      }
+      
       this.draggedMesh = null;
       this.hoveredMesh = null; // Clear hovered mesh on drop
       this.currentMatchedHotspot = null; // Clear matched hotspot
       this.renderer.domElement.style.cursor = 'default';
+    } else if (wasClick && this.onPhotoClickCallback) {
+      // Handle clicks on non-draggable photos
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+      const intersects = this.raycaster.intersectObjects(this.root.children, false);
+      
+      if (intersects.length > 0) {
+        const clickedMesh = intersects[0].object as THREE.Mesh;
+        const photoId = this.findPhotoIdForMesh(clickedMesh);
+        const photoData = this.meshToPhotoData.get(clickedMesh);
+        
+        if (photoId && photoData) {
+          this.onPhotoClickCallback(photoId, photoData);
+        }
+      }
     }
   }
 

@@ -1,0 +1,78 @@
+<div class='chat-container'>
+  <div class='chat-header'>
+    <h3>Discuss this future</h3>
+  </div>
+
+  <div class='chat-messages'>
+    <app-messages [bg]='false'>
+      @for (msg of messages(); track msg) {
+        <div class='message' [class.ai]='msg.kind === "ai"' [class.human]='msg.kind === "human"' ltr>
+          <div class='message-text'>{{ msg.text }}</div>
+        </div>
+      }
+      @if (thinking()) {
+        <div class='message ai thinking' ltr>
+          <div class='message-text'>
+            <span class='typing-indicator'>
+              <span></span>
+              <span></span>
+              <span></span>
+            </span>
+          </div>
+        </div>
+      }
+    </app-messages>
+
+    <!-- Pre-baked options -->
+    @if (showPrebakedOptions() && !thinking()) {
+      <div class='prebaked-options'>
+        @for (option of prebakedOptions; track option.id) {
+          <button 
+            class='option-button'
+            (click)='selectPrebakedOption(option)'>
+            {{ option.label }}
+          </button>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Metadata approval dialog -->
+  @if (pendingMetadataChanges()) {
+    <div class='metadata-approval'>
+      <div class='approval-header'>
+        <h4>Approve Changes?</h4>
+        <p>The conversation suggests the following changes to this item's metadata:</p>
+      </div>
+      <div class='approval-actions'>
+        <button class='approve-button' (click)='approveMetadataChanges()'>
+          Approve Changes
+        </button>
+        <button class='reject-button' (click)='rejectMetadataChanges()'>
+          Cancel
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Input area -->
+  <div class='chat-input'>
+    <textarea
+      class='input-field'
+      [(ngModel)]='inputMessage'
+      (keyup.enter)='submitMessage()'
+      [disabled]='thinking()'
+      rows='2'
+      placeholder='Share your thoughts...'
+    ></textarea>
+    <button 
+      class='send-button'
+      (click)='submitMessage()'
+      [disabled]='thinking() || !inputMessage().trim()'
+      aria-label='Send message'>
+      <svg viewBox='0 0 24 24' width='20' height='20'>
+        <path d='M2.01 21L23 12 2.01 3 2 10l15 2-15 2z' fill='currentColor'/>
+      </svg>
+    </button>
+  </div>
+</div>
