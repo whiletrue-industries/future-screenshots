@@ -38,20 +38,37 @@
                 </a>
             </div>
             <div class='button-row'>
-                <a (click)='downloadImage()' class="button primary">
-                    <svg width="25" height="24" viewBox="0 0 25 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <g clip-path="url(#clip0_1892_11452)">
-                            <path d="M12.25 11.8477V20.3477M15.25 13.8477L12.25 10.8477L9.25 13.8477" stroke="#FFFDF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M8.63647 18.7721L4.9375 18.7188C4.38522 18.7188 3.9375 18.271 3.9375 17.7188V11.7187C3.9375 8.40504 6.62379 5.71875 9.9375 5.71875C9.9375 5.71875 11.8003 5.71875 13.9374 5.71875C17.2511 5.71875 19.9375 8.40504 19.9375 11.7188V12.7188C19.9375 15.4316 18.137 17.724 15.6659 18.4661" stroke="#FFFDF6" stroke-width="2" stroke-linecap="round"/>
-                        </g>
-                        <defs>
-                            <clipPath id="clip0_1892_11452">
-                                <rect width="24" height="24" fill="white" transform="translate(0.25)"/>
-                            </clipPath>
-                        </defs>
-                    </svg>
-                    <span i18n>Share to Group</span>
-                </a>                
+                @if (hasShareGroupLink()) {
+                    <a (click)='shareToGroup()' class="button primary">
+                        <svg width="25" height="24" viewBox="0 0 25 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <g clip-path="url(#clip0_1892_11452)">
+                                <path d="M12.25 11.8477V20.3477M15.25 13.8477L12.25 10.8477L9.25 13.8477" stroke="#FFFDF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M8.63647 18.7721L4.9375 18.7188C4.38522 18.7188 3.9375 18.271 3.9375 17.7188V11.7187C3.9375 8.40504 6.62379 5.71875 9.9375 5.71875C9.9375 5.71875 11.8003 5.71875 13.9374 5.71875C17.2511 5.71875 19.9375 8.40504 19.9375 11.7188V12.7188C19.9375 15.4316 18.137 17.724 15.6659 18.4661" stroke="#FFFDF6" stroke-width="2" stroke-linecap="round"/>
+                            </g>
+                            <defs>
+                                <clipPath id="clip0_1892_11452">
+                                    <rect width="24" height="24" fill="white" transform="translate(0.25)"/>
+                                </clipPath>
+                            </defs>
+                        </svg>
+                        <span i18n>Share to Group</span>
+                    </a>
+                } @else {
+                    <a (click)='downloadImage()' class="button primary">
+                        <svg width="25" height="24" viewBox="0 0 25 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <g clip-path="url(#clip0_1892_11452)">
+                                <path d="M12.25 11.8477V20.3477M15.25 13.8477L12.25 10.8477L9.25 13.8477" stroke="#FFFDF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M8.63647 18.7721L4.9375 18.7188C4.38522 18.7188 3.9375 18.271 3.9375 17.7188V11.7187C3.9375 8.40504 6.62379 5.71875 9.9375 5.71875C9.9375 5.71875 11.8003 5.71875 13.9374 5.71875C17.2511 5.71875 19.9375 8.40504 19.9375 11.7188V12.7188C19.9375 15.4316 18.137 17.724 15.6659 18.4661" stroke="#FFFDF6" stroke-width="2" stroke-linecap="round"/>
+                            </g>
+                            <defs>
+                                <clipPath id="clip0_1892_11452">
+                                    <rect width="24" height="24" fill="white" transform="translate(0.25)"/>
+                                </clipPath>
+                            </defs>
+                        </svg>
+                        <span i18n>Share to Group</span>
+                    </a>
+                }
             </div>
         }
 

@@ -33,6 +33,7 @@ export class WorkspaceFormComponent implements OnInit {
     languages: [],
     facilitator_names: [''],
     keywords: [],
+    share_group_link: '',
     'context-label': '',
     source: '',
     'email-template': ''
