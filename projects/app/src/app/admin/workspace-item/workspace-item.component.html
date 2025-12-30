@@ -12,25 +12,29 @@
             <a [routerLink]="['/admin/moderate']" [queryParams]="{ api_key: w.keys.admin, workspace: w.id }">Moderate Workspace</a>
         </div>
         <div class='links'>
-            <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, admin_key: w.keys.admin }">Workshop Big Screen</a>
+            <span>Workshop Big Screen - see items added in real time</span>
+            <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, admin_key: w.keys.admin }">(EN)</a>
             <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, lang: 'nl', admin_key: w.keys.admin }">(NL)</a>
             <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, lang: 'he', admin_key: w.keys.admin }">(HE)</a>
             <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, lang: 'ar', admin_key: w.keys.admin }">(AR)</a>
         </div>
         <div class='links'>
-            <a [href]='"/" + ingestSuffix()'>Ingest (Regular)</a>
+            <span>Ingest (Regular) - scan and evaluate</span>
+            <a [href]='"/" + ingestSuffix()'>(EN)</a>
             <a [href]='"/nl/" + ingestSuffix()'>(NL)</a>
             <a [href]='"/he/" + ingestSuffix()'>(HE)</a>
             <a [href]='"/ar/" + ingestSuffix()'>(AR)</a>
         </div>
         <div class='links'>
-            <a [href]='"/" + ingestSuffixWorkshop()'>Ingest (Workshop)</a>
+            <span>Ingest (Workshop) - scan and share</span>
+            <a [href]='"/" + ingestSuffixWorkshop()'>(EN)</a>
             <a [href]='"/nl/" + ingestSuffixWorkshop()'>(NL)</a>
             <a [href]='"/he/" + ingestSuffixWorkshop()'>(HE)</a>
             <a [href]='"/ar/" + ingestSuffixWorkshop()'>(AR)</a>
         </div>
         <div class='links'>
-            <a [routerLink]="['/']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, automatic: 'true' }">Ingest (Automatic)</a>
+            <span>Ingest (Automatic) - batch scan</span>
+            <a [routerLink]="['/']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, automatic: 'true' }">Link</a>
         </div>
     </div>
 }
