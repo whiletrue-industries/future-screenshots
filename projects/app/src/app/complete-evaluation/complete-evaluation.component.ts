@@ -94,32 +94,65 @@ export class CompleteEvaluationComponent {
     const item = this.api.item();
     const workspaceId = this.api.workspaceId();
     const itemId = this.api.itemId();
+    const screenshotUrl = item.screenshot_url;
     
-    if (!workspaceId || !itemId) {
-      console.error('Workspace ID or Item ID is missing');
+    if (!workspaceId || !itemId || !screenshotUrl) {
+      console.error('Missing required data for sharing');
       return;
     }
 
-    // Create a message with the screenshot link
+    // Create a message with the screenshot link and group info
     const itemUrl = `https://mapfutur.es/props?workspace=${workspaceId}&item-id=${itemId}`;
     const message = item.future_scenario_tagline 
-      ? `${item.future_scenario_tagline}\n\n${itemUrl}`
-      : `Check out this future scenario: ${itemUrl}`;
+      ? `${item.future_scenario_tagline}\n\n${itemUrl}\n\nGroup: ${groupLink}`
+      : `Check out this future scenario: ${itemUrl}\n\nGroup: ${groupLink}`;
 
-    // Open the group link with the message
-    // For WhatsApp: append ?text= parameter
-    // For Signal: the link itself will open the app
-    let shareUrl = groupLink;
-    if (groupLink.includes('whatsapp.com')) {
-      // WhatsApp web/app URL with pre-filled text
-      shareUrl = `${groupLink}?text=${encodeURIComponent(message)}`;
-    } else if (groupLink.includes('signal.group') || groupLink.includes('signal.me')) {
-      // Signal doesn't support pre-filled messages via URL, so just open the group
-      // User will need to paste/share manually
-      shareUrl = groupLink;
-    }
-
-    // Open in new window/tab or redirect
-    window.open(shareUrl, '_blank');
+    // Download the image and share it using native share API
+    this.http.get(screenshotUrl, { responseType: 'blob' }).pipe(
+      switchMap((blob: Blob) => {
+        const fileName = `screenshot-${itemId}.png`;
+        const file = new File([blob], fileName, { type: blob.type });
+        
+        // Check if Web Share API is available and supports files
+        if (navigator && navigator.canShare && navigator.canShare({ files: [file] })) {
+          // Use native share with both image and text
+          const shareData: ShareData = {
+            title: $localize`Our Future?`,
+            text: message,
+            files: [file]
+          };
+          return from(navigator.share(shareData)).pipe(
+            map(() => ({ success: true, method: 'native' }))
+          );
+        } else {
+          // Fallback: open group link in new tab and download image
+          window.open(groupLink, '_blank');
+          
+          // Also trigger download as fallback
+          return from(new Promise<string>(resolve => {
+            let reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          })).pipe(
+            map((dataUrl: string) => {
+              const link = document.createElement('a');
+              link.download = fileName;
+              link.href = dataUrl;
+              link.click();
+              return { success: true, method: 'fallback' };
+            })
+          );
+        }
+      })
+    ).subscribe({
+      next: (result) => {
+        console.log('Share to group completed:', result);
+      },
+      error: (error) => {
+        console.error('Error sharing to group:', error);
+        // Final fallback: just open the group link
+        window.open(groupLink, '_blank');
+      }
+    });
   }
 }
