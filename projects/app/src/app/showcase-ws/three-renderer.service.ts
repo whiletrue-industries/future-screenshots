@@ -11,8 +11,6 @@ export interface ThreeRendererOptions {
   cameraDamp?: number;   // default 6
   anisotropy?: number;   // default 4
   background?: number;   // default 0x0b0e13
-  clickThresholdDistance?: number; // pixels, default 5
-  clickThresholdTime?: number; // milliseconds, default 300
   svgBackground?: {
     enabled: boolean;
     svgElement?: SVGSVGElement;
@@ -85,13 +83,6 @@ export class ThreeRendererService {
   private meshToPhotoData = new Map<THREE.Mesh, any>(); // Store PhotoData for drag callbacks
   private currentLayoutStrategy: any = null; // Store reference to current layout strategy
   
-  // Click detection
-  private mouseDownPosition = new THREE.Vector2();
-  private mouseDownTime = 0;
-  private CLICK_THRESHOLD_DISTANCE: number;
-  private CLICK_THRESHOLD_TIME: number;
-  private onPhotoClickCallback?: (photoId: string) => void;
-  
   // SVG Container for hotspot detection
   private svgContainer: HTMLElement | null = null;
   
@@ -114,8 +105,6 @@ export class ThreeRendererService {
     this.CAM_DAMP = opts.cameraDamp ?? 0.1 * 10000;
     this.ANISO = opts.anisotropy ?? 4;
     this.BG = opts.background ?? 0xFFFDF6;
-    this.CLICK_THRESHOLD_DISTANCE = opts.clickThresholdDistance ?? 5; // pixels
-    this.CLICK_THRESHOLD_TIME = opts.clickThresholdTime ?? 300; // milliseconds
   }
 
   // Public API
@@ -528,13 +517,6 @@ export class ThreeRendererService {
    */
   setHotspotDropCallback(callback: (photoId: string, hotspotData: { [key: string]: string | number }, position: { x: number, y: number, z: number }) => Promise<void>): void {
     this.onHotspotDropCallback = callback;
-  }
-
-  /**
-   * Set photo click callback
-   */
-  setPhotoClickCallback(callback: (photoId: string) => void): void {
-    this.onPhotoClickCallback = callback;
   }
 
   /**
@@ -1060,10 +1042,6 @@ export class ThreeRendererService {
   }
 
   private onMouseDown(): void {
-    // Record mouse down position and time for click detection
-    this.mouseDownPosition.copy(this.mouse);
-    this.mouseDownTime = Date.now();
-    
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(this.root.children, false);
 
@@ -1172,50 +1150,33 @@ export class ThreeRendererService {
   }
 
   private onMouseUp(): void {
-    // Calculate time and distance since mouse down
-    const timeSinceDown = Date.now() - this.mouseDownTime;
-    const distanceMoved = this.mouse.distanceTo(this.mouseDownPosition);
-    
-    // Check if this was a click (short time and small distance)
-    const wasClick = timeSinceDown < this.CLICK_THRESHOLD_TIME && 
-                     distanceMoved < this.CLICK_THRESHOLD_DISTANCE;
-    
     if (this.isDragging && this.draggedMesh) {
       const draggedMesh = this.draggedMesh; // Store reference before clearing
       this.isDragging = false;
       
-      // If it was a click (not a drag), trigger click callback
-      if (wasClick && this.onPhotoClickCallback) {
+      // Animate preview widget drop with current matched hotspot
+      this.animatePreviewWidgetDrop(this.currentMatchedHotspot);
+      
+      // Call layout strategy drag end if available
+      if (this.currentLayoutStrategy && this.currentLayoutStrategy.onPhotoDragEnd) {
+        const photoData = this.meshToPhotoData.get(draggedMesh);
+        if (photoData) {
+          const endPosition = {
+            x: draggedMesh.position.x,
+            y: draggedMesh.position.y,
+            z: draggedMesh.position.z
+          };
+
+          // Call the async drag end handler
+          this.currentLayoutStrategy.onPhotoDragEnd(photoData, endPosition);
+        }
+      }
+      
+      // Check for hotspot collision in SVG mode
+      if (this.isInteractiveLayout()) {
         const photoId = this.findPhotoIdForMesh(draggedMesh);
         if (photoId) {
-          this.onPhotoClickCallback(photoId);
-        }
-      } else {
-        // It was a drag, so handle drag end logic
-        // Animate preview widget drop with current matched hotspot
-        this.animatePreviewWidgetDrop(this.currentMatchedHotspot);
-        
-        // Call layout strategy drag end if available
-        if (this.currentLayoutStrategy && this.currentLayoutStrategy.onPhotoDragEnd) {
-          const photoData = this.meshToPhotoData.get(draggedMesh);
-          if (photoData) {
-            const endPosition = {
-              x: draggedMesh.position.x,
-              y: draggedMesh.position.y,
-              z: draggedMesh.position.z
-            };
-
-            // Call the async drag end handler
-            this.currentLayoutStrategy.onPhotoDragEnd(photoData, endPosition);
-          }
-        }
-        
-        // Check for hotspot collision in SVG mode
-        if (this.isInteractiveLayout()) {
-          const photoId = this.findPhotoIdForMesh(draggedMesh);
-          if (photoId) {
-            this.checkHotspotCollision(draggedMesh, photoId);
-          }
+          this.checkHotspotCollision(draggedMesh, photoId);
         }
       }
       

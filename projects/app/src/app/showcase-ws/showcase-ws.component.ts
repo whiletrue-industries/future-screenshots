@@ -15,12 +15,11 @@ import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
-import { ShowcaseFiltersComponent, LayoutType } from './showcase-filters/showcase-filters.component';
-import { ShowcaseLightboxComponent } from './showcase-lightbox/showcase-lightbox.component';
+import e from 'express';
 
 @Component({
   selector: 'app-showcase-ws',
-  imports: [QrcodeComponent, ShowcaseFiltersComponent, ShowcaseLightboxComponent],
+  imports: [QrcodeComponent],
   templateUrl: './showcase-ws.component.html',
   styleUrl: './showcase-ws.component.less'
 })
@@ -36,17 +35,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   api_key = signal('');
   admin_key = signal('');
   lang = signal('');
-  currentLayout = signal<LayoutType>('circle-packing');
+  currentLayout = signal<'grid' | 'tsne' | 'svg' | 'circle-packing'>('circle-packing');
   enableRandomShowcase = signal(false);
-  resetLayoutOnFilter = signal(false);
   loadedPhotoIds = new Set<string>();
   private layoutChangeInProgress = false;
-  
-  // Lightbox state
-  lightboxOpen = signal(false);
-  lightboxPhotoId = signal<string | null>(null);
-  allPhotos = signal<PhotoMetadata[]>([]);
-  
   qrUrl = computed(() => 
     `https://mapfutur.es/${this.lang()}prescan?workspace=${this.workspace()}&api_key=${this.api_key()}&ws=true`
   );
@@ -186,11 +178,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT
     });
 
-    // Set up photo click callback for lightbox
-    this.rendererService.setPhotoClickCallback((photoId: string) => {
-      this.openLightbox(photoId);
-    });
-
     // Initialize PhotoDataRepository with default grid strategy first
     const defaultGridStrategy = new GridLayoutStrategy({
       photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
@@ -229,19 +216,18 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.photoRepository.photoAdded$
       .pipe(takeUntil(this.destroy$))
       .subscribe((photoData) => {
-        this.updateAllPhotos();
       });
 
     this.photoRepository.photoRemoved$
       .pipe(takeUntil(this.destroy$))
       .subscribe((photoId) => {
-        this.updateAllPhotos();
+
       });
 
     this.photoRepository.layoutChanged$
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
-        this.updateAllPhotos();
+
       });
     
     // Start initial polling after component is ready
@@ -486,95 +472,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
                        this.currentLayout() === 'svg' ? 2 : 3;
     const translateX = layoutIndex * 48; // 44px width + 4px gap
     return `translateX(${translateX}px)`;
-  }
-
-  /**
-   * Handle layout change from filters component
-   */
-  onLayoutChange(layout: LayoutType): void {
-    // Note: resetLayoutOnFilter feature is for future enhancement
-    // Currently, we just switch layouts without clearing photos
-    
-    switch (layout) {
-      case 'grid':
-        this.switchToGridLayout();
-        break;
-      case 'tsne':
-        this.switchToTsneLayout();
-        break;
-      case 'svg':
-        this.switchToSvgLayout();
-        break;
-      case 'circle-packing':
-        this.switchToCirclePackingLayout();
-        break;
-    }
-  }
-
-  /**
-   * Handle random showcase toggle from filters component
-   */
-  onRandomShowcaseToggle(): void {
-    this.toggleRandomShowcase();
-  }
-
-  /**
-   * Handle reset layout toggle from filters component
-   */
-  onResetLayoutToggle(): void {
-    this.resetLayoutOnFilter.set(!this.resetLayoutOnFilter());
-  }
-
-  /**
-   * Open lightbox with specific photo
-   */
-  openLightbox(photoId: string): void {
-    this.lightboxPhotoId.set(photoId);
-    this.lightboxOpen.set(true);
-  }
-
-  /**
-   * Close lightbox
-   */
-  closeLightbox(): void {
-    this.lightboxOpen.set(false);
-    this.lightboxPhotoId.set(null);
-  }
-
-  /**
-   * Navigate to previous or next photo in lightbox
-   */
-  navigateLightbox(direction: 'prev' | 'next'): void {
-    const photos = this.allPhotos();
-    const currentId = this.lightboxPhotoId();
-    
-    if (!currentId || photos.length === 0) {
-      return;
-    }
-    
-    const currentIndex = photos.findIndex(p => p.id === currentId);
-    if (currentIndex === -1) {
-      return;
-    }
-    
-    let newIndex: number;
-    if (direction === 'prev') {
-      newIndex = currentIndex > 0 ? currentIndex - 1 : currentIndex;
-    } else {
-      newIndex = currentIndex < photos.length - 1 ? currentIndex + 1 : currentIndex;
-    }
-    
-    if (newIndex !== currentIndex) {
-      this.lightboxPhotoId.set(photos[newIndex].id);
-    }
-  }
-
-  /**
-   * Update all photos list whenever photos are added
-   */
-  private updateAllPhotos(): void {
-    const photos = this.photoRepository.getAllPhotos();
-    this.allPhotos.set(photos.map(p => p.metadata));
   }
 
 
