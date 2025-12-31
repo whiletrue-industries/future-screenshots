@@ -11,6 +11,8 @@ export interface ThreeRendererOptions {
   cameraDamp?: number;   // default 6
   anisotropy?: number;   // default 4
   background?: number;   // default 0x0b0e13
+  clickThresholdDistance?: number; // pixels, default 5
+  clickThresholdTime?: number; // milliseconds, default 300
   svgBackground?: {
     enabled: boolean;
     svgElement?: SVGSVGElement;
@@ -86,8 +88,8 @@ export class ThreeRendererService {
   // Click detection
   private mouseDownPosition = new THREE.Vector2();
   private mouseDownTime = 0;
-  private readonly CLICK_THRESHOLD_DISTANCE = 5; // pixels
-  private readonly CLICK_THRESHOLD_TIME = 300; // milliseconds
+  private CLICK_THRESHOLD_DISTANCE: number;
+  private CLICK_THRESHOLD_TIME: number;
   private onPhotoClickCallback?: (photoId: string) => void;
   
   // SVG Container for hotspot detection
@@ -112,6 +114,8 @@ export class ThreeRendererService {
     this.CAM_DAMP = opts.cameraDamp ?? 0.1 * 10000;
     this.ANISO = opts.anisotropy ?? 4;
     this.BG = opts.background ?? 0xFFFDF6;
+    this.CLICK_THRESHOLD_DISTANCE = opts.clickThresholdDistance ?? 5; // pixels
+    this.CLICK_THRESHOLD_TIME = opts.clickThresholdTime ?? 300; // milliseconds
   }
 
   // Public API

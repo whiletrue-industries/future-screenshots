@@ -2,6 +2,17 @@ import { Component, input, output } from '@angular/core';
 
 export type LayoutType = 'grid' | 'tsne' | 'svg' | 'circle-packing';
 
+// Layout configuration for indicator positioning
+const LAYOUT_CONFIG: Record<LayoutType, { index: number }> = {
+  'grid': { index: 0 },
+  'tsne': { index: 1 },
+  'svg': { index: 2 },
+  'circle-packing': { index: 3 }
+};
+
+const BUTTON_WIDTH = 44; // px
+const BUTTON_GAP = 4; // px
+
 @Component({
   selector: 'app-showcase-filters',
   templateUrl: './showcase-filters.component.html',
@@ -43,10 +54,8 @@ export class ShowcaseFiltersComponent {
    * Calculate transform for layout selection indicator
    */
   getLayoutIndicatorTransform(): string {
-    const layoutIndex = this.currentLayout() === 'grid' ? 0 : 
-                       this.currentLayout() === 'tsne' ? 1 :
-                       this.currentLayout() === 'svg' ? 2 : 3;
-    const translateX = layoutIndex * 48; // 44px width + 4px gap
+    const config = LAYOUT_CONFIG[this.currentLayout()];
+    const translateX = config.index * (BUTTON_WIDTH + BUTTON_GAP);
     return `translateX(${translateX}px)`;
   }
 }

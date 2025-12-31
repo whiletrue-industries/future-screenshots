@@ -17,7 +17,6 @@ import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
 import { ShowcaseFiltersComponent, LayoutType } from './showcase-filters/showcase-filters.component';
 import { ShowcaseLightboxComponent } from './showcase-lightbox/showcase-lightbox.component';
-import e from 'express';
 
 @Component({
   selector: 'app-showcase-ws',
