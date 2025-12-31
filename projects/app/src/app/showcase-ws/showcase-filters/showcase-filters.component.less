@@ -1,0 +1,121 @@
+:host {
+    .controls-container {
+        display: flex;
+        flex-direction: row;
+        gap: 8px;
+
+        .control-tab {
+            position: relative;
+            background: white;
+            border-radius: 12px 12px 0 0;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+
+            .tab-background {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 1;
+            }
+
+            .tab-buttons {
+                position: relative;
+                z-index: 2;
+                display: flex;
+                padding: 8px;
+                gap: 4px;
+            }
+
+            .tab-button {
+                width: 44px;
+                height: 44px;
+                border: none;
+                background: transparent;
+                cursor: pointer;
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s ease;
+                color: #666;
+
+                &:hover {
+                    color: #333;
+                    background: rgba(0, 0, 0, 0.05);
+                }
+
+                &.active {
+                    color: white;
+                }
+
+                .button-icon {
+                    width: 24px;
+                    height: 24px;
+                    pointer-events: none;
+                }
+            }
+        }
+
+        .layout-tab {
+            .selection-indicator {
+                position: absolute;
+                top: 8px;
+                left: 8px;
+                width: 44px;
+                height: 44px;
+                background: #ccc;
+                border-radius: 8px;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                z-index: 1;
+            }
+        }
+
+        .showcase-tab {
+            .showcase-indicator {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: transparent;
+                transition: background-color 0.3s ease;
+                border-radius: 12px 12px 0 0;
+
+                &.active {
+                    background: #4CAF50;
+                }
+            }
+
+            .showcase-button {
+                &.active {
+                    color: white;
+                }
+            }
+        }
+
+        .reset-tab {
+            .reset-indicator {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: transparent;
+                transition: background-color 0.3s ease;
+                border-radius: 12px 12px 0 0;
+
+                &.active {
+                    background: #FF9800;
+                }
+            }
+
+            .reset-button {
+                &.active {
+                    color: white;
+                }
+            }
+        }
+    }
+}
