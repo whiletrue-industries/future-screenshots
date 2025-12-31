@@ -4,7 +4,16 @@
     width: 100%;
     height: 100%;
     display: flex;
+    flex-direction: column;
     position: relative;
+
+    app-filters-bar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+    }
 
     .container {
         width: 100%;
@@ -13,13 +22,14 @@
 
     .logo {
         position: absolute;
-        top: 20px;
+        top: 80px; // Moved down to accommodate filters bar
         left: 20px;
         width: 165px;
         height: 137px;
         .background-image;
         background-image: url(../../../public/futures-map-logo.svg);
         background-size: contain;
+        z-index: 10;
     }
 
     .controls-container {

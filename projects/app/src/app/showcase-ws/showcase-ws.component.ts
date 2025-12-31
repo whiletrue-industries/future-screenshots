@@ -15,11 +15,12 @@ import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
-import e from 'express';
+import { FiltersBarComponent, FilterOptions, FilterValues } from './filters-bar/filters-bar.component';
+import { LightboxComponent } from './lightbox/lightbox.component';
 
 @Component({
   selector: 'app-showcase-ws',
-  imports: [QrcodeComponent],
+  imports: [QrcodeComponent, FiltersBarComponent, LightboxComponent],
   templateUrl: './showcase-ws.component.html',
   styleUrl: './showcase-ws.component.less'
 })
@@ -39,6 +40,30 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   enableRandomShowcase = signal(false);
   loadedPhotoIds = new Set<string>();
   private layoutChangeInProgress = false;
+  
+  // Filters state
+  allPhotos = signal<PhotoMetadata[]>([]);
+  filteredPhotos = signal<PhotoMetadata[]>([]);
+  filterOptions = signal<FilterOptions>({
+    statuses: ['new', 'flagged', 'approved', 'highlighted'],
+    authors: [],
+    preferences: ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'],
+    potentials: ['100', '75', '50', '25', '0'],
+    types: []
+  });
+  filterCounts = {
+    status: signal<Map<string, number>>(new Map()),
+    author: signal<Map<string, number>>(new Map()),
+    preference: signal<Map<string, number>>(new Map()),
+    potential: signal<Map<string, number>>(new Map()),
+    type: signal<Map<string, number>>(new Map())
+  };
+  resetLayoutOnFilter = signal(false);
+  
+  // Lightbox state
+  lightboxOpen = signal(false);
+  lightboxPhotoId = signal<string | null>(null);
+  
   qrUrl = computed(() => 
     `https://mapfutur.es/${this.lang()}prescan?workspace=${this.workspace()}&api_key=${this.api_key()}&ws=true`
   );
@@ -216,19 +241,23 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.photoRepository.photoAdded$
       .pipe(takeUntil(this.destroy$))
       .subscribe((photoData) => {
+        this.updateAllPhotos();
       });
 
     this.photoRepository.photoRemoved$
       .pipe(takeUntil(this.destroy$))
       .subscribe((photoId) => {
-
+        this.updateAllPhotos();
       });
 
     this.photoRepository.layoutChanged$
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
-
+        this.updateAllPhotos();
       });
+    
+    // Set up lightbox click callback
+    this.setupLightboxClickCallback();
     
     // Start initial polling after component is ready
     if (this.platform.browser()) {
@@ -472,6 +501,143 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
                        this.currentLayout() === 'svg' ? 2 : 3;
     const translateX = layoutIndex * 48; // 44px width + 4px gap
     return `translateX(${translateX}px)`;
+  }
+
+  /**
+   * Handle filter changes from filters-bar component
+   */
+  onFilterChange(filters: FilterValues): void {
+    console.log('Filter changed:', filters);
+    // Apply filters to photos
+    const allPhotos = this.allPhotos();
+    let filtered = [...allPhotos];
+
+    // Apply status filter
+    if (filters.status.length > 0 && filters.status.length < this.filterOptions().statuses.length) {
+      filtered = filtered.filter(photo => 
+        filters.status.includes(photo['status'] || 'new')
+      );
+    }
+
+    // Apply author filter
+    if (filters.author !== 'all') {
+      filtered = filtered.filter(photo => photo['author_id'] === filters.author);
+    }
+
+    // Apply search filter
+    if (filters.search.trim().length > 0) {
+      const searchLower = filters.search.toLowerCase();
+      filtered = filtered.filter(photo => {
+        const searchableText = [
+          photo.id,
+          photo['author_id'],
+          photo.created_at,
+          JSON.stringify(photo)
+        ].join(' ').toLowerCase();
+        return searchableText.includes(searchLower);
+      });
+    }
+
+    // Apply sorting
+    if (filters.orderBy === 'date') {
+      filtered.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    } else if (filters.orderBy === 'author') {
+      filtered.sort((a, b) => (a['author_id'] || '').localeCompare(b['author_id'] || ''));
+    }
+
+    this.filteredPhotos.set(filtered);
+
+    // If reset layout on filter is enabled, reset the layout
+    if (this.resetLayoutOnFilter()) {
+      // TODO: Implement layout reset logic
+      console.log('Reset layout on filter enabled');
+    }
+  }
+
+  /**
+   * Update all photos list and calculate filter options
+   */
+  private updateAllPhotos(): void {
+    const photos = this.photoRepository.getAllPhotos();
+    const photoMetadata = photos.map(p => p.metadata);
+    this.allPhotos.set(photoMetadata);
+    this.filteredPhotos.set(photoMetadata);
+
+    // Calculate filter options and counts
+    const authors = new Set<string>();
+    const statusCounts = new Map<string, number>();
+    const authorCounts = new Map<string, number>();
+
+    photoMetadata.forEach(photo => {
+      if (photo['author_id']) {
+        authors.add(photo['author_id']);
+        authorCounts.set(photo['author_id'], (authorCounts.get(photo['author_id']) || 0) + 1);
+      }
+
+      const status = photo['status'] || 'new';
+      statusCounts.set(status, (statusCounts.get(status) || 0) + 1);
+    });
+
+    this.filterOptions.update(opts => ({
+      ...opts,
+      authors: Array.from(authors).sort()
+    }));
+
+    this.filterCounts.status.set(statusCounts);
+    this.filterCounts.author.set(authorCounts);
+  }
+
+  /**
+   * Open lightbox with specific photo
+   */
+  openLightbox(photoId: string): void {
+    this.lightboxPhotoId.set(photoId);
+    this.lightboxOpen.set(true);
+  }
+
+  /**
+   * Close lightbox
+   */
+  closeLightbox(): void {
+    this.lightboxOpen.set(false);
+    this.lightboxPhotoId.set(null);
+  }
+
+  /**
+   * Navigate lightbox to prev/next photo
+   */
+  navigateLightbox(direction: 'prev' | 'next'): void {
+    const photos = this.filteredPhotos();
+    const currentId = this.lightboxPhotoId();
+    
+    if (!currentId || photos.length === 0) {
+      return;
+    }
+    
+    const currentIndex = photos.findIndex(p => p.id === currentId);
+    if (currentIndex === -1) {
+      return;
+    }
+    
+    let newIndex: number;
+    if (direction === 'prev') {
+      newIndex = currentIndex > 0 ? currentIndex - 1 : currentIndex;
+    } else {
+      newIndex = currentIndex < photos.length - 1 ? currentIndex + 1 : currentIndex;
+    }
+    
+    if (newIndex !== currentIndex) {
+      this.lightboxPhotoId.set(photos[newIndex].id);
+    }
+  }
+
+  /**
+   * Set up click callback for lightbox
+   */
+  private setupLightboxClickCallback(): void {
+    // TODO: Add click detection in three-renderer.service
+    // This will be similar to the previous implementation
+    console.log('Lightbox click callback setup needed');
   }
 
 
