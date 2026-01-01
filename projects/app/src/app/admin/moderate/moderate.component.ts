@@ -41,7 +41,7 @@ export class ModerateComponent {
   page = signal<number>(0);
   
   // Individual filters
-  filterStatus = signal<string[]>(['new', 'flagged', 'approved', 'not-flagged', 'highlighted']);
+  filterStatus = signal<string[]>(FilterHelpers.DEFAULT_STATUSES);
   filterAuthor = signal<string>('all');
   preferenceOptions = ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'];
   potentialOptions = ['100', '75', '50', '25', '0'];
@@ -115,8 +115,7 @@ export class ModerateComponent {
             statusArray = parsed.included;
           } else {
             // Default: all statuses except excluded ones
-            const allStatuses = ['new', 'flagged', 'approved', 'not-flagged', 'highlighted', 'rejected'];
-            statusArray = allStatuses.filter(s => !parsed.excluded.includes(s));
+            statusArray = FilterHelpers.ALL_STATUSES.filter(s => !parsed.excluded.includes(s));
           }
           
           console.log('[Moderate] Setting filterStatus from hash:', statusArray, 'excluded:', parsed.excluded);
@@ -183,12 +182,11 @@ export class ModerateComponent {
           if (parsed.included.length > 0) {
             statusArray = parsed.included;
           } else {
-            const allStatuses = ['new', 'flagged', 'approved', 'not-flagged', 'highlighted', 'rejected'];
-            statusArray = allStatuses.filter(s => !parsed.excluded.includes(s));
+            statusArray = FilterHelpers.ALL_STATUSES.filter(s => !parsed.excluded.includes(s));
           }
           this.filterStatus.set(statusArray);
         } else {
-          this.filterStatus.set(['new', 'flagged', 'approved', 'not-flagged', 'highlighted']);
+          this.filterStatus.set(FilterHelpers.DEFAULT_STATUSES);
         }
         this.filterAuthor.set(params.get('author') || 'all');
         const preferenceParam = params.get('preference');
@@ -456,9 +454,8 @@ export class ModerateComponent {
     const params = new URLSearchParams();
     
     // Encode status with ~ for excluded items (default: exclude rejected)
-    const allStatuses = ['new', 'flagged', 'approved', 'not-flagged', 'highlighted', 'rejected'];
     const selectedStatuses = this.filterStatus();
-    const excludedStatuses = allStatuses.filter(s => !selectedStatuses.includes(s));
+    const excludedStatuses = FilterHelpers.ALL_STATUSES.filter(s => !selectedStatuses.includes(s));
     
     // Only include status param if it's not the default (all except rejected)
     if (!FilterHelpers.isDefaultStatusFilter(selectedStatuses)) {
@@ -568,7 +565,7 @@ export class ModerateComponent {
     }
 
   clearAllFilters(): void {
-    this.filterStatus.set(['new', 'flagged', 'approved', 'not-flagged', 'highlighted']);
+    this.filterStatus.set(FilterHelpers.DEFAULT_STATUSES);
     this.filterAuthor.set('all');
     this.filterPreference.set([...this.preferenceOptions]);
     this.filterPotential.set([...this.potentialOptions]);

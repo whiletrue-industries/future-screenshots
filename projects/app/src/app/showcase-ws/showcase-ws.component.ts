@@ -516,7 +516,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   // Computed signal for initial filter state - reads URL hash once and memoizes
   private _initialFilterStateRead = false;
   private _initialFilterStateValue: FiltersBarState = {
-    status: ['new', 'flagged', 'approved', 'not-flagged', 'highlighted'],
+    status: FilterHelpers.DEFAULT_STATUSES,
     author: 'all',
     preference: ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'],
     potential: ['100', '75', '50', '25', '0'],
@@ -541,12 +541,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         if (parsed.included.length > 0) {
           statusArray = parsed.included;
         } else {
-          const allStatuses = ['new', 'flagged', 'approved', 'not-flagged', 'highlighted', 'rejected'];
-          statusArray = allStatuses.filter(s => !parsed.excluded.includes(s));
+          statusArray = FilterHelpers.ALL_STATUSES.filter(s => !parsed.excluded.includes(s));
         }
       } else {
         // Default: all except rejected
-        statusArray = ['new', 'flagged', 'approved', 'not-flagged', 'highlighted'];
+        statusArray = FilterHelpers.DEFAULT_STATUSES;
       }
       
       // Parse search with + as space support
@@ -725,9 +724,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     const params = new URLSearchParams();
     
     // Encode status with ~ for excluded items (default: exclude rejected)
-    const allStatuses = ['new', 'flagged', 'approved', 'not-flagged', 'highlighted', 'rejected'];
     const selectedStatuses = filters.status;
-    const excludedStatuses = allStatuses.filter(s => !selectedStatuses.includes(s));
+    const excludedStatuses = FilterHelpers.ALL_STATUSES.filter(s => !selectedStatuses.includes(s));
     
     // Only include status param if it's not the default (all except rejected)
     if (!FilterHelpers.isDefaultStatusFilter(selectedStatuses)) {

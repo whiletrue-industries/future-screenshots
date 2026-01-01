@@ -33,6 +33,12 @@ export class FilterHelpers {
     'highlighted': 5
   } as const;
 
+  // All possible status values in order
+  static readonly ALL_STATUSES = ['new', 'flagged', 'approved', 'not-flagged', 'highlighted', 'rejected'];
+  
+  // Default status selection (all except rejected)
+  static readonly DEFAULT_STATUSES = ['new', 'flagged', 'approved', 'not-flagged', 'highlighted'];
+
   /**
    * Check if an item matches the "new" status
    * "New" includes items with _private_moderation === 2 OR undefined/null
@@ -136,11 +142,10 @@ export class FilterHelpers {
    * Check if status filter is at default state (all except rejected)
    */
   static isDefaultStatusFilter(selectedStatuses: string[]): boolean {
-    const defaultStatuses = ['new', 'flagged', 'approved', 'not-flagged', 'highlighted'];
-    if (selectedStatuses.length !== defaultStatuses.length) {
+    if (selectedStatuses.length !== FilterHelpers.DEFAULT_STATUSES.length) {
       return false;
     }
-    return defaultStatuses.every(s => selectedStatuses.includes(s)) &&
+    return FilterHelpers.DEFAULT_STATUSES.every(s => selectedStatuses.includes(s)) &&
            !selectedStatuses.includes('rejected');
   }
 
@@ -193,7 +198,7 @@ export class FiltersBarComponent {
   filtersChange = output<FiltersBarState>();
   
   // Filter state
-  filterStatus = signal<string[]>(['new', 'flagged', 'approved', 'not-flagged', 'highlighted']);
+  filterStatus = signal<string[]>(FilterHelpers.DEFAULT_STATUSES);
   filterAuthor = signal<string>('all');
   filterPreference = signal<string[]>(['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent']);
   filterPotential = signal<string[]>(['100', '75', '50', '25', '0']);
