@@ -33,11 +33,11 @@ export class FilterHelpers {
     'highlighted': 5
   } as const;
 
-  // All possible status values in order
-  static readonly ALL_STATUSES = ['new', 'flagged', 'approved', 'not-flagged', 'highlighted', 'rejected'];
+  // All possible status values in display order
+  static readonly ALL_STATUSES = ['new', 'flagged', 'not-flagged', 'approved', 'highlighted', 'rejected'];
   
   // Default status selection (all except rejected)
-  static readonly DEFAULT_STATUSES = ['new', 'flagged', 'approved', 'not-flagged', 'highlighted'];
+  static readonly DEFAULT_STATUSES = ['new', 'flagged', 'not-flagged', 'approved', 'highlighted'];
 
   /**
    * Check if an item matches the "new" status
@@ -216,9 +216,6 @@ export class FiltersBarComponent {
   preferenceOptions = ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'];
   potentialOptions = ['100', '75', '50', '25', '0'];
   
-  // All possible status options (in display order)
-  allStatusOptions = ['new', 'flagged', 'not-flagged', 'approved', 'highlighted', 'rejected'];
-  
   private initialized = false;
   private isInitializing = false;
   private changeEffectTriggered = false;
@@ -392,7 +389,7 @@ export class FiltersBarComponent {
     const statusCounts = this.counts().status;
     // Always show all possible statuses
     // But if data contains statuses not in our predefined list, add them
-    const knownStatuses = new Set(this.allStatusOptions);
+    const knownStatuses = new Set(FilterHelpers.ALL_STATUSES);
     const dataStatuses = Array.from(statusCounts.keys());
     
     // Map count keys back to status values
@@ -409,7 +406,7 @@ export class FiltersBarComponent {
       .map(countKey => statusValueMap[countKey])
       .filter(status => status && !knownStatuses.has(status));
     
-    return [...this.allStatusOptions, ...additionalStatuses];
+    return [...FilterHelpers.ALL_STATUSES, ...additionalStatuses];
   }
   
   // Get label for status option
