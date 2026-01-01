@@ -29,7 +29,7 @@
     [totalCount]="allFetchedItems().length"
     [filteredCount]="items().length"
     [showViewToggle]="true"
-    [initialState]="getFilterState()"
+    [initialState]="filterState()"
     (filtersChange)="onFiltersChange($event)"
   ></app-filters-bar>
 

@@ -513,13 +513,27 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   /**
    * Handle filter changes from filters-bar component
    */
-  getFilterState(): FiltersBarState {
-    // Get initial state from URL hash if available
-    if (typeof window !== 'undefined' && window.location.hash) {
+  // Computed signal for initial filter state - reads URL hash once and memoizes
+  private _initialFilterStateRead = false;
+  private _initialFilterStateValue: FiltersBarState = {
+    status: ['new', 'flagged', 'approved', 'highlighted'],
+    author: 'all',
+    preference: ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'],
+    potential: ['100', '75', '50', '25', '0'],
+    type: 'all',
+    search: '',
+    orderBy: 'date',
+    view: undefined
+  };
+  
+  filterState = computed<FiltersBarState>(() => {
+    // Only read from URL hash once on first access
+    if (!this._initialFilterStateRead && typeof window !== 'undefined' && window.location.hash) {
+      this._initialFilterStateRead = true;
       const hash = window.location.hash.substring(1);
       const params = new URLSearchParams(hash);
       
-      return {
+      this._initialFilterStateValue = {
         status: params.get('status')?.split(',') || ['new', 'flagged', 'approved', 'highlighted'],
         author: params.get('author') || 'all',
         preference: params.get('preference')?.split(',') || ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'],
@@ -529,20 +543,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         orderBy: params.get('order') || 'date',
         view: undefined
       };
+    } else if (!this._initialFilterStateRead) {
+      this._initialFilterStateRead = true;
     }
     
-    // Default state
-    return {
-      status: ['new', 'flagged', 'approved', 'highlighted'],
-      author: 'all',
-      preference: ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'],
-      potential: ['100', '75', '50', '25', '0'],
-      type: 'all',
-      search: '',
-      orderBy: 'date',
-      view: undefined
-    };
-  }
+    return this._initialFilterStateValue;
+  });
 
   onFilterChange(filters: FiltersBarState): void {
     console.log('Filter changed:', filters);
