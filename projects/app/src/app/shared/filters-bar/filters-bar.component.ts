@@ -128,12 +128,14 @@ export class FiltersBarComponent {
   potentialOptions = ['100', '75', '50', '25', '0'];
   
   private initialized = false;
+  private isInitializing = false;
   
   constructor() {
     // Set initial state from parent if provided
     effect(() => {
       const state = this.initialState();
       if (state && !this.initialized) {
+        this.isInitializing = true;
         this.filterStatus.set(state.status);
         this.filterAuthor.set(state.author);
         this.filterPreference.set(state.preference);
@@ -145,10 +147,14 @@ export class FiltersBarComponent {
           this.viewMode.set(state.view as 'grid' | 'list');
         }
         this.initialized = true;
+        // Use setTimeout to ensure the change detection cycle completes before allowing emissions
+        setTimeout(() => {
+          this.isInitializing = false;
+        }, 0);
       }
     });
     
-    // Watch for filter changes and emit (skip initial emission if we have initialState)
+    // Watch for filter changes and emit (skip emissions during initialization)
     effect(() => {
       this.filterStatus();
       this.filterAuthor();
@@ -159,8 +165,8 @@ export class FiltersBarComponent {
       this.orderBy();
       this.viewMode();
       
-      // Only emit if we're initialized or have no initial state
-      if (this.initialized || !this.initialState()) {
+      // Only emit if we're not initializing and we have either initialized or have no initial state
+      if (!this.isInitializing && (this.initialized || !this.initialState())) {
         this.emitFiltersChange();
       }
     });

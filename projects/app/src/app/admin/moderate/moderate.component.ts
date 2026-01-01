@@ -961,7 +961,7 @@ export class ModerateComponent {
       this.viewMode.set(newState.view as 'grid' | 'list');
     }
     
-    // Apply filters - this will trigger the effect that updates URL hash
-    this.applyFiltersAndSort();
+    // No need to call applyFiltersAndSort() here - the effect at lines 210-223 will handle it
+    // when the filter signals change
   }
 }
