@@ -1,0 +1,257 @@
+<section class="filters-bar" aria-label="Filters">
+  <div class="filters-row">
+    <div class="filter-group custom-multiselect">
+      <label>Status:</label>
+      <div class="multiselect-container">
+        <button 
+          type="button"
+          class="multiselect-trigger" 
+          (click)="toggleStatusDropdown()">
+          <span class="multiselect-label">
+            @if (getSelectedStatusCount() === 0) {
+              Select status...
+            } @else if (getSelectedStatusCount() === 5) {
+              All statuses
+            } @else {
+              {{ getSelectedStatusCount() }} selected
+            }
+          </span>
+          <span class="multiselect-arrow">▼</span>
+        </button>
+        @if (statusDropdownOpen()) {
+          <div class="multiselect-dropdown" (click)="$event.stopPropagation()">
+            <label class="multiselect-option">
+              <input 
+                type="checkbox" 
+                [checked]="isStatusSelected('new')"
+                (change)="toggleStatusFilter('new')" />
+              <span class="option-label">New</span>
+              <span class="option-count">{{ getCount(counts().status, 'pending') }}</span>
+            </label>
+            <label class="multiselect-option">
+              <input 
+                type="checkbox" 
+                [checked]="isStatusSelected('flagged')"
+                (change)="toggleStatusFilter('flagged')" />
+              <span class="option-label">Flagged</span>
+              <span class="option-count">{{ getCount(counts().status, 'flagged') }}</span>
+            </label>
+            <label class="multiselect-option">
+              <input 
+                type="checkbox" 
+                [checked]="isStatusSelected('approved')"
+                (change)="toggleStatusFilter('approved')" />
+              <span class="option-label">Approved</span>
+              <span class="option-count">{{ getCount(counts().status, 'approved') }}</span>
+            </label>
+            <label class="multiselect-option">
+              <input 
+                type="checkbox" 
+                [checked]="isStatusSelected('rejected')"
+                (change)="toggleStatusFilter('rejected')" />
+              <span class="option-label">Rejected</span>
+              <span class="option-count">{{ getCount(counts().status, 'banned') }}</span>
+            </label>
+            <label class="multiselect-option">
+              <input 
+                type="checkbox" 
+                [checked]="isStatusSelected('highlighted')"
+                (change)="toggleStatusFilter('highlighted')" />
+              <span class="option-label">Highlighted</span>
+              <span class="option-count">{{ getCount(counts().status, 'highlighted') }}</span>
+            </label>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <label for="filter-author">Author:</label>
+      <select id="filter-author" [(ngModel)]="filterAuthor">
+        <option value="all">all</option>
+        @for (author of getAuthorsSortedByCount(); track author) {
+          @if (author === 'unknown') {
+            <option value="unattributed">unattributed ({{ getCount(counts().author, author) }})</option>
+          } @else {
+            <option [value]="author">{{ getTruncatedAuthorId(author) }} ({{ getCount(counts().author, author) }})</option>
+          }
+        }
+      </select>
+    </div>
+
+    <div class="filter-group custom-multiselect">
+      <label>Preference:</label>
+      <div class="multiselect-container">
+        <button 
+          type="button"
+          class="multiselect-trigger" 
+          (click)="togglePreferenceDropdown()">
+          <span class="multiselect-label">
+            @if (getSelectedPreferenceCount() === 0) {
+              Select preference...
+            } @else if (getSelectedPreferenceCount() === preferenceOptions.length) {
+              All preferences
+            } @else {
+              {{ getSelectedPreferenceCount() }} selected
+            }
+          </span>
+          <span class="multiselect-arrow">▼</span>
+        </button>
+        @if (preferenceDropdownOpen()) {
+          <div class="multiselect-dropdown" (click)="$event.stopPropagation()">
+            <label class="multiselect-option">
+              <input 
+                type="checkbox" 
+                [checked]="isPreferenceSelected('prefer')"
+                (change)="togglePreferenceFilter('prefer')" />
+              <span class="option-label">prefer</span>
+              <span class="option-count">{{ getCount(counts().preference, 'prefer') }}</span>
+            </label>
+            <label class="multiselect-option">
+              <input 
+                type="checkbox" 
+                [checked]="isPreferenceSelected('mostly prefer')"
+                (change)="togglePreferenceFilter('mostly prefer')" />
+              <span class="option-label">prefer-ish</span>
+              <span class="option-count">{{ getCount(counts().preference, 'mostly prefer') }}</span>
+            </label>
+            <label class="multiselect-option">
+              <input 
+                type="checkbox" 
+                [checked]="isPreferenceSelected('uncertain')"
+                (change)="togglePreferenceFilter('uncertain')" />
+              <span class="option-label">uncertain</span>
+              <span class="option-count">{{ getCount(counts().preference, 'uncertain') }}</span>
+            </label>
+            <label class="multiselect-option">
+              <input 
+                type="checkbox" 
+                [checked]="isPreferenceSelected('mostly prevent')"
+                (change)="togglePreferenceFilter('mostly prevent')" />
+              <span class="option-label">prevent-ish</span>
+              <span class="option-count">{{ getCount(counts().preference, 'mostly prevent') }}</span>
+            </label>
+            <label class="multiselect-option">
+              <input 
+                type="checkbox" 
+                [checked]="isPreferenceSelected('prevent')"
+                (change)="togglePreferenceFilter('prevent')" />
+              <span class="option-label">prevent</span>
+              <span class="option-count">{{ getCount(counts().preference, 'prevent') }}</span>
+            </label>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="filter-group custom-multiselect">
+      <label>Potential:</label>
+      <div class="multiselect-container">
+        <button 
+          type="button"
+          class="multiselect-trigger" 
+          (click)="togglePotentialDropdown()">
+          <span class="multiselect-label">
+            @if (getSelectedPotentialCount() === 0) {
+              Select potential...
+            } @else if (getSelectedPotentialCount() === potentialOptions.length) {
+              All potentials
+            } @else {
+              {{ getSelectedPotentialCount() }} selected
+            }
+          </span>
+          <span class="multiselect-arrow">▼</span>
+        </button>
+        @if (potentialDropdownOpen()) {
+          <div class="multiselect-dropdown" (click)="$event.stopPropagation()">
+            <label class="multiselect-option">
+              <input 
+                type="checkbox" 
+                [checked]="isPotentialSelected('100')"
+                (change)="togglePotentialFilter('100')" />
+              <span class="option-label">Projected</span>
+              <span class="option-count">{{ getCount(counts().potential, '100') }}</span>
+            </label>
+            <label class="multiselect-option">
+              <input 
+                type="checkbox" 
+                [checked]="isPotentialSelected('75')"
+                (change)="togglePotentialFilter('75')" />
+              <span class="option-label">Probable</span>
+              <span class="option-count">{{ getCount(counts().potential, '75') }}</span>
+            </label>
+            <label class="multiselect-option">
+              <input 
+                type="checkbox" 
+                [checked]="isPotentialSelected('50')"
+                (change)="togglePotentialFilter('50')" />
+              <span class="option-label">Plausible</span>
+              <span class="option-count">{{ getCount(counts().potential, '50') }}</span>
+            </label>
+            <label class="multiselect-option">
+              <input 
+                type="checkbox" 
+                [checked]="isPotentialSelected('25')"
+                (change)="togglePotentialFilter('25')" />
+              <span class="option-label">Possible</span>
+              <span class="option-count">{{ getCount(counts().potential, '25') }}</span>
+            </label>
+            <label class="multiselect-option">
+              <input 
+                type="checkbox" 
+                [checked]="isPotentialSelected('0')"
+                (change)="togglePotentialFilter('0')" />
+              <span class="option-label">Preposterous</span>
+              <span class="option-count">{{ getCount(counts().potential, '0') }}</span>
+            </label>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <label for="filter-type">Type:</label>
+      <select id="filter-type" [(ngModel)]="filterType">
+        <option value="all">all</option>
+        <option value="sign_in_a_demonstration">🪧 Sign ({{ getCount(counts().type, 'sign_in_a_demonstration') }})</option>
+        <option value="social_media_post">📣 Social ({{ getCount(counts().type, 'social_media_post') }})</option>
+        <option value="chat_conversation">💬 Chat ({{ getCount(counts().type, 'chat_conversation') }})</option>
+        <option value="notification_alert">🔔 Alert ({{ getCount(counts().type, 'notification_alert') }})</option>
+        <option value="ai_agent_query">🤖 AI ({{ getCount(counts().type, 'ai_agent_query') }})</option>
+        <option value="review">⭐ Review ({{ getCount(counts().type, 'review') }})</option>
+        <option value="map_visualization">🗺️ Map ({{ getCount(counts().type, 'map_visualization') }})</option>
+        <option value="photograph">📸 Photo ({{ getCount(counts().type, 'photograph') }})</option>
+      </select>
+    </div>
+
+    <div class="filter-group search-group">
+      <label for="filter-search">Search:</label>
+      <input 
+        id="filter-search" 
+        type="text" 
+        [(ngModel)]="searchText" 
+        placeholder="any text" />
+    </div>
+
+    <div class="filter-group">
+      <label for="order-by">Order by:</label>
+      <select id="order-by" [(ngModel)]="orderBy">
+        <option value="date">Date</option>
+        <option value="status">Status</option>
+        <option value="author">Author</option>
+        <option value="confidence">AI Confidence</option>
+        <option value="type">Type</option>
+        <option value="preference">Preference</option>
+      </select>
+    </div>
+
+    <div class="filter-info">
+      <span class="count-display">{{ filteredCount() }} / {{ totalCount() }}</span>
+      @if (showViewToggle()) {
+        <button class="view-toggle-btn" (click)="toggleViewMode()" [attr.aria-label]="viewMode() === 'list' ? 'Switch to grid view' : 'Switch to list view'" [title]="viewMode() === 'list' ? 'Grid view' : 'List view'">
+          {{ viewMode() === 'list' ? '⊞' : '☰' }}
+        </button>
+      }
+    </div>
+  </div>
+</section>
