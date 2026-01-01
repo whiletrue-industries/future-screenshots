@@ -92,12 +92,52 @@ export class ModerateComponent {
   ];
 
   constructor(private route: ActivatedRoute, private api: AdminApiService) {
+    // Read filters from hash synchronously first (before effects run)
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const fragment = window.location.hash.substring(1);
+      if (fragment) {
+        const params = new URLSearchParams(fragment);
+        const statusParam = params.get('status');
+        if (statusParam) {
+          this.filterStatus.set(statusParam.split(','));
+        }
+        const authorParam = params.get('author');
+        if (authorParam) {
+          this.filterAuthor.set(authorParam);
+        }
+        const preferenceParam = params.get('preference');
+        if (preferenceParam) {
+          this.filterPreference.set(preferenceParam.split(','));
+        }
+        const potentialParam = params.get('potential');
+        if (potentialParam) {
+          this.filterPotential.set(potentialParam.split(','));
+        }
+        const typeParam = params.get('type');
+        if (typeParam) {
+          this.filterType.set(typeParam);
+        }
+        const searchParam = params.get('search');
+        if (searchParam) {
+          this.searchText.set(searchParam);
+        }
+        const orderParam = params.get('order');
+        if (orderParam) {
+          this.orderBy.set(orderParam);
+        }
+        const viewParam = params.get('view');
+        if (viewParam === 'grid' || viewParam === 'list') {
+          this.viewMode.set(viewParam);
+        }
+      }
+    }
+    
     this.route.queryParams.subscribe(params => {
       this.apiKey.set(params['api_key'] || null);
       this.workspaceId.set(params['workspace'] || this.workspaceId());
     });
     
-    // Read filters from hash parameters
+    // Read filters from hash parameters (for updates after initial load)
     this.route.fragment.subscribe(fragment => {
       if (fragment) {
         const params = new URLSearchParams(fragment);
