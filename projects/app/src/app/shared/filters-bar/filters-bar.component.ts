@@ -57,8 +57,81 @@ export class FilterHelpers {
       return 'banned';
     } else if (moderation === 5) {
       return 'highlighted';
+    } else if (moderation === 3) {
+      return 'not-flagged';
     }
     return 'pending'; // default
+  }
+
+  /**
+   * Get display label for a status value
+   */
+  static getStatusLabel(statusValue: string): string {
+    const labels: { [key: string]: string } = {
+      'new': 'New',
+      'flagged': 'Flagged',
+      'approved': 'Approved',
+      'rejected': 'Rejected',
+      'highlighted': 'Highlighted',
+      'not-flagged': 'Not Flagged'
+    };
+    return labels[statusValue] || statusValue;
+  }
+
+  /**
+   * Get count key for a status value (for looking up in counts map)
+   */
+  static getStatusCountKey(statusValue: string): string {
+    const countKeys: { [key: string]: string } = {
+      'new': 'pending',
+      'flagged': 'flagged',
+      'approved': 'approved',
+      'rejected': 'banned',
+      'highlighted': 'highlighted',
+      'not-flagged': 'not-flagged'
+    };
+    return countKeys[statusValue] || statusValue;
+  }
+
+  /**
+   * Parse URL hash with support for ~ (exclude) and + (additive) syntax
+   * Examples:
+   *   status=new,flagged,~rejected  -> include new and flagged, exclude rejected
+   *   search=+my+query              -> additive search query (spaces as +)
+   */
+  static parseHashParam(paramValue: string | null): { included: string[], excluded: string[] } {
+    if (!paramValue) {
+      return { included: [], excluded: [] };
+    }
+
+    const parts = paramValue.split(',');
+    const included: string[] = [];
+    const excluded: string[] = [];
+
+    parts.forEach(part => {
+      const trimmed = part.trim();
+      if (trimmed.startsWith('~')) {
+        excluded.push(trimmed.substring(1));
+      } else if (trimmed.startsWith('+')) {
+        // For additive flags, keep the + prefix for now
+        included.push(trimmed);
+      } else if (trimmed) {
+        included.push(trimmed);
+      }
+    });
+
+    return { included, excluded };
+  }
+
+  /**
+   * Encode values to hash format with ~ for excluded items
+   */
+  static encodeHashParam(included: string[], excluded: string[]): string {
+    const parts = [
+      ...included,
+      ...excluded.map(e => `~${e}`)
+    ];
+    return parts.join(',');
   }
 
   /**
@@ -127,6 +200,9 @@ export class FiltersBarComponent {
   // Options
   preferenceOptions = ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'];
   potentialOptions = ['100', '75', '50', '25', '0'];
+  
+  // All possible status options (in display order)
+  allStatusOptions = ['new', 'flagged', 'not-flagged', 'approved', 'highlighted', 'rejected'];
   
   private initialized = false;
   private isInitializing = false;
@@ -293,6 +369,26 @@ export class FiltersBarComponent {
   
   getSelectedPotentialCount(): number {
     return this.filterPotential().length;
+  }
+  
+  // Get status options that have data (count > 0)
+  getAvailableStatusOptions(): string[] {
+    const statusCounts = this.counts().status;
+    return this.allStatusOptions.filter(status => {
+      const countKey = FilterHelpers.getStatusCountKey(status);
+      return statusCounts.has(countKey) && (statusCounts.get(countKey) || 0) > 0;
+    });
+  }
+  
+  // Get label for status option
+  getStatusLabel(status: string): string {
+    return FilterHelpers.getStatusLabel(status);
+  }
+  
+  // Get count for a status option
+  getStatusCount(status: string): number {
+    const countKey = FilterHelpers.getStatusCountKey(status);
+    return this.getCount(this.counts().status, countKey);
   }
   
   // Utility methods

@@ -105,12 +105,21 @@ export class ModerateComponent {
         const params = new URLSearchParams(fragment);
         const statusParam = params.get('status');
         if (statusParam) {
-          const statusArray = statusParam.split(',');
-          // Ensure not-flagged is included by default to avoid filtering out moderation==3 items
-          if (!statusArray.includes('not-flagged')) {
-            statusArray.push('not-flagged');
+          // Parse new hash syntax: supports ~rejected for exclusion
+          const parsed = FilterHelpers.parseHashParam(statusParam);
+          
+          // If there are explicit inclusions, use them
+          // Otherwise, use default (all except excluded)
+          let statusArray: string[];
+          if (parsed.included.length > 0) {
+            statusArray = parsed.included;
+          } else {
+            // Default: all statuses except excluded ones
+            const allStatuses = ['new', 'flagged', 'approved', 'not-flagged', 'highlighted', 'rejected'];
+            statusArray = allStatuses.filter(s => !parsed.excluded.includes(s));
           }
-          console.log('[Moderate] Setting filterStatus from hash:', statusArray);
+          
+          console.log('[Moderate] Setting filterStatus from hash:', statusArray, 'excluded:', parsed.excluded);
           this.filterStatus.set(statusArray);
         }
         const authorParam = params.get('author');
@@ -137,8 +146,10 @@ export class ModerateComponent {
         }
         const searchParam = params.get('search');
         if (searchParam) {
-          console.log('[Moderate] Setting searchText from hash:', searchParam);
-          this.searchText.set(searchParam);
+          // Support + as space in search
+          const searchText = searchParam.replace(/\+/g, ' ');
+          console.log('[Moderate] Setting searchText from hash:', searchText);
+          this.searchText.set(searchText);
         }
         const orderParam = params.get('order');
         if (orderParam) {
@@ -166,18 +177,27 @@ export class ModerateComponent {
       if (fragment) {
         const params = new URLSearchParams(fragment);
         const statusParam = params.get('status');
-        const statusArray = statusParam ? statusParam.split(',') : ['new', 'flagged', 'approved', 'not-flagged', 'highlighted'];
-        if (!statusArray.includes('not-flagged')) {
-          statusArray.push('not-flagged');
+        if (statusParam) {
+          const parsed = FilterHelpers.parseHashParam(statusParam);
+          let statusArray: string[];
+          if (parsed.included.length > 0) {
+            statusArray = parsed.included;
+          } else {
+            const allStatuses = ['new', 'flagged', 'approved', 'not-flagged', 'highlighted', 'rejected'];
+            statusArray = allStatuses.filter(s => !parsed.excluded.includes(s));
+          }
+          this.filterStatus.set(statusArray);
+        } else {
+          this.filterStatus.set(['new', 'flagged', 'approved', 'not-flagged', 'highlighted']);
         }
-        this.filterStatus.set(statusArray);
         this.filterAuthor.set(params.get('author') || 'all');
         const preferenceParam = params.get('preference');
         this.filterPreference.set(preferenceParam ? preferenceParam.split(',') : [...this.preferenceOptions]);
         const potentialParam = params.get('potential');
         this.filterPotential.set(potentialParam ? potentialParam.split(',') : [...this.potentialOptions]);
         this.filterType.set(params.get('type') || 'all');
-        this.searchText.set(params.get('search') || '');
+        const searchParam = params.get('search');
+        this.searchText.set(searchParam ? searchParam.replace(/\+/g, ' ') : '');
         this.orderBy.set(params.get('order') || 'date');
         const view = params.get('view');
         if (view === 'grid' || view === 'list') {
@@ -434,12 +454,31 @@ export class ModerateComponent {
   
   updateHashParams(): void {
     const params = new URLSearchParams();
-    if (this.filterStatus().length > 0) params.set('status', this.filterStatus().join(','));
+    
+    // Encode status with ~ for excluded items (default: exclude rejected)
+    const allStatuses = ['new', 'flagged', 'approved', 'not-flagged', 'highlighted', 'rejected'];
+    const selectedStatuses = this.filterStatus();
+    const excludedStatuses = allStatuses.filter(s => !selectedStatuses.includes(s));
+    
+    // Only include status param if it's not the default (all except rejected)
+    const isDefaultStatus = 
+      selectedStatuses.length === 5 && 
+      excludedStatuses.length === 1 && 
+      excludedStatuses[0] === 'rejected';
+    
+    if (!isDefaultStatus) {
+      const statusParam = FilterHelpers.encodeHashParam(selectedStatuses, excludedStatuses);
+      if (statusParam) {
+        params.set('status', statusParam);
+      }
+    }
+    
     if (this.filterAuthor() !== 'all') params.set('author', this.filterAuthor());
     if (this.filterPreference().length > 0 && this.filterPreference().length < this.preferenceOptions.length) params.set('preference', this.filterPreference().join(','));
     if (this.filterPotential().length > 0 && this.filterPotential().length < this.potentialOptions.length) params.set('potential', this.filterPotential().join(','));
     if (this.filterType() !== 'all') params.set('type', this.filterType());
-    if (this.searchText()) params.set('search', this.searchText());
+    // Encode search with + for spaces
+    if (this.searchText()) params.set('search', this.searchText().replace(/ /g, '+'));
     if (this.orderBy() !== 'date') params.set('order', this.orderBy());
     params.set('view', this.viewMode());
     

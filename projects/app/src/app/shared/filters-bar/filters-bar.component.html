@@ -20,46 +20,16 @@
         </button>
         @if (statusDropdownOpen()) {
           <div class="multiselect-dropdown" (click)="$event.stopPropagation()">
-            <label class="multiselect-option">
-              <input 
-                type="checkbox" 
-                [checked]="isStatusSelected('new')"
-                (change)="toggleStatusFilter('new')" />
-              <span class="option-label">New</span>
-              <span class="option-count">{{ getCount(counts().status, 'pending') }}</span>
-            </label>
-            <label class="multiselect-option">
-              <input 
-                type="checkbox" 
-                [checked]="isStatusSelected('flagged')"
-                (change)="toggleStatusFilter('flagged')" />
-              <span class="option-label">Flagged</span>
-              <span class="option-count">{{ getCount(counts().status, 'flagged') }}</span>
-            </label>
-            <label class="multiselect-option">
-              <input 
-                type="checkbox" 
-                [checked]="isStatusSelected('approved')"
-                (change)="toggleStatusFilter('approved')" />
-              <span class="option-label">Approved</span>
-              <span class="option-count">{{ getCount(counts().status, 'approved') }}</span>
-            </label>
-            <label class="multiselect-option">
-              <input 
-                type="checkbox" 
-                [checked]="isStatusSelected('rejected')"
-                (change)="toggleStatusFilter('rejected')" />
-              <span class="option-label">Rejected</span>
-              <span class="option-count">{{ getCount(counts().status, 'banned') }}</span>
-            </label>
-            <label class="multiselect-option">
-              <input 
-                type="checkbox" 
-                [checked]="isStatusSelected('highlighted')"
-                (change)="toggleStatusFilter('highlighted')" />
-              <span class="option-label">Highlighted</span>
-              <span class="option-count">{{ getCount(counts().status, 'highlighted') }}</span>
-            </label>
+            @for (status of getAvailableStatusOptions(); track status) {
+              <label class="multiselect-option">
+                <input 
+                  type="checkbox" 
+                  [checked]="isStatusSelected(status)"
+                  (change)="toggleStatusFilter(status)" />
+                <span class="option-label">{{ getStatusLabel(status) }}</span>
+                <span class="option-count">{{ getStatusCount(status) }}</span>
+              </label>
+            }
           </div>
         }
       </div>
