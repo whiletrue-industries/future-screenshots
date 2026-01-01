@@ -42,6 +42,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   
   // Filters state
   allPhotos = signal<any[]>([]);
+  allItemsData = signal<any[]>([]); // Store full item data for filtering
   filteredPhotos = signal<any[]>([]);
   filterCounts = signal<FilterCounts>({
     status: new Map(),
@@ -73,6 +74,15 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       distinctUntilChanged()
     ).subscribe(async (items) => {
       items = items.sort((item1, item2) => item1.created_at.localeCompare(item2.created_at));
+      
+      // Store all items data for filtering
+      const existingItems = this.allItemsData();
+      const newItemsData = items.filter((item: any) => !existingItems.find((i: any) => i._id === item._id));
+      if (newItemsData.length > 0) {
+        this.allItemsData.set([...existingItems, ...newItemsData]);
+        // Update filter counts and filtered list
+        this.updateFilterData();
+      }
       
       // First pass: load existing photos immediately
       if (this.lastCreatedAt === '0' && items.length > 0) {
@@ -517,7 +527,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Apply filters and sorting to photos
    */
   private applyFiltersAndSort(filters: FiltersBarState): void {
-    let filtered = [...this.allPhotos()];
+    let filtered = [...this.allItemsData()];
     
     // Status filter (map to _private_moderation values)
     if (filters.status.length > 0) {
@@ -667,18 +677,29 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Update all photos list and calculate filter counts
+   * Update filter data and counts
    */
-  private updateAllPhotos(): void {
-    const photos = this.photoRepository.getAllPhotos();
-    const photoData = photos.map(p => p.metadata);
-    this.allPhotos.set(photoData);
+  private updateFilterData(): void {
+    const items = this.allItemsData();
     
     // Calculate filter counts from ALL items
-    this.calculateFilterCounts(photoData);
+    this.calculateFilterCounts(items);
     
-    // Initially show all photos
-    this.filteredPhotos.set(photoData);
+    // Set allPhotos to the full item data
+    this.allPhotos.set(items);
+    
+    // Initially show all photos (or apply current filters if any)
+    this.filteredPhotos.set(items);
+  }
+  
+  /**
+   * Update all photos list (deprecated - use updateFilterData)
+   */
+  private updateAllPhotos(): void {
+    // This method is called by photo repository events
+    // We now use allItemsData instead which is populated from the API
+    // Just update the filter data with current items
+    this.updateFilterData();
   }
   
   /**
