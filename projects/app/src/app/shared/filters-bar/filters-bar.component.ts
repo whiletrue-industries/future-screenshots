@@ -28,6 +28,7 @@ export class FilterHelpers {
     'new': 2,
     'flagged': 1,
     'approved': 4,
+    'not-flagged': 3,
     'rejected': 0,
     'highlighted': 5
   } as const;
@@ -109,7 +110,7 @@ export class FiltersBarComponent {
   filtersChange = output<FiltersBarState>();
   
   // Filter state
-  filterStatus = signal<string[]>(['new', 'flagged', 'approved', 'highlighted']);
+  filterStatus = signal<string[]>(['new', 'flagged', 'approved', 'not-flagged', 'highlighted']);
   filterAuthor = signal<string>('all');
   filterPreference = signal<string[]>(['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent']);
   filterPotential = signal<string[]>(['100', '75', '50', '25', '0']);
@@ -129,12 +130,15 @@ export class FiltersBarComponent {
   
   private initialized = false;
   private isInitializing = false;
+  private changeEffectTriggered = false;
   
   constructor() {
     // Set initial state from parent if provided
     effect(() => {
       const state = this.initialState();
+      console.log('[FiltersBar] initialState effect - state:', state);
       if (state && !this.initialized) {
+        console.log('[FiltersBar] Setting initial state');
         this.isInitializing = true;
         this.filterStatus.set(state.status);
         this.filterAuthor.set(state.author);
@@ -149,6 +153,7 @@ export class FiltersBarComponent {
         this.initialized = true;
         // Use setTimeout to ensure the change detection cycle completes before allowing emissions
         setTimeout(() => {
+          console.log('[FiltersBar] Initialization complete, allowing emissions');
           this.isInitializing = false;
         }, 0);
       }
@@ -156,18 +161,32 @@ export class FiltersBarComponent {
     
     // Watch for filter changes and emit (skip emissions during initialization)
     effect(() => {
-      this.filterStatus();
-      this.filterAuthor();
-      this.filterPreference();
-      this.filterPotential();
-      this.filterType();
-      this.searchText();
-      this.orderBy();
-      this.viewMode();
+      const status = this.filterStatus();
+      const author = this.filterAuthor();
+      const preference = this.filterPreference();
+      const potential = this.filterPotential();
+      const type = this.filterType();
+      const search = this.searchText();
+      const order = this.orderBy();
+      const view = this.viewMode();
+      
+      console.log('[FiltersBar] Change effect triggered - isInitializing:', this.isInitializing, 'initialized:', this.initialized, 'changeEffectTriggered:', this.changeEffectTriggered);
+      
+      // Skip the very first effect trigger if we have an initialState, because the initialization
+      // effect hasn't run yet, and emitting now would send the default values instead of the initial state values
+      if (!this.changeEffectTriggered && this.initialState()) {
+        console.log('[FiltersBar] Skipping first change effect emission because initialState is pending');
+        this.changeEffectTriggered = true;
+        return;
+      }
+      this.changeEffectTriggered = true;
       
       // Only emit if we're not initializing and we have either initialized or have no initial state
       if (!this.isInitializing && (this.initialized || !this.initialState())) {
+        console.log('[FiltersBar] Emitting filter change');
         this.emitFiltersChange();
+      } else {
+        console.log('[FiltersBar] Skipping emission - isInitializing:', this.isInitializing);
       }
     });
   }

@@ -762,8 +762,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     // Set allPhotos to the full item data
     this.allPhotos.set(items);
     
-    // Initially show all photos (or apply current filters if any)
-    this.filteredPhotos.set(items);
+    // Apply current filters to the new data
+    this.applyFiltersAndSort(this.filterState());
   }
   
   /**

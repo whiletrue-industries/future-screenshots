@@ -21,6 +21,9 @@ export type Filter = {
 export class ModerateComponent {
 
   Array = Array; // Make Array available in template
+  debugInfo = computed(() => {
+    return `Items: ${this.items().length}, Fetched: ${this.allFetchedItems().length}, Status: ${JSON.stringify(this.filterStatus())}`;
+  });
 
   FILTERS = [
     {name: 'highlighted', filter:'metadata._private_moderation == 5'},
@@ -38,7 +41,7 @@ export class ModerateComponent {
   page = signal<number>(0);
   
   // Individual filters
-  filterStatus = signal<string[]>(['new', 'flagged', 'approved', 'highlighted']);
+  filterStatus = signal<string[]>(['new', 'flagged', 'approved', 'not-flagged', 'highlighted']);
   filterAuthor = signal<string>('all');
   preferenceOptions = ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'];
   potentialOptions = ['100', '75', '50', '25', '0'];
@@ -93,49 +96,69 @@ export class ModerateComponent {
   ];
 
   constructor(private route: ActivatedRoute, private api: AdminApiService) {
+    console.log('[Moderate] Constructor starting - reading URL hash');
     // Read filters from hash synchronously first (before effects run)
     if (typeof window !== 'undefined' && window.location.hash) {
       const fragment = window.location.hash.substring(1);
+      console.log('[Moderate] URL hash fragment:', fragment);
       if (fragment) {
         const params = new URLSearchParams(fragment);
         const statusParam = params.get('status');
         if (statusParam) {
-          this.filterStatus.set(statusParam.split(','));
+          const statusArray = statusParam.split(',');
+          // Ensure not-flagged is included by default to avoid filtering out moderation==3 items
+          if (!statusArray.includes('not-flagged')) {
+            statusArray.push('not-flagged');
+          }
+          console.log('[Moderate] Setting filterStatus from hash:', statusArray);
+          this.filterStatus.set(statusArray);
         }
         const authorParam = params.get('author');
         if (authorParam) {
+          console.log('[Moderate] Setting filterAuthor from hash:', authorParam);
           this.filterAuthor.set(authorParam);
         }
         const preferenceParam = params.get('preference');
         if (preferenceParam) {
-          this.filterPreference.set(preferenceParam.split(','));
+          const prefArray = preferenceParam.split(',');
+          console.log('[Moderate] Setting filterPreference from hash:', prefArray);
+          this.filterPreference.set(prefArray);
         }
         const potentialParam = params.get('potential');
         if (potentialParam) {
-          this.filterPotential.set(potentialParam.split(','));
+          const potArray = potentialParam.split(',');
+          console.log('[Moderate] Setting filterPotential from hash:', potArray);
+          this.filterPotential.set(potArray);
         }
         const typeParam = params.get('type');
         if (typeParam) {
+          console.log('[Moderate] Setting filterType from hash:', typeParam);
           this.filterType.set(typeParam);
         }
         const searchParam = params.get('search');
         if (searchParam) {
+          console.log('[Moderate] Setting searchText from hash:', searchParam);
           this.searchText.set(searchParam);
         }
         const orderParam = params.get('order');
         if (orderParam) {
+          console.log('[Moderate] Setting orderBy from hash:', orderParam);
           this.orderBy.set(orderParam);
         }
         const viewParam = params.get('view');
         if (viewParam === 'grid' || viewParam === 'list') {
+          console.log('[Moderate] Setting viewMode from hash:', viewParam);
           this.viewMode.set(viewParam);
         }
       }
     }
+    console.log('[Moderate] After hash reading - filterStatus:', this.filterStatus());
     
     this.route.queryParams.subscribe(params => {
+      console.log('[Moderate] Query params received:', params);
       this.apiKey.set(params['api_key'] || null);
       this.workspaceId.set(params['workspace'] || this.workspaceId());
+      console.log('[Moderate] Set workspaceId:', this.workspaceId(), 'apiKey:', this.apiKey());
     });
     
     // Read filters from hash parameters (for updates after initial load)
@@ -143,7 +166,11 @@ export class ModerateComponent {
       if (fragment) {
         const params = new URLSearchParams(fragment);
         const statusParam = params.get('status');
-        this.filterStatus.set(statusParam ? statusParam.split(',') : ['new', 'flagged', 'approved', 'highlighted']);
+        const statusArray = statusParam ? statusParam.split(',') : ['new', 'flagged', 'approved', 'not-flagged', 'highlighted'];
+        if (!statusArray.includes('not-flagged')) {
+          statusArray.push('not-flagged');
+        }
+        this.filterStatus.set(statusArray);
         this.filterAuthor.set(params.get('author') || 'all');
         const preferenceParam = params.get('preference');
         this.filterPreference.set(preferenceParam ? preferenceParam.split(',') : [...this.preferenceOptions]);
@@ -162,16 +189,19 @@ export class ModerateComponent {
       const workspaceId = this.workspaceId();
       const apiKey = this.apiKey();
       const page = this.page();
-      console.log('page', page, 'workspaceId', workspaceId, 'apiKey', apiKey);
+      console.log('[Moderate] API Fetch Effect - page', page, 'workspaceId', workspaceId, 'apiKey', apiKey);
       if (workspaceId && apiKey) {
         // Only fetch from API - no filtering on server
         this.api.getItems(workspaceId, apiKey, page, '').subscribe((data: any) => {
+          console.log('[Moderate] API Response received:', data?.length || 0, 'items');
           if (data['index-required']) {
+            console.log('[Moderate] Index required:', data['index-required']);
             this.indexLink.set(data['index-required'] || null);
             this.allFetchedItems.set([]);
           } else {
             this.indexLink.set(null);
             data = data.filter((item: any) => !!item?.screenshot_url);
+            console.log('[Moderate] After filtering for screenshot_url:', data.length, 'items');
             data.forEach((item: any) => {
               item.screenshot_url = this.fix_url(item.screenshot_url);
               item.favorable_future = this.fix_favorable_future(item.favorable_future);
@@ -190,10 +220,12 @@ export class ModerateComponent {
             // Store all fetched items
             const existing = this.allFetchedItems();
             const newItems = data.filter((item: any) => !existing.find((i: any) => i._id === item._id));
+            console.log('[Moderate] Storing items - existing:', existing.length, 'new:', newItems.length, 'total will be:', existing.length + newItems.length);
             this.allFetchedItems.set([...existing, ...newItems]);
+            console.log('[Moderate] allFetchedItems signal updated to:', this.allFetchedItems().length, 'items');
             
-            // Apply client-side filtering and sorting
-            this.applyFiltersAndSort();
+            // Note: applyFiltersAndSort() will be called automatically by the effect
+            // that watches allFetchedItems() when it changes
           }
         });
       }
@@ -208,7 +240,8 @@ export class ModerateComponent {
       }
     });
     effect(() => {
-      // Watch all filter changes and apply client-side
+      // Watch all filter changes AND data updates and apply client-side
+      console.log('[Moderate] Filter effect triggered');
       this.filterStatus();
       this.filterAuthor();
       this.filterPreference();
@@ -217,6 +250,8 @@ export class ModerateComponent {
       this.searchText();
       this.orderBy();
       this.viewMode();
+      const fetched = this.allFetchedItems();
+      console.log('[Moderate] Filter effect - allFetchedItems:', fetched.length);
       
       this.updateHashParams();
       this.applyFiltersAndSort();
@@ -253,40 +288,65 @@ export class ModerateComponent {
   }
 
   applyFiltersAndSort(): void {
+    console.log('[Moderate] applyFiltersAndSort called');
+    console.log('[Moderate] - allFetchedItems:', this.allFetchedItems().length);
+    console.log('[Moderate] - filterStatus:', this.filterStatus());
+    console.log('[Moderate] - filterAuthor:', this.filterAuthor());
+    console.log('[Moderate] - filterPreference:', this.filterPreference());
+    
     let filtered = [...this.allFetchedItems()];
+    console.log('[Moderate] Starting with:', filtered.length, 'items');
     
     // Status filter using FilterHelpers
     if (this.filterStatus().length > 0) {
+      const beforeCount = filtered.length;
+      const mappedValues = this.filterStatus().map((s: string) => {
+        const mapped = FilterHelpers.STATUS_MAP[s as keyof typeof FilterHelpers.STATUS_MAP];
+        console.log('[Moderate] Mapping status', s, '->', mapped, 'STATUS_MAP keys:', Object.keys(FilterHelpers.STATUS_MAP));
+        return mapped;
+      });
+      console.log('[Moderate] Status filter values:', mappedValues);
+      console.log('[Moderate] First 5 items _private_moderation values:', filtered.slice(0, 5).map(item => item._private_moderation));
       filtered = filtered.filter(item => FilterHelpers.matchesStatusFilter(item, this.filterStatus()));
+      console.log('[Moderate] After status filter:', beforeCount, '->', filtered.length);
     }
     
     // Author filter
     if (this.filterAuthor() !== 'all') {
+      const beforeCount = filtered.length;
       if (this.filterAuthor() === 'unattributed') {
         filtered = filtered.filter(item => !item.author_id || item.author_id === 'unknown');
       } else {
         filtered = filtered.filter(item => item.author_id === this.filterAuthor());
       }
+      console.log('[Moderate] After author filter:', beforeCount, '->', filtered.length);
     }
     
     // Preference filter
     if (this.filterPreference().length > 0 && this.filterPreference().length < this.preferenceOptions.length) {
+      const beforeCount = filtered.length;
       filtered = filtered.filter(item => this.filterPreference().includes(item.favorable_future));
+      console.log('[Moderate] After preference filter:', beforeCount, '->', filtered.length);
     }
     
     // Potential filter
     if (this.filterPotential().length > 0 && this.filterPotential().length < this.potentialOptions.length) {
+      const beforeCount = filtered.length;
       filtered = filtered.filter(item => this.filterPotential().includes(String(item.plausibility)));
+      console.log('[Moderate] After potential filter:', beforeCount, '->', filtered.length);
     }
     
     // Type filter
     if (this.filterType() !== 'all') {
+      const beforeCount = filtered.length;
       filtered = filtered.filter(item => item.screenshot_type === this.filterType());
+      console.log('[Moderate] After type filter:', beforeCount, '->', filtered.length);
     }
     
     // Language filter
     // Search filter
     if (this.searchText()) {
+      const beforeCount = filtered.length;
       const searchLower = this.searchText().toLowerCase();
       filtered = filtered.filter(item => {
         const tagline = (item.future_scenario_tagline || '').toLowerCase();
@@ -294,6 +354,7 @@ export class ModerateComponent {
         const content = (item.content || '').toLowerCase();
         return tagline.includes(searchLower) || description.includes(searchLower) || content.includes(searchLower);
       });
+      console.log('[Moderate] After search filter:', beforeCount, '->', filtered.length);
     }
     
     // Calculate counts from ALL fetched items (not filtered)
@@ -310,7 +371,9 @@ export class ModerateComponent {
     
     // Sort and set items
     const sorted = this.sortItems(filtered);
+    console.log('[Moderate] Final filtered+sorted items:', sorted.length);
     this.items.set(sorted);
+    console.log('[Moderate] items signal updated to:', this.items().length);
   }
   
   buildFilterQuery(): string {
@@ -471,7 +534,7 @@ export class ModerateComponent {
     }
 
   clearAllFilters(): void {
-    this.filterStatus.set(['new', 'flagged', 'approved', 'highlighted']);
+    this.filterStatus.set(['new', 'flagged', 'approved', 'not-flagged', 'highlighted']);
     this.filterAuthor.set('all');
     this.filterPreference.set([...this.preferenceOptions]);
     this.filterPotential.set([...this.potentialOptions]);
@@ -949,6 +1012,8 @@ export class ModerateComponent {
   }
 
   onFiltersChange(newState: FiltersBarState): void {
+    console.log('[Moderate] onFiltersChange called with:', newState);
+    console.log('[Moderate] - filterStatus before:', this.filterStatus(), '-> after:', newState.status);
     this.filterStatus.set(newState.status);
     this.filterAuthor.set(newState.author);
     this.filterPreference.set(newState.preference);
