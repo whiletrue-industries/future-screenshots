@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, computed, ElementRef, signal, ViewChild, inject, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { AfterViewInit, Component, computed, ElementRef, signal, ViewChild, inject, OnDestroy, ChangeDetectorRef, ViewChildren, QueryList } from '@angular/core';
 import { catchError, distinctUntilChanged, filter, forkJoin, from, interval, Observable, of, Subject, timer, takeUntil } from 'rxjs';
 import { PlatformService } from '../../platform.service';
 import { HttpClient } from '@angular/common/http';
@@ -15,12 +15,11 @@ import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
-import { FiltersBarComponent, FilterOptions, FilterValues } from './filters-bar/filters-bar.component';
-import { LightboxComponent } from './lightbox/lightbox.component';
+import { FiltersBarComponent, FiltersBarState, FilterCounts } from '../shared/filters-bar/filters-bar.component';
 
 @Component({
   selector: 'app-showcase-ws',
-  imports: [QrcodeComponent, FiltersBarComponent, LightboxComponent],
+  imports: [QrcodeComponent, FiltersBarComponent],
   templateUrl: './showcase-ws.component.html',
   styleUrl: './showcase-ws.component.less'
 })
@@ -42,23 +41,15 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   private layoutChangeInProgress = false;
   
   // Filters state
-  allPhotos = signal<PhotoMetadata[]>([]);
-  filteredPhotos = signal<PhotoMetadata[]>([]);
-  filterOptions = signal<FilterOptions>({
-    statuses: ['new', 'flagged', 'approved', 'highlighted'],
-    authors: [],
-    preferences: ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'],
-    potentials: ['100', '75', '50', '25', '0'],
-    types: []
+  allPhotos = signal<any[]>([]);
+  filteredPhotos = signal<any[]>([]);
+  filterCounts = signal<FilterCounts>({
+    status: new Map(),
+    author: new Map(),
+    preference: new Map(),
+    potential: new Map(),
+    type: new Map()
   });
-  filterCounts = {
-    status: signal<Map<string, number>>(new Map()),
-    author: signal<Map<string, number>>(new Map()),
-    preference: signal<Map<string, number>>(new Map()),
-    potential: signal<Map<string, number>>(new Map()),
-    type: signal<Map<string, number>>(new Map())
-  };
-  resetLayoutOnFilter = signal(false);
   
   // Lightbox state
   lightboxOpen = signal(false);
@@ -506,85 +497,206 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   /**
    * Handle filter changes from filters-bar component
    */
-  onFilterChange(filters: FilterValues): void {
+  /**
+   * Handle filter changes from filters-bar component
+   */
+  onFilterChange(filters: FiltersBarState): void {
     console.log('Filter changed:', filters);
-    // Apply filters to photos
-    const allPhotos = this.allPhotos();
-    let filtered = [...allPhotos];
+    
+    // Update URL hash with current filters
+    this.updateHashParams(filters);
+    
+    // Apply filters and sorting
+    this.applyFiltersAndSort(filters);
+  }
 
-    // Apply status filter
-    if (filters.status.length > 0 && filters.status.length < this.filterOptions().statuses.length) {
-      filtered = filtered.filter(photo => 
-        filters.status.includes(photo['status'] || 'new')
-      );
+  /**
+   * Apply filters and sorting to photos
+   */
+  private applyFiltersAndSort(filters: FiltersBarState): void {
+    let filtered = [...this.allPhotos()];
+    
+    // Status filter (map to _private_moderation values)
+    if (filters.status.length > 0) {
+      const statusMap: any = {
+        'new': 2,
+        'flagged': 1,
+        'approved': 4,
+        'rejected': 0,
+        'highlighted': 5
+      };
+      const allowedValues = filters.status.map(status => statusMap[status]).filter(v => v !== undefined);
+      if (allowedValues.length > 0) {
+        filtered = filtered.filter(item => allowedValues.includes(item._private_moderation));
+      }
     }
-
-    // Apply author filter
+    
+    // Author filter
     if (filters.author !== 'all') {
-      filtered = filtered.filter(photo => photo['author_id'] === filters.author);
+      if (filters.author === 'unattributed') {
+        filtered = filtered.filter(item => !item.author_id || item.author_id === 'unknown');
+      } else {
+        filtered = filtered.filter(item => item.author_id === filters.author);
+      }
     }
-
-    // Apply search filter
-    if (filters.search.trim().length > 0) {
+    
+    // Preference filter
+    if (filters.preference.length > 0 && filters.preference.length < 5) {
+      filtered = filtered.filter(item => filters.preference.includes(item.favorable_future));
+    }
+    
+    // Potential filter
+    if (filters.potential.length > 0 && filters.potential.length < 5) {
+      filtered = filtered.filter(item => filters.potential.includes(String(item.plausibility)));
+    }
+    
+    // Type filter
+    if (filters.type !== 'all') {
+      filtered = filtered.filter(item => item.screenshot_type === filters.type);
+    }
+    
+    // Search filter
+    if (filters.search) {
       const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(photo => {
-        const searchableText = [
-          photo.id,
-          photo['author_id'],
-          photo.created_at,
-          JSON.stringify(photo)
-        ].join(' ').toLowerCase();
-        return searchableText.includes(searchLower);
+      filtered = filtered.filter(item => {
+        const tagline = (item.future_scenario_tagline || '').toLowerCase();
+        const description = (item.future_scenario_description || '').toLowerCase();
+        const content = (item.content || '').toLowerCase();
+        return tagline.includes(searchLower) || description.includes(searchLower) || content.includes(searchLower);
       });
     }
-
-    // Apply sorting
-    if (filters.orderBy === 'date') {
-      filtered.sort((a, b) => b.created_at.localeCompare(a.created_at));
-    } else if (filters.orderBy === 'author') {
-      filtered.sort((a, b) => (a['author_id'] || '').localeCompare(b['author_id'] || ''));
+    
+    // Sort filtered items
+    const sorted = this.sortItems(filtered, filters.orderBy);
+    this.filteredPhotos.set(sorted);
+    
+    // Update the photo repository to show only filtered photos
+    this.updateRenderedPhotos(sorted);
+  }
+  
+  /**
+   * Sort items based on order by field
+   */
+  private sortItems(items: any[], orderBy: string): any[] {
+    const sorted = [...items];
+    
+    switch (orderBy) {
+      case 'date':
+        sorted.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+        break;
+      case 'status':
+        sorted.sort((a, b) => (b._private_moderation || 0) - (a._private_moderation || 0));
+        break;
+      case 'author':
+        sorted.sort((a, b) => (a.author_id || '').localeCompare(b.author_id || ''));
+        break;
+      case 'type':
+        sorted.sort((a, b) => (a.screenshot_type || '').localeCompare(b.screenshot_type || ''));
+        break;
+      case 'preference':
+        const prefOrder: any = { 'prefer': 5, 'mostly prefer': 4, 'uncertain': 3, 'mostly prevent': 2, 'prevent': 1 };
+        sorted.sort((a, b) => (prefOrder[b.favorable_future] || 0) - (prefOrder[a.favorable_future] || 0));
+        break;
     }
-
-    this.filteredPhotos.set(filtered);
-
-    // If reset layout on filter is enabled, reset the layout
-    if (this.resetLayoutOnFilter()) {
-      // TODO: Implement layout reset logic
-      console.log('Reset layout on filter enabled');
+    
+    return sorted;
+  }
+  
+  /**
+   * Update rendered photos in three.js based on filtered list
+   */
+  private updateRenderedPhotos(photos: any[]): void {
+    // TODO: Update the three.js scene to show only filtered photos
+    // This will require modifying the photo repository or renderer
+    console.log('Updating rendered photos:', photos.length);
+  }
+  
+  /**
+   * Update URL hash with current filter state
+   */
+  private updateHashParams(filters: FiltersBarState): void {
+    const params = new URLSearchParams();
+    
+    if (filters.status.length > 0) params.set('status', filters.status.join(','));
+    if (filters.author !== 'all') params.set('author', filters.author);
+    if (filters.preference.length > 0 && filters.preference.length < 5) params.set('preference', filters.preference.join(','));
+    if (filters.potential.length > 0 && filters.potential.length < 5) params.set('potential', filters.potential.join(','));
+    if (filters.type !== 'all') params.set('type', filters.type);
+    if (filters.search) params.set('search', filters.search);
+    if (filters.orderBy !== 'date') params.set('order', filters.orderBy);
+    if (filters.view) params.set('view', filters.view);
+    
+    // Add current layout to hash
+    params.set('layout', this.currentLayout());
+    
+    const fragment = params.toString();
+    if (typeof window !== 'undefined') {
+      window.location.hash = fragment;
     }
   }
 
   /**
-   * Update all photos list and calculate filter options
+   * Update all photos list and calculate filter counts
    */
   private updateAllPhotos(): void {
     const photos = this.photoRepository.getAllPhotos();
-    const photoMetadata = photos.map(p => p.metadata);
-    this.allPhotos.set(photoMetadata);
-    this.filteredPhotos.set(photoMetadata);
-
-    // Calculate filter options and counts
-    const authors = new Set<string>();
+    const photoData = photos.map(p => p.metadata);
+    this.allPhotos.set(photoData);
+    
+    // Calculate filter counts from ALL items
+    this.calculateFilterCounts(photoData);
+    
+    // Initially show all photos
+    this.filteredPhotos.set(photoData);
+  }
+  
+  /**
+   * Calculate filter counts for display
+   */
+  private calculateFilterCounts(items: any[]): void {
     const statusCounts = new Map<string, number>();
     const authorCounts = new Map<string, number>();
-
-    photoMetadata.forEach(photo => {
-      if (photo['author_id']) {
-        authors.add(photo['author_id']);
-        authorCounts.set(photo['author_id'], (authorCounts.get(photo['author_id']) || 0) + 1);
+    const preferenceCounts = new Map<string, number>();
+    const potentialCounts = new Map<string, number>();
+    const typeCounts = new Map<string, number>();
+    
+    items.forEach(item => {
+      // Status counts (using _private_moderation)
+      const moderation = item._private_moderation;
+      if (moderation === 2) statusCounts.set('pending', (statusCounts.get('pending') || 0) + 1);
+      else if (moderation === 1) statusCounts.set('flagged', (statusCounts.get('flagged') || 0) + 1);
+      else if (moderation === 4) statusCounts.set('approved', (statusCounts.get('approved') || 0) + 1);
+      else if (moderation === 0) statusCounts.set('banned', (statusCounts.get('banned') || 0) + 1);
+      else if (moderation === 5) statusCounts.set('highlighted', (statusCounts.get('highlighted') || 0) + 1);
+      
+      // Author counts
+      const authorId = item.author_id || 'unknown';
+      authorCounts.set(authorId, (authorCounts.get(authorId) || 0) + 1);
+      
+      // Preference counts
+      if (item.favorable_future) {
+        preferenceCounts.set(item.favorable_future, (preferenceCounts.get(item.favorable_future) || 0) + 1);
       }
-
-      const status = photo['status'] || 'new';
-      statusCounts.set(status, (statusCounts.get(status) || 0) + 1);
+      
+      // Potential counts
+      if (item.plausibility !== undefined) {
+        const pot = String(item.plausibility);
+        potentialCounts.set(pot, (potentialCounts.get(pot) || 0) + 1);
+      }
+      
+      // Type counts
+      if (item.screenshot_type) {
+        typeCounts.set(item.screenshot_type, (typeCounts.get(item.screenshot_type) || 0) + 1);
+      }
     });
-
-    this.filterOptions.update(opts => ({
-      ...opts,
-      authors: Array.from(authors).sort()
-    }));
-
-    this.filterCounts.status.set(statusCounts);
-    this.filterCounts.author.set(authorCounts);
+    
+    this.filterCounts.set({
+      status: statusCounts,
+      author: authorCounts,
+      preference: preferenceCounts,
+      potential: potentialCounts,
+      type: typeCounts
+    });
   }
 
   /**
@@ -614,7 +726,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       return;
     }
     
-    const currentIndex = photos.findIndex(p => p.id === currentId);
+    const currentIndex = photos.findIndex((p: any) => p._id === currentId);
     if (currentIndex === -1) {
       return;
     }
@@ -627,7 +739,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     }
     
     if (newIndex !== currentIndex) {
-      this.lightboxPhotoId.set(photos[newIndex].id);
+      this.lightboxPhotoId.set(photos[newIndex]._id);
     }
   }
 

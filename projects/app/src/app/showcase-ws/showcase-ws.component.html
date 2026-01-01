@@ -2,13 +2,11 @@
 
 <!-- Filters Bar -->
 <app-filters-bar
-  [options]="filterOptions()"
-  [statusCounts]="filterCounts.status()"
-  [authorCounts]="filterCounts.author()"
-  [preferenceCounts]="filterCounts.preference()"
-  [potentialCounts]="filterCounts.potential()"
-  [typeCounts]="filterCounts.type()"
-  (filterChange)="onFilterChange($event)">
+  [counts]="filterCounts()"
+  [totalCount]="allPhotos().length"
+  [filteredCount]="filteredPhotos().length"
+  [showViewToggle]="false"
+  (filtersChange)="onFilterChange($event)">
 </app-filters-bar>
 
 <app-qrcode [small]='qrSmall()' [url]='qrUrl()'></app-qrcode>
@@ -85,12 +83,3 @@
     </div>
   </div>
 </div>
-
-<!-- Lightbox -->
-<app-lightbox
-  [isOpen]="lightboxOpen()"
-  [photos]="filteredPhotos()"
-  [currentPhotoId]="lightboxPhotoId()"
-  (close)="closeLightbox()"
-  (navigate)="navigateLightbox($event)">
-</app-lightbox>
