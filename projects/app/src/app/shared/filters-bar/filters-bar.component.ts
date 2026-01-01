@@ -371,13 +371,30 @@ export class FiltersBarComponent {
     return this.filterPotential().length;
   }
   
-  // Get status options that have data (count > 0)
+  // Get status options - shows all known status types
+  // Statuses with data will have counts, others will show (0)
   getAvailableStatusOptions(): string[] {
     const statusCounts = this.counts().status;
-    return this.allStatusOptions.filter(status => {
-      const countKey = FilterHelpers.getStatusCountKey(status);
-      return statusCounts.has(countKey) && (statusCounts.get(countKey) || 0) > 0;
-    });
+    // Always show all possible statuses
+    // But if data contains statuses not in our predefined list, add them
+    const knownStatuses = new Set(this.allStatusOptions);
+    const dataStatuses = Array.from(statusCounts.keys());
+    
+    // Map count keys back to status values
+    const statusValueMap: { [key: string]: string } = {
+      'pending': 'new',
+      'flagged': 'flagged',
+      'approved': 'approved',
+      'banned': 'rejected',
+      'highlighted': 'highlighted',
+      'not-flagged': 'not-flagged'
+    };
+    
+    const additionalStatuses = dataStatuses
+      .map(countKey => statusValueMap[countKey])
+      .filter(status => status && !knownStatuses.has(status));
+    
+    return [...this.allStatusOptions, ...additionalStatuses];
   }
   
   // Get label for status option
