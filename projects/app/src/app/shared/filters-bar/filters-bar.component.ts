@@ -97,7 +97,7 @@ export class FilterHelpers {
    * Parse URL hash with support for ~ (exclude) and + (additive) syntax
    * Examples:
    *   status=new,flagged,~rejected  -> include new and flagged, exclude rejected
-   *   search=+my+query              -> additive search query (spaces as +)
+   *   search=my+query               -> additive search query (spaces as +)
    */
   static parseHashParam(paramValue: string | null): { included: string[], excluded: string[] } {
     if (!paramValue) {
@@ -112,9 +112,6 @@ export class FilterHelpers {
       const trimmed = part.trim();
       if (trimmed.startsWith('~')) {
         excluded.push(trimmed.substring(1));
-      } else if (trimmed.startsWith('+')) {
-        // For additive flags, keep the + prefix for now
-        included.push(trimmed);
       } else if (trimmed) {
         included.push(trimmed);
       }
@@ -125,13 +122,26 @@ export class FilterHelpers {
 
   /**
    * Encode values to hash format with ~ for excluded items
+   * Returns null if both arrays are empty
    */
-  static encodeHashParam(included: string[], excluded: string[]): string {
+  static encodeHashParam(included: string[], excluded: string[]): string | null {
     const parts = [
       ...included,
       ...excluded.map(e => `~${e}`)
     ];
-    return parts.join(',');
+    return parts.length > 0 ? parts.join(',') : null;
+  }
+
+  /**
+   * Check if status filter is at default state (all except rejected)
+   */
+  static isDefaultStatusFilter(selectedStatuses: string[]): boolean {
+    const defaultStatuses = ['new', 'flagged', 'approved', 'not-flagged', 'highlighted'];
+    if (selectedStatuses.length !== defaultStatuses.length) {
+      return false;
+    }
+    return defaultStatuses.every(s => selectedStatuses.includes(s)) &&
+           !selectedStatuses.includes('rejected');
   }
 
   /**

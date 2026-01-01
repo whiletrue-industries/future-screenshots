@@ -730,12 +730,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     const excludedStatuses = allStatuses.filter(s => !selectedStatuses.includes(s));
     
     // Only include status param if it's not the default (all except rejected)
-    const isDefaultStatus = 
-      selectedStatuses.length === 5 && 
-      excludedStatuses.length === 1 && 
-      excludedStatuses[0] === 'rejected';
-    
-    if (!isDefaultStatus) {
+    if (!FilterHelpers.isDefaultStatusFilter(selectedStatuses)) {
       const statusParam = FilterHelpers.encodeHashParam(selectedStatuses, excludedStatuses);
       if (statusParam) {
         params.set('status', statusParam);
