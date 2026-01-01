@@ -530,6 +530,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     let filtered = [...this.allItemsData()];
     
     // Status filter (map to _private_moderation values)
+    // "new" status includes items with _private_moderation === 2 OR undefined/null
     if (filters.status.length > 0) {
       const statusMap: any = {
         'new': 2,
@@ -540,7 +541,15 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       };
       const allowedValues = filters.status.map(status => statusMap[status]).filter(v => v !== undefined);
       if (allowedValues.length > 0) {
-        filtered = filtered.filter(item => allowedValues.includes(item._private_moderation));
+        filtered = filtered.filter(item => {
+          const moderation = item._private_moderation;
+          // If "new" is selected and item has no _private_moderation, include it
+          if (filters.status.includes('new') && (moderation === undefined || moderation === null)) {
+            return true;
+          }
+          // Otherwise check if moderation value is in allowed values
+          return allowedValues.includes(moderation);
+        });
       }
     }
     
@@ -714,12 +723,19 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     
     items.forEach(item => {
       // Status counts (using _private_moderation)
+      // Items with no _private_moderation (undefined/null) are treated as "pending" (new)
       const moderation = item._private_moderation;
-      if (moderation === 2) statusCounts.set('pending', (statusCounts.get('pending') || 0) + 1);
-      else if (moderation === 1) statusCounts.set('flagged', (statusCounts.get('flagged') || 0) + 1);
-      else if (moderation === 4) statusCounts.set('approved', (statusCounts.get('approved') || 0) + 1);
-      else if (moderation === 0) statusCounts.set('banned', (statusCounts.get('banned') || 0) + 1);
-      else if (moderation === 5) statusCounts.set('highlighted', (statusCounts.get('highlighted') || 0) + 1);
+      if (moderation === undefined || moderation === null || moderation === 2) {
+        statusCounts.set('pending', (statusCounts.get('pending') || 0) + 1);
+      } else if (moderation === 1) {
+        statusCounts.set('flagged', (statusCounts.get('flagged') || 0) + 1);
+      } else if (moderation === 4) {
+        statusCounts.set('approved', (statusCounts.get('approved') || 0) + 1);
+      } else if (moderation === 0) {
+        statusCounts.set('banned', (statusCounts.get('banned') || 0) + 1);
+      } else if (moderation === 5) {
+        statusCounts.set('highlighted', (statusCounts.get('highlighted') || 0) + 1);
+      }
       
       // Author counts
       const authorId = item.author_id || 'unknown';

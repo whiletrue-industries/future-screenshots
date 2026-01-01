@@ -214,6 +214,7 @@ export class ModerateComponent {
     let filtered = [...this.allFetchedItems()];
     
     // Status filter
+    // "new" status includes items with _private_moderation === 2 OR undefined/null
     if (this.filterStatus().length > 0) {
       const statusMap: any = {
         'new': 2,
@@ -224,7 +225,15 @@ export class ModerateComponent {
       };
       const allowedValues = this.filterStatus().map(status => statusMap[status]).filter(v => v !== undefined);
       if (allowedValues.length > 0) {
-        filtered = filtered.filter(item => allowedValues.includes(item._private_moderation));
+        filtered = filtered.filter(item => {
+          const moderation = item._private_moderation;
+          // If "new" is selected and item has no _private_moderation, include it
+          if (this.filterStatus().includes('new') && (moderation === undefined || moderation === null)) {
+            return true;
+          }
+          // Otherwise check if moderation value is in allowed values
+          return allowedValues.includes(moderation);
+        });
       }
     }
     
