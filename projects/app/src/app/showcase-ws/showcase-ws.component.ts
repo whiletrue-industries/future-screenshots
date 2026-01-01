@@ -15,7 +15,7 @@ import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
-import { FiltersBarComponent, FiltersBarState, FilterCounts } from '../shared/filters-bar/filters-bar.component';
+import { FiltersBarComponent, FiltersBarState, FilterCounts, FilterHelpers } from '../shared/filters-bar/filters-bar.component';
 
 @Component({
   selector: 'app-showcase-ws',
@@ -529,28 +529,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   private applyFiltersAndSort(filters: FiltersBarState): void {
     let filtered = [...this.allItemsData()];
     
-    // Status filter (map to _private_moderation values)
-    // "new" status includes items with _private_moderation === 2 OR undefined/null
+    // Status filter using FilterHelpers
     if (filters.status.length > 0) {
-      const statusMap: any = {
-        'new': 2,
-        'flagged': 1,
-        'approved': 4,
-        'rejected': 0,
-        'highlighted': 5
-      };
-      const allowedValues = filters.status.map(status => statusMap[status]).filter(v => v !== undefined);
-      if (allowedValues.length > 0) {
-        filtered = filtered.filter(item => {
-          const moderation = item._private_moderation;
-          // If "new" is selected and item has no _private_moderation, include it
-          if (filters.status.includes('new') && (moderation === undefined || moderation === null)) {
-            return true;
-          }
-          // Otherwise check if moderation value is in allowed values
-          return allowedValues.includes(moderation);
-        });
-      }
+      filtered = filtered.filter(item => FilterHelpers.matchesStatusFilter(item, filters.status));
     }
     
     // Author filter
@@ -627,10 +608,57 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   /**
    * Update rendered photos in three.js based on filtered list
    */
-  private updateRenderedPhotos(photos: any[]): void {
-    // TODO: Update the three.js scene to show only filtered photos
-    // This will require modifying the photo repository or renderer
-    console.log('Updating rendered photos:', photos.length);
+  /**
+   * Update the three.js scene to show only filtered photos
+   */
+  private updateRenderedPhotos(filteredItems: any[]): void {
+    console.log('Updating rendered photos:', filteredItems.length);
+    
+    // Get IDs of filtered items
+    const filteredIds = new Set(filteredItems.map(item => item._id));
+    
+    // Get all currently displayed photos
+    const currentPhotos = this.photoRepository.getAllPhotos();
+    const currentIds = new Set(currentPhotos.map(p => p.metadata.id));
+    
+    // Remove photos that are not in filtered list
+    currentPhotos.forEach(photo => {
+      if (!filteredIds.has(photo.metadata.id)) {
+        this.photoRepository.removePhoto(photo.metadata.id);
+        this.loadedPhotoIds.delete(photo.metadata.id);
+      }
+    });
+    
+    // Add photos that are in filtered list but not currently displayed
+    const photosToAdd = filteredItems.filter(item => !currentIds.has(item._id));
+    
+    // Add photos sequentially
+    if (photosToAdd.length > 0) {
+      const addPromises = photosToAdd.map(async (item) => {
+        const id = item._id;
+        const url = item.screenshot_url;
+        const metadata: PhotoMetadata = {
+          id,
+          url,
+          created_at: item.created_at,
+          screenshot_url: url,
+          author_id: item.author_id,
+          layout_x: item.layout_x,
+          layout_y: item.layout_y
+        };
+        
+        try {
+          await this.photoRepository.addPhoto(metadata);
+          this.loadedPhotoIds.add(id);
+        } catch (error) {
+          console.error('Error adding filtered photo:', error);
+        }
+      });
+      
+      Promise.all(addPromises).then(() => {
+        console.log('Finished updating rendered photos');
+      });
+    }
   }
   
   /**
@@ -722,20 +750,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     const typeCounts = new Map<string, number>();
     
     items.forEach(item => {
-      // Status counts (using _private_moderation)
-      // Items with no _private_moderation (undefined/null) are treated as "pending" (new)
-      const moderation = item._private_moderation;
-      if (moderation === undefined || moderation === null || moderation === 2) {
-        statusCounts.set('pending', (statusCounts.get('pending') || 0) + 1);
-      } else if (moderation === 1) {
-        statusCounts.set('flagged', (statusCounts.get('flagged') || 0) + 1);
-      } else if (moderation === 4) {
-        statusCounts.set('approved', (statusCounts.get('approved') || 0) + 1);
-      } else if (moderation === 0) {
-        statusCounts.set('banned', (statusCounts.get('banned') || 0) + 1);
-      } else if (moderation === 5) {
-        statusCounts.set('highlighted', (statusCounts.get('highlighted') || 0) + 1);
-      }
+      // Status counts using FilterHelpers
+      const statusKey = FilterHelpers.getStatusKey(item);
+      statusCounts.set(statusKey, (statusCounts.get(statusKey) || 0) + 1);
       
       // Author counts
       const authorId = item.author_id || 'unknown';

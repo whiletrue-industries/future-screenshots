@@ -2,6 +2,7 @@ import { Component, effect, signal, HostListener } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AdminApiService } from '../../../admin-api.service';
 import { FormsModule } from '@angular/forms';
+import { FilterHelpers } from '../../shared/filters-bar/filters-bar.component';
 
 export type Filter = {
   name: string;
@@ -213,28 +214,9 @@ export class ModerateComponent {
   applyFiltersAndSort(): void {
     let filtered = [...this.allFetchedItems()];
     
-    // Status filter
-    // "new" status includes items with _private_moderation === 2 OR undefined/null
+    // Status filter using FilterHelpers
     if (this.filterStatus().length > 0) {
-      const statusMap: any = {
-        'new': 2,
-        'flagged': 1,
-        'approved': 4,
-        'rejected': 0,
-        'highlighted': 5
-      };
-      const allowedValues = this.filterStatus().map(status => statusMap[status]).filter(v => v !== undefined);
-      if (allowedValues.length > 0) {
-        filtered = filtered.filter(item => {
-          const moderation = item._private_moderation;
-          // If "new" is selected and item has no _private_moderation, include it
-          if (this.filterStatus().includes('new') && (moderation === undefined || moderation === null)) {
-            return true;
-          }
-          // Otherwise check if moderation value is in allowed values
-          return allowedValues.includes(moderation);
-        });
-      }
+      filtered = filtered.filter(item => FilterHelpers.matchesStatusFilter(item, this.filterStatus()));
     }
     
     // Author filter
@@ -466,8 +448,8 @@ export class ModerateComponent {
     const type = new Map<string, number>();
     
     data.forEach((item: any) => {
-      // Status counts
-      const statusKey = this.LEVELS[item._private_moderation] || 'pending';
+      // Status counts using FilterHelpers
+      const statusKey = FilterHelpers.getStatusKey(item);
       status.set(statusKey, (status.get(statusKey) || 0) + 1);
       
       // Author counts

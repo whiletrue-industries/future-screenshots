@@ -20,6 +20,70 @@ export interface FilterCounts {
   type: Map<string, number>;
 }
 
+/**
+ * Status value mapping for _private_moderation field
+ */
+export class FilterHelpers {
+  static readonly STATUS_MAP = {
+    'new': 2,
+    'flagged': 1,
+    'approved': 4,
+    'rejected': 0,
+    'highlighted': 5
+  } as const;
+
+  /**
+   * Check if an item matches the "new" status
+   * "New" includes items with _private_moderation === 2 OR undefined/null
+   */
+  static isNewStatus(item: any): boolean {
+    const moderation = item._private_moderation;
+    return moderation === undefined || moderation === null || moderation === 2;
+  }
+
+  /**
+   * Get the status key for an item for counting purposes
+   */
+  static getStatusKey(item: any): string {
+    const moderation = item._private_moderation;
+    if (moderation === undefined || moderation === null || moderation === 2) {
+      return 'pending';
+    } else if (moderation === 1) {
+      return 'flagged';
+    } else if (moderation === 4) {
+      return 'approved';
+    } else if (moderation === 0) {
+      return 'banned';
+    } else if (moderation === 5) {
+      return 'highlighted';
+    }
+    return 'pending'; // default
+  }
+
+  /**
+   * Check if an item matches the selected status filters
+   */
+  static matchesStatusFilter(item: any, selectedStatuses: string[]): boolean {
+    if (selectedStatuses.length === 0) {
+      return true; // No filter means show all
+    }
+
+    const moderation = item._private_moderation;
+    
+    // Check if "new" is selected and item has no _private_moderation
+    if (selectedStatuses.includes('new') && (moderation === undefined || moderation === null)) {
+      return true;
+    }
+
+    // Check if moderation value matches any selected status
+    const allowedValues = selectedStatuses
+      .map(status => FilterHelpers.STATUS_MAP[status as keyof typeof FilterHelpers.STATUS_MAP])
+      .filter(v => v !== undefined);
+    
+    return allowedValues.includes(moderation);
+  }
+}
+
 @Component({
   selector: 'app-filters-bar',
   imports: [FormsModule],
