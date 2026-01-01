@@ -513,6 +513,37 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   /**
    * Handle filter changes from filters-bar component
    */
+  getFilterState(): FiltersBarState {
+    // Get initial state from URL hash if available
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+      
+      return {
+        status: params.get('status')?.split(',') || ['new', 'flagged', 'approved', 'highlighted'],
+        author: params.get('author') || 'all',
+        preference: params.get('preference')?.split(',') || ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'],
+        potential: params.get('potential')?.split(',') || ['100', '75', '50', '25', '0'],
+        type: params.get('type') || 'all',
+        search: params.get('search') || '',
+        orderBy: params.get('order') || 'date',
+        view: undefined
+      };
+    }
+    
+    // Default state
+    return {
+      status: ['new', 'flagged', 'approved', 'highlighted'],
+      author: 'all',
+      preference: ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'],
+      potential: ['100', '75', '50', '25', '0'],
+      type: 'all',
+      search: '',
+      orderBy: 'date',
+      view: undefined
+    };
+  }
+
   onFilterChange(filters: FiltersBarState): void {
     console.log('Filter changed:', filters);
     

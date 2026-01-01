@@ -103,6 +103,7 @@ export class FiltersBarComponent {
   totalCount = input<number>(0);
   filteredCount = input<number>(0);
   showViewToggle = input<boolean>(false);
+  initialState = input<FiltersBarState | null>(null);
   
   // Outputs
   filtersChange = output<FiltersBarState>();
@@ -126,16 +127,28 @@ export class FiltersBarComponent {
   preferenceOptions = ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'];
   potentialOptions = ['100', '75', '50', '25', '0'];
   
+  private initialized = false;
+  
   constructor() {
-    // Read initial filters from URL hash if available
-    if (typeof window !== 'undefined') {
-      const hash = window.location.hash.substring(1);
-      if (hash) {
-        this.setFiltersFromHash(hash);
+    // Set initial state from parent if provided
+    effect(() => {
+      const state = this.initialState();
+      if (state && !this.initialized) {
+        this.filterStatus.set(state.status);
+        this.filterAuthor.set(state.author);
+        this.filterPreference.set(state.preference);
+        this.filterPotential.set(state.potential);
+        this.filterType.set(state.type);
+        this.searchText.set(state.search);
+        this.orderBy.set(state.orderBy);
+        if (state.view) {
+          this.viewMode.set(state.view as 'grid' | 'list');
+        }
+        this.initialized = true;
       }
-    }
+    });
     
-    // Watch for filter changes and emit
+    // Watch for filter changes and emit (skip initial emission if we have initialState)
     effect(() => {
       this.filterStatus();
       this.filterAuthor();
@@ -146,7 +159,10 @@ export class FiltersBarComponent {
       this.orderBy();
       this.viewMode();
       
-      this.emitFiltersChange();
+      // Only emit if we're initialized or have no initial state
+      if (this.initialized || !this.initialState()) {
+        this.emitFiltersChange();
+      }
     });
   }
   
@@ -276,34 +292,5 @@ export class FiltersBarComponent {
   
   toggleViewMode(): void {
     this.viewMode.set(this.viewMode() === 'grid' ? 'list' : 'grid');
-  }
-  
-  // Public method to set filters from URL hash
-  setFiltersFromHash(hash: string): void {
-    const params = new URLSearchParams(hash);
-    
-    const statusParam = params.get('status');
-    if (statusParam) this.filterStatus.set(statusParam.split(','));
-    
-    const authorParam = params.get('author');
-    if (authorParam) this.filterAuthor.set(authorParam);
-    
-    const preferenceParam = params.get('preference');
-    if (preferenceParam) this.filterPreference.set(preferenceParam.split(','));
-    
-    const potentialParam = params.get('potential');
-    if (potentialParam) this.filterPotential.set(potentialParam.split(','));
-    
-    const typeParam = params.get('type');
-    if (typeParam) this.filterType.set(typeParam);
-    
-    const searchParam = params.get('search');
-    if (searchParam) this.searchText.set(searchParam);
-    
-    const orderParam = params.get('order');
-    if (orderParam) this.orderBy.set(orderParam);
-    
-    const viewParam = params.get('view');
-    if (viewParam === 'grid' || viewParam === 'list') this.viewMode.set(viewParam);
   }
 }

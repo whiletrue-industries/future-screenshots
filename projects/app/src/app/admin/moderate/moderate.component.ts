@@ -926,6 +926,19 @@ export class ModerateComponent {
   }
 
   // Methods for filters-bar component integration
+  getFilterState(): FiltersBarState {
+    return {
+      status: this.filterStatus(),
+      author: this.filterAuthor(),
+      preference: this.filterPreference(),
+      potential: this.filterPotential(),
+      type: this.filterType(),
+      search: this.searchText(),
+      orderBy: this.orderBy(),
+      view: this.viewMode()
+    };
+  }
+
   getFilterCounts(): FilterCounts {
     return {
       status: this.statusCounts(),

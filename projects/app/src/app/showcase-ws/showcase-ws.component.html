@@ -6,6 +6,7 @@
   [totalCount]="allPhotos().length"
   [filteredCount]="filteredPhotos().length"
   [showViewToggle]="false"
+  [initialState]="getFilterState()"
   (filtersChange)="onFilterChange($event)">
 </app-filters-bar>
 
