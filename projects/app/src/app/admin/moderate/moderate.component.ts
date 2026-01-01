@@ -2,7 +2,7 @@ import { Component, effect, signal, HostListener } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AdminApiService } from '../../../admin-api.service';
 import { FormsModule } from '@angular/forms';
-import { FilterHelpers } from '../../shared/filters-bar/filters-bar.component';
+import { FilterHelpers, FiltersBarComponent, FiltersBarState, FilterCounts } from '../../shared/filters-bar/filters-bar.component';
 
 export type Filter = {
   name: string;
@@ -12,7 +12,8 @@ export type Filter = {
 @Component({
   selector: 'app-moderate',
   imports: [
-    FormsModule
+    FormsModule,
+    FiltersBarComponent
   ],
   templateUrl: './moderate.component.html',
   styleUrl: './moderate.component.less'
@@ -922,5 +923,32 @@ export class ModerateComponent {
         error => console.error('Error updating transition_bar_position', error)
       );
     }
+  }
+
+  // Methods for filters-bar component integration
+  getFilterCounts(): FilterCounts {
+    return {
+      status: this.statusCounts(),
+      author: this.authorCounts(),
+      preference: this.preferenceCounts(),
+      potential: this.potentialCounts(),
+      type: this.typeCounts()
+    };
+  }
+
+  onFiltersChange(newState: FiltersBarState): void {
+    this.filterStatus.set(newState.status);
+    this.filterAuthor.set(newState.author);
+    this.filterPreference.set(newState.preference);
+    this.filterPotential.set(newState.potential);
+    this.filterType.set(newState.type);
+    this.searchText.set(newState.search);
+    this.orderBy.set(newState.orderBy);
+    if (newState.view) {
+      this.viewMode.set(newState.view as 'grid' | 'list');
+    }
+    
+    // Apply filters - this will trigger the effect that updates URL hash
+    this.applyFiltersAndSort();
   }
 }
