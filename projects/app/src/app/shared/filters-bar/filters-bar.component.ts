@@ -63,6 +63,14 @@ export class FiltersBarComponent {
   potentialOptions = ['100', '75', '50', '25', '0'];
   
   constructor() {
+    // Read initial filters from URL hash if available
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.substring(1);
+      if (hash) {
+        this.setFiltersFromHash(hash);
+      }
+    }
+    
     // Watch for filter changes and emit
     effect(() => {
       this.filterStatus();

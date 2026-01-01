@@ -250,6 +250,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     // Set up lightbox click callback
     this.setupLightboxClickCallback();
     
+    // Read initial filters from URL hash
+    this.readFiltersFromHash();
+    
     // Start initial polling after component is ready
     if (this.platform.browser()) {
       timer(ANIMATION_CONSTANTS.INITIAL_POLLING_DELAY).subscribe(() => {
@@ -633,6 +636,34 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     if (typeof window !== 'undefined') {
       window.location.hash = fragment;
     }
+  }
+  
+  /**
+   * Read filters from URL hash and apply them
+   */
+  private readFiltersFromHash(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
+    const hash = window.location.hash.substring(1); // Remove '#'
+    if (!hash) {
+      return;
+    }
+    
+    // Use ViewChildren to get reference to filters-bar component
+    // For now, we'll just trigger a filter change event manually
+    const params = new URLSearchParams(hash);
+    
+    // Read layout from hash and switch if needed
+    const layoutParam = params.get('layout');
+    if (layoutParam && ['grid', 'tsne', 'svg', 'circle-packing'].includes(layoutParam)) {
+      this.currentLayout.set(layoutParam as any);
+    }
+    
+    // Note: The filters-bar component has its own setFiltersFromHash method
+    // We need to trigger it after the component is initialized
+    // For now, the filters-bar will read from hash in its own effect
   }
 
   /**
