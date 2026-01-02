@@ -10,7 +10,7 @@
           <span class="multiselect-label">
             @if (getSelectedStatusCount() === 0) {
               Select status...
-            } @else if (getSelectedStatusCount() === 5) {
+            } @else if (getSelectedStatusCount() === 6) {
               All statuses
             } @else {
               {{ getSelectedStatusCount() }} selected
@@ -27,6 +27,14 @@
                 (change)="toggleStatusFilter('new')" />
               <span class="option-label">New</span>
               <span class="option-count">{{ getCount(counts().status, 'pending') }}</span>
+            </label>
+            <label class="multiselect-option">
+              <input 
+                type="checkbox" 
+                [checked]="isStatusSelected('in-review')"
+                (change)="toggleStatusFilter('in-review')" />
+              <span class="option-label">In Review</span>
+              <span class="option-count">{{ getCount(counts().status, 'in-review') }}</span>
             </label>
             <label class="multiselect-option">
               <input 

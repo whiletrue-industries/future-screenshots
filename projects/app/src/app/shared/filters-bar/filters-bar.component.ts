@@ -30,8 +30,20 @@ export class FilterHelpers {
     'approved': 4,
     'not-flagged': 3,
     'rejected': 0,
-    'highlighted': 5
+    'highlighted': 5,
+    // 'in-review' is computed, not a direct _private_moderation value
   } as const;
+
+  /**
+   * Check if an item is "in review"
+   * "In review" means both plausibility and favorable_future are set
+   * (indicating user/admin scoring, not automatic AI scoring)
+   */
+  static isInReviewStatus(item: any): boolean {
+    return item.plausibility !== undefined && item.plausibility !== null &&
+           item.favorable_future !== undefined && item.favorable_future !== null &&
+           item.favorable_future !== '';
+  }
 
   /**
    * Check if an item matches the "new" status
@@ -46,6 +58,11 @@ export class FilterHelpers {
    * Get the status key for an item for counting purposes
    */
   static getStatusKey(item: any): string {
+    // Check "in review" first as it's a computed status that takes precedence
+    if (FilterHelpers.isInReviewStatus(item)) {
+      return 'in-review';
+    }
+
     const moderation = item._private_moderation;
     if (moderation === undefined || moderation === null || moderation === 2) {
       return 'pending';
@@ -67,6 +84,11 @@ export class FilterHelpers {
   static matchesStatusFilter(item: any, selectedStatuses: string[]): boolean {
     if (selectedStatuses.length === 0) {
       return true; // No filter means show all
+    }
+
+    // Check for "in-review" status first (computed status)
+    if (selectedStatuses.includes('in-review') && FilterHelpers.isInReviewStatus(item)) {
+      return true;
     }
 
     const moderation = item._private_moderation;
@@ -110,7 +132,7 @@ export class FiltersBarComponent {
   filtersChange = output<FiltersBarState>();
   
   // Filter state
-  filterStatus = signal<string[]>(['new', 'flagged', 'approved', 'not-flagged', 'highlighted']);
+  filterStatus = signal<string[]>(['new', 'in-review', 'flagged', 'approved', 'not-flagged', 'highlighted']);
   filterAuthor = signal<string>('all');
   filterPreference = signal<string[]>(['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent']);
   filterPotential = signal<string[]>(['100', '75', '50', '25', '0']);
