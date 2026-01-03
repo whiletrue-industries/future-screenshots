@@ -92,16 +92,21 @@ export class ConfirmComponent {
     if (currentImage) {
       const metadata: any = {};
       
+      // Store user-set values to restore after AI analysis
+      const userSetMetadata: any = {};
+      
       // Add preference if selected (only set initially, not on update)
       const pref = this.preference();
       if (pref) {
         metadata['favorable_future'] = pref;
+        userSetMetadata['favorable_future'] = pref;
       }
 
       // Add potential if selected (only set initially, not on update)
       const pot = this.potential();
       if (pot) {
         metadata['plausibility'] = pot;
+        userSetMetadata['plausibility'] = pot;
       }
 
       this.api.createItem(metadata).subscribe((res: any) => {
@@ -114,11 +119,22 @@ export class ConfirmComponent {
           this.router.navigate(['/props'], { queryParams: params, queryParamsHandling: 'merge'});
         } else {
           this.api.uploadImageAuto(currentImage, res.item_id, res.item_key).subscribe(() => {
-            // Navigate back to scan, preserving hash to maintain dropdown state
-            this.router.navigate(['/scan'], { 
-              queryParamsHandling: 'preserve',
-              fragment: window.location.hash.substring(1) 
-            });
+            // If user set values, restore them after AI analysis
+            if (Object.keys(userSetMetadata).length > 0) {
+              this.api.updateItem(userSetMetadata, res.item_id, res.item_key).subscribe(() => {
+                // Navigate back to scan after restoring user values
+                this.router.navigate(['/scan'], { 
+                  queryParamsHandling: 'preserve',
+                  fragment: window.location.hash.substring(1) 
+                });
+              });
+            } else {
+              // Navigate back to scan, preserving hash to maintain dropdown state
+              this.router.navigate(['/scan'], { 
+                queryParamsHandling: 'preserve',
+                fragment: window.location.hash.substring(1) 
+              });
+            }
           });
         }
       });
