@@ -64,6 +64,8 @@ export class ConfirmComponent {
   }
 
   saveToHash(preference: string, potential: string) {
+    // Using window.location.hash directly for fragment-based state persistence
+    // This allows maintaining dropdown state across scans without affecting Angular routing
     const params = new URLSearchParams();
     if (preference) {
       params.set('preference', preference);
@@ -93,7 +95,10 @@ export class ConfirmComponent {
       // Add potential if selected
       const pot = this.potential();
       if (pot) {
-        metadata['plausibility'] = parseInt(pot, 10);
+        const plausibility = parseInt(pot, 10);
+        if (!isNaN(plausibility)) {
+          metadata['plausibility'] = plausibility;
+        }
       }
 
       this.api.createItem(metadata).subscribe((res: any) => {
