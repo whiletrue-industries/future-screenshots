@@ -980,4 +980,11 @@ export class ModerateComponent {
     // No need to call applyFiltersAndSort() here - the effect at lines 210-223 will handle it
     // when the filter signals change
   }
+
+  onFiltersCommit(newState: FiltersBarState): void {
+    // This is called when dropdown closes or focus changes
+    // Update filters and immediately update hash
+    this.onFiltersChange(newState);
+    // The effect will trigger updateHashParams() automatically
+  }
 }

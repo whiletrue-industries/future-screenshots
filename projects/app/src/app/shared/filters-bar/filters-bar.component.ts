@@ -130,6 +130,7 @@ export class FiltersBarComponent {
   
   // Outputs
   filtersChange = output<FiltersBarState>();
+  filtersCommit = output<FiltersBarState>(); // Emitted when dropdown closes or focus changes
   
   // Filter state
   filterStatus = signal<string[]>(['new', 'in-review', 'flagged', 'approved', 'not-flagged', 'highlighted']);
@@ -153,6 +154,8 @@ export class FiltersBarComponent {
   private initialized = false;
   private isInitializing = false;
   private changeEffectTriggered = false;
+  private debounceTimer: any = null;
+  private readonly DEBOUNCE_DELAY = 300; // 300ms debounce for view updates
   
   constructor() {
     // Set initial state from parent if provided
@@ -203,13 +206,11 @@ export class FiltersBarComponent {
       }
       this.changeEffectTriggered = true;
       
-      // Only emit if we're not initializing and we have either initialized or have no initial state
-      if (!this.isInitializing && (this.initialized || !this.initialState())) {
-        console.log('[FiltersBar] Emitting filter change');
-        this.emitFiltersChange();
-      } else {
-        console.log('[FiltersBar] Skipping emission - isInitializing:', this.isInitializing);
-      }
+      // Note: We no longer emit here automatically. Instead, we rely on:
+      // 1. Debounced emissions when checkboxes are toggled (for immediate view updates)
+      // 2. Commit emissions when dropdowns close or focus changes (for hash updates)
+      // This prevents continuous emissions and gives us fine-grained control over when to emit
+      console.log('[FiltersBar] Change detected but not auto-emitting (using debounced/commit pattern)');
     });
   }
   
@@ -217,9 +218,15 @@ export class FiltersBarComponent {
   onDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
     if (!target.closest('.custom-multiselect')) {
+      const wasOpen = this.statusDropdownOpen() || this.preferenceDropdownOpen() || this.potentialDropdownOpen();
       this.statusDropdownOpen.set(false);
       this.preferenceDropdownOpen.set(false);
       this.potentialDropdownOpen.set(false);
+      
+      // Commit changes when dropdown closes
+      if (wasOpen && !this.isInitializing) {
+        this.commitFilters();
+      }
     }
   }
   
@@ -236,13 +243,44 @@ export class FiltersBarComponent {
     });
   }
   
+  private commitFilters(): void {
+    this.filtersCommit.emit({
+      status: this.filterStatus(),
+      author: this.filterAuthor(),
+      preference: this.filterPreference(),
+      potential: this.filterPotential(),
+      type: this.filterType(),
+      search: this.searchText(),
+      orderBy: this.orderBy(),
+      view: this.viewMode()
+    });
+  }
+  
+  private emitDebouncedChange(): void {
+    // Clear existing timer
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+    }
+    
+    // Set new timer for debounced emission
+    this.debounceTimer = setTimeout(() => {
+      if (!this.isInitializing) {
+        this.emitFiltersChange();
+      }
+    }, this.DEBOUNCE_DELAY);
+  }
+  
   // Status filter methods
   toggleStatusDropdown(): void {
-    const next = !this.statusDropdownOpen();
+    const wasOpen = this.statusDropdownOpen();
+    const next = !wasOpen;
     this.statusDropdownOpen.set(next);
     if (next) {
       this.preferenceDropdownOpen.set(false);
       this.potentialDropdownOpen.set(false);
+    } else if (wasOpen && !this.isInitializing) {
+      // Commit changes when dropdown is manually closed
+      this.commitFilters();
     }
   }
   
@@ -253,6 +291,8 @@ export class FiltersBarComponent {
     } else {
       this.filterStatus.set([...current, status]);
     }
+    // Emit debounced change for immediate view update
+    this.emitDebouncedChange();
   }
   
   isStatusSelected(status: string): boolean {
@@ -265,19 +305,27 @@ export class FiltersBarComponent {
 
   selectAllStatuses(): void {
     this.filterStatus.set(['new', 'in-review', 'flagged', 'approved', 'rejected', 'highlighted']);
+    // Emit debounced change for immediate view update
+    this.emitDebouncedChange();
   }
 
   deselectAllStatuses(): void {
     this.filterStatus.set([]);
+    // Emit debounced change for immediate view update
+    this.emitDebouncedChange();
   }
   
   // Preference filter methods
   togglePreferenceDropdown(): void {
-    const next = !this.preferenceDropdownOpen();
+    const wasOpen = this.preferenceDropdownOpen();
+    const next = !wasOpen;
     this.preferenceDropdownOpen.set(next);
     if (next) {
       this.statusDropdownOpen.set(false);
       this.potentialDropdownOpen.set(false);
+    } else if (wasOpen && !this.isInitializing) {
+      // Commit changes when dropdown is manually closed
+      this.commitFilters();
     }
   }
   
@@ -288,6 +336,8 @@ export class FiltersBarComponent {
     } else {
       this.filterPreference.set([...current, preference]);
     }
+    // Emit debounced change for immediate view update
+    this.emitDebouncedChange();
   }
   
   isPreferenceSelected(preference: string): boolean {
@@ -300,19 +350,27 @@ export class FiltersBarComponent {
 
   selectAllPreferences(): void {
     this.filterPreference.set(['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent']);
+    // Emit debounced change for immediate view update
+    this.emitDebouncedChange();
   }
 
   deselectAllPreferences(): void {
     this.filterPreference.set([]);
+    // Emit debounced change for immediate view update
+    this.emitDebouncedChange();
   }
   
   // Potential filter methods
   togglePotentialDropdown(): void {
-    const next = !this.potentialDropdownOpen();
+    const wasOpen = this.potentialDropdownOpen();
+    const next = !wasOpen;
     this.potentialDropdownOpen.set(next);
     if (next) {
       this.statusDropdownOpen.set(false);
       this.preferenceDropdownOpen.set(false);
+    } else if (wasOpen && !this.isInitializing) {
+      // Commit changes when dropdown is manually closed
+      this.commitFilters();
     }
   }
   
@@ -323,6 +381,8 @@ export class FiltersBarComponent {
     } else {
       this.filterPotential.set([...current, potential]);
     }
+    // Emit debounced change for immediate view update
+    this.emitDebouncedChange();
   }
   
   isPotentialSelected(potential: string): boolean {
@@ -335,10 +395,14 @@ export class FiltersBarComponent {
 
   selectAllPotentials(): void {
     this.filterPotential.set(['100', '75', '50', '25', '0']);
+    // Emit debounced change for immediate view update
+    this.emitDebouncedChange();
   }
 
   deselectAllPotentials(): void {
     this.filterPotential.set([]);
+    // Emit debounced change for immediate view update
+    this.emitDebouncedChange();
   }
   
   // Utility methods

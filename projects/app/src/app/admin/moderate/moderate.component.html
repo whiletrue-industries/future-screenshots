@@ -31,6 +31,7 @@
     [showViewToggle]="true"
     [initialState]="filterState()"
     (filtersChange)="onFiltersChange($event)"
+    (filtersCommit)="onFiltersCommit($event)"
   ></app-filters-bar>
 
   @if (items().length === 500 || page() > 0) {

@@ -551,12 +551,21 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   });
 
   onFilterChange(filters: FiltersBarState): void {
-    console.log('Filter changed:', filters);
+    console.log('Filter changed (debounced):', filters);
     
-    // Update URL hash with current filters
+    // Apply filters and sorting immediately for view update
+    this.applyFiltersAndSort(filters);
+    
+    // Do NOT update hash here - wait for commit
+  }
+
+  onFilterCommit(filters: FiltersBarState): void {
+    console.log('Filter committed (dropdown closed or focus changed):', filters);
+    
+    // Update URL hash when dropdown closes or focus changes
     this.updateHashParams(filters);
     
-    // Apply filters and sorting
+    // Also apply filters to ensure state is in sync
     this.applyFiltersAndSort(filters);
   }
 
