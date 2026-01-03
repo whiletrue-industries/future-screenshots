@@ -22,7 +22,9 @@ export class ConfirmComponent {
 
   preferenceOptions = [
     { label: $localize`Preferred`, value: 'prefer' },
-    { label: $localize`Prevented`, value: 'prevent' }
+    { label: $localize`Mostly Preferred`, value: 'mostly prefer' },
+    { label: $localize`Prevented`, value: 'prevent' },
+    { label: $localize`Mostly Prevented`, value: 'mostly prevent' }
   ];
 
   potentialOptions = [
@@ -86,13 +88,13 @@ export class ConfirmComponent {
     if (currentImage) {
       const metadata: any = {};
       
-      // Add preference if selected
+      // Add preference if selected (only set initially, not on update)
       const pref = this.preference();
       if (pref) {
         metadata['favorable_future'] = pref;
       }
 
-      // Add potential if selected
+      // Add potential if selected (only set initially, not on update)
       const pot = this.potential();
       if (pot) {
         const plausibility = parseInt(pot, 10);
@@ -111,7 +113,11 @@ export class ConfirmComponent {
           this.router.navigate(['/props'], { queryParams: params, queryParamsHandling: 'merge'});
         } else {
           this.api.uploadImageAuto(currentImage, res.item_id, res.item_key).subscribe(() => {
-            this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
+            // Navigate back to scan, preserving hash to maintain dropdown state
+            this.router.navigate(['/scan'], { 
+              queryParamsHandling: 'preserve',
+              fragment: window.location.hash.substring(1) 
+            });
           });
         }
       });
