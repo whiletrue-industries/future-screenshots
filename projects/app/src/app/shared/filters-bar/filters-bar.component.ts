@@ -262,6 +262,14 @@ export class FiltersBarComponent {
   getSelectedStatusCount(): number {
     return this.filterStatus().length;
   }
+
+  selectAllStatuses(): void {
+    this.filterStatus.set(['new', 'in-review', 'flagged', 'approved', 'rejected', 'highlighted']);
+  }
+
+  deselectAllStatuses(): void {
+    this.filterStatus.set([]);
+  }
   
   // Preference filter methods
   togglePreferenceDropdown(): void {
@@ -289,6 +297,14 @@ export class FiltersBarComponent {
   getSelectedPreferenceCount(): number {
     return this.filterPreference().length;
   }
+
+  selectAllPreferences(): void {
+    this.filterPreference.set(['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent']);
+  }
+
+  deselectAllPreferences(): void {
+    this.filterPreference.set([]);
+  }
   
   // Potential filter methods
   togglePotentialDropdown(): void {
@@ -315,6 +331,14 @@ export class FiltersBarComponent {
   
   getSelectedPotentialCount(): number {
     return this.filterPotential().length;
+  }
+
+  selectAllPotentials(): void {
+    this.filterPotential.set(['100', '75', '50', '25', '0']);
+  }
+
+  deselectAllPotentials(): void {
+    this.filterPotential.set([]);
   }
   
   // Utility methods
