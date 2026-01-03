@@ -203,7 +203,17 @@ export class ApiService {
       tap((data: any) => {
         console.log('Screenshot uploaded successfully', data.metadata);
         this.item.update((item: any) => {
-          return Object.assign({}, item, data.metadata);
+          // Preserve user-set values for favorable_future and plausibility
+          // Only use AI analysis values if user hasn't already set them
+          const preservedFields: any = {};
+          if (item?.favorable_future) {
+            preservedFields.favorable_future = item.favorable_future;
+          }
+          if (item?.plausibility) {
+            preservedFields.plausibility = item.plausibility;
+          }
+          // Merge: start with current item, add AI metadata, then restore preserved fields
+          return Object.assign({}, item, data.metadata, preservedFields);
         });
       })
     );
