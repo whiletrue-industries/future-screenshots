@@ -1,4 +1,4 @@
-import { Component, effect, model } from '@angular/core';
+import { Component, effect, model, untracked } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { StateService } from '../../state.service';
 import { ApiService } from '../../api.service';
@@ -19,20 +19,21 @@ export class ConfirmComponent {
 
   preference = model<string>('');
   potential = model<string>('');
+  private isLoadingFromHash = false;
 
   preferenceOptions = [
     { label: $localize`Preferred`, value: 'prefer' },
     { label: $localize`Mostly Preferred`, value: 'mostly prefer' },
-    { label: $localize`Prevented`, value: 'prevent' },
-    { label: $localize`Mostly Prevented`, value: 'mostly prevent' }
+    { label: $localize`Mostly Prevented`, value: 'mostly prevent' },
+    { label: $localize`Prevented`, value: 'prevent' }
   ];
 
   potentialOptions = [
-    { label: $localize`Projected`, value: '100' },
-    { label: $localize`Probable`, value: '75' },
-    { label: $localize`Plausible`, value: '50' },
-    { label: $localize`Possible`, value: '25' },
-    { label: $localize`Preposterous`, value: '0' }
+    { label: $localize`Projected`, value: 'projected' },
+    { label: $localize`Probable`, value: 'probable' },
+    { label: $localize`Plausible`, value: 'plausible' },
+    { label: $localize`Possible`, value: 'possible' },
+    { label: $localize`Preposterous`, value: 'preposterous' }
   ];
 
   constructor(public state: StateService, private router: Router, public api: ApiService, private route: ActivatedRoute) { 
@@ -41,18 +42,22 @@ export class ConfirmComponent {
       this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
     }
 
-    // Read from URL hash
+    // Read from URL hash first, before setting up the effect
     this.loadFromHash();
 
     // Update URL hash when values change
     effect(() => {
       const pref = this.preference();
       const pot = this.potential();
-      this.saveToHash(pref, pot);
+      // Don't update hash while loading from hash
+      if (!this.isLoadingFromHash) {
+        this.saveToHash(pref, pot);
+      }
     });
   }
 
   loadFromHash() {
+    this.isLoadingFromHash = true;
     const hash = window.location.hash.substring(1);
     const params = new URLSearchParams(hash);
     const pref = params.get('preference');
@@ -63,6 +68,10 @@ export class ConfirmComponent {
     if (pot) {
       this.potential.set(pot);
     }
+    // Use setTimeout to ensure the effect has completed before we allow saving again
+    setTimeout(() => {
+      this.isLoadingFromHash = false;
+    }, 0);
   }
 
   saveToHash(preference: string, potential: string) {
@@ -97,10 +106,7 @@ export class ConfirmComponent {
       // Add potential if selected (only set initially, not on update)
       const pot = this.potential();
       if (pot) {
-        const plausibility = parseInt(pot, 10);
-        if (!isNaN(plausibility)) {
-          metadata['plausibility'] = plausibility;
-        }
+        metadata['plausibility'] = pot;
       }
 
       this.api.createItem(metadata).subscribe((res: any) => {
