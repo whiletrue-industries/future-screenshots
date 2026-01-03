@@ -1,4 +1,4 @@
-import { Component, effect, model, untracked } from '@angular/core';
+import { Component, effect, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { StateService } from '../../state.service';
 import { ApiService } from '../../api.service';
@@ -17,9 +17,8 @@ import { FormsModule } from '@angular/forms';
 })
 export class ConfirmComponent {
 
-  preference = model<string>('');
-  potential = model<string>('');
-  private isLoadingFromHash = false;
+  preference = signal<string>('');
+  potential = signal<string>('');
 
   preferenceOptions = [
     { label: $localize`Preferred`, value: 'prefer' },
@@ -42,22 +41,22 @@ export class ConfirmComponent {
       this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
     }
 
-    // Read from URL hash first, before setting up the effect
+    // Read from URL hash first
     this.loadFromHash();
 
-    // Update URL hash when values change
+    // Update URL hash when values change (skip first run since we just loaded from hash)
+    let firstRun = true;
     effect(() => {
       const pref = this.preference();
       const pot = this.potential();
-      // Don't update hash while loading from hash
-      if (!this.isLoadingFromHash) {
+      if (!firstRun) {
         this.saveToHash(pref, pot);
       }
+      firstRun = false;
     });
   }
 
   loadFromHash() {
-    this.isLoadingFromHash = true;
     const hash = window.location.hash.substring(1);
     const params = new URLSearchParams(hash);
     const pref = params.get('preference');
@@ -68,10 +67,6 @@ export class ConfirmComponent {
     if (pot) {
       this.potential.set(pot);
     }
-    // Use setTimeout to ensure the effect has completed before we allow saving again
-    setTimeout(() => {
-      this.isLoadingFromHash = false;
-    }, 0);
   }
 
   saveToHash(preference: string, potential: string) {
