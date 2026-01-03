@@ -1,4 +1,4 @@
-import { Component, effect, signal } from '@angular/core';
+import { Component, effect, model } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { StateService } from '../../state.service';
 import { ApiService } from '../../api.service';
@@ -17,8 +17,8 @@ import { FormsModule } from '@angular/forms';
 })
 export class ConfirmComponent {
 
-  preference = signal<string>('');
-  potential = signal<string>('');
+  preference = model<string>('');
+  potential = model<string>('');
 
   preferenceOptions = [
     { label: $localize`Preferred`, value: 'prefer' },
