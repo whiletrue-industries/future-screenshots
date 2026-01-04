@@ -18,9 +18,9 @@
       <label class="dropdown-label" i18n>POTENTIAL:</label>
       <div class="dropdown-select">
         <select [ngModel]="potential()" (ngModelChange)="potential.set($event)" class="dropdown">
-          <option value="" i18n>none</option>
+          <option [ngValue]="null" i18n>none</option>
           @for (opt of potentialOptions; track opt.value) {
-            <option [value]="opt.value">{{ opt.label }}</option>
+            <option [ngValue]="opt.value">{{ opt.label }}</option>
           }
         </select>
         <svg class="dropdown-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">

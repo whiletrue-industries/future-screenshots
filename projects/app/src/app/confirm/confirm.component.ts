@@ -18,7 +18,7 @@ import { FormsModule } from '@angular/forms';
 export class ConfirmComponent {
 
   preference = signal<string>('');
-  potential = signal<string>('');
+  potential = signal<number | null>(null);
 
   preferenceOptions = [
     { label: $localize`Preferred`, value: 'prefer' },
@@ -28,11 +28,11 @@ export class ConfirmComponent {
   ];
 
   potentialOptions = [
-    { label: $localize`Projected`, value: 'projected' },
-    { label: $localize`Probable`, value: 'probable' },
-    { label: $localize`Plausible`, value: 'plausible' },
-    { label: $localize`Possible`, value: 'possible' },
-    { label: $localize`Preposterous`, value: 'preposterous' }
+    { label: $localize`Projected`, value: 100 },
+    { label: $localize`Probable`, value: 75 },
+    { label: $localize`Plausible`, value: 50 },
+    { label: $localize`Possible`, value: 25 },
+    { label: $localize`Preposterous`, value: 0 }
   ];
 
   constructor(public state: StateService, private router: Router, public api: ApiService, private route: ActivatedRoute) { 
@@ -64,20 +64,21 @@ export class ConfirmComponent {
     if (pref) {
       this.preference.set(pref);
     }
-    if (pot) {
-      this.potential.set(pot);
+    if (pot !== null) {
+      const parsed = Number(pot);
+      this.potential.set(Number.isFinite(parsed) ? parsed : null);
     }
   }
 
-  saveToHash(preference: string, potential: string) {
+  saveToHash(preference: string, potential: number | null) {
     // Using window.location.hash directly for fragment-based state persistence
     // This allows maintaining dropdown state across scans without affecting Angular routing
     const params = new URLSearchParams();
     if (preference) {
       params.set('preference', preference);
     }
-    if (potential) {
-      params.set('potential', potential);
+    if (potential !== null) {
+      params.set('potential', String(potential));
     }
     const hash = params.toString();
     if (hash) {
@@ -91,10 +92,10 @@ export class ConfirmComponent {
     const currentImage = this.state.currentImage();
     if (currentImage) {
       const metadata: any = {};
-      
+
       // Store user-set values to restore after AI analysis
       const userSetMetadata: any = {};
-      
+
       // Add preference if selected (only set initially, not on update)
       const pref = this.preference();
       if (pref) {
@@ -104,7 +105,7 @@ export class ConfirmComponent {
 
       // Add potential if selected (only set initially, not on update)
       const pot = this.potential();
-      if (pot) {
+      if (pot !== null) {
         metadata['plausibility'] = pot;
         userSetMetadata['plausibility'] = pot;
       }
