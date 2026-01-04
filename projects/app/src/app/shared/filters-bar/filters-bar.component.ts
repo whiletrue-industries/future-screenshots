@@ -147,9 +147,29 @@ export class FiltersBarComponent {
   preferenceDropdownOpen = signal<boolean>(false);
   potentialDropdownOpen = signal<boolean>(false);
   
+  // Search text for filtering dropdown options
+  statusSearchText = signal<string>('');
+  preferenceSearchText = signal<string>('');
+  potentialSearchText = signal<string>('');
+  
   // Options
   preferenceOptions = ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'];
   potentialOptions = ['100', '75', '50', '25', '0'];
+  statusOptions = [
+    { value: 'new', label: 'New' },
+    { value: 'in-review', label: 'In Review' },
+    { value: 'flagged', label: 'Flagged' },
+    { value: 'approved', label: 'Approved' },
+    { value: 'rejected', label: 'Rejected' },
+    { value: 'highlighted', label: 'Highlighted' }
+  ];
+  potentialLabelMap: {[key: string]: string} = {
+    '100': 'Projected',
+    '75': 'Probable',
+    '50': 'Plausible',
+    '25': 'Possible',
+    '0': 'Preposterous'
+  };
   
   private initialized = false;
   private isInitializing = false;
@@ -278,9 +298,13 @@ export class FiltersBarComponent {
     if (next) {
       this.preferenceDropdownOpen.set(false);
       this.potentialDropdownOpen.set(false);
-    } else if (wasOpen && !this.isInitializing) {
-      // Commit changes when dropdown is manually closed
-      this.commitFilters();
+      this.clearStatusSearch(); // Clear search when opening
+    } else {
+      this.clearStatusSearch(); // Clear search when closing
+      if (wasOpen && !this.isInitializing) {
+        // Commit changes when dropdown is manually closed
+        this.commitFilters();
+      }
     }
   }
   
@@ -323,9 +347,13 @@ export class FiltersBarComponent {
     if (next) {
       this.statusDropdownOpen.set(false);
       this.potentialDropdownOpen.set(false);
-    } else if (wasOpen && !this.isInitializing) {
-      // Commit changes when dropdown is manually closed
-      this.commitFilters();
+      this.clearPreferenceSearch(); // Clear search when opening
+    } else {
+      this.clearPreferenceSearch(); // Clear search when closing
+      if (wasOpen && !this.isInitializing) {
+        // Commit changes when dropdown is manually closed
+        this.commitFilters();
+      }
     }
   }
   
@@ -368,9 +396,13 @@ export class FiltersBarComponent {
     if (next) {
       this.statusDropdownOpen.set(false);
       this.preferenceDropdownOpen.set(false);
-    } else if (wasOpen && !this.isInitializing) {
-      // Commit changes when dropdown is manually closed
-      this.commitFilters();
+      this.clearPotentialSearch(); // Clear search when opening
+    } else {
+      this.clearPotentialSearch(); // Clear search when closing
+      if (wasOpen && !this.isInitializing) {
+        // Commit changes when dropdown is manually closed
+        this.commitFilters();
+      }
     }
   }
   
@@ -403,6 +435,80 @@ export class FiltersBarComponent {
     this.filterPotential.set([]);
     // Emit debounced change for immediate view update
     this.emitDebouncedChange();
+  }
+  
+  // Search filtering methods
+  getFilteredStatusOptions(): typeof this.statusOptions {
+    const search = this.statusSearchText().toLowerCase();
+    if (!search) return this.statusOptions;
+    return this.statusOptions.filter(opt => 
+      opt.label.toLowerCase().includes(search) || opt.value.toLowerCase().includes(search)
+    );
+  }
+  
+  getFilteredPreferenceOptions(): string[] {
+    const search = this.preferenceSearchText().toLowerCase();
+    if (!search) return this.preferenceOptions;
+    return this.preferenceOptions.filter(opt => opt.toLowerCase().includes(search));
+  }
+  
+  getFilteredPotentialOptions(): string[] {
+    const search = this.potentialSearchText().toLowerCase();
+    if (!search) return this.potentialOptions;
+    return this.potentialOptions.filter(opt => opt.includes(search));
+  }
+  
+  // Chip management methods
+  getStatusLabel(value: string): string {
+    const option = this.statusOptions.find(opt => opt.value === value);
+    return option ? option.label : value;
+  }
+  
+  getPreferenceLabel(value: string): string {
+    // Map preference values to display labels
+    const labelMap: {[key: string]: string} = {
+      'prefer': 'prefer',
+      'mostly prefer': 'prefer-ish',
+      'uncertain': 'uncertain',
+      'mostly prevent': 'prevent-ish',
+      'prevent': 'prevent'
+    };
+    return labelMap[value] || value;
+  }
+  
+  getPotentialLabel(value: string): string {
+    return this.potentialLabelMap[value] || value;
+  }
+  
+  removeStatusChip(status: string): void {
+    const current = this.filterStatus();
+    this.filterStatus.set(current.filter(s => s !== status));
+    this.emitDebouncedChange();
+  }
+  
+  removePreferenceChip(preference: string): void {
+    const current = this.filterPreference();
+    this.filterPreference.set(current.filter(p => p !== preference));
+    this.emitDebouncedChange();
+  }
+  
+  removePotentialChip(potential: string): void {
+    const current = this.filterPotential();
+    this.filterPotential.set(current.filter(p => p !== potential));
+    this.emitDebouncedChange();
+  }
+  
+  // Clear search when dropdown opens/closes
+  clearStatusSearch(): void {
+    this.statusSearchText.set('');
+  }
+  
+  clearPreferenceSearch(): void {
+    this.preferenceSearchText.set('');
+  }
+  
+  clearPotentialSearch(): void {
+    this.potentialSearchText.set('');
   }
   
   // Utility methods

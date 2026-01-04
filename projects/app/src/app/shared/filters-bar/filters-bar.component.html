@@ -7,19 +7,38 @@
           type="button"
           class="multiselect-trigger" 
           (click)="toggleStatusDropdown()">
-          <span class="multiselect-label">
+          <div class="multiselect-content">
             @if (getSelectedStatusCount() === 0) {
-              Select status...
+              <span class="multiselect-placeholder">Select status...</span>
             } @else if (getSelectedStatusCount() === 6) {
-              All statuses
+              <span class="multiselect-text">All statuses</span>
             } @else {
-              {{ getSelectedStatusCount() }} selected
+              <div class="multiselect-chips">
+                @for (status of filterStatus(); track status) {
+                  <span class="chip">
+                    {{ getStatusLabel(status) }}
+                    <button 
+                      type="button"
+                      class="chip-remove" 
+                      (click)="$event.stopPropagation(); removeStatusChip(status)"
+                      title="Remove">×</button>
+                  </span>
+                }
+              </div>
             }
-          </span>
+          </div>
           <span class="multiselect-arrow">▼</span>
         </button>
         @if (statusDropdownOpen()) {
           <div class="multiselect-dropdown" (click)="$event.stopPropagation()">
+            <div class="multiselect-search">
+              <input 
+                type="text" 
+                class="search-input"
+                placeholder="Search statuses..."
+                [(ngModel)]="statusSearchText"
+                (click)="$event.stopPropagation()" />
+            </div>
             <div class="multiselect-controls">
               <button 
                 type="button"
@@ -36,54 +55,16 @@
                 Deselect All
               </button>
             </div>
-            <label class="multiselect-option">
-              <input 
-                type="checkbox" 
-                [checked]="isStatusSelected('new')"
-                (change)="toggleStatusFilter('new')" />
-              <span class="option-label">New</span>
-              <span class="option-count">{{ getCount(counts().status, 'pending') }}</span>
-            </label>
-            <label class="multiselect-option">
-              <input 
-                type="checkbox" 
-                [checked]="isStatusSelected('in-review')"
-                (change)="toggleStatusFilter('in-review')" />
-              <span class="option-label">In Review</span>
-              <span class="option-count">{{ getCount(counts().status, 'in-review') }}</span>
-            </label>
-            <label class="multiselect-option">
-              <input 
-                type="checkbox" 
-                [checked]="isStatusSelected('flagged')"
-                (change)="toggleStatusFilter('flagged')" />
-              <span class="option-label">Flagged</span>
-              <span class="option-count">{{ getCount(counts().status, 'flagged') }}</span>
-            </label>
-            <label class="multiselect-option">
-              <input 
-                type="checkbox" 
-                [checked]="isStatusSelected('approved')"
-                (change)="toggleStatusFilter('approved')" />
-              <span class="option-label">Approved</span>
-              <span class="option-count">{{ getCount(counts().status, 'approved') }}</span>
-            </label>
-            <label class="multiselect-option">
-              <input 
-                type="checkbox" 
-                [checked]="isStatusSelected('rejected')"
-                (change)="toggleStatusFilter('rejected')" />
-              <span class="option-label">Rejected</span>
-              <span class="option-count">{{ getCount(counts().status, 'banned') }}</span>
-            </label>
-            <label class="multiselect-option">
-              <input 
-                type="checkbox" 
-                [checked]="isStatusSelected('highlighted')"
-                (change)="toggleStatusFilter('highlighted')" />
-              <span class="option-label">Highlighted</span>
-              <span class="option-count">{{ getCount(counts().status, 'highlighted') }}</span>
-            </label>
+            @for (option of getFilteredStatusOptions(); track option.value) {
+              <label class="multiselect-option">
+                <input 
+                  type="checkbox" 
+                  [checked]="isStatusSelected(option.value)"
+                  (change)="toggleStatusFilter(option.value)" />
+                <span class="option-label">{{ option.label }}</span>
+                <span class="option-count">{{ getCount(counts().status, option.value === 'new' ? 'pending' : option.value === 'rejected' ? 'banned' : option.value) }}</span>
+              </label>
+            }
           </div>
         }
       </div>
@@ -110,19 +91,38 @@
           type="button"
           class="multiselect-trigger" 
           (click)="togglePreferenceDropdown()">
-          <span class="multiselect-label">
+          <div class="multiselect-content">
             @if (getSelectedPreferenceCount() === 0) {
-              Select preference...
+              <span class="multiselect-placeholder">Select preference...</span>
             } @else if (getSelectedPreferenceCount() === preferenceOptions.length) {
-              All preferences
+              <span class="multiselect-text">All preferences</span>
             } @else {
-              {{ getSelectedPreferenceCount() }} selected
+              <div class="multiselect-chips">
+                @for (pref of filterPreference(); track pref) {
+                  <span class="chip">
+                    {{ getPreferenceLabel(pref) }}
+                    <button 
+                      type="button"
+                      class="chip-remove" 
+                      (click)="$event.stopPropagation(); removePreferenceChip(pref)"
+                      title="Remove">×</button>
+                  </span>
+                }
+              </div>
             }
-          </span>
+          </div>
           <span class="multiselect-arrow">▼</span>
         </button>
         @if (preferenceDropdownOpen()) {
           <div class="multiselect-dropdown" (click)="$event.stopPropagation()">
+            <div class="multiselect-search">
+              <input 
+                type="text" 
+                class="search-input"
+                placeholder="Search preferences..."
+                [(ngModel)]="preferenceSearchText"
+                (click)="$event.stopPropagation()" />
+            </div>
             <div class="multiselect-controls">
               <button 
                 type="button"
@@ -139,46 +139,16 @@
                 Deselect All
               </button>
             </div>
-            <label class="multiselect-option">
-              <input 
-                type="checkbox" 
-                [checked]="isPreferenceSelected('prefer')"
-                (change)="togglePreferenceFilter('prefer')" />
-              <span class="option-label">prefer</span>
-              <span class="option-count">{{ getCount(counts().preference, 'prefer') }}</span>
-            </label>
-            <label class="multiselect-option">
-              <input 
-                type="checkbox" 
-                [checked]="isPreferenceSelected('mostly prefer')"
-                (change)="togglePreferenceFilter('mostly prefer')" />
-              <span class="option-label">prefer-ish</span>
-              <span class="option-count">{{ getCount(counts().preference, 'mostly prefer') }}</span>
-            </label>
-            <label class="multiselect-option">
-              <input 
-                type="checkbox" 
-                [checked]="isPreferenceSelected('uncertain')"
-                (change)="togglePreferenceFilter('uncertain')" />
-              <span class="option-label">uncertain</span>
-              <span class="option-count">{{ getCount(counts().preference, 'uncertain') }}</span>
-            </label>
-            <label class="multiselect-option">
-              <input 
-                type="checkbox" 
-                [checked]="isPreferenceSelected('mostly prevent')"
-                (change)="togglePreferenceFilter('mostly prevent')" />
-              <span class="option-label">prevent-ish</span>
-              <span class="option-count">{{ getCount(counts().preference, 'mostly prevent') }}</span>
-            </label>
-            <label class="multiselect-option">
-              <input 
-                type="checkbox" 
-                [checked]="isPreferenceSelected('prevent')"
-                (change)="togglePreferenceFilter('prevent')" />
-              <span class="option-label">prevent</span>
-              <span class="option-count">{{ getCount(counts().preference, 'prevent') }}</span>
-            </label>
+            @for (pref of getFilteredPreferenceOptions(); track pref) {
+              <label class="multiselect-option">
+                <input 
+                  type="checkbox" 
+                  [checked]="isPreferenceSelected(pref)"
+                  (change)="togglePreferenceFilter(pref)" />
+                <span class="option-label">{{ getPreferenceLabel(pref) }}</span>
+                <span class="option-count">{{ getCount(counts().preference, pref) }}</span>
+              </label>
+            }
           </div>
         }
       </div>
@@ -191,19 +161,38 @@
           type="button"
           class="multiselect-trigger" 
           (click)="togglePotentialDropdown()">
-          <span class="multiselect-label">
+          <div class="multiselect-content">
             @if (getSelectedPotentialCount() === 0) {
-              Select potential...
+              <span class="multiselect-placeholder">Select potential...</span>
             } @else if (getSelectedPotentialCount() === potentialOptions.length) {
-              All potentials
+              <span class="multiselect-text">All potentials</span>
             } @else {
-              {{ getSelectedPotentialCount() }} selected
+              <div class="multiselect-chips">
+                @for (pot of filterPotential(); track pot) {
+                  <span class="chip">
+                    {{ getPotentialLabel(pot) }}
+                    <button 
+                      type="button"
+                      class="chip-remove" 
+                      (click)="$event.stopPropagation(); removePotentialChip(pot)"
+                      title="Remove">×</button>
+                  </span>
+                }
+              </div>
             }
-          </span>
+          </div>
           <span class="multiselect-arrow">▼</span>
         </button>
         @if (potentialDropdownOpen()) {
           <div class="multiselect-dropdown" (click)="$event.stopPropagation()">
+            <div class="multiselect-search">
+              <input 
+                type="text" 
+                class="search-input"
+                placeholder="Search potentials..."
+                [(ngModel)]="potentialSearchText"
+                (click)="$event.stopPropagation()" />
+            </div>
             <div class="multiselect-controls">
               <button 
                 type="button"
@@ -220,46 +209,16 @@
                 Deselect All
               </button>
             </div>
-            <label class="multiselect-option">
-              <input 
-                type="checkbox" 
-                [checked]="isPotentialSelected('100')"
-                (change)="togglePotentialFilter('100')" />
-              <span class="option-label">Projected</span>
-              <span class="option-count">{{ getCount(counts().potential, '100') }}</span>
-            </label>
-            <label class="multiselect-option">
-              <input 
-                type="checkbox" 
-                [checked]="isPotentialSelected('75')"
-                (change)="togglePotentialFilter('75')" />
-              <span class="option-label">Probable</span>
-              <span class="option-count">{{ getCount(counts().potential, '75') }}</span>
-            </label>
-            <label class="multiselect-option">
-              <input 
-                type="checkbox" 
-                [checked]="isPotentialSelected('50')"
-                (change)="togglePotentialFilter('50')" />
-              <span class="option-label">Plausible</span>
-              <span class="option-count">{{ getCount(counts().potential, '50') }}</span>
-            </label>
-            <label class="multiselect-option">
-              <input 
-                type="checkbox" 
-                [checked]="isPotentialSelected('25')"
-                (change)="togglePotentialFilter('25')" />
-              <span class="option-label">Possible</span>
-              <span class="option-count">{{ getCount(counts().potential, '25') }}</span>
-            </label>
-            <label class="multiselect-option">
-              <input 
-                type="checkbox" 
-                [checked]="isPotentialSelected('0')"
-                (change)="togglePotentialFilter('0')" />
-              <span class="option-label">Preposterous</span>
-              <span class="option-count">{{ getCount(counts().potential, '0') }}</span>
-            </label>
+            @for (pot of getFilteredPotentialOptions(); track pot) {
+              <label class="multiselect-option">
+                <input 
+                  type="checkbox" 
+                  [checked]="isPotentialSelected(pot)"
+                  (change)="togglePotentialFilter(pot)" />
+                <span class="option-label">{{ getPotentialLabel(pot) }}</span>
+                <span class="option-count">{{ getCount(counts().potential, pot) }}</span>
+              </label>
+            }
           </div>
         }
       </div>
