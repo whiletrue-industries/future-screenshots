@@ -11,12 +11,14 @@
       <div class="cred-inline">
         <input 
           type="text" 
-          [(ngModel)]="workspaceId" 
+          [ngModel]="workspaceId() ?? ''" 
+          (ngModelChange)="workspaceId.set($event || null)" 
           placeholder="workspace"
           aria-label="Workspace ID" />
         <input 
           type="text" 
-          [(ngModel)]="apiKey" 
+          [ngModel]="apiKey() ?? ''" 
+          (ngModelChange)="apiKey.set($event || null)" 
           placeholder="api key"
           aria-label="API key" />
       </div>
