@@ -326,6 +326,25 @@ export class FiltersBarComponent {
   getSelectedStatusCount(): number {
     return this.filterStatus().length;
   }
+  
+  /**
+   * Get deselected statuses (inverse of selected)
+   * Only relevant when 1-2 items are deselected
+   */
+  getDeselectedStatuses(): string[] {
+    const selected = this.filterStatus();
+    const allStatuses = this.statusOptions.map(opt => opt.value);
+    return allStatuses.filter(status => !selected.includes(status));
+  }
+  
+  /**
+   * Check if we should show deselected chips instead of selected
+   * True when 1-2 items are deselected (sparse deselection pattern)
+   */
+  shouldShowDeselectedStatusChips(): boolean {
+    const deselected = this.getDeselectedStatuses();
+    return deselected.length > 0 && deselected.length <= 2;
+  }
 
   selectAllStatuses(): void {
     this.filterStatus.set(['new', 'in-review', 'flagged', 'approved', 'rejected', 'highlighted']);
@@ -375,6 +394,24 @@ export class FiltersBarComponent {
   getSelectedPreferenceCount(): number {
     return this.filterPreference().length;
   }
+  
+  /**
+   * Get deselected preferences (inverse of selected)
+   * Only relevant when 1-2 items are deselected
+   */
+  getDeselectedPreferences(): string[] {
+    const selected = this.filterPreference();
+    return this.preferenceOptions.filter(pref => !selected.includes(pref));
+  }
+  
+  /**
+   * Check if we should show deselected chips instead of selected
+   * True when 1-2 items are deselected (sparse deselection pattern)
+   */
+  shouldShowDeselectedPreferenceChips(): boolean {
+    const deselected = this.getDeselectedPreferences();
+    return deselected.length > 0 && deselected.length <= 2;
+  }
 
   selectAllPreferences(): void {
     this.filterPreference.set(['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent']);
@@ -423,6 +460,24 @@ export class FiltersBarComponent {
   
   getSelectedPotentialCount(): number {
     return this.filterPotential().length;
+  }
+  
+  /**
+   * Get deselected potentials (inverse of selected)
+   * Only relevant when 1-2 items are deselected
+   */
+  getDeselectedPotentials(): string[] {
+    const selected = this.filterPotential();
+    return this.potentialOptions.filter(pot => !selected.includes(pot));
+  }
+  
+  /**
+   * Check if we should show deselected chips instead of selected
+   * True when 1-2 items are deselected (sparse deselection pattern)
+   */
+  shouldShowDeselectedPotentialChips(): boolean {
+    const deselected = this.getDeselectedPotentials();
+    return deselected.length > 0 && deselected.length <= 2;
   }
 
   selectAllPotentials(): void {

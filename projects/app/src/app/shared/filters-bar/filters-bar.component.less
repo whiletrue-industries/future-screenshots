@@ -120,6 +120,10 @@
                                     color: @color-purple;
                                     white-space: nowrap;
                                     
+                                    .chip-label {
+                                        display: inline;
+                                    }
+                                    
                                     .chip-remove {
                                         background: none;
                                         border: none;
@@ -139,6 +143,28 @@
                                         &:hover {
                                             background: @color-purple;
                                             color: @color-white;
+                                        }
+                                    }
+                                    
+                                    // Deselected chip styling
+                                    &.chip-deselected {
+                                        background: @color-light-gray;
+                                        color: @color-gray;
+                                        opacity: 0.65;
+                                        
+                                        .chip-label {
+                                            text-decoration: line-through;
+                                            text-decoration-thickness: 1px;
+                                            text-underline-offset: 2px;
+                                        }
+                                        
+                                        .chip-remove {
+                                            color: @color-gray;
+                                            
+                                            &:hover {
+                                                background: @color-gray;
+                                                color: @color-white;
+                                            }
                                         }
                                     }
                                 }

@@ -14,15 +14,28 @@
               <span class="multiselect-text">All statuses</span>
             } @else {
               <div class="multiselect-chips">
-                @for (status of filterStatus(); track status) {
-                  <span class="chip">
-                    {{ getStatusLabel(status) }}
-                    <button 
-                      type="button"
-                      class="chip-remove" 
-                      (click)="$event.stopPropagation(); removeStatusChip(status)"
-                      title="Remove">×</button>
-                  </span>
+                @if (shouldShowDeselectedStatusChips()) {
+                  @for (status of getDeselectedStatuses(); track status) {
+                    <span class="chip chip-deselected">
+                      <span class="chip-label">{{ getStatusLabel(status) }}</span>
+                      <button 
+                        type="button"
+                        class="chip-remove" 
+                        (click)="$event.stopPropagation(); toggleStatusFilter(status)"
+                        title="Add back">×</button>
+                    </span>
+                  }
+                } @else {
+                  @for (status of filterStatus(); track status) {
+                    <span class="chip">
+                      {{ getStatusLabel(status) }}
+                      <button 
+                        type="button"
+                        class="chip-remove" 
+                        (click)="$event.stopPropagation(); removeStatusChip(status)"
+                        title="Remove">×</button>
+                    </span>
+                  }
                 }
               </div>
             }
@@ -98,15 +111,28 @@
               <span class="multiselect-text">All preferences</span>
             } @else {
               <div class="multiselect-chips">
-                @for (pref of filterPreference(); track pref) {
-                  <span class="chip">
-                    {{ getPreferenceLabel(pref) }}
-                    <button 
-                      type="button"
-                      class="chip-remove" 
-                      (click)="$event.stopPropagation(); removePreferenceChip(pref)"
-                      title="Remove">×</button>
-                  </span>
+                @if (shouldShowDeselectedPreferenceChips()) {
+                  @for (pref of getDeselectedPreferences(); track pref) {
+                    <span class="chip chip-deselected">
+                      <span class="chip-label">{{ getPreferenceLabel(pref) }}</span>
+                      <button 
+                        type="button"
+                        class="chip-remove" 
+                        (click)="$event.stopPropagation(); togglePreferenceFilter(pref)"
+                        title="Add back">×</button>
+                    </span>
+                  }
+                } @else {
+                  @for (pref of filterPreference(); track pref) {
+                    <span class="chip">
+                      {{ getPreferenceLabel(pref) }}
+                      <button 
+                        type="button"
+                        class="chip-remove" 
+                        (click)="$event.stopPropagation(); removePreferenceChip(pref)"
+                        title="Remove">×</button>
+                    </span>
+                  }
                 }
               </div>
             }
@@ -168,15 +194,28 @@
               <span class="multiselect-text">All potentials</span>
             } @else {
               <div class="multiselect-chips">
-                @for (pot of filterPotential(); track pot) {
-                  <span class="chip">
-                    {{ getPotentialLabel(pot) }}
-                    <button 
-                      type="button"
-                      class="chip-remove" 
-                      (click)="$event.stopPropagation(); removePotentialChip(pot)"
-                      title="Remove">×</button>
-                  </span>
+                @if (shouldShowDeselectedPotentialChips()) {
+                  @for (pot of getDeselectedPotentials(); track pot) {
+                    <span class="chip chip-deselected">
+                      <span class="chip-label">{{ getPotentialLabel(pot) }}</span>
+                      <button 
+                        type="button"
+                        class="chip-remove" 
+                        (click)="$event.stopPropagation(); togglePotentialFilter(pot)"
+                        title="Add back">×</button>
+                    </span>
+                  }
+                } @else {
+                  @for (pot of filterPotential(); track pot) {
+                    <span class="chip">
+                      {{ getPotentialLabel(pot) }}
+                      <button 
+                        type="button"
+                        class="chip-remove" 
+                        (click)="$event.stopPropagation(); removePotentialChip(pot)"
+                        title="Remove">×</button>
+                    </span>
+                  }
                 }
               </div>
             }
