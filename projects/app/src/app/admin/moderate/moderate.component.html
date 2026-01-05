@@ -175,14 +175,6 @@
 
                   <div class="lightbox-image-container">
                     <img [src]="selectedItem().screenshot_url" alt="Future scenario screenshot" id="lightbox-title" />
-                    <div class="lightbox-image-actions">
-                      <button class="image-action-btn" (click)="openImageReplacementModal(selectedItem()._id)" aria-label="Replace image">
-                        ✎ Replace
-                      </button>
-                      <button class="image-action-btn ghost" (click)="openQrModal(selectedItem()._id)" aria-label="Open scanner QR for this image">
-                        📱 Scan via QR
-                      </button>
-                    </div>
                   </div>
                 </div>
 
@@ -205,6 +197,15 @@
                       <span class="user-count-link">{{ getUserItemCount('unknown') }} unattributed</span>
                     }
                   </button>
+                    </div>
+
+                    <div class="status-row">
+                      <label for="status-select">Status</label>
+                      <select id="status-select" [ngModel]="selectedItem()._private_moderation" (ngModelChange)="setStatusFromSidebar($event)" aria-label="Set item status">
+                        @for (option of STATUS_OPTIONS; track option.value) {
+                          <option [ngValue]="option.value">{{ option.label }}</option>
+                        }
+                      </select>
                     </div>
 
                     <div class="card-metadata">
@@ -305,9 +306,25 @@
                           </select>
                         </div>
                       </div>
+
+                      <div class="metadata-editor">
+                        <h3>Metadata</h3>
+                        <div class="metadata-grid">
+                          @for (entry of editableMetadata(); track entry[0]) {
+                            <label class="metadata-field">
+                              <span class="field-name">{{ entry[0] }}</span>
+                              <input 
+                                type="text" 
+                                [ngModel]="entry[1]"
+                                (ngModelChange)="updateMetadataField(entry[0], $event)"
+                                [attr.aria-label]="'Edit metadata field ' + entry[0]" />
+                            </label>
+                          }
+                        </div>
+                      </div>
                     </div>
 
-                    <div class="card-footer">
+                    <div class="card-footer pinned-footer">
                       <button 
                         class="publish-btn"
                         [class.published]="selectedItem()._private_moderation >= 4"

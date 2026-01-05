@@ -1114,7 +1114,7 @@
     transition: transform 0.3s ease-in-out;
 
     &.sidebar-open {
-        transform: translateX(-210px); // Push left when sidebar opens
+        //transform: translateX(-210px); // Push left when sidebar opens
     }
 }
 
@@ -1192,11 +1192,11 @@
 
 .lightbox-main {
     display: flex;
-    gap: 32px;
-    align-items: center;
+    gap: 24px;
+    align-items: flex-start;
     justify-content: center;
     flex: 1;
-    max-height: 70vh;
+    max-height: 75vh;
 }
 
 .lightbox-actions {
@@ -1242,7 +1242,7 @@
 
 .lightbox-image-container {
     max-width: 50vw;
-    max-height: 70vh;
+    max-height: 75vh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1925,11 +1925,79 @@
             max-width: none;
             border: none;
             box-shadow: none;
+            display: flex;
+            flex-direction: column;
+            min-height: calc(100% - 24px);
 
             &:hover {
                 box-shadow: none;
                 transform: none;
             }
+        }
+    }
+}
+
+.pinned-footer {
+    margin-top: auto;
+    position: sticky;
+    bottom: 0;
+    background: @color-white;
+}
+
+.status-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 12px 0;
+
+    label {
+        font-size: 12px;
+        font-weight: 700;
+        color: @color-purple;
+    }
+
+    select {
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid @color-primary-100;
+        background: #fff;
+        font-weight: 600;
+    }
+}
+
+.metadata-editor {
+    margin-top: 16px;
+
+    h3 {
+        margin: 0 0 8px 0;
+        font-size: 14px;
+        font-weight: 700;
+        color: @color-purple;
+    }
+
+    .metadata-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 8px 12px;
+    }
+
+    .metadata-field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+
+        .field-name {
+            font-size: 11px;
+            font-weight: 700;
+            color: @color-dark-gray;
+            text-transform: uppercase;
+        }
+
+        input {
+            padding: 8px 10px;
+            border: 1px solid @color-primary-100;
+            border-radius: 8px;
+            font-size: 13px;
         }
     }
 }

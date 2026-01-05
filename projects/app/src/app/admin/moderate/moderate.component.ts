@@ -73,7 +73,7 @@ export class ModerateComponent {
   allFetchedItems = signal<any[]>([]); // Store all fetched items for client-side filtering
   viewMode = signal<'list' | 'grid'>('grid');
   selectedItem = signal<any | null>(null);
-  lightboxSidebarOpen = signal<boolean>(false);
+  lightboxSidebarOpen = signal<boolean>(true);
   selectedItemIndex = signal<number>(-1);
    statusDropdownOpen = signal<boolean>(false);
   preferenceDropdownOpen = signal<boolean>(false);
@@ -122,6 +122,22 @@ export class ModerateComponent {
     'approved',
     'highlighted',
   ];
+
+  STATUS_OPTIONS: { label: string; value: number }[] = [
+    { label: 'Highlighted', value: 5 },
+    { label: 'Approved', value: 4 },
+    { label: 'Not flagged', value: 3 },
+    { label: 'Pending', value: 2 },
+    { label: 'Flagged', value: 1 },
+    { label: 'Rejected', value: 0 },
+  ];
+
+  editableMetadata = computed<[string, any][]>(() => {
+    const item = this.selectedItem();
+    if (!item) return [];
+    const excluded = new Set(['_id']);
+    return Object.entries(item).filter(([key, value]) => !excluded.has(key) && ['string', 'number', 'boolean'].includes(typeof value));
+  });
 
   constructor(private route: ActivatedRoute, private api: AdminApiService) {
     // Read filters from hash synchronously first (before effects run)
@@ -291,6 +307,20 @@ export class ModerateComponent {
 
   unarchive(itemId: string) {
     this.updateModeration(itemId, 2);
+  }
+
+  setStatusFromSidebar(level: number) {
+    const workspaceId = this.workspaceId();
+    const apiKey = this.apiKey();
+    const current = this.selectedItem();
+    if (!workspaceId || !apiKey || !current) return;
+    this.api.updateItemModeration(workspaceId, apiKey, current._id, level).subscribe({
+      next: () => {
+        this.items.update(items => items.map(item => item._id === current._id ? { ...item, _private_moderation: level } : item));
+        this.selectedItem.update(item => item ? { ...item, _private_moderation: level } : item);
+      },
+      error: (err) => console.error('Error updating status', err)
+    });
   }
 
   applyFiltersAndSort(): void {
@@ -647,6 +677,35 @@ export class ModerateComponent {
     return authorId.substring(0, 8);
   }
 
+  updateMetadataField(key: string, rawValue: any): void {
+    const workspaceId = this.workspaceId();
+    const apiKey = this.apiKey();
+    const current = this.selectedItem();
+    if (!workspaceId || !apiKey || !current) return;
+
+    const original = (current as any)[key];
+    const value = this.coerceValue(original, rawValue);
+
+    this.api.updateItem(workspaceId, apiKey, current._id, { [key]: value }).subscribe({
+      next: () => {
+        this.items.update(items => items.map(item => item._id === current._id ? { ...item, [key]: value } : item));
+        this.selectedItem.update(item => item ? { ...item, [key]: value } : item);
+      },
+      error: (err) => console.error('Error updating field', key, err)
+    });
+  }
+
+  private coerceValue(original: any, rawValue: any): any {
+    if (typeof original === 'number') {
+      const num = Number(rawValue);
+      return Number.isNaN(num) ? original : num;
+    }
+    if (typeof original === 'boolean') {
+      return rawValue === true || rawValue === 'true';
+    }
+    return rawValue;
+  }
+
   getEmail(item: any): string {
     return item._private_email || item.email || item.user_email || 'unknown@user.com';
   }
@@ -865,7 +924,7 @@ export class ModerateComponent {
     // Find and set the index of the selected item
     const index = this.items().findIndex(i => i._id === item._id);
     this.selectedItemIndex.set(index);
-    this.lightboxSidebarOpen.set(false);
+    this.lightboxSidebarOpen.set(true);
     // Scroll to top when opening lightbox
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
