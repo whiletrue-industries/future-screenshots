@@ -50,12 +50,19 @@ export class ImageReplacementModalComponent {
     this.adminApi.getItems(this.workspaceId(), this.apiKey(), 0, '').subscribe({
       next: (items: any) => {
         if (Array.isArray(items)) {
-          const filtered = items.filter((item: any) => 
+          const currentItem = items.find((item: any) => item._id === this.itemId());
+          let filtered = items.filter((item: any) => 
             item._id !== this.itemId() && !!item.screenshot_url
           );
           filtered.forEach((item: any) => {
             item.screenshot_url = this.fixUrl(item.screenshot_url);
           });
+          
+          // Sort by similarity to current item if embeddings are available
+          if (currentItem && currentItem.embedding && Array.isArray(currentItem.embedding)) {
+            filtered = this.sortBySimilarity(filtered, currentItem.embedding);
+          }
+          
           this.workspaceItems.set(filtered);
         }
         this.uploading.set(false);
@@ -66,6 +73,41 @@ export class ImageReplacementModalComponent {
         this.uploading.set(false);
       }
     });
+  }
+
+  private sortBySimilarity(items: any[], currentEmbedding: number[]): any[] {
+    return items.sort((a, b) => {
+      const scoreA = this.computeSimilarity(currentEmbedding, a.embedding);
+      const scoreB = this.computeSimilarity(currentEmbedding, b.embedding);
+      return scoreB - scoreA; // Sort descending (highest similarity first)
+    });
+  }
+
+  private computeSimilarity(embedding1: number[], embedding2: any): number {
+    if (!embedding2 || !Array.isArray(embedding2)) {
+      return 0;
+    }
+    
+    // Compute cosine similarity
+    let dotProduct = 0;
+    let magnitude1 = 0;
+    let magnitude2 = 0;
+    
+    const length = Math.min(embedding1.length, embedding2.length);
+    for (let i = 0; i < length; i++) {
+      dotProduct += embedding1[i] * embedding2[i];
+      magnitude1 += embedding1[i] * embedding1[i];
+      magnitude2 += embedding2[i] * embedding2[i];
+    }
+    
+    magnitude1 = Math.sqrt(magnitude1);
+    magnitude2 = Math.sqrt(magnitude2);
+    
+    if (magnitude1 === 0 || magnitude2 === 0) {
+      return 0;
+    }
+    
+    return dotProduct / (magnitude1 * magnitude2);
   }
   
   close() {
