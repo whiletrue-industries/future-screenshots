@@ -82,6 +82,15 @@
                 
                 <button class="nav-btn nav-prev" (click)="prevItem()" [disabled]="selectedItemIndex() <= 0" aria-label="Previous item">←</button>
                 <button class="nav-btn nav-next" (click)="nextItem()" [disabled]="selectedItemIndex() >= items().length - 1" aria-label="Next item">→</button>
+
+                <div class="lightbox-actions">
+                  <button class="image-action-btn" (click)="$event.stopPropagation(); openImageReplacementModal(selectedItem()?._id!)" aria-label="Replace image from lightbox">
+                    ✎ Replace
+                  </button>
+                  <button class="image-action-btn ghost" (click)="$event.stopPropagation(); openQrModal(selectedItem()?._id!)" aria-label="Open scanner QR for this image">
+                    📱 QR
+                  </button>
+                </div>
                 
                 <div class="lightbox-main">
                   <div class="lightbox-info-boxes">
@@ -166,6 +175,14 @@
 
                   <div class="lightbox-image-container">
                     <img [src]="selectedItem().screenshot_url" alt="Future scenario screenshot" id="lightbox-title" />
+                    <div class="lightbox-image-actions">
+                      <button class="image-action-btn" (click)="openImageReplacementModal(selectedItem()._id)" aria-label="Replace image">
+                        ✎ Replace
+                      </button>
+                      <button class="image-action-btn ghost" (click)="openQrModal(selectedItem()._id)" aria-label="Open scanner QR for this image">
+                        📱 Scan via QR
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -327,8 +344,38 @@
                     aria-label="Select item for bulk edit" />
                 </label>
               }
-              <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
+              <div class="thumbnail-image">
+                <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
+                <div class="thumbnail-actions">
+                  <button class="thumb-btn" (click)="$event.stopPropagation(); openImageReplacementModal(item._id)" aria-label="Replace image">
+                    ✎
+                  </button>
+                  <button class="thumb-btn ghost" (click)="$event.stopPropagation(); openQrModal(item._id)" aria-label="Open scanner QR for this image">
+                    QR
+                  </button>
+                </div>
+              </div>
             </div>
+          }
+
+          @if (replacingImageItemId() && currentReplacingImageUrl() && workspaceId() && apiKey()) {
+            <app-image-replacement-modal
+              [workspaceId]="workspaceId()!"
+              [apiKey]="apiKey()!"
+              [itemId]="replacingImageItemId()!"
+              [currentImageUrl]="currentReplacingImageUrl()!"
+              (closed)="closeImageReplacementModal()"
+              (imageReplaced)="onImageReplaced(replacingImageItemId()!, $event)"
+            />
+          }
+
+          @if (showQRModal() && qrItemId() && workspaceId() && apiKey()) {
+            <app-qr-code-modal
+              [workspaceId]="workspaceId()!"
+              [apiKey]="apiKey()!"
+              [itemId]="qrItemId()!"
+              (closed)="closeQrModal()"
+            />
           }
         </div>
       </div>
@@ -358,7 +405,17 @@
 
             <div class="screenshot-container">
               @if (!isShowingDescription(item._id)) {
-              <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
+              <div class="screenshot-image-wrapper">
+                <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
+                <div class="screenshot-actions">
+                  <button class="image-action-btn" (click)="openImageReplacementModal(item._id)" aria-label="Replace image">
+                    ✎ Replace
+                  </button>
+                  <button class="image-action-btn ghost" (click)="openQrModal(item._id)" aria-label="Open scanner QR for this image">
+                    📱 QR
+                  </button>
+                </div>
+              </div>
               <button class="toggle-view-btn" (click)="toggleDescriptionView(item._id)" aria-label="Show description">
                 ℹ️
               </button>
@@ -596,6 +653,7 @@
         </label>
       </div>
       <div class="bulk-actions">
+        <button class="bulk-btn" (click)="getSingleSelectedId() ? openImageReplacementModal(getSingleSelectedId()!) : null" [disabled]="bulkSaving() || selectedCount() !== 1">Replace image</button>
         <button class="bulk-btn" (click)="applyBulkChanges()" [disabled]="bulkSaving() || selectedCount() === 0">Apply to selected</button>
         <button class="bulk-btn ghost" (click)="clearBulkSelection()" [disabled]="bulkSaving()">Clear selection</button>
         <button class="bulk-btn ghost" (click)="toggleMultiSelectMode()" [disabled]="bulkSaving()">Exit</button>

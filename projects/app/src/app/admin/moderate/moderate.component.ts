@@ -4,6 +4,9 @@ import { AdminApiService } from '../../../admin-api.service';
 import { FormsModule } from '@angular/forms';
 import { FilterHelpers, FiltersBarComponent, FiltersBarState, FilterCounts } from '../../shared/filters-bar/filters-bar.component';
 import { firstValueFrom } from 'rxjs';
+import { ImageReplacementModalComponent } from '../image-replacement-modal/image-replacement-modal.component';
+import { QrCodeModalComponent } from '../qr-code-modal/qr-code-modal.component';
+import { CommonModule } from '@angular/common';
 
 export type Filter = {
   name: string;
@@ -14,7 +17,10 @@ export type Filter = {
   selector: 'app-moderate',
   imports: [
     FormsModule,
-    FiltersBarComponent
+    FiltersBarComponent,
+    ImageReplacementModalComponent,
+    QrCodeModalComponent,
+    CommonModule
   ],
   templateUrl: './moderate.component.html',
   styleUrl: './moderate.component.less'
@@ -86,6 +92,19 @@ export class ModerateComponent {
 
   items = signal<any[]>([]);
   indexLink = signal<string | null>(null);
+
+  // Image replacement state
+  replacingImageItemId = signal<string | null>(null);
+  currentReplacingImageUrl = computed(() => {
+    const id = this.replacingImageItemId();
+    if (!id) return null;
+    const fromSelected = this.selectedItem() && this.selectedItem()._id === id ? this.selectedItem() : null;
+    const fromList = this.items().find(it => it._id === id) || null;
+    const item = fromSelected || fromList;
+    return item?.screenshot_url || null;
+  });
+  showQRModal = signal<boolean>(false);
+  qrItemId = signal<string | null>(null);
 
     @HostListener('document:click', ['$event'])
     onDocumentClick(event: MouseEvent): void {
@@ -988,6 +1007,11 @@ export class ModerateComponent {
     return this.selectedIds().size;
   }
 
+  getSingleSelectedId(): string | null {
+    if (this.selectedIds().size !== 1) return null;
+    return Array.from(this.selectedIds())[0] ?? null;
+  }
+
   clearBulkSelection(): void {
     this.selectedIds.set(new Set());
     this.resetBulkFields();
@@ -1127,5 +1151,32 @@ export class ModerateComponent {
     // Update filters and immediately update hash
     this.onFiltersChange(newState);
     // The effect will trigger updateHashParams() automatically
+  }
+
+  openImageReplacementModal(itemId: string): void {
+    this.replacingImageItemId.set(itemId);
+  }
+
+  closeImageReplacementModal(): void {
+    this.replacingImageItemId.set(null);
+  }
+
+  onImageReplaced(itemId: string, data: { screenshot_url: string }): void {
+    const url = data.screenshot_url;
+    this.items.update(items => items.map(item => item._id === itemId ? { ...item, screenshot_url: url } : item));
+    if (this.selectedItem() && this.selectedItem()._id === itemId) {
+      this.selectedItem.update(item => item ? { ...item, screenshot_url: url } : item);
+    }
+    this.replacingImageItemId.set(null);
+  }
+
+  openQrModal(itemId: string): void {
+    this.qrItemId.set(itemId);
+    this.showQRModal.set(true);
+  }
+
+  closeQrModal(): void {
+    this.showQRModal.set(false);
+    this.qrItemId.set(null);
   }
 }

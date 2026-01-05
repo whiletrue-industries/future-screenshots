@@ -65,6 +65,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   points = signal<{x: number, y: number}[]>([]);
   cameraClicked = signal<boolean>(false);
   displayCameraButton = signal<boolean>(false);
+  replaceItemId = signal<string | null>(null);
 
   constructor(
     private el: ElementRef, 
@@ -76,6 +77,10 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     private api: ApiService,
   ) {
     this.api.updateFromRoute(this.route.snapshot);
+    const replaceItem = this.route.snapshot.queryParams['replace_item'];
+    if (replaceItem) {
+      this.replaceItemId.set(replaceItem);
+    }
     this.displayMsgSubject.pipe(
       takeUntilDestroyed(),
       distinctUntilChanged(),
@@ -351,8 +356,13 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
           // Convert the result to a JPEG image
           frame.toBlob((blob: Blob) => {
             if (blob) {
-              this.state.setImage(blob);
-              this.router.navigate(['/confirm'], { queryParamsHandling: 'merge' });
+              const replacing = this.replaceItemId();
+              if (replacing) {
+                this.uploadReplacementImage(blob, replacing);
+              } else {
+                this.state.setImage(blob);
+                this.router.navigate(['/confirm'], { queryParamsHandling: 'merge' });
+              }
             }
           }, 'image/jpeg', 0.95);
         }
@@ -380,6 +390,48 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       { x: points.bottomRightCorner.x, y: points.bottomRightCorner.y },
       { x: points.bottomLeftCorner.x, y: points.bottomLeftCorner.y }
     ]);
+  }
+
+  uploadReplacementImage(blob: Blob, itemId: string) {
+    this.displayMsgSubject.next($localize`uploading replacement...`);
+
+    const formData = new FormData();
+    formData.append('image', blob);
+
+    const params = {
+      workspace: this.api.workspaceId() as string,
+      api_key: this.api.api_key() as string,
+      item_id: itemId,
+    };
+
+    fetch(`${this.api.SCREENSHOT_HANDLER_URL}?${new URLSearchParams(params).toString()}`, {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`Upload failed with status ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(() => {
+      this.displayMsgSubject.next($localize`replacement uploaded!`);
+      setTimeout(() => {
+        this.router.navigate(['/admin/moderate'], {
+          queryParams: {
+            workspace: this.api.workspaceId(),
+            api_key: this.api.api_key()
+          }
+        });
+      }, 1200);
+    })
+    .catch(error => {
+      console.error('Error uploading replacement image:', error);
+      this.displayMsgSubject.next($localize`failed to upload, retrying...`);
+      setTimeout(() => {
+        this.restartScanner();
+      }, 1500);
+    });
   }
 
   ngOnDestroy() {

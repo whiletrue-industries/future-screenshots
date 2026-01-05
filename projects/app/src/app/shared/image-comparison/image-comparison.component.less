@@ -1,0 +1,229 @@
+@import '../../../common-admin.less';
+
+.comparison-container {
+  padding: 24px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  
+  .comparison-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    
+    h3 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      color: @color-purple;
+      .font-sans;
+    }
+    
+    .mode-toggle {
+      padding: 8px 16px;
+      border: 1px solid @color-primary-100;
+      background: @color-primary-50;
+      color: @color-purple;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+      .font-sans;
+      font-size: 14px;
+      
+      &:hover {
+        background: @color-purple;
+        color: white;
+      }
+    }
+  }
+}
+
+.slider-comparison {
+  margin-bottom: 20px;
+  
+  .comparison-image {
+    position: relative;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto 16px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: @color-gray;
+    
+    .base-image {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    
+    .overlay-image {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      
+      img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+    }
+  }
+  
+  .slider {
+    display: block;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto 16px;
+    cursor: pointer;
+    height: 6px;
+    border-radius: 3px;
+    background: @color-primary-100;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    
+    &::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: @color-purple;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      transition: transform 0.2s;
+      
+      &:hover {
+        transform: scale(1.2);
+      }
+    }
+    
+    &::-moz-range-thumb {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: @color-purple;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      transition: transform 0.2s;
+      
+      &:hover {
+        transform: scale(1.2);
+      }
+    }
+  }
+  
+  .labels {
+    display: flex;
+    justify-content: space-between;
+    max-width: 600px;
+    margin: 0 auto;
+    font-size: 12px;
+    color: @color-gray;
+    font-weight: 600;
+    .font-sans;
+    
+    .current {
+      text-align: left;
+    }
+    
+    .new {
+      text-align: right;
+    }
+  }
+}
+
+.split-comparison {
+  margin-bottom: 20px;
+  
+  .split-image-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    max-width: 800px;
+    margin: 0 auto;
+    
+    .split-image {
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+      background: @color-gray;
+      
+      img {
+        display: block;
+        width: 100%;
+        height: auto;
+        max-height: 400px;
+        object-fit: cover;
+      }
+      
+      label {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 12px;
+        background: rgba(0, 0, 0, 0.5);
+        color: white;
+        font-weight: 600;
+        font-size: 14px;
+        text-align: center;
+        .font-sans;
+      }
+    }
+  }
+}
+
+.comparison-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  max-width: 600px;
+  margin: 24px auto 0;
+  
+  .button {
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    .font-sans;
+    font-size: 14px;
+    
+    &.secondary {
+      background: @color-primary-50;
+      color: @color-purple;
+      border: 1px solid @color-primary-100;
+      
+      &:hover {
+        background: @color-primary-100;
+      }
+    }
+    
+    &.primary {
+      background: @color-purple;
+      color: white;
+      
+      &:hover {
+        background: darken(@color-purple, 10%);
+        box-shadow: 0 2px 8px rgba(107, 55, 180, 0.3);
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .split-comparison {
+    .split-image-container {
+      grid-template-columns: 1fr;
+    }
+  }
+}
