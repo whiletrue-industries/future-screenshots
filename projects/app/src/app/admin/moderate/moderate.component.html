@@ -26,23 +26,23 @@
     </div>
   </header>
 
-  <app-filters-bar
-    [counts]="filterCounts()"
-    [totalCount]="allFetchedItems().length"
-    [filteredCount]="items().length"
-    [showViewToggle]="true"
-    [initialState]="filterState()"
-    (filtersChange)="onFiltersChange($event)"
-    (filtersCommit)="onFiltersCommit($event)"
-  ></app-filters-bar>
-
-  <div class="multi-select-toolbar">
-    <button class="multi-select-toggle" (click)="toggleMultiSelectMode()">
-      {{ multiSelectMode() ? 'Close multi-edit' : 'Multi-edit' }}
+  <div class="filters-bar-row">
+    <app-filters-bar
+      [counts]="filterCounts()"
+      [totalCount]="allFetchedItems().length"
+      [filteredCount]="items().length"
+      [showViewToggle]="true"
+      [initialState]="filterState()"
+      (filtersChange)="onFiltersChange($event)"
+      (filtersCommit)="onFiltersCommit($event)"
+    ></app-filters-bar>
+    <button class="multi-select-toggle" (click)="toggleMultiSelectMode()" aria-label="Toggle multi-edit mode">
+      <span class="icon">🗂</span>
+      <span>{{ multiSelectMode() ? 'Close multi-edit' : 'Multi-edit' }}</span>
+      @if (multiSelectMode() && selectedCount() > 0) {
+        <span class="multi-select-count">{{ selectedCount() }}</span>
+      }
     </button>
-    @if (multiSelectMode()) {
-      <span class="multi-select-count">{{ selectedCount() }} selected</span>
-    }
   </div>
 
   @if (items().length === 500 || page() > 0) {
