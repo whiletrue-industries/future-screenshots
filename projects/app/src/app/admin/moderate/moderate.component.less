@@ -533,6 +533,31 @@
                     }
                 }
             }
+
+            .plausibility-scale {
+                position: absolute;
+                top: 12px;
+                right: 6px;
+                bottom: 12px;
+                width: 20px;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                align-items: center;
+                pointer-events: none;
+                gap: 8px;
+                z-index: 1;
+
+                .scale-dot {
+                    width: 7px;
+                    height: 7px;
+                }
+
+                .scale-dot.active {
+                    width: 16px;
+                    height: 16px;
+                }
+            }
         }
 
         .toggle-view-btn {
@@ -1255,6 +1280,24 @@
         border-radius: 8px;
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
     }
+
+    .plausibility-scale {
+        top: 16px;
+        right: 12px;
+        bottom: 16px;
+        width: 22px;
+        gap: 10px;
+
+        .scale-dot {
+            width: 8px;
+            height: 8px;
+        }
+
+        .scale-dot.active {
+            width: 18px;
+            height: 18px;
+        }
+    }
 }
 
 .lightbox-info-boxes {
@@ -1768,6 +1811,61 @@
     color: @color-darker-purple;
 }
 
+.plausibility-scale {
+    .scale-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: fade(@color-white, 50%);
+        border: 1px solid fade(@color-white, 70%);
+        box-shadow: 0 0 0 1px fade(#000, 10%);
+        transition: all 120ms ease;
+    }
+
+    .scale-dot.prefer {
+        background: fade(@color-prefer, 35%);
+        border-color: fade(@color-prefer, 55%);
+    }
+
+    .scale-dot.prevent {
+        background: fade(@color-prevent, 35%);
+        border-color: fade(@color-prevent, 55%);
+    }
+
+    .scale-dot.neutral {
+        background: fade(@color-gray, 30%);
+        border-color: fade(@color-white, 50%);
+    }
+
+    .scale-dot.active {
+        width: 14px;
+        height: 14px;
+        background: @color-white;
+        border: 2px solid @color-white;
+        box-shadow: 0 0 0 2px fade(#000, 10%);
+    }
+
+    .scale-dot.active.prefer {
+        background: @color-prefer;
+        border-color: fade(@color-prefer, 75%);
+        box-shadow: 0 0 0 2px fade(@color-prefer, 30%), 0 0 0 4px fade(@color-white, 35%);
+    }
+
+    .scale-dot.active.prevent {
+        background: @color-prevent;
+        border-color: fade(@color-prevent, 75%);
+        box-shadow: 0 0 0 2px fade(@color-prevent, 30%), 0 0 0 4px fade(@color-white, 35%);
+    }
+
+    .scale-dot.active.mostly-prefer {
+        box-shadow: 0 0 0 2px fade(@color-prefer, 30%), 0 0 0 4px fade(@color-prevent, 45%);
+    }
+
+    .scale-dot.active.mostly-prevent {
+        box-shadow: 0 0 0 2px fade(@color-prevent, 30%), 0 0 0 4px fade(@color-prefer, 45%);
+    }
+}
+
 .thumbnail-item {
     position: relative;
     width: 106px;
@@ -1814,6 +1912,7 @@
             gap: 6px;
             opacity: 0;
             transition: opacity 120ms ease;
+            z-index: 2;
 
             .thumb-btn {
                 width: 32px;
@@ -1839,6 +1938,74 @@
                     transform: scale(1.07);
                     background: @color-purple;
                     color: #fff;
+                }
+            }
+        }
+
+        .plausibility-scale {
+            position: absolute;
+            top: 6px;
+            right: 4px;
+            bottom: 6px;
+            width: 18px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            gap: 6px;
+            z-index: 1;
+
+            .scale-dot {
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: fade(@color-white, 50%);
+                border: 1px solid fade(@color-white, 70%);
+                box-shadow: 0 0 0 1px fade(#000, 10%);
+                transition: all 120ms ease;
+
+                &.prefer {
+                    background: fade(@color-prefer, 35%);
+                    border-color: fade(@color-prefer, 55%);
+                }
+
+                &.prevent {
+                    background: fade(@color-prevent, 35%);
+                    border-color: fade(@color-prevent, 55%);
+                }
+
+                &.neutral {
+                    background: fade(@color-gray, 30%);
+                    border-color: fade(@color-white, 50%);
+                }
+
+                &.active {
+                    width: 14px;
+                    height: 14px;
+                    background: @color-white;
+                    border: 2px solid @color-white;
+                    box-shadow: 0 0 0 2px fade(#000, 10%);
+                }
+
+                &.active.prefer {
+                    background: @color-prefer;
+                    border-color: fade(@color-prefer, 75%);
+                    box-shadow: 0 0 0 2px fade(@color-prefer, 30%), 0 0 0 4px fade(@color-white, 35%);
+                }
+
+                &.active.prevent {
+                    background: @color-prevent;
+                    border-color: fade(@color-prevent, 75%);
+                    box-shadow: 0 0 0 2px fade(@color-prevent, 30%), 0 0 0 4px fade(@color-white, 35%);
+                }
+
+                &.active.mostly-prefer {
+                    box-shadow: 0 0 0 2px fade(@color-prefer, 30%), 0 0 0 4px fade(@color-prevent, 45%);
+                }
+
+                &.active.mostly-prevent {
+                    box-shadow: 0 0 0 2px fade(@color-prevent, 30%), 0 0 0 4px fade(@color-prefer, 45%);
                 }
             }
         }

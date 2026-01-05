@@ -93,6 +93,30 @@ export class ModerateComponent {
   items = signal<any[]>([]);
   indexLink = signal<string | null>(null);
 
+  private readonly preferSlotMap = new Map<number, number>([
+    [0, 1],
+    [25, 2],
+    [50, 3],
+    [75, 4],
+    [100, 5],
+  ]);
+
+  private readonly preventSlotMap = new Map<number, number>([
+    [100, 5],
+    [75, 6],
+    [50, 7],
+    [25, 8],
+    [0, 9],
+  ]);
+
+  private readonly plausibilityLabelMap: Record<number, string> = {
+    100: 'projected',
+    75: 'probable',
+    50: 'plausible',
+    25: 'possible',
+    0: 'preposterous'
+  };
+
   // Image replacement state
   replacingImageItemId = signal<string | null>(null);
   currentReplacingImageUrl = computed(() => {
@@ -762,6 +786,74 @@ export class ModerateComponent {
     if (value >= 75) return 'high';
     if (value >= 25) return 'medium';
     return 'low';
+  }
+
+  getIndicatorSlot(item: any | null): number | null {
+    if (!item) return null;
+    const plausibility = Number(item.plausibility);
+    if (!Number.isFinite(plausibility)) return null;
+
+    const direction = this.normalizeDirection(item.favorable_future);
+    if (direction === 'prefer' || direction === 'mostly-prefer') {
+      return this.preferSlotMap.get(plausibility) ?? null;
+    }
+    if (direction === 'prevent' || direction === 'mostly-prevent') {
+      return this.preventSlotMap.get(plausibility) ?? null;
+    }
+    return null;
+  }
+
+  getIndicatorLabel(item: any | null): string {
+    if (!item) return 'No score';
+    const plausibility = Number(item.plausibility);
+    const plausibilityLabel = this.plausibilityLabelMap[plausibility];
+    const direction = this.normalizeDirection(item.favorable_future);
+
+    if (!plausibilityLabel) return 'No plausibility score';
+
+    switch (direction) {
+      case 'prefer':
+        return `prefer ${plausibilityLabel}`;
+      case 'mostly-prefer':
+        return `mostly prefer ${plausibilityLabel}`;
+      case 'prevent':
+        return `prevent ${plausibilityLabel}`;
+      case 'mostly-prevent':
+        return `mostly prevent ${plausibilityLabel}`;
+      default:
+        return `uncertain ${plausibilityLabel}`;
+    }
+  }
+
+  isPreferDirection(item: any | null): boolean {
+    const direction = this.normalizeDirection(item?.favorable_future);
+    return direction === 'prefer' || direction === 'mostly-prefer';
+  }
+
+  isPreventDirection(item: any | null): boolean {
+    const direction = this.normalizeDirection(item?.favorable_future);
+    return direction === 'prevent' || direction === 'mostly-prevent';
+  }
+
+  isMostlyPrefer(item: any | null): boolean {
+    return this.normalizeDirection(item?.favorable_future) === 'mostly-prefer';
+  }
+
+  isMostlyPrevent(item: any | null): boolean {
+    return this.normalizeDirection(item?.favorable_future) === 'mostly-prevent';
+  }
+
+  isNeutralDirection(item: any | null): boolean {
+    return this.normalizeDirection(item?.favorable_future) === 'uncertain';
+  }
+
+  private normalizeDirection(value: string | null | undefined): 'prefer' | 'mostly-prefer' | 'prevent' | 'mostly-prevent' | 'uncertain' {
+    const normalized = (value || '').toLowerCase();
+    if (normalized === 'prefer') return 'prefer';
+    if (normalized === 'mostly prefer') return 'mostly-prefer';
+    if (normalized === 'mostly prevent') return 'mostly-prevent';
+    if (normalized === 'prevent') return 'prevent';
+    return 'uncertain';
   }
 
   formatDate(dateString: string): string {

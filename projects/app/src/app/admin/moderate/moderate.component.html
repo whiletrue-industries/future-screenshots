@@ -175,6 +175,22 @@
 
                   <div class="lightbox-image-container">
                     <img [src]="selectedItem().screenshot_url" alt="Future scenario screenshot" id="lightbox-title" />
+                    <div 
+                      class="plausibility-scale"
+                      role="img"
+                      [attr.aria-label]="getIndicatorLabel(selectedItem())">
+                      @for (slot of Array(9); track $index; let idx = $index) {
+                        <span 
+                          class="scale-dot"
+                          [class.active]="getIndicatorSlot(selectedItem()) === idx + 1"
+                          [class.prefer]="isPreferDirection(selectedItem())"
+                          [class.prevent]="isPreventDirection(selectedItem())"
+                          [class.neutral]="isNeutralDirection(selectedItem())"
+                          [class.mostly-prefer]="isMostlyPrefer(selectedItem())"
+                          [class.mostly-prevent]="isMostlyPrevent(selectedItem())">
+                        </span>
+                      }
+                    </div>
                   </div>
                 </div>
 
@@ -363,6 +379,22 @@
               }
               <div class="thumbnail-image">
                 <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
+                <div 
+                  class="plausibility-scale"
+                  role="img"
+                  [attr.aria-label]="getIndicatorLabel(item)">
+                  @for (slot of Array(9); track $index; let idx = $index) {
+                    <span 
+                      class="scale-dot"
+                      [class.active]="getIndicatorSlot(item) === idx + 1"
+                      [class.prefer]="isPreferDirection(item)"
+                      [class.prevent]="isPreventDirection(item)"
+                      [class.neutral]="isNeutralDirection(item)"
+                      [class.mostly-prefer]="isMostlyPrefer(item)"
+                      [class.mostly-prevent]="isMostlyPrevent(item)">
+                    </span>
+                  }
+                </div>
                 <div class="thumbnail-actions">
                   <button class="thumb-btn" (click)="$event.stopPropagation(); openImageReplacementModal(item._id)" aria-label="Replace image">
                     ✎
@@ -424,6 +456,22 @@
               @if (!isShowingDescription(item._id)) {
               <div class="screenshot-image-wrapper">
                 <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
+                <div 
+                  class="plausibility-scale"
+                  role="img"
+                  [attr.aria-label]="getIndicatorLabel(item)">
+                  @for (slot of Array(9); track $index; let idx = $index) {
+                    <span 
+                      class="scale-dot"
+                      [class.active]="getIndicatorSlot(item) === idx + 1"
+                      [class.prefer]="isPreferDirection(item)"
+                      [class.prevent]="isPreventDirection(item)"
+                      [class.neutral]="isNeutralDirection(item)"
+                      [class.mostly-prefer]="isMostlyPrefer(item)"
+                      [class.mostly-prevent]="isMostlyPrevent(item)">
+                    </span>
+                  }
+                </div>
                 <div class="screenshot-actions">
                   <button class="image-action-btn" (click)="openImageReplacementModal(item._id)" aria-label="Replace image">
                     ✎ Replace
