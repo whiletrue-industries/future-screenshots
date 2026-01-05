@@ -1531,6 +1531,123 @@
     border: 1px solid @color-primary-100;
     align-content: start;
     justify-content: start;
+
+    .thumbnail-item.select-mode {
+        position: relative;
+        cursor: pointer;
+        outline: 2px solid transparent;
+    }
+
+    .thumbnail-item.bulk-selected {
+        outline-color: @color-purple;
+    }
+
+    .thumbnail-item .select-checkbox,
+    .item-card .select-checkbox {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 4px;
+        padding: 4px;
+        z-index: 2;
+    }
+
+    .item-card.select-mode {
+        position: relative;
+    }
+
+    .item-card.bulk-selected {
+        border-color: @color-purple;
+        box-shadow: 0 0 0 2px fade(@color-purple, 30%);
+    }
+
+    .multi-select-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 8px 0 12px;
+    }
+
+    .multi-select-toggle {
+        padding: 8px 14px;
+        border: 1px solid @color-primary-100;
+        background: @color-primary-50;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+    }
+
+    .multi-select-count {
+        color: @color-darker-purple;
+        font-weight: 600;
+    }
+
+    .bulk-bar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #fff;
+        border-top: 1px solid @color-primary-100;
+        box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+        padding: 12px 16px;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 16px;
+        z-index: 10;
+    }
+
+    .bulk-controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 12px;
+    }
+
+    .bulk-controls label {
+        display: flex;
+        flex-direction: column;
+        font-size: 12px;
+        color: @color-gray;
+        gap: 4px;
+    }
+
+    .bulk-controls select,
+    .bulk-controls input {
+        padding: 6px 8px;
+        border: 1px solid @color-primary-100;
+        border-radius: 4px;
+    }
+
+    .bulk-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .bulk-btn {
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid @color-primary-100;
+        background: @color-purple;
+        color: #fff;
+        cursor: pointer;
+        font-weight: 600;
+    }
+
+    .bulk-btn.ghost {
+        background: #fff;
+        color: @color-darker-purple;
+    }
+
+    .bulk-error {
+        color: #c62828;
+        font-weight: 600;
+    }
+
+    .bulk-progress {
+        color: @color-darker-purple;
+    }
 }
 
 .thumbnail-item {

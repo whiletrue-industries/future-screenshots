@@ -36,6 +36,15 @@
     (filtersCommit)="onFiltersCommit($event)"
   ></app-filters-bar>
 
+  <div class="multi-select-toolbar">
+    <button class="multi-select-toggle" (click)="toggleMultiSelectMode()">
+      {{ multiSelectMode() ? 'Close multi-edit' : 'Multi-edit' }}
+    </button>
+    @if (multiSelectMode()) {
+      <span class="multi-select-count">{{ selectedCount() }} selected</span>
+    }
+  </div>
+
   @if (items().length === 500 || page() > 0) {
     <section class="pagination-section" aria-label="Pagination">
       <button 
@@ -307,7 +316,17 @@
         }
         <div class="thumbnails-grid" role="list">
           @for (item of items(); track item._id) {
-            <div class="thumbnail-item" [attr.data-status]="LEVELS[item._private_moderation]" (click)="selectItem(item)" role="button" tabindex="0" [class.selected]="selectedItem()?._id === item._id">
+            <div class="thumbnail-item" [attr.data-status]="LEVELS[item._private_moderation]" (click)="selectItem(item)" role="button" tabindex="0" [class.selected]="selectedItem()?._id === item._id" [class.select-mode]="multiSelectMode()" [class.bulk-selected]="isItemSelected(item._id)">
+              @if (multiSelectMode()) {
+                <label class="select-checkbox">
+                  <input 
+                    type="checkbox" 
+                    [checked]="isItemSelected(item._id)"
+                    (click)="$event.stopPropagation()"
+                    (change)="toggleItemSelection(item._id)"
+                    aria-label="Select item for bulk edit" />
+                </label>
+              }
               <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
             </div>
           }
@@ -316,8 +335,17 @@
     } @else {
       <div class="items-grid" role="list">
         @for (item of items(); track item._id) {
-          <article class="item-card" [attr.data-status]="LEVELS[item._private_moderation]" role="listitem">
+          <article class="item-card" [attr.data-status]="LEVELS[item._private_moderation]" role="listitem" [class.select-mode]="multiSelectMode()" [class.bulk-selected]="isItemSelected(item._id)">
             <div class="card-header">
+              @if (multiSelectMode()) {
+                <label class="select-checkbox">
+                  <input 
+                    type="checkbox" 
+                    [checked]="isItemSelected(item._id)"
+                    (change)="toggleItemSelection(item._id)"
+                    aria-label="Select item for bulk edit" />
+                </label>
+              }
               <button class="user-info" (click)="filterByUser(item.author_id)" [title]="getEmail(item)">
                 @if (item.author_id && item.author_id !== 'unknown') {
                   <span class="user-count-link">{{ getUserItemCount(item.author_id) }} items</span>
@@ -506,3 +534,77 @@
     </div>
   }
 }
+
+  @if (multiSelectMode()) {
+    <div class="bulk-bar" role="region" aria-label="Bulk edit panel">
+      <div class="bulk-summary">
+        <strong>{{ selectedCount() }}</strong> selected
+      </div>
+      <div class="bulk-controls">
+        <label>
+          Status
+          <select [ngModel]="bulkStatus()" (ngModelChange)="bulkStatus.set($event || null)">
+            <option [ngValue]="null">No change</option>
+            <option value="new">new</option>
+            <option value="in-review">in-review</option>
+            <option value="flagged">flagged</option>
+            <option value="not-flagged">not-flagged</option>
+            <option value="approved">approved</option>
+            <option value="highlighted">highlighted</option>
+            <option value="rejected">rejected</option>
+          </select>
+        </label>
+        <label>
+          Author
+          <input type="text" [ngModel]="bulkAuthor()" (ngModelChange)="bulkAuthor.set($event || '')" placeholder="author id" />
+        </label>
+        <label>
+          Plausibility
+          <select [ngModel]="bulkPlausibility()" (ngModelChange)="bulkPlausibility.set(parseNumber($event))">
+            <option [ngValue]="null">No change</option>
+            <option [ngValue]="100">Projected (100)</option>
+            <option [ngValue]="75">Probable (75)</option>
+            <option [ngValue]="50">Plausible (50)</option>
+            <option [ngValue]="25">Possible (25)</option>
+            <option [ngValue]="0">Preposterous (0)</option>
+          </select>
+        </label>
+        <label>
+          Favorable future
+          <select [ngModel]="bulkFavorable()" (ngModelChange)="bulkFavorable.set($event || null)">
+            <option [ngValue]="null">No change</option>
+            <option value="prefer">prefer</option>
+            <option value="mostly prefer">mostly prefer</option>
+            <option value="uncertain">uncertain</option>
+            <option value="mostly prevent">mostly prevent</option>
+            <option value="prevent">prevent</option>
+          </select>
+        </label>
+        <label>
+          Type
+          <select [ngModel]="bulkType()" (ngModelChange)="bulkType.set($event || null)">
+            <option [ngValue]="null">No change</option>
+            <option value="sign_in_a_demonstration">Sign</option>
+            <option value="social_media_post">Social</option>
+            <option value="chat_conversation">Chat</option>
+            <option value="notification_alert">Alert</option>
+            <option value="ai_agent_query">AI</option>
+            <option value="review">Review</option>
+            <option value="map_visualization">Map</option>
+            <option value="photograph">Photo</option>
+          </select>
+        </label>
+      </div>
+      <div class="bulk-actions">
+        <button class="bulk-btn" (click)="applyBulkChanges()" [disabled]="bulkSaving() || selectedCount() === 0">Apply to selected</button>
+        <button class="bulk-btn ghost" (click)="clearBulkSelection()" [disabled]="bulkSaving()">Clear selection</button>
+        <button class="bulk-btn ghost" (click)="toggleMultiSelectMode()" [disabled]="bulkSaving()">Exit</button>
+      </div>
+      @if (bulkError()) {
+        <div class="bulk-error">{{ bulkError() }}</div>
+      }
+      @if (bulkSaving()) {
+        <div class="bulk-progress">Applying changes...</div>
+      }
+    </div>
+  }

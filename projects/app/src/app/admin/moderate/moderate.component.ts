@@ -3,6 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { AdminApiService } from '../../../admin-api.service';
 import { FormsModule } from '@angular/forms';
 import { FilterHelpers, FiltersBarComponent, FiltersBarState, FilterCounts } from '../../shared/filters-bar/filters-bar.component';
+import { firstValueFrom } from 'rxjs';
 
 export type Filter = {
   name: string;
@@ -71,6 +72,17 @@ export class ModerateComponent {
    statusDropdownOpen = signal<boolean>(false);
   preferenceDropdownOpen = signal<boolean>(false);
   potentialDropdownOpen = signal<boolean>(false);
+
+  // Multi-edit state
+  multiSelectMode = signal<boolean>(false);
+  selectedIds = signal<Set<string>>(new Set());
+  bulkStatus = signal<string | null>(null);
+  bulkAuthor = signal<string>('');
+  bulkPlausibility = signal<number | null>(null);
+  bulkFavorable = signal<string | null>(null);
+  bulkType = signal<string | null>(null);
+  bulkSaving = signal<boolean>(false);
+  bulkError = signal<string | null>(null);
 
   items = signal<any[]>([]);
   indexLink = signal<string | null>(null);
@@ -826,6 +838,10 @@ export class ModerateComponent {
   }
 
   selectItem(item: any): void {
+    if (this.multiSelectMode()) {
+      this.toggleItemSelection(item._id);
+      return;
+    }
     this.selectedItem.set(item);
     // Find and set the index of the selected item
     const index = this.items().findIndex(i => i._id === item._id);
@@ -940,6 +956,133 @@ export class ModerateComponent {
         error => console.error('Error updating transition_bar_position', error)
       );
     }
+  }
+
+  // Multi-edit helpers
+  toggleMultiSelectMode(): void {
+    const next = !this.multiSelectMode();
+    this.multiSelectMode.set(next);
+    if (!next) {
+      this.clearBulkSelection();
+    } else {
+      this.selectedItem.set(null);
+      this.selectedItemIndex.set(-1);
+    }
+  }
+
+  isItemSelected(itemId: string): boolean {
+    return this.selectedIds().has(itemId);
+  }
+
+  toggleItemSelection(itemId: string): void {
+    const current = new Set(this.selectedIds());
+    if (current.has(itemId)) {
+      current.delete(itemId);
+    } else {
+      current.add(itemId);
+    }
+    this.selectedIds.set(current);
+  }
+
+  selectedCount(): number {
+    return this.selectedIds().size;
+  }
+
+  clearBulkSelection(): void {
+    this.selectedIds.set(new Set());
+    this.resetBulkFields();
+    this.bulkSaving.set(false);
+    this.bulkError.set(null);
+  }
+
+  private resetBulkFields(): void {
+    this.bulkStatus.set(null);
+    this.bulkAuthor.set('');
+    this.bulkPlausibility.set(null);
+    this.bulkFavorable.set(null);
+    this.bulkType.set(null);
+  }
+
+  async applyBulkChanges(): Promise<void> {
+    const ids = Array.from(this.selectedIds());
+    if (!ids.length) {
+      this.bulkError.set('Select at least one item.');
+      return;
+    }
+
+    const workspaceId = this.workspaceId();
+    const apiKey = this.apiKey();
+    if (!workspaceId || !apiKey) {
+      this.bulkError.set('Workspace ID and API key are required.');
+      return;
+    }
+
+    const updates: any = {};
+    const statusValue = this.bulkStatus();
+    const moderationValue = statusValue ? this.statusToModeration(statusValue) : null;
+    if (moderationValue !== null) {
+      updates._private_moderation = moderationValue;
+    }
+    if (this.bulkAuthor()) {
+      updates.author_id = this.bulkAuthor();
+    }
+    if (this.bulkPlausibility() !== null) {
+      updates.plausibility = this.bulkPlausibility();
+    }
+    if (this.bulkFavorable()) {
+      updates.favorable_future = this.bulkFavorable();
+    }
+    if (this.bulkType()) {
+      updates.screenshot_type = this.bulkType();
+    }
+
+    if (Object.keys(updates).length === 0) {
+      this.bulkError.set('Choose at least one field to update.');
+      return;
+    }
+
+    this.bulkSaving.set(true);
+    this.bulkError.set(null);
+
+    const results = await Promise.all(ids.map(async id => {
+      try {
+        await firstValueFrom(this.api.updateItem(workspaceId, apiKey, id, updates));
+        return { id, ok: true };
+      } catch (error: any) {
+        return { id, ok: false, error };
+      }
+    }));
+
+    const failed = results.filter(r => !r.ok);
+    if (failed.length) {
+      this.bulkError.set(`Failed to update ${failed.length} item(s).`);
+    }
+
+    const applyUpdates = (arr: any[]) => arr.map(item => ids.includes(item._id) ? { ...item, ...updates } : item);
+    this.allFetchedItems.set(applyUpdates(this.allFetchedItems()));
+    this.applyFiltersAndSort();
+
+    this.bulkSaving.set(false);
+    this.clearBulkSelection();
+  }
+
+  private statusToModeration(status: string): number | null {
+    const map: Record<string, number> = {
+      'new': 2,
+      'flagged': 1,
+      'approved': 4,
+      'in-review': 2,
+      'rejected': 0,
+      'highlighted': 5,
+      'not-flagged': 3,
+    };
+    return map[status] ?? null;
+  }
+
+  parseNumber(value: any): number | null {
+    if (value === null || value === undefined || value === '') return null;
+    const n = Number(value);
+    return Number.isNaN(n) ? null : n;
   }
 
   // Methods for filters-bar component integration
