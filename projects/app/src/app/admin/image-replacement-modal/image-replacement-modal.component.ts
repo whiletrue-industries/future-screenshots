@@ -28,6 +28,7 @@ export class ImageReplacementModalComponent {
   
   selectedOption = signal<'upload' | 'existing' | 'scan' | null>(null);
   workspaceItems = signal<any[]>([]);
+  currentItem = signal<any | null>(null);
   selectedItemId = signal<string | null>(null);
   uploading = signal<boolean>(false);
   pendingNewImage = signal<string | null>(null);
@@ -52,6 +53,7 @@ export class ImageReplacementModalComponent {
         if (Array.isArray(items)) {
           const currentItem = items.find((item: any) => item._id === this.itemId());
           const currentType = currentItem?.screenshot_type || null;
+          this.currentItem.set(currentItem || null);
 
           const filtered = items
             .filter((item: any) => item._id !== this.itemId() && !!item.screenshot_url)
@@ -239,22 +241,44 @@ export class ImageReplacementModalComponent {
     if (!sourceItem) return;
     
     this.uploading.set(true);
-    
-    this.adminApi.updateItem(this.workspaceId(), this.apiKey(), this.itemId(), {
-      screenshot_url: sourceItem.screenshot_url
-    }).subscribe({
+
+    const targetUpdate = this.buildTargetUpdatePayload(sourceItem);
+
+    this.adminApi.updateItem(this.workspaceId(), this.apiKey(), this.itemId(), targetUpdate).subscribe({
       next: () => {
-        this.adminApi.updateItemModeration(this.workspaceId(), this.apiKey(), sourceItemId, 0).subscribe({
+        // Mark the source item as duplicate and rejected
+        this.adminApi.updateItem(this.workspaceId(), this.apiKey(), sourceItemId, { archival_note: 'duplicate' }).subscribe({
           next: () => {
-            this.uploading.set(false);
-            this.imageReplaced.emit({ screenshot_url: sourceItem.screenshot_url });
-            this.close();
+            this.adminApi.updateItemModeration(this.workspaceId(), this.apiKey(), sourceItemId, 0).subscribe({
+              next: () => {
+                this.uploading.set(false);
+                this.imageReplaced.emit({ screenshot_url: sourceItem.screenshot_url });
+                this.close();
+              },
+              error: (error) => {
+                console.error('Error marking source as rejected:', error);
+                this.uploading.set(false);
+                this.imageReplaced.emit({ screenshot_url: sourceItem.screenshot_url });
+                this.close();
+              }
+            });
           },
           error: (error) => {
-            console.error('Error marking source as duplicate:', error);
-            this.uploading.set(false);
-            this.imageReplaced.emit({ screenshot_url: sourceItem.screenshot_url });
-            this.close();
+            console.error('Error setting archival note on source item:', error);
+            // Still attempt to set status to rejected
+            this.adminApi.updateItemModeration(this.workspaceId(), this.apiKey(), sourceItemId, 0).subscribe({
+              next: () => {
+                this.uploading.set(false);
+                this.imageReplaced.emit({ screenshot_url: sourceItem.screenshot_url });
+                this.close();
+              },
+              error: (err) => {
+                console.error('Error marking source as rejected after archival note failure:', err);
+                this.uploading.set(false);
+                this.imageReplaced.emit({ screenshot_url: sourceItem.screenshot_url });
+                this.close();
+              }
+            });
           }
         });
       },
@@ -264,6 +288,26 @@ export class ImageReplacementModalComponent {
         alert('Failed to replace image. Please try again.');
       }
     });
+  }
+
+  private buildTargetUpdatePayload(sourceItem: any): Record<string, any> {
+    const target = this.currentItem();
+    const payload: Record<string, any> = {
+      screenshot_url: sourceItem.screenshot_url
+    };
+
+    const needsPlausibility = target?.plausibility === undefined || target?.plausibility === null || target?.plausibility === '';
+    const needsFavorable = target?.favorable_future === undefined || target?.favorable_future === null || target?.favorable_future === '';
+
+    if (needsPlausibility && sourceItem.plausibility !== undefined && sourceItem.plausibility !== null) {
+      payload.plausibility = sourceItem.plausibility;
+    }
+
+    if (needsFavorable && sourceItem.favorable_future) {
+      payload.favorable_future = sourceItem.favorable_future;
+    }
+
+    return payload;
   }
   
   scanAgain() {
