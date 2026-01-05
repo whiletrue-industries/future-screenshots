@@ -115,23 +115,25 @@
   
   .items-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(106px, 106px));
+    gap: 8px;
     margin-bottom: 16px;
     max-height: 400px;
     overflow-y: auto;
     
     .item-thumbnail {
       position: relative;
-      border: 2px solid transparent;
-      border-radius: 8px;
+      border: 2px solid @color-primary-100;
+      border-radius: 2px;
       overflow: hidden;
       cursor: pointer;
       transition: all 0.2s;
+      width: 106px;
+      height: 200px;
       
       &:hover {
-        border-color: @color-light-purple;
-        transform: scale(1.05);
+        border-color: @color-purple;
+        transform: scale(1.02);
       }
       
       &.selected {
@@ -141,7 +143,7 @@
       
       img {
         width: 100%;
-        height: 120px;
+        height: 100%;
         object-fit: cover;
         display: block;
       }

@@ -51,19 +51,30 @@ export class ImageReplacementModalComponent {
       next: (items: any) => {
         if (Array.isArray(items)) {
           const currentItem = items.find((item: any) => item._id === this.itemId());
-          let filtered = items.filter((item: any) => 
-            item._id !== this.itemId() && !!item.screenshot_url
-          );
-          filtered.forEach((item: any) => {
-            item.screenshot_url = this.fixUrl(item.screenshot_url);
-          });
-          
-          // Sort by similarity to current item if embeddings are available
-          if (currentItem && currentItem.embedding && Array.isArray(currentItem.embedding)) {
-            filtered = this.sortBySimilarity(filtered, currentItem.embedding);
+          const currentType = currentItem?.screenshot_type || null;
+
+          const filtered = items
+            .filter((item: any) => item._id !== this.itemId() && !!item.screenshot_url)
+            .map((item: any) => ({
+              ...item,
+              screenshot_url: this.fixUrl(item.screenshot_url)
+            }));
+
+          let prioritized: any[] = [];
+          if (currentType) {
+            const sameType = this.sortByDateDesc(filtered.filter((item: any) => item.screenshot_type === currentType));
+            const otherTypes = filtered.filter((item: any) => item.screenshot_type !== currentType);
+            const orderedOthers = currentItem && Array.isArray(currentItem.embedding)
+              ? this.sortBySimilarity(otherTypes, currentItem.embedding)
+              : this.sortByDateDesc(otherTypes);
+            prioritized = [...sameType, ...orderedOthers];
+          } else {
+            prioritized = currentItem && Array.isArray(currentItem?.embedding)
+              ? this.sortBySimilarity(filtered, currentItem.embedding)
+              : this.sortByDateDesc(filtered);
           }
-          
-          this.workspaceItems.set(filtered);
+
+          this.workspaceItems.set(prioritized);
         }
         this.uploading.set(false);
       },
@@ -81,6 +92,15 @@ export class ImageReplacementModalComponent {
       const scoreB = this.computeSimilarity(currentEmbedding, b.embedding);
       return scoreB - scoreA; // Sort descending (highest similarity first)
     });
+  }
+
+  private sortByDateDesc(items: any[]): any[] {
+    return items.sort((a, b) => this.getTimestamp(b) - this.getTimestamp(a));
+  }
+
+  private getTimestamp(item: any): number {
+    const candidate = item?.created_at || item?.createdAt || item?.created || item?._created || item?.updated_at || item?.updatedAt || 0;
+    return new Date(candidate || 0).getTime();
   }
 
   private computeSimilarity(embedding1: number[], embedding2: any): number {
