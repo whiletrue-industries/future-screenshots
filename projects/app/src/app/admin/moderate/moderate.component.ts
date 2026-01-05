@@ -954,16 +954,14 @@ export class ModerateComponent {
     orderBy: this.orderBy(),
     view: this.viewMode()
   }));
-
-  getFilterCounts(): FilterCounts {
-    return {
-      status: this.statusCounts(),
-      author: this.authorCounts(),
-      preference: this.preferenceCounts(),
-      potential: this.potentialCounts(),
-      type: this.typeCounts()
-    };
-  }
+  
+  filterCounts = computed<FilterCounts>(() => ({
+    status: this.statusCounts(),
+    author: this.authorCounts(),
+    preference: this.preferenceCounts(),
+    potential: this.potentialCounts(),
+    type: this.typeCounts()
+  }));
 
   onFiltersChange(newState: FiltersBarState): void {
     this.filterStatus.set(newState.status);

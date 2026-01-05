@@ -49,7 +49,8 @@
                 type="text" 
                 class="search-input"
                 placeholder="Search statuses..."
-                [(ngModel)]="statusSearchText"
+                [ngModel]="statusSearchText()" 
+                (ngModelChange)="statusSearchText.set($event)"
                 (click)="$event.stopPropagation()" />
             </div>
             <div class="multiselect-controls">
@@ -85,7 +86,7 @@
 
     <div class="filter-group">
       <label for="filter-author">Author:</label>
-      <select id="filter-author" [(ngModel)]="filterAuthor">
+      <select id="filter-author" [ngModel]="filterAuthor()" (ngModelChange)="onAuthorChange($event)">
         <option value="all">all</option>
         @for (author of getAuthorsSortedByCount(); track author) {
           @if (author === 'unknown') {
@@ -146,7 +147,8 @@
                 type="text" 
                 class="search-input"
                 placeholder="Search preferences..."
-                [(ngModel)]="preferenceSearchText"
+                [ngModel]="preferenceSearchText()" 
+                (ngModelChange)="preferenceSearchText.set($event)"
                 (click)="$event.stopPropagation()" />
             </div>
             <div class="multiselect-controls">
@@ -229,7 +231,8 @@
                 type="text" 
                 class="search-input"
                 placeholder="Search potentials..."
-                [(ngModel)]="potentialSearchText"
+                [ngModel]="potentialSearchText()" 
+                (ngModelChange)="potentialSearchText.set($event)"
                 (click)="$event.stopPropagation()" />
             </div>
             <div class="multiselect-controls">
@@ -265,7 +268,7 @@
 
     <div class="filter-group">
       <label for="filter-type">Type:</label>
-      <select id="filter-type" [(ngModel)]="filterType">
+      <select id="filter-type" [ngModel]="filterType()" (ngModelChange)="onTypeChange($event)">
         <option value="all">all</option>
         <option value="sign_in_a_demonstration">🪧 Sign ({{ getCount(counts().type, 'sign_in_a_demonstration') }})</option>
         <option value="social_media_post">📣 Social ({{ getCount(counts().type, 'social_media_post') }})</option>
@@ -283,13 +286,14 @@
       <input 
         id="filter-search" 
         type="text" 
-        [(ngModel)]="searchText" 
+        [ngModel]="searchText()" 
+        (ngModelChange)="onSearchChange($event)" 
         placeholder="any text" />
     </div>
 
     <div class="filter-group">
       <label for="order-by">Order by:</label>
-      <select id="order-by" [(ngModel)]="orderBy">
+      <select id="order-by" [ngModel]="orderBy()" (ngModelChange)="onOrderByChange($event)">
         <option value="date">Date</option>
         <option value="status">Status</option>
         <option value="author">Author</option>

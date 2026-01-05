@@ -586,7 +586,30 @@ export class FiltersBarComponent {
     return author.substring(0, 4) + '...' + author.substring(author.length - 4);
   }
   
+  // Change handlers that update signals and emit changes
+  onAuthorChange(value: string): void {
+    this.filterAuthor.set(value);
+    this.emitDebouncedChange();
+  }
+  
+  onTypeChange(value: string): void {
+    this.filterType.set(value);
+    this.emitDebouncedChange();
+  }
+  
+  onSearchChange(value: string): void {
+    this.searchText.set(value);
+    this.emitDebouncedChange();
+  }
+  
+  onOrderByChange(value: string): void {
+    this.orderBy.set(value);
+    this.emitDebouncedChange();
+  }
+  
   toggleViewMode(): void {
     this.viewMode.set(this.viewMode() === 'grid' ? 'list' : 'grid');
+    // Emit change immediately so parent component can update view
+    this.emitFiltersChange();
   }
 }
