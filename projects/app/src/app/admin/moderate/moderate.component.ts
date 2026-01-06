@@ -47,8 +47,8 @@ export class ModerateComponent {
   // Individual filters
   filterStatus = signal<string[]>(['new', 'flagged', 'approved', 'not-flagged', 'highlighted']);
   filterAuthor = signal<string>('all');
-  preferenceOptions = ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'];
-  potentialOptions = ['100', '75', '50', '25', '0'];
+  preferenceOptions = ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent', 'none'];
+  potentialOptions = ['100', '75', '50', '25', '0', 'none'];
 
   filterPreference = signal<string[]>([...this.preferenceOptions]);
   filterPotential = signal<string[]>([...this.potentialOptions]);
@@ -370,13 +370,31 @@ export class ModerateComponent {
     // Preference filter
     if (this.filterPreference().length > 0 && this.filterPreference().length < this.preferenceOptions.length) {
       const beforeCount = filtered.length;
-      filtered = filtered.filter(item => this.filterPreference().includes(item.favorable_future));
+      filtered = filtered.filter(item => {
+        const value = item.favorable_future;
+        if (this.filterPreference().includes('none')) {
+          // Include items with undefined/null/empty values when 'none' is selected
+          if (!value || value === '' || value === 'none') {
+            return true;
+          }
+        }
+        return this.filterPreference().includes(value);
+      });
     }
     
     // Potential filter
     if (this.filterPotential().length > 0 && this.filterPotential().length < this.potentialOptions.length) {
       const beforeCount = filtered.length;
-      filtered = filtered.filter(item => this.filterPotential().includes(String(item.plausibility)));
+      filtered = filtered.filter(item => {
+        const value = item.plausibility;
+        if (this.filterPotential().includes('none')) {
+          // Include items with undefined/null/empty values when 'none' is selected
+          if (value === undefined || value === null || value === '' || value === 'none') {
+            return true;
+          }
+        }
+        return this.filterPotential().includes(String(value));
+      });
     }
     
     // Type filter

@@ -153,8 +153,8 @@ export class FiltersBarComponent {
   potentialSearchText = signal<string>('');
   
   // Options
-  preferenceOptions = ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'];
-  potentialOptions = ['100', '75', '50', '25', '0'];
+  preferenceOptions = ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent', 'none'];
+  potentialOptions = ['100', '75', '50', '25', '0', 'none'];
   statusOptions = [
     { value: 'new', label: 'New' },
     { value: 'in-review', label: 'In Review' },
@@ -168,7 +168,8 @@ export class FiltersBarComponent {
     '75': 'Probable',
     '50': 'Plausible',
     '25': 'Possible',
-    '0': 'Preposterous'
+    '0': 'Preposterous',
+    'none': 'None'
   };
   
   private initialized = false;
