@@ -300,11 +300,11 @@ export class ImageReplacementModalComponent {
     const needsFavorable = target?.favorable_future === undefined || target?.favorable_future === null || target?.favorable_future === '';
 
     if (needsPlausibility && sourceItem.plausibility !== undefined && sourceItem.plausibility !== null) {
-      payload.plausibility = sourceItem.plausibility;
+      payload['plausibility'] = sourceItem.plausibility;
     }
 
     if (needsFavorable && sourceItem.favorable_future) {
-      payload.favorable_future = sourceItem.favorable_future;
+      payload['favorable_future'] = sourceItem.favorable_future;
     }
 
     return payload;
