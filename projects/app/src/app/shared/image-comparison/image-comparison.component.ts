@@ -14,7 +14,7 @@ export class ImageComparisonComponent {
   approved = output<void>();
   cancelled = output<void>();
   
-  viewMode = signal<'slider' | 'split'>('slider');
+  viewMode = signal<'slider' | 'split'>('split');
   sliderPosition = signal<number>(50);
   
   onApprove() {

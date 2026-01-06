@@ -1,4 +1,4 @@
-import { Component, output, input, signal, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, output, input, signal, inject, effect, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -26,7 +26,7 @@ export class ImageReplacementModalComponent {
   closed = output<void>();
   imageReplaced = output<{ screenshot_url: string }>();
   
-  selectedOption = signal<'upload' | 'existing' | 'scan' | null>(null);
+  selectedOption = signal<'upload' | 'existing' | 'scan' | null>('existing');
   workspaceItems = signal<any[]>([]);
   currentItem = signal<any | null>(null);
   selectedItemId = signal<string | null>(null);
@@ -38,10 +38,24 @@ export class ImageReplacementModalComponent {
   private apiService = inject(ApiService);
   private adminApi = inject(AdminApiService);
   
+  constructor() {
+    // Load workspace items immediately when component is initialized
+    effect(() => {
+      // Access workspaceId to establish dependency
+      const workspaceId = this.workspaceId();
+      const apiKey = this.apiKey();
+      
+      // Only load if we have valid inputs and haven't loaded yet
+      if (workspaceId && apiKey && this.selectedOption() === 'existing' && this.workspaceItems().length === 0) {
+        this.loadWorkspaceItems();
+      }
+    });
+  }
+  
   selectOption(option: 'upload' | 'existing' | 'scan') {
     this.selectedOption.set(option);
     
-    if (option === 'existing') {
+    if (option === 'existing' && this.workspaceItems().length === 0) {
       this.loadWorkspaceItems();
     }
   }
@@ -246,8 +260,14 @@ export class ImageReplacementModalComponent {
 
     this.adminApi.updateItem(this.workspaceId(), this.apiKey(), this.itemId(), targetUpdate).subscribe({
       next: () => {
+        // Build archive note with link to target item
+        const targetItem = this.currentItem();
+        const targetTitle = targetItem?.future_scenario_tagline || 'item';
+        const targetLink = `${window.location.origin}/admin?workspace=${this.workspaceId()}&api_key=${this.apiKey()}&item=${this.itemId()}`;
+        const archivalNote = `duplicate of [${targetTitle}](${targetLink})`;
+        
         // Mark the source item as duplicate and rejected
-        this.adminApi.updateItem(this.workspaceId(), this.apiKey(), sourceItemId, { archival_note: 'duplicate' }).subscribe({
+        this.adminApi.updateItem(this.workspaceId(), this.apiKey(), sourceItemId, { archival_note: archivalNote }).subscribe({
           next: () => {
             this.adminApi.updateItemModeration(this.workspaceId(), this.apiKey(), sourceItemId, 0).subscribe({
               next: () => {

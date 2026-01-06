@@ -6,23 +6,6 @@
     </div>
     
     @if (!showComparison()) {
-      @if (selectedOption() === null) {
-        <div class="modal-body">
-          <p>Choose how to replace the image:</p>
-          <div class="buttons">
-            <button class="button primary" (click)="selectOption('upload')">
-              Upload from File System
-            </button>
-            <button class="button primary" (click)="selectOption('existing')">
-              Use Existing Image
-            </button>
-            <button class="button primary" (click)="selectOption('scan')">
-              Scan Again
-            </button>
-          </div>
-        </div>
-      }
-      
       @if (selectedOption() === 'upload') {
         <div class="modal-body">
           <h3>Upload Image</h3>
@@ -48,24 +31,41 @@
           @if (workspaceItems().length === 0 && !uploading()) {
             <p class="no-items">No other items with images found in this workspace.</p>
           } @else {
-            <div class="items-grid">
-              @for (item of workspaceItems(); track item._id) {
-                <div 
-                  class="item-thumbnail" 
-                  [class.selected]="selectedItemId() === item._id"
-                  (click)="selectExistingImage(item._id)"
-                >
-                  <img [src]="item.screenshot_url" [alt]="item.future_scenario_tagline || 'Item image'">
-                  @if (item.future_scenario_tagline) {
-                    <div class="item-label">{{ item.future_scenario_tagline }}</div>
+            <div class="replacement-layout">
+              <div class="current-image-section">
+                <h4>Current Image</h4>
+                <div class="current-image-container">
+                  <img [src]="currentImageUrl()" alt="Current image to be replaced">
+                  @if (currentItem()?.future_scenario_tagline) {
+                    <div class="current-image-label">{{ currentItem()?.future_scenario_tagline }}</div>
                   }
                 </div>
-              }
+              </div>
+              <div class="replacement-options-section">
+                <h4>Choose Replacement</h4>
+                <div class="items-grid">
+                  @for (item of workspaceItems(); track item._id) {
+                    <div 
+                      class="item-thumbnail" 
+                      [class.selected]="selectedItemId() === item._id"
+                      (click)="selectExistingImage(item._id)"
+                    >
+                      <img [src]="item.screenshot_url" [alt]="item.future_scenario_tagline || 'Item image'">
+                      @if (item.future_scenario_tagline) {
+                        <div class="item-label">{{ item.future_scenario_tagline }}</div>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
             </div>
           }
           <div class="buttons">
-            <button class="button" (click)="selectedOption.set(null)" [disabled]="uploading()">
-              Back
+            <button class="button" (click)="selectOption('upload')" [disabled]="uploading()">
+              Upload File
+            </button>
+            <button class="button" (click)="selectOption('scan')" [disabled]="uploading()">
+              Scan Image
             </button>
             <button 
               class="button primary" 
@@ -88,8 +88,8 @@
           <p>You will be redirected to the scanner to capture a new image.</p>
           <p><strong>Note:</strong> This works best on mobile devices.</p>
           <div class="buttons">
-            <button class="button" (click)="selectedOption.set(null)">
-              Back
+            <button class="button" (click)="selectedOption.set('existing')">
+              Back to Gallery
             </button>
             <button class="button primary" (click)="scanAgain()">
               Open Scanner
