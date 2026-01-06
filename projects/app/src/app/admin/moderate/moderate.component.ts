@@ -1098,6 +1098,46 @@ export class ModerateComponent {
     }
   }
 
+  regenerateAiFieldsFromUserInput(): void {
+    const workspaceId = this.workspaceId();
+    const apiKey = this.apiKey();
+    const current = this.selectedItem();
+    if (!workspaceId || !apiKey || !current) {
+      return;
+    }
+
+    const topicsFromTags = Array.isArray(current.tags) && current.tags.length
+      ? (() => {
+          const acc: Record<string, string> = {};
+          (current.tags as unknown[]).forEach((tag, index) => {
+            if (typeof tag === 'string' && tag) {
+              acc[`topic_${index + 1}`] = tag;
+            }
+          });
+          return acc;
+        })()
+      : current.future_scenario_topics || null;
+
+    const updateData: any = {
+      content_title: current.content_title || null,
+      future_scenario_description: current.future_scenario_description || null,
+      future_scenario_tagline: current.future_scenario_tagline || null,
+      future_scenario_topics: topicsFromTags,
+      embedding: null,
+      content_certainty: null,
+      transition_bar_certainty: null,
+      transition_bar_event_prediction: null,
+    };
+
+    this.api.updateItem(workspaceId, apiKey, current._id, updateData).subscribe({
+      next: () => {
+        this.items.update(items => items.map(item => item._id === current._id ? { ...item, ...updateData } : item));
+        this.selectedItem.update(item => item ? { ...item, ...updateData } : item);
+      },
+      error: (err) => console.error('Error regenerating AI fields', err)
+    });
+  }
+
   toggleLightboxSidebar(): void {
     this.lightboxSidebarOpen.update(v => !v);
   }

@@ -2180,6 +2180,45 @@
     }
 }
 
+.ai-regenerate {
+    margin-top: 16px;
+    padding: 12px;
+    border: 1px dashed @color-primary-100;
+    border-radius: 10px;
+    background: @color-primary-50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+
+    .ai-regenerate-help {
+        margin: 0;
+        color: @color-dark-gray;
+        font-size: 13px;
+        line-height: 1.4;
+    }
+
+    .regenerate-btn {
+        padding: 10px 14px;
+        border-radius: 10px;
+        border: 1px solid @color-purple;
+        background: @color-purple;
+        color: @color-white;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+
+        &:hover {
+            background: @color-light-purple;
+            box-shadow: 0 4px 12px fade(@color-purple, 35%);
+        }
+
+        &:active {
+            transform: translateY(1px);
+        }
+    }
+}
+
 // Responsive adjustments
 @media (max-width: 768px) {
     .grid-layout {
