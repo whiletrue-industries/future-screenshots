@@ -33,6 +33,7 @@ export class ImageReplacementModalComponent {
   uploading = signal<boolean>(false);
   pendingNewImage = signal<string | null>(null);
   showComparison = signal<boolean>(false);
+  refreshGrid = output<void>();
   
   private router = inject(Router);
   private apiService = inject(ApiService);
@@ -273,12 +274,14 @@ export class ImageReplacementModalComponent {
               next: () => {
                 this.uploading.set(false);
                 this.imageReplaced.emit({ screenshot_url: sourceItem.screenshot_url });
+                this.refreshGrid.emit();
                 this.close();
               },
               error: (error) => {
                 console.error('Error marking source as rejected:', error);
                 this.uploading.set(false);
                 this.imageReplaced.emit({ screenshot_url: sourceItem.screenshot_url });
+                this.refreshGrid.emit();
                 this.close();
               }
             });
@@ -290,12 +293,14 @@ export class ImageReplacementModalComponent {
               next: () => {
                 this.uploading.set(false);
                 this.imageReplaced.emit({ screenshot_url: sourceItem.screenshot_url });
+                this.refreshGrid.emit();
                 this.close();
               },
               error: (err) => {
                 console.error('Error marking source as rejected after archival note failure:', err);
                 this.uploading.set(false);
                 this.imageReplaced.emit({ screenshot_url: sourceItem.screenshot_url });
+                this.refreshGrid.emit();
                 this.close();
               }
             });

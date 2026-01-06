@@ -1321,6 +1321,12 @@ export class ModerateComponent {
     this.replacingImageItemId.set(null);
   }
 
+  onRefreshGrid(): void {
+    // Reload all items to update grid with latest data and metadata
+    this.page.set(0);
+    this.loadItems(true);
+  }
+
   openQrModal(itemId: string): void {
     this.qrItemId.set(itemId);
     this.showQRModal.set(true);
