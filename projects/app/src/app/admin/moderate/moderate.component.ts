@@ -1323,8 +1323,10 @@ export class ModerateComponent {
 
   onRefreshGrid(): void {
     // Reload all items to update grid with latest data and metadata
+    this.allFetchedItems.set([]);
     this.page.set(0);
-    this.loadItems(true);
+    // Reset page to 0, which will trigger the effect to re-fetch items
+    // The effect watching workspaceId, apiKey, and page will automatically fetch new items
   }
 
   openQrModal(itemId: string): void {
