@@ -1,95 +1,56 @@
 @let w = workspace();
 @if (!!w) {
     <article class="workspace-item" role="listitem" aria-label="Workspace item">
-        <div class="row">
-            <div class="cell date">
-                <span class="date-chip">{{ formattedDate() }}</span>
+        <a [routerLink]="['/admin/moderate']" [queryParams]="{ api_key: w.keys.admin, workspace: w.id }" class="workspace-link">
+            <div class="row">
+                <div class="cell date">
+                    <span class="date-chip">{{ formattedDate() }}</span>
+                </div>
+                <div class="cell title">
+                    <div class="title-text">{{ w.metadata.event_name || w.metadata.source }}</div>
+                    <div class="meta">{{ locationText() }}</div>
+                </div>
+                <div class="cell facilitators">{{ facilitatorsText() }}</div>
+                <div class="cell languages">{{ languagesText() }}</div>
             </div>
-            <div class="cell title">
-                <div class="title-text">{{ w.metadata.event_name || w.metadata.source }}</div>
-                <div class="meta">{{ locationText() }}</div>
-            </div>
-            <div class="cell facilitators">{{ facilitatorsText() }}</div>
-            <div class="cell languages">{{ languagesText() }}</div>
-            <div class="cell actions" aria-label="Workspace actions">
-                <a [routerLink]="['/admin/moderate']" [queryParams]="{ api_key: w.keys.admin, workspace: w.id }" aria-label="Moderate workspace" class="icon-btn" title="Moderate">
-                    🔍
-                </a>
-                <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, admin_key: w.keys.admin }" aria-label="Open workshop screen" class="icon-btn" title="Workshop">
-                    📺
-                </a>
-                <a [href]="mapLink()" aria-label="View map" class="icon-btn" title="Map">
-                    🗺️
-                </a>
-                <a [routerLink]="['/admin/edit', w.id]" [queryParams]="{ key: w.keys.admin }" aria-label="Edit settings" class="icon-btn" title="Settings">
-                    ⚙️
-                </a>
-            </div>
-        </div>
+        </a>
         
-        <!-- Moderate Workspace (main link) -->
-        <div class="links-section">
-            <div class="links-label">Moderate</div>
-            <div class="links">
-                <a [routerLink]="['/admin/moderate']" [queryParams]="{ api_key: w.keys.admin, workspace: w.id }">Moderate Workspace</a>
+        <div class="actions" aria-label="Workspace actions">
+            <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, admin_key: w.keys.admin }" aria-label="Display workshop screen" class="action-btn" title="Display" (click)="$event.stopPropagation()">
+                <span class="icon">📺</span>
+                <span class="label">Display</span>
+            </a>
+            
+            <div class="action-btn ingest-btn" (click)="toggleIngestMenu($event)" [class.active]="ingestMenuOpen()" title="Ingest">
+                <span class="icon">⬇</span>
+                <span class="label">Ingest</span>
+                @if (ingestMenuOpen()) {
+                    <div class="ingest-menu" (click)="$event.stopPropagation()">
+                        <a [href]="'/' + ingestSuffixAutomatic()" class="menu-item">
+                            <span class="menu-icon">🤖</span>
+                            <span class="menu-label">Batch Scan</span>
+                        </a>
+                        <a [href]="'/' + ingestSuffixWorkshop()" class="menu-item">
+                            <span class="menu-icon">👥</span>
+                            <span class="menu-label">Scan in Workshop</span>
+                        </a>
+                        <a [href]="'/' + ingestSuffix()" class="menu-item">
+                            <span class="menu-icon">📝</span>
+                            <span class="menu-label">Scan + Evaluate</span>
+                        </a>
+                    </div>
+                }
             </div>
-        </div>
-        
-        <!-- Workshop Big Screen with languages -->
-        <div class="links-section">
-            <div class="links-label">Workshop Big Screen</div>
-            <div class="links">
-                <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, admin_key: w.keys.admin }">(EN)</a>
-                <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, lang: 'nl', admin_key: w.keys.admin }">(NL)</a>
-                <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, lang: 'he', admin_key: w.keys.admin }">(HE)</a>
-                <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, lang: 'ar', admin_key: w.keys.admin }">(AR)</a>
-            </div>
-        </div>
-        
-        <!-- Ingest (Regular) - scan and evaluate -->
-        <div class="links-section">
-            <div class="links-label">Ingest (Regular) - scan and evaluate</div>
-            <div class="links">
-                <a [href]="'/' + ingestSuffix()">(EN)</a>
-                <a [href]="'/nl/' + ingestSuffix()">(NL)</a>
-                <a [href]="'/he/' + ingestSuffix()">(HE)</a>
-                <a [href]="'/ar/' + ingestSuffix()">(AR)</a>
-            </div>
-        </div>
-        
-        <!-- Ingest (Workshop) - scan and share -->
-        <div class="links-section">
-            <div class="links-label">Ingest (Workshop) - scan and share</div>
-            <div class="links">
-                <a [href]="'/' + ingestSuffixWorkshop()">(EN)</a>
-                <a [href]="'/nl/' + ingestSuffixWorkshop()">(NL)</a>
-                <a [href]="'/he/' + ingestSuffixWorkshop()">(HE)</a>
-                <a [href]="'/ar/' + ingestSuffixWorkshop()">(AR)</a>
-            </div>
-        </div>
-        
-        <!-- Ingest (Automatic) - batch scan -->
-        <div class="links-section">
-            <div class="links-label">Ingest (Automatic) - batch scan</div>
-            <div class="links">
-                <a [href]="'/' + ingestSuffixAutomatic()">Automatic Ingest</a>
-            </div>
-        </div>
-        
-        <!-- Map -->
-        <div class="links-section">
-            <div class="links-label">Map</div>
-            <div class="links">
-                <a [href]="mapLink()">View on Map</a>
-            </div>
-        </div>
-        
-        <!-- Settings -->
-        <div class="links-section">
-            <div class="links-label">Settings</div>
-            <div class="links">
-                <a [routerLink]="['/admin/edit', w.id]" [queryParams]="{ key: w.keys.admin }">Edit Workspace Settings</a>
-            </div>
+            
+            <a [href]="mapLink()" aria-label="View map" class="action-btn" title="Map" (click)="$event.stopPropagation()">
+                <span class="icon">🗺️</span>
+                <span class="label">Map</span>
+            </a>
+            
+            <a [routerLink]="['/admin/edit', w.id]" [queryParams]="{ key: w.keys.admin }" aria-label="Edit settings" class="action-btn" title="Settings" (click)="$event.stopPropagation()">
+                <span class="icon">⚙️</span>
+                <span class="label">Settings</span>
+            </a>
         </div>
     </article>
 }
