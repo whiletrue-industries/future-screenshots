@@ -22,6 +22,19 @@ export class WorkspaceItemComponent {
   ingestSuffixWorkshop = computed(() => {
     return this.ingestSuffix() + '&ws=true';
   });
+  
+  ingestSuffixAutomatic = computed(() => {
+    return this.ingestSuffix() + '&automatic=true';
+  });
+  
+  mapLink = computed(() => {
+    const w = this.workspace();
+    if (w && w.id) {
+      // Using workspace id as tag, with default language (can be changed by user)
+      return `/?tag=${w.id}&lang=he`;
+    }
+    return '';
+  });
 
   formattedDate = computed(() => {
     const d: string = this.workspace()?.metadata?.date || '';

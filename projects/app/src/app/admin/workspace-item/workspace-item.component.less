@@ -65,3 +65,45 @@
     display: flex; gap: 12px; align-items: center;
     a { color: @color-purple; text-decoration: none; }
 }
+
+.links-section {
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid #F1E5F3;
+    
+    &:first-of-type {
+        margin-top: 16px;
+    }
+}
+
+.links-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: @color-gray;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.links {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+    
+    a {
+        color: @color-purple;
+        text-decoration: none;
+        padding: 4px 10px;
+        border-radius: 8px;
+        background: white;
+        border: 1px solid #E7CBFF;
+        font-size: 13px;
+        transition: all 0.15s ease;
+        
+        &:hover {
+            background: #F8F4FF;
+            transform: translateY(-1px);
+        }
+    }
+}

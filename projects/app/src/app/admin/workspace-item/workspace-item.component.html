@@ -12,26 +12,84 @@
             <div class="cell facilitators">{{ facilitatorsText() }}</div>
             <div class="cell languages">{{ languagesText() }}</div>
             <div class="cell actions" aria-label="Workspace actions">
-                <a [href]="'/' + ingestSuffix()" aria-label="Download ingest" class="icon-btn">
-                    ⬇
-                </a>
-                <a [routerLink]="['/admin/moderate']" [queryParams]="{ api_key: w.keys.admin, workspace: w.id }" aria-label="Moderate workspace" class="icon-btn">
+                <a [routerLink]="['/admin/moderate']" [queryParams]="{ api_key: w.keys.admin, workspace: w.id }" aria-label="Moderate workspace" class="icon-btn" title="Moderate">
                     🔍
                 </a>
-                <a [routerLink]="['/admin/edit', w.id]" [queryParams]="{ key: w.keys.admin }" aria-label="Edit settings" class="icon-btn">
-                    ✎
-                </a>
-                <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, admin_key: w.keys.admin }" aria-label="Open workshop screen" class="icon-btn">
+                <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, admin_key: w.keys.admin }" aria-label="Open workshop screen" class="icon-btn" title="Workshop">
                     📺
+                </a>
+                <a [href]="mapLink()" aria-label="View map" class="icon-btn" title="Map">
+                    🗺️
+                </a>
+                <a [routerLink]="['/admin/edit', w.id]" [queryParams]="{ key: w.keys.admin }" aria-label="Edit settings" class="icon-btn" title="Settings">
+                    ⚙️
                 </a>
             </div>
         </div>
-        <div class="links compact" aria-label="Quick actions">
-            <a [href]="'/' + ingestSuffix()" aria-label="Ingest regular">ingest</a>
-            <a [href]="'/nl/' + ingestSuffix()" aria-label="Ingest Dutch">NL</a>
-            <a [href]="'/he/' + ingestSuffix()" aria-label="Ingest Hebrew">HE</a>
-            <a [href]="'/ar/' + ingestSuffix()" aria-label="Ingest Arabic">AR</a>
-            <a [href]="'/' + ingestSuffixWorkshop()" aria-label="Ingest workshop">workshop</a>
+        
+        <!-- Moderate Workspace (main link) -->
+        <div class="links-section">
+            <div class="links-label">Moderate</div>
+            <div class="links">
+                <a [routerLink]="['/admin/moderate']" [queryParams]="{ api_key: w.keys.admin, workspace: w.id }">Moderate Workspace</a>
+            </div>
+        </div>
+        
+        <!-- Workshop Big Screen with languages -->
+        <div class="links-section">
+            <div class="links-label">Workshop Big Screen</div>
+            <div class="links">
+                <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, admin_key: w.keys.admin }">(EN)</a>
+                <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, lang: 'nl', admin_key: w.keys.admin }">(NL)</a>
+                <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, lang: 'he', admin_key: w.keys.admin }">(HE)</a>
+                <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, lang: 'ar', admin_key: w.keys.admin }">(AR)</a>
+            </div>
+        </div>
+        
+        <!-- Ingest (Regular) - scan and evaluate -->
+        <div class="links-section">
+            <div class="links-label">Ingest (Regular) - scan and evaluate</div>
+            <div class="links">
+                <a [href]="'/' + ingestSuffix()">(EN)</a>
+                <a [href]="'/nl/' + ingestSuffix()">(NL)</a>
+                <a [href]="'/he/' + ingestSuffix()">(HE)</a>
+                <a [href]="'/ar/' + ingestSuffix()">(AR)</a>
+            </div>
+        </div>
+        
+        <!-- Ingest (Workshop) - scan and share -->
+        <div class="links-section">
+            <div class="links-label">Ingest (Workshop) - scan and share</div>
+            <div class="links">
+                <a [href]="'/' + ingestSuffixWorkshop()">(EN)</a>
+                <a [href]="'/nl/' + ingestSuffixWorkshop()">(NL)</a>
+                <a [href]="'/he/' + ingestSuffixWorkshop()">(HE)</a>
+                <a [href]="'/ar/' + ingestSuffixWorkshop()">(AR)</a>
+            </div>
+        </div>
+        
+        <!-- Ingest (Automatic) - batch scan -->
+        <div class="links-section">
+            <div class="links-label">Ingest (Automatic) - batch scan</div>
+            <div class="links">
+                <a [href]="'/' + ingestSuffixAutomatic()">Automatic Ingest</a>
+            </div>
+        </div>
+        
+        <!-- Map -->
+        <div class="links-section">
+            <div class="links-label">Map</div>
+            <div class="links">
+                <a [href]="mapLink()">View on Map</a>
+            </div>
+        </div>
+        
+        <!-- Settings -->
+        <div class="links-section">
+            <div class="links-label">Settings</div>
+            <div class="links">
+                <a [routerLink]="['/admin/edit', w.id]" [queryParams]="{ key: w.keys.admin }">Edit Workspace Settings</a>
+            </div>
         </div>
     </article>
 }
