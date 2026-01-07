@@ -238,7 +238,7 @@ export class FiltersBarComponent {
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
-    if (!target.closest('.custom-multiselect')) {
+    if (target && !target.closest('.custom-multiselect')) {
       const wasOpen = this.statusDropdownOpen() || this.preferenceDropdownOpen() || this.potentialDropdownOpen();
       this.statusDropdownOpen.set(false);
       this.preferenceDropdownOpen.set(false);

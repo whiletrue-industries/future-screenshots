@@ -669,19 +669,19 @@
     <div class="bulk-bar" role="region" aria-label="Bulk edit panel">
       <div class="bulk-summary">
         <strong>{{ selectedCount() }}</strong> selected
+        <button class="select-all-btn" (click)="selectAll()" [disabled]="items().length === 0" aria-label="Select all items">Select all</button>
       </div>
       <div class="bulk-controls">
         <label>
           Status
-          <select [ngModel]="bulkStatus()" (ngModelChange)="bulkStatus.set($event || null)">
+          <select [ngModel]="bulkStatus()" (ngModelChange)="bulkStatus.set($event)">
             <option [ngValue]="null">No change</option>
-            <option value="new">new</option>
-            <option value="in-review">in-review</option>
-            <option value="flagged">flagged</option>
-            <option value="not-flagged">not-flagged</option>
-            <option value="approved">approved</option>
-            <option value="highlighted">highlighted</option>
-            <option value="rejected">rejected</option>
+            <option [ngValue]="0">Rejected</option>
+            <option [ngValue]="1">Flagged</option>
+            <option [ngValue]="2">Pending</option>
+            <option [ngValue]="3">Not Flagged</option>
+            <option [ngValue]="4">Approved</option>
+            <option [ngValue]="5">Highlighted</option>
           </select>
         </label>
         <label>
@@ -726,7 +726,6 @@
         </label>
       </div>
       <div class="bulk-actions">
-        <button class="bulk-btn" (click)="getSingleSelectedId() ? openImageReplacementModal(getSingleSelectedId()!) : null" [disabled]="bulkSaving() || selectedCount() !== 1">Replace image</button>
         <button class="bulk-btn" (click)="applyBulkChanges()" [disabled]="bulkSaving() || selectedCount() === 0">Apply to selected</button>
         <button class="bulk-btn ghost" (click)="clearBulkSelection()" [disabled]="bulkSaving()">Clear selection</button>
         <button class="bulk-btn ghost" (click)="toggleMultiSelectMode()" [disabled]="bulkSaving()">Exit</button>

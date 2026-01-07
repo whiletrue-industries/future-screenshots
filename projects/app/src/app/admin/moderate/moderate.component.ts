@@ -82,7 +82,7 @@ export class ModerateComponent {
   // Multi-edit state
   multiSelectMode = signal<boolean>(false);
   selectedIds = signal<Set<string>>(new Set());
-  bulkStatus = signal<string | null>(null);
+  bulkStatus = signal<number | null>(null);
   bulkAuthor = signal<string>('');
   bulkPlausibility = signal<number | null>(null);
   bulkFavorable = signal<string | null>(null);
@@ -133,7 +133,7 @@ export class ModerateComponent {
     @HostListener('document:click', ['$event'])
     onDocumentClick(event: MouseEvent): void {
       const target = event.target as HTMLElement;
-      if (!target.closest('.custom-multiselect')) {
+      if (target && !target.closest('.custom-multiselect')) {
         this.statusDropdownOpen.set(false);
       }
     }
@@ -1221,6 +1221,11 @@ export class ModerateComponent {
     return Array.from(this.selectedIds())[0] ?? null;
   }
 
+  selectAll(): void {
+    const allIds = new Set(this.items().map(item => item._id));
+    this.selectedIds.set(allIds);
+  }
+
   clearBulkSelection(): void {
     this.selectedIds.set(new Set());
     this.resetBulkFields();
@@ -1299,17 +1304,8 @@ export class ModerateComponent {
     this.clearBulkSelection();
   }
 
-  private statusToModeration(status: string): number | null {
-    const map: Record<string, number> = {
-      'new': 2,
-      'flagged': 1,
-      'approved': 4,
-      'in-review': 2,
-      'rejected': 0,
-      'highlighted': 5,
-      'not-flagged': 3,
-    };
-    return map[status] ?? null;
+  private statusToModeration(status: number): number | null {
+    return status ?? null;
   }
 
   parseNumber(value: any): number | null {
