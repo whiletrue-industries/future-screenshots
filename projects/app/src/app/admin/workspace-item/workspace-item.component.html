@@ -1,56 +1,62 @@
 @let w = workspace();
 @if (!!w) {
     <article class="workspace-item" role="listitem" aria-label="Workspace item">
-        <a [routerLink]="['/admin/moderate']" [queryParams]="{ api_key: w.keys.admin, workspace: w.id }" class="workspace-link">
-            <div class="row">
+        <div class="row">
+            <a [routerLink]="['/admin/moderate']" [queryParams]="{ api_key: w.keys.admin, workspace: w.id }" class="workspace-link">
                 <div class="cell date">
                     <span class="date-chip">{{ formattedDate() }}</span>
                 </div>
+            </a>
+            <a [routerLink]="['/admin/moderate']" [queryParams]="{ api_key: w.keys.admin, workspace: w.id }" class="workspace-link">
                 <div class="cell title">
                     <div class="title-text">{{ w.metadata.event_name || w.metadata.source }}</div>
                     <div class="meta">{{ locationText() }}</div>
                 </div>
+            </a>
+            <a [routerLink]="['/admin/moderate']" [queryParams]="{ api_key: w.keys.admin, workspace: w.id }" class="workspace-link">
                 <div class="cell facilitators">{{ facilitatorsText() }}</div>
+            </a>
+            <a [routerLink]="['/admin/moderate']" [queryParams]="{ api_key: w.keys.admin, workspace: w.id }" class="workspace-link">
                 <div class="cell languages">{{ languagesText() }}</div>
+            </a>
+            
+            <div class="cell actions" aria-label="Workspace actions">
+                <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, admin_key: w.keys.admin }" aria-label="Display workshop screen" class="action-btn" title="Display" (click)="$event.stopPropagation()">
+                    <span class="icon">📺</span>
+                    <span class="label">Display</span>
+                </a>
+                
+                <div class="action-btn ingest-btn" (click)="toggleIngestMenu($event)" [class.active]="ingestMenuOpen()" title="Ingest">
+                    <span class="icon">⬇</span>
+                    <span class="label">Ingest</span>
+                    @if (ingestMenuOpen()) {
+                        <div class="ingest-menu" (click)="$event.stopPropagation()">
+                            <a [href]="'/' + ingestSuffixAutomatic()" class="menu-item">
+                                <span class="menu-icon">🤖</span>
+                                <span class="menu-label">Batch Scan</span>
+                            </a>
+                            <a [href]="'/' + ingestSuffixWorkshop()" class="menu-item">
+                                <span class="menu-icon">👥</span>
+                                <span class="menu-label">Scan in Workshop</span>
+                            </a>
+                            <a [href]="'/' + ingestSuffix()" class="menu-item">
+                                <span class="menu-icon">📝</span>
+                                <span class="menu-label">Scan + Evaluate</span>
+                            </a>
+                        </div>
+                    }
+                </div>
+                
+                <a [href]="mapLink()" aria-label="View map" class="action-btn" title="Map" (click)="$event.stopPropagation()">
+                    <span class="icon">🗺️</span>
+                    <span class="label">Map</span>
+                </a>
+                
+                <a [routerLink]="['/admin/edit', w.id]" [queryParams]="{ key: w.keys.admin }" aria-label="Edit settings" class="action-btn" title="Settings" (click)="$event.stopPropagation()">
+                    <span class="icon">⚙️</span>
+                    <span class="label">Settings</span>
+                </a>
             </div>
-        </a>
-        
-        <div class="actions" aria-label="Workspace actions">
-            <a [routerLink]="['/showcase-ws']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, admin_key: w.keys.admin }" aria-label="Display workshop screen" class="action-btn" title="Display" (click)="$event.stopPropagation()">
-                <span class="icon">📺</span>
-                <span class="label">Display</span>
-            </a>
-            
-            <div class="action-btn ingest-btn" (click)="toggleIngestMenu($event)" [class.active]="ingestMenuOpen()" title="Ingest">
-                <span class="icon">⬇</span>
-                <span class="label">Ingest</span>
-                @if (ingestMenuOpen()) {
-                    <div class="ingest-menu" (click)="$event.stopPropagation()">
-                        <a [href]="'/' + ingestSuffixAutomatic()" class="menu-item">
-                            <span class="menu-icon">🤖</span>
-                            <span class="menu-label">Batch Scan</span>
-                        </a>
-                        <a [href]="'/' + ingestSuffixWorkshop()" class="menu-item">
-                            <span class="menu-icon">👥</span>
-                            <span class="menu-label">Scan in Workshop</span>
-                        </a>
-                        <a [href]="'/' + ingestSuffix()" class="menu-item">
-                            <span class="menu-icon">📝</span>
-                            <span class="menu-label">Scan + Evaluate</span>
-                        </a>
-                    </div>
-                }
-            </div>
-            
-            <a [href]="mapLink()" aria-label="View map" class="action-btn" title="Map" (click)="$event.stopPropagation()">
-                <span class="icon">🗺️</span>
-                <span class="label">Map</span>
-            </a>
-            
-            <a [routerLink]="['/admin/edit', w.id]" [queryParams]="{ key: w.keys.admin }" aria-label="Edit settings" class="action-btn" title="Settings" (click)="$event.stopPropagation()">
-                <span class="icon">⚙️</span>
-                <span class="label">Settings</span>
-            </a>
         </div>
     </article>
 }

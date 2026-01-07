@@ -13,23 +13,23 @@
     &:hover {
         background: #FFF8FA;
         border-color: @color-light-purple;
+        
+        .title-text {
+            color: @color-light-purple;
+        }
     }
 }
 
 .workspace-link {
-    display: block;
+    display: contents;
     text-decoration: none;
     color: inherit;
     cursor: pointer;
-    
-    &:hover .title-text {
-        color: @color-light-purple;
-    }
 }
 
 .row {
     display: grid;
-    grid-template-columns: 120px 2fr 1.2fr 1.2fr;
+    grid-template-columns: 120px 2fr 1.2fr 1.2fr auto;
     align-items: center;
     gap: 16px;
 }
@@ -57,30 +57,29 @@
 
 .actions {
     display: flex;
-    gap: 8px;
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid #F1E5F3;
+    gap: 6px;
+    justify-content: flex-end;
 }
 
 .action-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 14px;
+    gap: 5px;
+    padding: 6px 10px;
     border-radius: 10px;
     border: 1px solid #E7CBFF;
     background: white;
     color: @color-purple;
     text-decoration: none;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     transition: all 0.15s ease;
     cursor: pointer;
     position: relative;
+    white-space: nowrap;
     
     .icon {
-        font-size: 16px;
+        font-size: 14px;
     }
     
     .label {
@@ -112,7 +111,7 @@
     border-radius: 12px;
     box-shadow: 0 4px 12px fade(@color-purple, 15%);
     overflow: hidden;
-    z-index: 10;
+    z-index: 100;
     
     .menu-item {
         display: flex;
