@@ -25,13 +25,12 @@ export interface FilterCounts {
  */
 export class FilterHelpers {
   static readonly STATUS_MAP = {
-    'new': 2,
-    'flagged': 1,
-    'approved': 4,
-    'not-flagged': 3,
     'rejected': 0,
+    'flagged': 1,
+    'pending': 2,
+    'not-flagged': 3,
+    'approved': 4,
     'highlighted': 5,
-    // 'in-review' is computed, not a direct _private_moderation value
   } as const;
 
   /**
@@ -58,24 +57,15 @@ export class FilterHelpers {
    * Get the status key for an item for counting purposes
    */
   static getStatusKey(item: any): string {
-    // Check "in review" first as it's a computed status that takes precedence
-    if (FilterHelpers.isInReviewStatus(item)) {
-      return 'in-review';
-    }
-
     const moderation = item._private_moderation;
-    if (moderation === undefined || moderation === null || moderation === 2) {
-      return 'pending';
-    } else if (moderation === 1) {
-      return 'flagged';
-    } else if (moderation === 4) {
-      return 'approved';
-    } else if (moderation === 0) {
-      return 'banned';
-    } else if (moderation === 5) {
-      return 'highlighted';
-    }
-    return 'pending'; // default
+    if (moderation === undefined || moderation === null) return 'pending';
+    if (moderation === 0) return 'rejected';
+    if (moderation === 1) return 'flagged';
+    if (moderation === 2) return 'pending';
+    if (moderation === 3) return 'not-flagged';
+    if (moderation === 4) return 'approved';
+    if (moderation === 5) return 'highlighted';
+    return 'pending';
   }
 
   /**
@@ -85,18 +75,7 @@ export class FilterHelpers {
     if (selectedStatuses.length === 0) {
       return true; // No filter means show all
     }
-
-    // Check for "in-review" status first (computed status)
-    if (selectedStatuses.includes('in-review') && FilterHelpers.isInReviewStatus(item)) {
-      return true;
-    }
-
     const moderation = item._private_moderation;
-    
-    // Check if "new" is selected and item has no _private_moderation
-    if (selectedStatuses.includes('new') && (moderation === undefined || moderation === null)) {
-      return true;
-    }
 
     // Check if moderation value matches any selected status
     const allowedValues = selectedStatuses
@@ -133,7 +112,7 @@ export class FiltersBarComponent {
   filtersCommit = output<FiltersBarState>(); // Emitted when dropdown closes or focus changes
   
   // Filter state
-  filterStatus = signal<string[]>(['new', 'in-review', 'flagged', 'approved', 'not-flagged', 'highlighted']);
+  filterStatus = signal<string[]>(['rejected', 'flagged', 'pending', 'not-flagged', 'approved', 'highlighted']);
   filterAuthor = signal<string>('all');
   filterPreference = signal<string[]>(['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent']);
   filterPotential = signal<string[]>(['100', '75', '50', '25', '0']);
@@ -156,11 +135,11 @@ export class FiltersBarComponent {
   preferenceOptions = ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent', 'none'];
   potentialOptions = ['100', '75', '50', '25', '0', 'none'];
   statusOptions = [
-    { value: 'new', label: 'New' },
-    { value: 'in-review', label: 'In Review' },
-    { value: 'flagged', label: 'Flagged' },
-    { value: 'approved', label: 'Approved' },
     { value: 'rejected', label: 'Rejected' },
+    { value: 'flagged', label: 'Flagged' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'not-flagged', label: 'Not Flagged' },
+    { value: 'approved', label: 'Approved' },
     { value: 'highlighted', label: 'Highlighted' }
   ];
   potentialLabelMap: {[key: string]: string} = {
@@ -348,7 +327,7 @@ export class FiltersBarComponent {
   }
 
   selectAllStatuses(): void {
-    this.filterStatus.set(['new', 'in-review', 'flagged', 'approved', 'rejected', 'highlighted']);
+    this.filterStatus.set(['rejected', 'flagged', 'pending', 'not-flagged', 'approved', 'highlighted']);
     // Emit debounced change for immediate view update
     this.emitDebouncedChange();
   }

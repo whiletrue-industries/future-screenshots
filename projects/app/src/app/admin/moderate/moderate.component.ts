@@ -45,7 +45,7 @@ export class ModerateComponent {
   page = signal<number>(0);
   
   // Individual filters
-  filterStatus = signal<string[]>(['new', 'flagged', 'approved', 'not-flagged', 'highlighted']);
+  filterStatus = signal<string[]>(['rejected', 'flagged', 'pending', 'not-flagged', 'approved', 'highlighted']);
   filterAuthor = signal<string>('all');
   preferenceOptions = ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent', 'none'];
   potentialOptions = ['100', '75', '50', '25', '0', 'none'];
@@ -591,7 +591,7 @@ export class ModerateComponent {
     }
 
   clearAllFilters(): void {
-    this.filterStatus.set(['new', 'flagged', 'approved', 'not-flagged', 'highlighted']);
+    this.filterStatus.set(['rejected', 'flagged', 'pending', 'not-flagged', 'approved', 'highlighted']);
     this.filterAuthor.set('all');
     this.filterPreference.set([...this.preferenceOptions]);
     this.filterPotential.set([...this.potentialOptions]);

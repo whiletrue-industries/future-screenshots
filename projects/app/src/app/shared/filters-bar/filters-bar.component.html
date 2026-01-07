@@ -76,7 +76,7 @@
                   [checked]="isStatusSelected(option.value)"
                   (change)="toggleStatusFilter(option.value)" />
                 <span class="option-label">{{ option.label }}</span>
-                <span class="option-count">{{ getCount(counts().status, option.value === 'new' ? 'pending' : option.value === 'rejected' ? 'banned' : option.value) }}</span>
+                <span class="option-count">{{ getCount(counts().status, option.value) }}</span>
               </label>
             }
           </div>
