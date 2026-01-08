@@ -8,6 +8,7 @@ export class PlatformService {
 
   safari = false;
   ios = false;
+  isDesktop = false;
 
   constructor(@Inject(PLATFORM_ID) private platformId: Object) {
     this.browser(() => {
@@ -29,6 +30,10 @@ export class PlatformService {
           this.ios = true;
         }
       }
+
+      // Detect desktop: device without touch events
+      const hasTouchEvents = 'ontouchend' in document;
+      this.isDesktop = !hasTouchEvents;
     });
   }
 
