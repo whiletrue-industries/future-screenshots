@@ -17,9 +17,6 @@ import { FormsModule } from '@angular/forms';
 })
 export class ConfirmComponent {
 
-  preference = signal<string>('');
-  potential = signal<number | null>(null);
-
   preferenceOptions = [
     { label: $localize`Preferred`, value: 'prefer' },
     { label: $localize`Mostly Preferred`, value: 'mostly prefer' },
@@ -40,52 +37,6 @@ export class ConfirmComponent {
     if (!this.state.currentImageUrl()) {
       this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
     }
-
-    // Read from URL hash first
-    this.loadFromHash();
-
-    // Update URL hash when values change (skip first run since we just loaded from hash)
-    let firstRun = true;
-    effect(() => {
-      const pref = this.preference();
-      const pot = this.potential();
-      if (!firstRun) {
-        this.saveToHash(pref, pot);
-      }
-      firstRun = false;
-    });
-  }
-
-  loadFromHash() {
-    const hash = window.location.hash.substring(1);
-    const params = new URLSearchParams(hash);
-    const pref = params.get('preference');
-    const pot = params.get('potential');
-    if (pref) {
-      this.preference.set(pref);
-    }
-    if (pot !== null) {
-      const parsed = Number(pot);
-      this.potential.set(Number.isFinite(parsed) ? parsed : null);
-    }
-  }
-
-  saveToHash(preference: string, potential: number | null) {
-    // Using window.location.hash directly for fragment-based state persistence
-    // This allows maintaining dropdown state across scans without affecting Angular routing
-    const params = new URLSearchParams();
-    if (preference) {
-      params.set('preference', preference);
-    }
-    if (potential !== null) {
-      params.set('potential', String(potential));
-    }
-    const hash = params.toString();
-    if (hash) {
-      window.location.hash = hash;
-    } else {
-      window.location.hash = '';
-    }
   }
 
   upload() {
@@ -97,14 +48,14 @@ export class ConfirmComponent {
       const userSetMetadata: any = {};
 
       // Add preference if selected (only set initially, not on update)
-      const pref = this.preference();
+      const pref = this.state.batchPreference();
       if (pref) {
         metadata['favorable_future'] = pref;
         userSetMetadata['favorable_future'] = pref;
       }
 
       // Add potential if selected (only set initially, not on update)
-      const pot = this.potential();
+      const pot = this.state.batchPotential();
       if (pot !== null) {
         metadata['plausibility'] = pot;
         userSetMetadata['plausibility'] = pot;
@@ -125,15 +76,13 @@ export class ConfirmComponent {
               this.api.updateItem(userSetMetadata, res.item_id, res.item_key).subscribe(() => {
                 // Navigate back to scan after restoring user values
                 this.router.navigate(['/scan'], { 
-                  queryParamsHandling: 'preserve',
-                  fragment: window.location.hash.substring(1) 
+                  queryParamsHandling: 'preserve'
                 });
               });
             } else {
-              // Navigate back to scan, preserving hash to maintain dropdown state
+              // Navigate back to scan
               this.router.navigate(['/scan'], { 
-                queryParamsHandling: 'preserve',
-                fragment: window.location.hash.substring(1) 
+                queryParamsHandling: 'preserve'
               });
             }
           });

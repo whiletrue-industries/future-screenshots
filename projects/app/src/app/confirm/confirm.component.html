@@ -3,7 +3,7 @@
     <div class="dropdown-wrapper">
       <label class="dropdown-label" i18n>PREFERENCE:</label>
       <div class="dropdown-select">
-        <select [ngModel]="preference()" (ngModelChange)="preference.set($event)" class="dropdown">
+        <select [ngModel]="state.batchPreference()" (ngModelChange)="state.batchPreference.set($event)" class="dropdown">
           <option value="" i18n>none</option>
           @for (opt of preferenceOptions; track opt.value) {
             <option [value]="opt.value">{{ opt.label }}</option>
@@ -17,7 +17,7 @@
     <div class="dropdown-wrapper">
       <label class="dropdown-label" i18n>POTENTIAL:</label>
       <div class="dropdown-select">
-        <select [ngModel]="potential()" (ngModelChange)="potential.set($event)" class="dropdown">
+        <select [ngModel]="state.batchPotential()" (ngModelChange)="state.batchPotential.set($event)" class="dropdown">
           <option [ngValue]="null" i18n>none</option>
           @for (opt of potentialOptions; track opt.value) {
             <option [ngValue]="opt.value">{{ opt.label }}</option>

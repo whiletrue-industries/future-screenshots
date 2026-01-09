@@ -10,6 +10,8 @@ export class StateService {
   mainMenuHeight = signal<number>(348);
   aboutVisible = signal<boolean>(false);
   authenticated = signal<boolean>(false);
+  batchPreference = signal<string>('');
+  batchPotential = signal<number | null>(null);
 
   constructor() { }
 
