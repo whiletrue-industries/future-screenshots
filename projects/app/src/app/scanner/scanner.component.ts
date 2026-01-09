@@ -352,11 +352,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
           frame.toBlob((blob: Blob) => {
             if (blob) {
               this.state.setImage(blob);
-              // Preserve hash fragment to maintain dropdown state in automatic mode
-              const fragment = window.location.hash.substring(1);
               this.router.navigate(['/confirm'], { 
-                queryParamsHandling: 'merge',
-                fragment: fragment || undefined
+                queryParamsHandling: 'merge'
               });
             }
           }, 'image/jpeg', 0.95);
