@@ -439,7 +439,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
       maxZoom: 8,
       minZoom: 2,
       zoomSnap: 0,
-      zoomControl: false,
+      zoomControl: this.platform.isDesktop,
       attributionControl: false
     });
     map.fitBounds(bounds);

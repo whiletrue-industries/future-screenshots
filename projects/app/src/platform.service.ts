@@ -8,10 +8,12 @@ export class PlatformService {
 
   safari = false;
   ios = false;
+  isDesktop = false;
 
   constructor(@Inject(PLATFORM_ID) private platformId: Object) {
     this.browser(() => {
       const stringWithPlatform = window.navigator?.platform || window.navigator?.userAgent;
+      const hasTouchEvents = 'ontouchend' in document;
 
       if (stringWithPlatform.indexOf('Safari') != -1 && 
           stringWithPlatform.indexOf('Chrome') == -1) {
@@ -24,11 +26,13 @@ export class PlatformService {
         // The new iPad return MacIntel as platform and Macintosh as userAgent
         // so the way to differentiate iPad vs mac is by checking if
         // Touch Events exist on the document
-        const hasTouchEvents = 'ontouchend' in document;
         if (/Mac/.test(stringWithPlatform) && hasTouchEvents) {
           this.ios = true;
         }
       }
+
+      // Detect desktop: device without touch events
+      this.isDesktop = !hasTouchEvents;
     });
   }
 
