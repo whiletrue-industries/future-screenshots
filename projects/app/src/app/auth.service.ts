@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Inject, Injectable, Optional, signal } from '@angular/core';
 import { Auth, User } from '@angular/fire/auth';
 import { Router } from '@angular/router';
 import { filter, ReplaySubject, switchMap, tap } from 'rxjs';
@@ -12,8 +12,13 @@ export class AuthService {
   user = new ReplaySubject<User | null>(1);
   token = signal<string | null>(null);
   
-  constructor(private afAuth: Auth, private router: Router, private platform: PlatformService) {
+  constructor(
+    @Optional() @Inject(Auth) private afAuth: Auth | null,
+    private router: Router,
+    private platform: PlatformService
+  ) {
     this.platform.browser(() => {
+      if (!this.afAuth) return;
       this.afAuth.onAuthStateChanged(user => {
         this.user.next(user);
       });
@@ -36,7 +41,9 @@ export class AuthService {
   }
 
   logout() {
-    this.afAuth.signOut();
+    if (this.afAuth) {
+      this.afAuth.signOut();
+    }
     this.router.navigate(['/admin/login']);
   }
 }
