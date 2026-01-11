@@ -352,7 +352,9 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
           frame.toBlob((blob: Blob) => {
             if (blob) {
               this.state.setImage(blob);
-              this.router.navigate(['/confirm'], { queryParamsHandling: 'merge' });
+              this.router.navigate(['/confirm'], { 
+                queryParamsHandling: 'merge'
+              });
             }
           }, 'image/jpeg', 0.95);
         }

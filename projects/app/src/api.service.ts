@@ -203,6 +203,8 @@ export class ApiService {
       tap((data: any) => {
         console.log('Screenshot uploaded successfully', data.metadata);
         this.item.update((item: any) => {
+          // Merge AI metadata with current item
+          // Backend API preserves user-set favorable_future and plausibility values
           return Object.assign({}, item, data.metadata);
         });
       })
