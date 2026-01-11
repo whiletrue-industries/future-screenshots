@@ -99,16 +99,32 @@ export class CanvasCreatorComponent implements AfterViewInit {
     // Load template as background
     const template = this.selectedTemplate();
     if (template) {
-      fabric.loadSVGFromURL(template.url, (objects: any, options: any) => {
-        const obj = fabric.util.groupSVGElements(objects, options);
-        obj.set({
-          scaleX: fabricCanvas.width! / obj.width!,
-          scaleY: fabricCanvas.height! / obj.height!,
-          selectable: false,
-          evented: false,
+      const isSVG = template.url.endsWith('.svg');
+      
+      if (isSVG) {
+        // Load SVG template
+        fabric.loadSVGFromURL(template.url, (objects: any, options: any) => {
+          const obj = fabric.util.groupSVGElements(objects, options);
+          obj.set({
+            scaleX: fabricCanvas.width! / obj.width!,
+            scaleY: fabricCanvas.height! / obj.height!,
+            selectable: false,
+            evented: false,
+          });
+          fabricCanvas.setBackgroundImage(obj, fabricCanvas.renderAll.bind(fabricCanvas));
         });
-        fabricCanvas.setBackgroundImage(obj, fabricCanvas.renderAll.bind(fabricCanvas));
-      });
+      } else {
+        // Load PNG/JPG template
+        fabric.Image.fromURL(template.url, (img: any) => {
+          img.set({
+            scaleX: fabricCanvas.width! / img.width!,
+            scaleY: fabricCanvas.height! / img.height!,
+            selectable: false,
+            evented: false,
+          });
+          fabricCanvas.setBackgroundImage(img, fabricCanvas.renderAll.bind(fabricCanvas));
+        });
+      }
     }
     
     // Configure drawing brush
