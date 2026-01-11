@@ -16,6 +16,7 @@ import { AboutComponent } from './about/about.component';
 import { AdminComponent } from './admin/admin/admin.component';
 import { AuthGuard } from './auth.guard';
 import { ShowcaseWsComponent } from './showcase-ws/showcase-ws.component';
+import { CanvasCreatorComponent } from './canvas-creator/canvas-creator.component';
 
 export const routes: Routes = [
     // Showcase routes
@@ -55,6 +56,10 @@ export const routes: Routes = [
     {
         'path': 'scan',
         'component': ScannerComponent
+    },
+    {
+        'path': 'canvas-creator',
+        'component': CanvasCreatorComponent
     },
     {
         'path': 'confirm',
