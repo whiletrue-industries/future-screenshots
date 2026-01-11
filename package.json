@@ -4,6 +4,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "start-https": "ng serve --ssl --host 0.0.0.0 --disable-host-check",
     "build": "ng build",
     "build:app": "ng build app --base-href=/",
     "build:showcase": "ng build showcase --base-href=/show/",
