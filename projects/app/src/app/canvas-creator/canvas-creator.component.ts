@@ -6,6 +6,7 @@ import { PlatformService } from '../../platform.service';
 import { StateService } from '../../state.service';
 
 declare const fabric: any;
+declare const rough: any;
 
 interface Template {
   id: string;
@@ -127,13 +128,112 @@ export class CanvasCreatorComponent implements AfterViewInit {
       }
     }
     
-    // Configure drawing brush
+    // Configure drawing brush with Rough.js sketchy effect
     if (this.currentMode() === 'draw') {
-      fabricCanvas.freeDrawingBrush.color = this.currentColor();
-      fabricCanvas.freeDrawingBrush.width = 3;
+      this.setupRoughBrush(fabricCanvas);
     }
     
     this.canvas.set(fabricCanvas);
+  }
+  
+  setupRoughBrush(fabricCanvas: any) {
+    const color = this.currentColor();
+    
+    // Create custom Rough.js brush
+    const RoughBrush = fabric.util.createClass(fabric.PencilBrush, {
+      color: color,
+      width: 3,
+      
+      onMouseDown: function(pointer: any, options: any) {
+        this.started = true;
+        this._prepareForDrawing(pointer);
+        this._captureDrawingPath(pointer);
+        this._render();
+      },
+      
+      onMouseMove: function(pointer: any, options: any) {
+        if (!this.started) return;
+        this._captureDrawingPath(pointer);
+        this._render();
+      },
+      
+      onMouseUp: function(options: any) {
+        if (!this.started) return;
+        this.started = false;
+        this._finalizeAndAddPath();
+      },
+      
+      _render: function() {
+        const canvas = this.canvas;
+        const ctx = canvas.contextTop;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        if (this._points.length > 1) {
+          // Draw rough preview path
+          this._drawRoughPath(ctx, this._points, false);
+        }
+      },
+      
+      _finalizeAndAddPath: function() {
+        if (this._points.length < 2) {
+          this._reset();
+          return;
+        }
+        
+        // Create an offscreen canvas for rough.js
+        const offscreenCanvas = document.createElement('canvas');
+        offscreenCanvas.width = this.canvas.width;
+        offscreenCanvas.height = this.canvas.height;
+        const rc = rough.canvas(offscreenCanvas);
+        
+        // Draw the rough path
+        const points = this._points.map((p: any) => [p.x, p.y]);
+        rc.linearPath(points, {
+          stroke: this.color,
+          strokeWidth: this.width,
+          roughness: 1.2,
+          bowing: 0.5,
+        });
+        
+        // Convert to fabric image and add to canvas
+        const dataURL = offscreenCanvas.toDataURL();
+        fabric.Image.fromURL(dataURL, (img: any) => {
+          img.set({
+            left: 0,
+            top: 0,
+            selectable: false,
+            evented: false,
+          });
+          this.canvas.add(img);
+          this.canvas.renderAll();
+        });
+        
+        this._reset();
+      },
+      
+      _drawRoughPath: function(ctx: any, points: any[], finalize: boolean) {
+        if (points.length < 2) return;
+        
+        ctx.save();
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = this.width;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        // Simple preview (smooth)
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+          ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+    });
+    
+    fabricCanvas.freeDrawingBrush = new RoughBrush(fabricCanvas);
+    fabricCanvas.freeDrawingBrush.color = color;
+    fabricCanvas.freeDrawingBrush.width = 3;
   }
   
   addText() {
@@ -173,23 +273,38 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const fabricCanvas = this.canvas();
     if (!fabricCanvas) return;
     
-    // Add circle around the selected transition option
+    // Add sketchy circle around the selected transition option using Rough.js
     // The transition section is at bottom: y ~1900, x positions: before=60, during=180, after=300
     let x = 60;
     if (choice === 'during') x = 180;
     if (choice === 'after') x = 300;
     
-    const circle = new fabric.Circle({
-      left: x - 40,
-      top: 1900,
-      radius: 30,
+    // Create an offscreen canvas for rough.js circle
+    const offscreenCanvas = document.createElement('canvas');
+    offscreenCanvas.width = fabricCanvas.width;
+    offscreenCanvas.height = fabricCanvas.height;
+    const rc = rough.canvas(offscreenCanvas);
+    
+    // Draw rough circle
+    rc.circle(x, 1930, 60, {
       stroke: this.currentColor(),
       strokeWidth: 3,
+      roughness: 1.2,
       fill: 'transparent',
-      selectable: false,
     });
     
-    fabricCanvas.add(circle);
+    // Convert to fabric image and add to canvas
+    const dataURL = offscreenCanvas.toDataURL();
+    fabric.Image.fromURL(dataURL, (img: any) => {
+      img.set({
+        left: 0,
+        top: 0,
+        selectable: false,
+        evented: false,
+      });
+      fabricCanvas.add(img);
+      fabricCanvas.renderAll();
+    });
   }
   
   addTransitionText() {
