@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, Inject, Optional } from '@angular/core';
 import { Auth, GoogleAuthProvider, AuthProvider, signInWithPopup } from '@angular/fire/auth';
 import { filter, take } from 'rxjs';
 import { AuthService } from '../../auth.service';
@@ -11,7 +11,11 @@ import { Router } from '@angular/router';
   styleUrl: './login.component.less'
 })
 export class LoginComponent {
-  constructor(private afAuth: Auth, private auth: AuthService, private router: Router) {
+  constructor(
+    @Optional() @Inject(Auth) private afAuth: Auth | null,
+    private auth: AuthService,
+    private router: Router
+  ) {
   }
   
   loginGoogle() {
@@ -19,6 +23,7 @@ export class LoginComponent {
   }
 
   login(provider: AuthProvider) {
+    if (!this.afAuth) return;
     signInWithPopup(this.afAuth, provider);
     this.auth.user.pipe(filter((user) => !!user),take(1)).subscribe(user => {
       if (user) {
