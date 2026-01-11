@@ -35,11 +35,11 @@ export class CanvasCreatorComponent implements AfterViewInit {
   
   // Template gallery
   templates: Template[] = [
-    { id: 'camera', name: 'Camera', url: '/templates/template1.png', preview: '/templates/template1.png' },
-    { id: 'messages', name: 'Messages', url: '/templates/template2.png', preview: '/templates/template2.png' },
-    { id: 'map', name: 'Map', url: '/templates/template3.png', preview: '/templates/template3.png' },
-    { id: 'notification', name: 'Notification', url: '/templates/template4.png', preview: '/templates/template4.png' },
-    { id: 'blank', name: 'Blank', url: '/templates/template5.png', preview: '/templates/template5.png' },
+    { id: 'camera', name: 'Camera', url: '/templates/template1-camera.png', preview: '/templates/template1-camera.png' },
+    { id: 'messages', name: 'Messages', url: '/templates/template2-messages.png', preview: '/templates/template2-messages.png' },
+    { id: 'map', name: 'Map', url: '/templates/template3-map.png', preview: '/templates/template3-map.png' },
+    { id: 'simple-map', name: 'Simple Map', url: '/templates/template4-simple-map.png', preview: '/templates/template4-simple-map.png' },
+    { id: 'notification', name: 'Notification', url: '/templates/template5-notification.png', preview: '/templates/template5-notification.png' },
   ];
   
   currentTemplate = computed(() => this.templates[this.currentTemplateIndex()]);
@@ -81,7 +81,10 @@ export class CanvasCreatorComponent implements AfterViewInit {
     this.selectedTemplate.set(template);
     this.showTemplateGallery.set(false);
     this.showModeSelection.set(false);
-    this.initCanvas();
+    // Wait for view to update before initializing canvas
+    setTimeout(() => {
+      this.initCanvas();
+    }, 50);
   }
   
   previousTemplate() {
@@ -116,7 +119,10 @@ export class CanvasCreatorComponent implements AfterViewInit {
   }
   
   initCanvas() {
-    if (!this.canvasEl) return;
+    if (!this.canvasEl || !this.canvasEl.nativeElement) {
+      console.error('Canvas element not available');
+      return;
+    }
     
     const canvasElement = this.canvasEl.nativeElement;
     const container = canvasElement.parentElement;
