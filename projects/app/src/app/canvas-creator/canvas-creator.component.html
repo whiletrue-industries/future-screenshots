@@ -1,0 +1,96 @@
+<div class="canvas-creator">
+  <!-- Template Gallery -->
+  @if (showTemplateGallery()) {
+    <div class="template-gallery">
+      <div class="header">
+        <a [routerLink]="['/prescan']" queryParamsHandling="preserve" class="back">
+          <img src="/icon-back.svg" alt="Back">
+        </a>
+        <h2 i18n>Choose a Template</h2>
+      </div>
+      <div class="gallery-grid">
+        @for (template of templates; track template.id) {
+          <div class="template-card" (click)="selectTemplate(template)">
+            <img [src]="template.preview" [alt]="template.name">
+            <div class="template-name">{{ template.name }}</div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+  
+  <!-- Mode Selection -->
+  @if (showModeSelection()) {
+    <div class="mode-selection">
+      <div class="header">
+        <h2 i18n>Choose Mode</h2>
+      </div>
+      <div class="mode-buttons">
+        <button class="button primary" (click)="selectMode('draw')" i18n>
+          Draw with Marker
+        </button>
+        <button class="button primary" (click)="selectMode('type')" i18n>
+          Type Text
+        </button>
+      </div>
+    </div>
+  }
+  
+  <!-- Canvas Editor -->
+  @if (canvas() && !showTemplateGallery() && !showModeSelection()) {
+    <div class="editor">
+      <div class="header">
+        <button class="button" (click)="restart()" i18n>Restart</button>
+        <h2>{{ selectedTemplate()?.name }}</h2>
+        <button class="button primary" (click)="submit()" i18n>Submit</button>
+      </div>
+      
+      <div class="canvas-container">
+        <canvas #canvasEl></canvas>
+      </div>
+      
+      <div class="toolbar">
+        @if (currentMode() === 'type') {
+          <button class="tool-button" (click)="addText()" i18n>
+            Add Text
+          </button>
+          <button class="tool-button" (click)="addTransitionText()" i18n>
+            Text on Transition
+          </button>
+        }
+        
+        <div class="transition-selector">
+          <span i18n>Mark transition:</span>
+          <button 
+            class="tool-button" 
+            [class.selected]="transitionChoice() === 'before'" 
+            (click)="selectTransition('before')" 
+            i18n>
+            Before
+          </button>
+          <button 
+            class="tool-button" 
+            [class.selected]="transitionChoice() === 'during'" 
+            (click)="selectTransition('during')" 
+            i18n>
+            During
+          </button>
+          <button 
+            class="tool-button" 
+            [class.selected]="transitionChoice() === 'after'" 
+            (click)="selectTransition('after')" 
+            i18n>
+            After
+          </button>
+        </div>
+        
+        <button class="tool-button" (click)="undo()" i18n>
+          Undo
+        </button>
+        <button class="tool-button" (click)="clearCanvas()" i18n>
+          Clear
+        </button>
+      </div>
+    </div>
+  }
+</div>
