@@ -1,48 +1,51 @@
 <div class="canvas-creator">
-  <!-- Template Gallery -->
+  <!-- Template Carousel -->
   @if (showTemplateGallery()) {
-    <div class="template-gallery">
+    <div class="template-carousel">
       <div class="header">
         <a [routerLink]="['/prescan']" queryParamsHandling="preserve" class="back">
           <img src="/icon-back.svg" alt="Back">
         </a>
         <h2 i18n>Choose a Template</h2>
       </div>
-      <div class="gallery-grid">
-        @for (template of templates; track template.id) {
-          <div class="template-card" (click)="selectTemplate(template)">
-            <img [src]="template.preview" [alt]="template.name">
-            <div class="template-name">{{ template.name }}</div>
+      <div class="carousel-container">
+        @if (currentTemplate(); as current) {
+          <button class="carousel-nav prev" (click)="previousTemplate()" aria-label="Previous template">
+            ‹
+          </button>
+          <div class="carousel-slide">
+            <img [src]="current.preview" [alt]="current.name">
+            <div class="template-info">{{ current.name }}</div>
           </div>
+          <button class="carousel-nav next" (click)="nextTemplate()" aria-label="Next template">
+            ›
+          </button>
         }
       </div>
-    </div>
-  }
-  
-  <!-- Mode Selection -->
-  @if (showModeSelection()) {
-    <div class="mode-selection">
-      <div class="header">
-        <h2 i18n>Choose Mode</h2>
-      </div>
-      <div class="mode-buttons">
-        <button class="button primary" (click)="selectMode('draw')" i18n>
-          Draw with Marker
-        </button>
-        <button class="button primary" (click)="selectMode('type')" i18n>
-          Type Text
-        </button>
-      </div>
+      <button class="button primary use-template" (click)="useCurrentTemplate()" i18n>
+        Use this template
+      </button>
     </div>
   }
   
   <!-- Canvas Editor -->
-  @if (canvas() && !showTemplateGallery() && !showModeSelection()) {
+  @if (canvas() && !showTemplateGallery()) {
     <div class="editor">
       <div class="header">
         <button class="button" (click)="restart()" i18n>Restart</button>
         <h2>{{ selectedTemplate()?.name }}</h2>
-        <button class="button primary" (click)="submit()" i18n>Submit</button>
+        <div class="mode-toggle">
+          <button 
+            class="toggle-button" 
+            [class.active]="currentMode() === 'type'"
+            (click)="setMode('type')" 
+            i18n>Write</button>
+          <button 
+            class="toggle-button" 
+            [class.active]="currentMode() === 'draw'"
+            (click)="setMode('draw')" 
+            i18n>Draw</button>
+        </div>
       </div>
       
       <div class="canvas-container">
@@ -89,6 +92,9 @@
         </button>
         <button class="tool-button" (click)="clearCanvas()" i18n>
           Clear
+        </button>
+        <button class="button primary submit-button" (click)="submit()" i18n>
+          Submit
         </button>
       </div>
     </div>
