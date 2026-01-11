@@ -26,20 +26,23 @@ export class CanvasCreatorComponent implements AfterViewInit {
   
   canvas = signal<any | null>(null);
   selectedTemplate = signal<Template | null>(null);
-  currentMode = signal<'draw' | 'type'>('draw');
+  currentMode = signal<'draw' | 'type'>('type'); // Default to write mode
   currentColor = signal<string>('#4E02B2'); // Default purple
   showTemplateGallery = signal(true);
   showModeSelection = signal(false);
   transitionChoice = signal<'before' | 'during' | 'after' | null>(null);
+  currentTemplateIndex = signal(0); // For carousel navigation
   
   // Template gallery
   templates: Template[] = [
-    { id: 'camera', name: 'Camera', url: '/templates/template1-camera.svg', preview: '/templates/template1-camera.svg' },
-    { id: 'messages', name: 'Messages', url: '/templates/template2-messages.svg', preview: '/templates/template2-messages.svg' },
-    { id: 'map', name: 'Map', url: '/templates/template3-map.svg', preview: '/templates/template3-map.svg' },
-    { id: 'notification', name: 'Notification', url: '/templates/template4-notification.svg', preview: '/templates/template4-notification.svg' },
-    { id: 'blank', name: 'Blank', url: '/templates/template5-blank.svg', preview: '/templates/template5-blank.svg' },
+    { id: 'camera', name: 'Camera', url: '/templates/template1.png', preview: '/templates/template1.png' },
+    { id: 'messages', name: 'Messages', url: '/templates/template2.png', preview: '/templates/template2.png' },
+    { id: 'map', name: 'Map', url: '/templates/template3.png', preview: '/templates/template3.png' },
+    { id: 'notification', name: 'Notification', url: '/templates/template4.png', preview: '/templates/template4.png' },
+    { id: 'blank', name: 'Blank', url: '/templates/template5.png', preview: '/templates/template5.png' },
   ];
+  
+  currentTemplate = computed(() => this.templates[this.currentTemplateIndex()]);
   
   // Marker colors (random selection)
   markerColors = ['#4E02B2', '#B969FF', '#698CFF', '#F73C3C', '#FF6B35', '#2A9D8F'];
@@ -77,7 +80,33 @@ export class CanvasCreatorComponent implements AfterViewInit {
   selectTemplate(template: Template) {
     this.selectedTemplate.set(template);
     this.showTemplateGallery.set(false);
-    this.showModeSelection.set(true);
+    this.showModeSelection.set(false);
+    this.initCanvas();
+  }
+  
+  previousTemplate() {
+    const index = this.currentTemplateIndex();
+    this.currentTemplateIndex.set(index > 0 ? index - 1 : this.templates.length - 1);
+  }
+  
+  nextTemplate() {
+    const index = this.currentTemplateIndex();
+    this.currentTemplateIndex.set((index + 1) % this.templates.length);
+  }
+  
+  useCurrentTemplate() {
+    this.selectTemplate(this.currentTemplate());
+  }
+  
+  setMode(mode: 'draw' | 'type') {
+    this.currentMode.set(mode);
+    const fabricCanvas = this.canvas();
+    if (fabricCanvas) {
+      fabricCanvas.isDrawingMode = (mode === 'draw');
+      if (mode === 'draw') {
+        this.setupRoughBrush(fabricCanvas);
+      }
+    }
   }
   
   selectMode(mode: 'draw' | 'type') {
@@ -90,9 +119,23 @@ export class CanvasCreatorComponent implements AfterViewInit {
     if (!this.canvasEl) return;
     
     const canvasElement = this.canvasEl.nativeElement;
+    const container = canvasElement.parentElement;
+    const containerWidth = container?.clientWidth || 360;
+    const containerHeight = container?.clientHeight || 640;
+    
+    // Calculate dimensions maintaining aspect ratio
+    const aspectRatio = 9 / 16; // Phone screen
+    let canvasWidth = containerWidth - 32; // padding
+    let canvasHeight = canvasWidth / aspectRatio;
+    
+    if (canvasHeight > containerHeight - 32) {
+      canvasHeight = containerHeight - 32;
+      canvasWidth = canvasHeight * aspectRatio;
+    }
+    
     const fabricCanvas = new fabric.Canvas(canvasElement, {
-      width: 1060,
-      height: 2000,
+      width: canvasWidth,
+      height: canvasHeight,
       backgroundColor: '#f5f0e7',
       isDrawingMode: this.currentMode() === 'draw',
     });
