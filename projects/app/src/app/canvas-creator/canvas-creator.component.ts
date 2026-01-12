@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, DestroyRef, ElementRef, signal, ViewChild, computed } from '@angular/core';
+import { AfterViewInit, Component, DestroyRef, ElementRef, signal, ViewChild, computed, afterNextRender, Injector, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
@@ -32,6 +32,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
   showModeSelection = signal(false);
   transitionChoice = signal<'before' | 'during' | 'after' | null>(null);
   currentTemplateIndex = signal(0); // For carousel navigation
+  
+  private injector = inject(Injector);
   
   // Template gallery
   templates: Template[] = [
@@ -82,9 +84,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
     this.showTemplateGallery.set(false);
     this.showModeSelection.set(false);
     // Wait for view to update before initializing canvas
-    setTimeout(() => {
+    afterNextRender(() => {
       this.initCanvas();
-    }, 50);
+    }, { injector: this.injector });
   }
   
   previousTemplate() {

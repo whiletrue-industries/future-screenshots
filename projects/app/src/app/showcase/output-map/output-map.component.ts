@@ -450,14 +450,20 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
     });
     this.addTileLayer(map);
     timer(0).subscribe(() => {
-      if (this.doLoop) {
+      if (this.doLoop && this.maskElement?.nativeElement) {
         const maskElement = this.maskElement.nativeElement.querySelector('svg');
-        this.maskLayer = this.L.svgOverlay(maskElement, bounds);
-        this.maskLayer?.addTo(map);
+        if (maskElement) {
+          this.maskLayer = this.L.svgOverlay(maskElement, bounds);
+          this.maskLayer?.addTo(map);
+        }
       }
-      const clusterLabelsElement = this.clusterLabelsElement.nativeElement.querySelector('svg');
-      this.clusterLabelsLayer = this.L.svgOverlay(clusterLabelsElement, bounds);
-      this.clusterLabelsLayer?.addTo(map);
+      if (this.clusterLabelsElement?.nativeElement) {
+        const clusterLabelsElement = this.clusterLabelsElement.nativeElement.querySelector('svg');
+        if (clusterLabelsElement) {
+          this.clusterLabelsLayer = this.L.svgOverlay(clusterLabelsElement, bounds);
+          this.clusterLabelsLayer?.addTo(map);
+        }
+      }
     });
     return map;
   }

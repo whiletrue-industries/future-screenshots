@@ -29,7 +29,7 @@
   }
   
   <!-- Canvas Editor -->
-  @if (canvas() && !showTemplateGallery()) {
+  @if (selectedTemplate() && !showTemplateGallery()) {
     <div class="editor">
       <div class="header">
         <button class="button" (click)="restart()" i18n>Restart</button>
