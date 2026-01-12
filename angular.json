@@ -40,11 +40,7 @@
               "projects/app/src/styles.less"
             ],
             "scripts": [],
-            "server": "projects/app/src/main.server.ts",
-            "prerender": true,
-            "ssr": {
-              "entry": "projects/app/src/server.ts"
-            },
+            "prerender": false,
             "localize": ["he", "en", "nl"]
           },
           "configurations": {
