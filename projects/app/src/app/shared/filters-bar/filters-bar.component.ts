@@ -33,6 +33,12 @@ export class FilterHelpers {
     'highlighted': 5,
   } as const;
 
+  // All possible status values in display order
+  static readonly ALL_STATUSES = ['new', 'flagged', 'not-flagged', 'approved', 'highlighted', 'rejected'];
+  
+  // Default status selection (all except rejected)
+  static readonly DEFAULT_STATUSES = ['new', 'flagged', 'not-flagged', 'approved', 'highlighted'];
+
   /**
    * Check if an item is "in review"
    * "In review" means both plausibility and favorable_future are set
@@ -58,14 +64,100 @@ export class FilterHelpers {
    */
   static getStatusKey(item: any): string {
     const moderation = item._private_moderation;
-    if (moderation === undefined || moderation === null) return 'pending';
-    if (moderation === 0) return 'rejected';
-    if (moderation === 1) return 'flagged';
-    if (moderation === 2) return 'pending';
-    if (moderation === 3) return 'not-flagged';
-    if (moderation === 4) return 'approved';
-    if (moderation === 5) return 'highlighted';
-    return 'pending';
+    if (moderation === undefined || moderation === null || moderation === 2) {
+      return 'pending';
+    } else if (moderation === 1) {
+      return 'flagged';
+    } else if (moderation === 4) {
+      return 'approved';
+    } else if (moderation === 0) {
+      return 'banned';
+    } else if (moderation === 5) {
+      return 'highlighted';
+    } else if (moderation === 3) {
+      return 'not-flagged';
+    }
+    return 'pending'; // default
+  }
+
+  /**
+   * Get display label for a status value
+   */
+  static getStatusLabel(statusValue: string): string {
+    const labels: { [key: string]: string } = {
+      'new': 'New',
+      'flagged': 'Flagged',
+      'approved': 'Approved',
+      'rejected': 'Rejected',
+      'highlighted': 'Highlighted',
+      'not-flagged': 'Not Flagged'
+    };
+    return labels[statusValue] || statusValue;
+  }
+
+  /**
+   * Get count key for a status value (for looking up in counts map)
+   */
+  static getStatusCountKey(statusValue: string): string {
+    const countKeys: { [key: string]: string } = {
+      'new': 'pending',
+      'flagged': 'flagged',
+      'approved': 'approved',
+      'rejected': 'banned',
+      'highlighted': 'highlighted',
+      'not-flagged': 'not-flagged'
+    };
+    return countKeys[statusValue] || statusValue;
+  }
+
+  /**
+   * Parse URL hash with support for ~ (exclude) and + (additive) syntax
+   * Examples:
+   *   status=new,flagged,~rejected  -> include new and flagged, exclude rejected
+   *   search=my+query               -> additive search query (spaces as +)
+   */
+  static parseHashParam(paramValue: string | null): { included: string[], excluded: string[] } {
+    if (!paramValue) {
+      return { included: [], excluded: [] };
+    }
+
+    const parts = paramValue.split(',');
+    const included: string[] = [];
+    const excluded: string[] = [];
+
+    parts.forEach(part => {
+      const trimmed = part.trim();
+      if (trimmed.startsWith('~')) {
+        excluded.push(trimmed.substring(1));
+      } else if (trimmed) {
+        included.push(trimmed);
+      }
+    });
+
+    return { included, excluded };
+  }
+
+  /**
+   * Encode values to hash format with ~ for excluded items
+   * Returns null if both arrays are empty
+   */
+  static encodeHashParam(included: string[], excluded: string[]): string | null {
+    const parts = [
+      ...included,
+      ...excluded.map(e => `~${e}`)
+    ];
+    return parts.length > 0 ? parts.join(',') : null;
+  }
+
+  /**
+   * Check if status filter is at default state (all except rejected)
+   */
+  static isDefaultStatusFilter(selectedStatuses: string[]): boolean {
+    if (selectedStatuses.length !== FilterHelpers.DEFAULT_STATUSES.length) {
+      return false;
+    }
+    return FilterHelpers.DEFAULT_STATUSES.every(s => selectedStatuses.includes(s)) &&
+           !selectedStatuses.includes('rejected');
   }
 
   /**
@@ -112,7 +204,7 @@ export class FiltersBarComponent {
   filtersCommit = output<FiltersBarState>(); // Emitted when dropdown closes or focus changes
   
   // Filter state
-  filterStatus = signal<string[]>(['rejected', 'flagged', 'pending', 'not-flagged', 'approved', 'highlighted']);
+  filterStatus = signal<string[]>(FilterHelpers.DEFAULT_STATUSES);
   filterAuthor = signal<string>('all');
   filterPreference = signal<string[]>(['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent']);
   filterPotential = signal<string[]>(['100', '75', '50', '25', '0']);
@@ -442,108 +534,41 @@ export class FiltersBarComponent {
     return this.filterPotential().length;
   }
   
-  /**
-   * Get deselected potentials (inverse of selected)
-   * Only relevant when 1-2 items are deselected
-   */
-  getDeselectedPotentials(): string[] {
-    const selected = this.filterPotential();
-    return this.potentialOptions.filter(pot => !selected.includes(pot));
-  }
-  
-  /**
-   * Check if we should show deselected chips instead of selected
-   * True when 1-2 items are deselected (sparse deselection pattern)
-   */
-  shouldShowDeselectedPotentialChips(): boolean {
-    const deselected = this.getDeselectedPotentials();
-    return deselected.length > 0 && deselected.length <= 2;
-  }
-
-  selectAllPotentials(): void {
-    this.filterPotential.set(['100', '75', '50', '25', '0']);
-    // Emit debounced change for immediate view update
-    this.emitDebouncedChange();
-  }
-
-  deselectAllPotentials(): void {
-    this.filterPotential.set([]);
-    // Emit debounced change for immediate view update
-    this.emitDebouncedChange();
-  }
-  
-  // Search filtering methods
-  getFilteredStatusOptions(): typeof this.statusOptions {
-    const search = this.statusSearchText().toLowerCase();
-    if (!search) return this.statusOptions;
-    return this.statusOptions.filter(opt => 
-      opt.label.toLowerCase().includes(search) || opt.value.toLowerCase().includes(search)
-    );
-  }
-  
-  getFilteredPreferenceOptions(): string[] {
-    const search = this.preferenceSearchText().toLowerCase();
-    if (!search) return this.preferenceOptions;
-    return this.preferenceOptions.filter(opt => opt.toLowerCase().includes(search));
-  }
-  
-  getFilteredPotentialOptions(): string[] {
-    const search = this.potentialSearchText().toLowerCase();
-    if (!search) return this.potentialOptions;
-    return this.potentialOptions.filter(opt => opt.includes(search));
-  }
-  
-  // Chip management methods
-  getStatusLabel(value: string): string {
-    const option = this.statusOptions.find(opt => opt.value === value);
-    return option ? option.label : value;
-  }
-  
-  getPreferenceLabel(value: string): string {
-    // Map preference values to display labels
-    const labelMap: {[key: string]: string} = {
-      'prefer': 'prefer',
-      'mostly prefer': 'prefer-ish',
-      'uncertain': 'uncertain',
-      'mostly prevent': 'prevent-ish',
-      'prevent': 'prevent'
+  // Get status options - shows all known status types
+  // Statuses with data will have counts, others will show (0)
+  getAvailableStatusOptions(): string[] {
+    const statusCounts = this.counts().status;
+    // Always show all possible statuses
+    // But if data contains statuses not in our predefined list, add them
+    const knownStatuses = new Set(FilterHelpers.ALL_STATUSES);
+    const dataStatuses = Array.from(statusCounts.keys());
+    
+    // Map count keys back to status values
+    const statusValueMap: { [key: string]: string } = {
+      'pending': 'new',
+      'flagged': 'flagged',
+      'approved': 'approved',
+      'banned': 'rejected',
+      'highlighted': 'highlighted',
+      'not-flagged': 'not-flagged'
     };
-    return labelMap[value] || value;
+    
+    const additionalStatuses = dataStatuses
+      .map(countKey => statusValueMap[countKey])
+      .filter(status => status && !knownStatuses.has(status));
+    
+    return [...FilterHelpers.ALL_STATUSES, ...additionalStatuses];
   }
   
-  getPotentialLabel(value: string): string {
-    return this.potentialLabelMap[value] || value;
+  // Get label for status option
+  getStatusLabel(status: string): string {
+    return FilterHelpers.getStatusLabel(status);
   }
   
-  removeStatusChip(status: string): void {
-    const current = this.filterStatus();
-    this.filterStatus.set(current.filter(s => s !== status));
-    this.emitDebouncedChange();
-  }
-  
-  removePreferenceChip(preference: string): void {
-    const current = this.filterPreference();
-    this.filterPreference.set(current.filter(p => p !== preference));
-    this.emitDebouncedChange();
-  }
-  
-  removePotentialChip(potential: string): void {
-    const current = this.filterPotential();
-    this.filterPotential.set(current.filter(p => p !== potential));
-    this.emitDebouncedChange();
-  }
-  
-  // Clear search when dropdown opens/closes
-  clearStatusSearch(): void {
-    this.statusSearchText.set('');
-  }
-  
-  clearPreferenceSearch(): void {
-    this.preferenceSearchText.set('');
-  }
-  
-  clearPotentialSearch(): void {
-    this.potentialSearchText.set('');
+  // Get count for a status option
+  getStatusCount(status: string): number {
+    const countKey = FilterHelpers.getStatusCountKey(status);
+    return this.getCount(this.counts().status, countKey);
   }
   
   // Utility methods

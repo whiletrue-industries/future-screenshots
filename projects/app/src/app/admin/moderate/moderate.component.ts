@@ -45,7 +45,7 @@ export class ModerateComponent {
   page = signal<number>(0);
   
   // Individual filters
-  filterStatus = signal<string[]>(['rejected', 'flagged', 'pending', 'not-flagged', 'approved', 'highlighted']);
+  filterStatus = signal<string[]>(FilterHelpers.DEFAULT_STATUSES);
   filterAuthor = signal<string>('all');
   preferenceOptions = ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent', 'none'];
   potentialOptions = ['100', '75', '50', '25', '0', 'none'];
@@ -170,14 +170,17 @@ export class ModerateComponent {
       if (fragment) {
         const params = new URLSearchParams(fragment);
         const statusParam = params.get('status');
-        if (statusParam) {
-          const statusArray = statusParam.split(',');
-          // Ensure not-flagged is included by default to avoid filtering out moderation==3 items
-          if (!statusArray.includes('not-flagged')) {
-            statusArray.push('not-flagged');
+          if (statusParam) {
+            // Parse new hash syntax: supports ~rejected for exclusion
+            const parsed = FilterHelpers.parseHashParam(statusParam);
+            let statusArray: string[];
+            if (parsed.included.length > 0) {
+              statusArray = parsed.included;
+            } else {
+              statusArray = FilterHelpers.ALL_STATUSES.filter(s => !parsed.excluded.includes(s));
+            }
+            this.filterStatus.set(statusArray);
           }
-          this.filterStatus.set(statusArray);
-        }
         const authorParam = params.get('author');
         if (authorParam) {
           this.filterAuthor.set(authorParam);
@@ -197,9 +200,10 @@ export class ModerateComponent {
           this.filterType.set(typeParam);
         }
         const searchParam = params.get('search');
-        if (searchParam) {
-          this.searchText.set(searchParam);
-        }
+          if (searchParam) {
+            const searchText = searchParam.replace(/\+/g, ' ');
+            this.searchText.set(searchText);
+          }
         const orderParam = params.get('order');
         if (orderParam) {
           this.orderBy.set(orderParam);
@@ -221,18 +225,26 @@ export class ModerateComponent {
       if (fragment) {
         const params = new URLSearchParams(fragment);
         const statusParam = params.get('status');
-        const statusArray = statusParam ? statusParam.split(',') : ['new', 'flagged', 'approved', 'not-flagged', 'highlighted'];
-        if (!statusArray.includes('not-flagged')) {
-          statusArray.push('not-flagged');
+        if (statusParam) {
+          const parsed = FilterHelpers.parseHashParam(statusParam);
+          let statusArray: string[];
+          if (parsed.included.length > 0) {
+            statusArray = parsed.included;
+          } else {
+            statusArray = FilterHelpers.ALL_STATUSES.filter(s => !parsed.excluded.includes(s));
+          }
+          this.filterStatus.set(statusArray);
+        } else {
+          this.filterStatus.set(FilterHelpers.DEFAULT_STATUSES);
         }
-        this.filterStatus.set(statusArray);
         this.filterAuthor.set(params.get('author') || 'all');
         const preferenceParam = params.get('preference');
         this.filterPreference.set(preferenceParam ? preferenceParam.split(',') : [...this.preferenceOptions]);
         const potentialParam = params.get('potential');
         this.filterPotential.set(potentialParam ? potentialParam.split(',') : [...this.potentialOptions]);
         this.filterType.set(params.get('type') || 'all');
-        this.searchText.set(params.get('search') || '');
+        const searchParam = params.get('search');
+        this.searchText.set(searchParam ? searchParam.replace(/\+/g, ' ') : '');
         this.orderBy.set(params.get('order') || 'date');
         const view = params.get('view');
         if (view === 'grid' || view === 'list') {
@@ -491,12 +503,25 @@ export class ModerateComponent {
   
   updateHashParams(): void {
     const params = new URLSearchParams();
-    if (this.filterStatus().length > 0) params.set('status', this.filterStatus().join(','));
+    
+    // Encode status with ~ for excluded items (default: exclude rejected)
+    const selectedStatuses = this.filterStatus();
+    const excludedStatuses = FilterHelpers.ALL_STATUSES.filter(s => !selectedStatuses.includes(s));
+    
+    // Only include status param if it's not the default (all except rejected)
+    if (!FilterHelpers.isDefaultStatusFilter(selectedStatuses)) {
+      const statusParam = FilterHelpers.encodeHashParam(selectedStatuses, excludedStatuses);
+      if (statusParam) {
+        params.set('status', statusParam);
+      }
+    }
+    
     if (this.filterAuthor() !== 'all') params.set('author', this.filterAuthor());
     if (this.filterPreference().length > 0 && this.filterPreference().length < this.preferenceOptions.length) params.set('preference', this.filterPreference().join(','));
     if (this.filterPotential().length > 0 && this.filterPotential().length < this.potentialOptions.length) params.set('potential', this.filterPotential().join(','));
     if (this.filterType() !== 'all') params.set('type', this.filterType());
-    if (this.searchText()) params.set('search', this.searchText());
+    // Encode search with + for spaces
+    if (this.searchText()) params.set('search', this.searchText().replace(/ /g, '+'));
     if (this.orderBy() !== 'date') params.set('order', this.orderBy());
     params.set('view', this.viewMode());
     
@@ -591,7 +616,7 @@ export class ModerateComponent {
     }
 
   clearAllFilters(): void {
-    this.filterStatus.set(['rejected', 'flagged', 'pending', 'not-flagged', 'approved', 'highlighted']);
+    this.filterStatus.set(FilterHelpers.DEFAULT_STATUSES);
     this.filterAuthor.set('all');
     this.filterPreference.set([...this.preferenceOptions]);
     this.filterPotential.set([...this.potentialOptions]);
