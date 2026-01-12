@@ -37,11 +37,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
   
   // Template gallery
   templates: Template[] = [
-    { id: 'camera', name: 'Camera', url: '/templates/template1-camera.png', preview: '/templates/template1-camera.png' },
-    { id: 'messages', name: 'Messages', url: '/templates/template2-messages.png', preview: '/templates/template2-messages.png' },
-    { id: 'map', name: 'Map', url: '/templates/template3-map.png', preview: '/templates/template3-map.png' },
-    { id: 'simple-map', name: 'Simple Map', url: '/templates/template4-simple-map.png', preview: '/templates/template4-simple-map.png' },
-    { id: 'notification', name: 'Notification', url: '/templates/template5-notification.png', preview: '/templates/template5-notification.png' },
+    { id: 'chat', name: 'Chat', url: '/templates/FS_template_chat.png', preview: '/templates/FS_template_chat.png' },
+    { id: 'holyland', name: 'Map', url: '/templates/FS_template_holyland.png', preview: '/templates/FS_template_holyland.png' },
   ];
   
   currentTemplate = computed(() => this.templates[this.currentTemplateIndex()]);
@@ -131,19 +128,23 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const containerWidth = container?.clientWidth || 360;
     const containerHeight = container?.clientHeight || 640;
     
-    // Calculate dimensions maintaining aspect ratio
-    const aspectRatio = 9 / 16; // Phone screen
-    let canvasWidth = containerWidth - 32; // padding
-    let canvasHeight = canvasWidth / aspectRatio;
+    // Fixed dimensions: 1060x2000px
+    const targetWidth = 1060;
+    const targetHeight = 2000;
     
-    if (canvasHeight > containerHeight - 32) {
-      canvasHeight = containerHeight - 32;
-      canvasWidth = canvasHeight * aspectRatio;
+    // Calculate display dimensions to fit in container while maintaining aspect ratio
+    const aspectRatio = targetWidth / targetHeight;
+    let displayWidth = containerWidth - 32; // padding
+    let displayHeight = displayWidth / aspectRatio;
+    
+    if (displayHeight > containerHeight - 32) {
+      displayHeight = containerHeight - 32;
+      displayWidth = displayHeight * aspectRatio;
     }
     
     const fabricCanvas = new fabric.Canvas(canvasElement, {
-      width: canvasWidth,
-      height: canvasHeight,
+      width: displayWidth,
+      height: displayHeight,
       backgroundColor: '#f5f0e7',
       isDrawingMode: this.currentMode() === 'draw',
     });
@@ -400,14 +401,31 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const fabricCanvas = this.canvas();
     if (!fabricCanvas) return;
     
-    // Export canvas to blob
+    // Export at full resolution (1060x2000px)
+    const exportWidth = 1060;
+    const exportHeight = 2000;
+    
+    // Calculate multiplier based on current canvas size
+    const multiplier = exportWidth / fabricCanvas.width;
+    
+    console.log('Canvas width:', fabricCanvas.width, 'Multiplier:', multiplier, 'Export size:', exportWidth, 'x', exportHeight);
+    
+    // Export canvas to blob at full resolution
     const dataURL = fabricCanvas.toDataURL({
-      format: 'jpeg',
-      quality: 0.95,
-      multiplier: 1,
+      format: 'png',
+      quality: 1.0,
+      multiplier: multiplier,
     });
     
+    // Verify the exported image size
+    const img = new Image();
+    img.onload = () => {
+      console.log('Exported image dimensions:', img.width, 'x', img.height);
+    };
+    img.src = dataURL;
+    
     const blob = await fetch(dataURL).then(r => r.blob());
+    console.log('Blob size:', blob.size, 'bytes');
     this.state.setImage(blob);
     this.router.navigate(['/confirm'], { queryParamsHandling: 'merge' });
   }
