@@ -1,16 +1,5 @@
 <div class='container' #container></div>
 
-<!-- Filters Bar -->
-<app-filters-bar
-  [counts]="filterCounts()"
-  [totalCount]="allPhotos().length"
-  [filteredCount]="filteredPhotos().length"
-  [showViewToggle]="false"
-  [initialState]="filterState()"
-  (filtersChange)="onFilterChange($event)"
-  (filtersCommit)="onFilterCommit($event)">
-</app-filters-bar>
-
 <app-qrcode [small]='qrSmall()' [url]='qrUrl()'></app-qrcode>
 <div class='logo'>
 </div>
