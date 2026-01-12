@@ -516,7 +516,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   // Computed signal for initial filter state - reads URL hash once and memoizes
   private _initialFilterStateRead = false;
   private _initialFilterStateValue: FiltersBarState = {
-    status: FilterHelpers.DEFAULT_STATUSES,
+    status: ['new', 'flagged', 'approved', 'highlighted'],
     author: 'all',
     preference: ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'],
     potential: ['100', '75', '50', '25', '0'],
@@ -533,32 +533,13 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       const hash = window.location.hash.substring(1);
       const params = new URLSearchParams(hash);
       
-      // Parse status with new syntax support
-      let statusArray: string[];
-      const statusParam = params.get('status');
-      if (statusParam) {
-        const parsed = FilterHelpers.parseHashParam(statusParam);
-        if (parsed.included.length > 0) {
-          statusArray = parsed.included;
-        } else {
-          statusArray = FilterHelpers.ALL_STATUSES.filter(s => !parsed.excluded.includes(s));
-        }
-      } else {
-        // Default: all except rejected
-        statusArray = FilterHelpers.DEFAULT_STATUSES;
-      }
-      
-      // Parse search with + as space support
-      const searchParam = params.get('search');
-      const searchText = searchParam ? searchParam.replace(/\+/g, ' ') : '';
-      
       this._initialFilterStateValue = {
-        status: statusArray,
+        status: params.get('status')?.split(',') || ['new', 'flagged', 'approved', 'highlighted'],
         author: params.get('author') || 'all',
         preference: params.get('preference')?.split(',') || ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'],
         potential: params.get('potential')?.split(',') || ['100', '75', '50', '25', '0'],
         type: params.get('type') || 'all',
-        search: searchText,
+        search: params.get('search') || '',
         orderBy: params.get('order') || 'date',
         view: undefined
       };
@@ -732,24 +713,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   private updateHashParams(filters: FiltersBarState): void {
     const params = new URLSearchParams();
     
-    // Encode status with ~ for excluded items (default: exclude rejected)
-    const selectedStatuses = filters.status;
-    const excludedStatuses = FilterHelpers.ALL_STATUSES.filter(s => !selectedStatuses.includes(s));
-    
-    // Only include status param if it's not the default (all except rejected)
-    if (!FilterHelpers.isDefaultStatusFilter(selectedStatuses)) {
-      const statusParam = FilterHelpers.encodeHashParam(selectedStatuses, excludedStatuses);
-      if (statusParam) {
-        params.set('status', statusParam);
-      }
-    }
-    
+    if (filters.status.length > 0) params.set('status', filters.status.join(','));
     if (filters.author !== 'all') params.set('author', filters.author);
     if (filters.preference.length > 0 && filters.preference.length < 5) params.set('preference', filters.preference.join(','));
     if (filters.potential.length > 0 && filters.potential.length < 5) params.set('potential', filters.potential.join(','));
     if (filters.type !== 'all') params.set('type', filters.type);
-    // Encode search with + for spaces
-    if (filters.search) params.set('search', filters.search.replace(/ /g, '+'));
+    if (filters.search) params.set('search', filters.search);
     if (filters.orderBy !== 'date') params.set('order', filters.orderBy);
     if (filters.view) params.set('view', filters.view);
     
