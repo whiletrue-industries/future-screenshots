@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, computed, ElementRef, signal, ViewChild, inject, OnDestroy, ChangeDetectorRef, ViewChildren, QueryList } from '@angular/core';
+import { AfterViewInit, Component, computed, ElementRef, signal, ViewChild, inject, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { catchError, distinctUntilChanged, filter, forkJoin, from, interval, Observable, of, Subject, timer, takeUntil } from 'rxjs';
 import { PlatformService } from '../../platform.service';
 import { HttpClient } from '@angular/common/http';
@@ -15,11 +15,11 @@ import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
-import { FiltersBarComponent, FiltersBarState, FilterCounts, FilterHelpers } from '../shared/filters-bar/filters-bar.component';
+import e from 'express';
 
 @Component({
   selector: 'app-showcase-ws',
-  imports: [QrcodeComponent, FiltersBarComponent],
+  imports: [QrcodeComponent],
   templateUrl: './showcase-ws.component.html',
   styleUrl: './showcase-ws.component.less'
 })
@@ -39,23 +39,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   enableRandomShowcase = signal(false);
   loadedPhotoIds = new Set<string>();
   private layoutChangeInProgress = false;
-  
-  // Filters state
-  allPhotos = signal<any[]>([]);
-  allItemsData = signal<any[]>([]); // Store full item data for filtering
-  filteredPhotos = signal<any[]>([]);
-  filterCounts = signal<FilterCounts>({
-    status: new Map(),
-    author: new Map(),
-    preference: new Map(),
-    potential: new Map(),
-    type: new Map()
-  });
-  
-  // Lightbox state
-  lightboxOpen = signal(false);
-  lightboxPhotoId = signal<string | null>(null);
-  
   qrUrl = computed(() => 
     `https://mapfutur.es/${this.lang()}prescan?workspace=${this.workspace()}&api_key=${this.api_key()}&ws=true`
   );
@@ -74,15 +57,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       distinctUntilChanged()
     ).subscribe(async (items) => {
       items = items.sort((item1, item2) => item1.created_at.localeCompare(item2.created_at));
-      
-      // Store all items data for filtering
-      const existingItems = this.allItemsData();
-      const newItemsData = items.filter((item: any) => !existingItems.find((i: any) => i._id === item._id));
-      if (newItemsData.length > 0) {
-        this.allItemsData.set([...existingItems, ...newItemsData]);
-        // Update filter counts and filtered list
-        this.updateFilterData();
-      }
       
       // First pass: load existing photos immediately
       if (this.lastCreatedAt === '0' && items.length > 0) {
@@ -242,26 +216,19 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.photoRepository.photoAdded$
       .pipe(takeUntil(this.destroy$))
       .subscribe((photoData) => {
-        this.updateAllPhotos();
       });
 
     this.photoRepository.photoRemoved$
       .pipe(takeUntil(this.destroy$))
       .subscribe((photoId) => {
-        this.updateAllPhotos();
+
       });
 
     this.photoRepository.layoutChanged$
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
-        this.updateAllPhotos();
+
       });
-    
-    // Set up lightbox click callback
-    this.setupLightboxClickCallback();
-    
-    // Read initial filters from URL hash
-    this.readFiltersFromHash();
     
     // Start initial polling after component is ready
     if (this.platform.browser()) {
@@ -505,382 +472,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
                        this.currentLayout() === 'svg' ? 2 : 3;
     const translateX = layoutIndex * 48; // 44px width + 4px gap
     return `translateX(${translateX}px)`;
-  }
-
-  /**
-   * Handle filter changes from filters-bar component
-   */
-  /**
-   * Handle filter changes from filters-bar component
-   */
-  // Computed signal for initial filter state - reads URL hash once and memoizes
-  private _initialFilterStateRead = false;
-  private _initialFilterStateValue: FiltersBarState = {
-    status: ['new', 'flagged', 'approved', 'highlighted'],
-    author: 'all',
-    preference: ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'],
-    potential: ['100', '75', '50', '25', '0'],
-    type: 'all',
-    search: '',
-    orderBy: 'date',
-    view: undefined
-  };
-  
-  filterState = computed<FiltersBarState>(() => {
-    // Only read from URL hash once on first access
-    if (!this._initialFilterStateRead && typeof window !== 'undefined' && window.location.hash) {
-      this._initialFilterStateRead = true;
-      const hash = window.location.hash.substring(1);
-      const params = new URLSearchParams(hash);
-      
-      this._initialFilterStateValue = {
-        status: params.get('status')?.split(',') || ['new', 'flagged', 'approved', 'highlighted'],
-        author: params.get('author') || 'all',
-        preference: params.get('preference')?.split(',') || ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'],
-        potential: params.get('potential')?.split(',') || ['100', '75', '50', '25', '0'],
-        type: params.get('type') || 'all',
-        search: params.get('search') || '',
-        orderBy: params.get('order') || 'date',
-        view: undefined
-      };
-    } else if (!this._initialFilterStateRead) {
-      this._initialFilterStateRead = true;
-    }
-    
-    return this._initialFilterStateValue;
-  });
-
-  onFilterChange(filters: FiltersBarState): void {
-    console.log('Filter changed (debounced):', filters);
-    
-    // Apply filters and sorting immediately for view update
-    this.applyFiltersAndSort(filters);
-    
-    // Do NOT update hash here - wait for commit
-  }
-
-  onFilterCommit(filters: FiltersBarState): void {
-    console.log('Filter committed (dropdown closed or focus changed):', filters);
-    
-    // Update URL hash when dropdown closes or focus changes
-    this.updateHashParams(filters);
-    
-    // Also apply filters to ensure state is in sync
-    this.applyFiltersAndSort(filters);
-  }
-
-  /**
-   * Apply filters and sorting to photos
-   */
-  private applyFiltersAndSort(filters: FiltersBarState): void {
-    let filtered = [...this.allItemsData()];
-    
-    // Status filter using FilterHelpers
-    if (filters.status.length > 0) {
-      filtered = filtered.filter(item => FilterHelpers.matchesStatusFilter(item, filters.status));
-    }
-    
-    // Author filter
-    if (filters.author !== 'all') {
-      if (filters.author === 'unattributed') {
-        filtered = filtered.filter(item => !item.author_id || item.author_id === 'unknown');
-      } else {
-        filtered = filtered.filter(item => item.author_id === filters.author);
-      }
-    }
-    
-    // Preference filter
-    if (filters.preference.length > 0 && filters.preference.length < 5) {
-      filtered = filtered.filter(item => filters.preference.includes(item.favorable_future));
-    }
-    
-    // Potential filter
-    if (filters.potential.length > 0 && filters.potential.length < 5) {
-      filtered = filtered.filter(item => filters.potential.includes(String(item.plausibility)));
-    }
-    
-    // Type filter
-    if (filters.type !== 'all') {
-      filtered = filtered.filter(item => item.screenshot_type === filters.type);
-    }
-    
-    // Search filter
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(item => {
-        const tagline = (item.future_scenario_tagline || '').toLowerCase();
-        const description = (item.future_scenario_description || '').toLowerCase();
-        const content = (item.content || '').toLowerCase();
-        return tagline.includes(searchLower) || description.includes(searchLower) || content.includes(searchLower);
-      });
-    }
-    
-    // Sort filtered items
-    const sorted = this.sortItems(filtered, filters.orderBy);
-    this.filteredPhotos.set(sorted);
-    
-    // Update the photo repository to show only filtered photos
-    this.updateRenderedPhotos(sorted);
-  }
-  
-  /**
-   * Sort items based on order by field
-   */
-  private sortItems(items: any[], orderBy: string): any[] {
-    const sorted = [...items];
-    
-    switch (orderBy) {
-      case 'date':
-        sorted.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
-        break;
-      case 'status':
-        sorted.sort((a, b) => (b._private_moderation || 0) - (a._private_moderation || 0));
-        break;
-      case 'author':
-        sorted.sort((a, b) => (a.author_id || '').localeCompare(b.author_id || ''));
-        break;
-      case 'type':
-        sorted.sort((a, b) => (a.screenshot_type || '').localeCompare(b.screenshot_type || ''));
-        break;
-      case 'preference':
-        const prefOrder: any = { 'prefer': 5, 'mostly prefer': 4, 'uncertain': 3, 'mostly prevent': 2, 'prevent': 1 };
-        sorted.sort((a, b) => (prefOrder[b.favorable_future] || 0) - (prefOrder[a.favorable_future] || 0));
-        break;
-    }
-    
-    return sorted;
-  }
-  
-  /**
-   * Update rendered photos in three.js based on filtered list
-   */
-  /**
-   * Update the three.js scene to show only filtered photos
-   */
-  private updateRenderedPhotos(filteredItems: any[]): void {
-    console.log('Updating rendered photos:', filteredItems.length);
-    
-    // Get IDs of filtered items
-    const filteredIds = new Set(filteredItems.map(item => item._id));
-    
-    // Get all currently displayed photos
-    const currentPhotos = this.photoRepository.getAllPhotos();
-    const currentIds = new Set(currentPhotos.map(p => p.metadata.id));
-    
-    // Remove photos that are not in filtered list
-    currentPhotos.forEach(photo => {
-      if (!filteredIds.has(photo.metadata.id)) {
-        this.photoRepository.removePhoto(photo.metadata.id);
-        this.loadedPhotoIds.delete(photo.metadata.id);
-      }
-    });
-    
-    // Add photos that are in filtered list but not currently displayed
-    const photosToAdd = filteredItems.filter(item => !currentIds.has(item._id));
-    
-    // Add photos sequentially
-    if (photosToAdd.length > 0) {
-      const addPromises = photosToAdd.map(async (item) => {
-        const id = item._id;
-        const url = item.screenshot_url;
-        const metadata: PhotoMetadata = {
-          id,
-          url,
-          created_at: item.created_at,
-          screenshot_url: url,
-          author_id: item.author_id,
-          layout_x: item.layout_x,
-          layout_y: item.layout_y
-        };
-        
-        try {
-          await this.photoRepository.addPhoto(metadata);
-          this.loadedPhotoIds.add(id);
-        } catch (error) {
-          console.error('Error adding filtered photo:', error);
-        }
-      });
-      
-      Promise.all(addPromises).then(() => {
-        console.log('Finished updating rendered photos');
-      });
-    }
-  }
-  
-  /**
-   * Update URL hash with current filter state
-   */
-  private updateHashParams(filters: FiltersBarState): void {
-    const params = new URLSearchParams();
-    
-    if (filters.status.length > 0) params.set('status', filters.status.join(','));
-    if (filters.author !== 'all') params.set('author', filters.author);
-    if (filters.preference.length > 0 && filters.preference.length < 5) params.set('preference', filters.preference.join(','));
-    if (filters.potential.length > 0 && filters.potential.length < 5) params.set('potential', filters.potential.join(','));
-    if (filters.type !== 'all') params.set('type', filters.type);
-    if (filters.search) params.set('search', filters.search);
-    if (filters.orderBy !== 'date') params.set('order', filters.orderBy);
-    if (filters.view) params.set('view', filters.view);
-    
-    // Add current layout to hash
-    params.set('layout', this.currentLayout());
-    
-    const fragment = params.toString();
-    if (typeof window !== 'undefined') {
-      window.location.hash = fragment;
-    }
-  }
-  
-  /**
-   * Read filters from URL hash and apply them
-   */
-  private readFiltersFromHash(): void {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    
-    const hash = window.location.hash.substring(1); // Remove '#'
-    if (!hash) {
-      return;
-    }
-    
-    // Use ViewChildren to get reference to filters-bar component
-    // For now, we'll just trigger a filter change event manually
-    const params = new URLSearchParams(hash);
-    
-    // Read layout from hash and switch if needed
-    const layoutParam = params.get('layout');
-    if (layoutParam && ['grid', 'tsne', 'svg', 'circle-packing'].includes(layoutParam)) {
-      this.currentLayout.set(layoutParam as any);
-    }
-    
-    // Note: The filters-bar component has its own setFiltersFromHash method
-    // We need to trigger it after the component is initialized
-    // For now, the filters-bar will read from hash in its own effect
-  }
-
-  /**
-   * Update filter data and counts
-   */
-  private updateFilterData(): void {
-    const items = this.allItemsData();
-    
-    // Calculate filter counts from ALL items
-    this.calculateFilterCounts(items);
-    
-    // Set allPhotos to the full item data
-    this.allPhotos.set(items);
-    
-    // Apply current filters to the new data
-    this.applyFiltersAndSort(this.filterState());
-  }
-  
-  /**
-   * Update all photos list (deprecated - use updateFilterData)
-   */
-  private updateAllPhotos(): void {
-    // This method is called by photo repository events
-    // We now use allItemsData instead which is populated from the API
-    // Just update the filter data with current items
-    this.updateFilterData();
-  }
-  
-  /**
-   * Calculate filter counts for display
-   */
-  private calculateFilterCounts(items: any[]): void {
-    const statusCounts = new Map<string, number>();
-    const authorCounts = new Map<string, number>();
-    const preferenceCounts = new Map<string, number>();
-    const potentialCounts = new Map<string, number>();
-    const typeCounts = new Map<string, number>();
-    
-    items.forEach(item => {
-      // Status counts using FilterHelpers
-      const statusKey = FilterHelpers.getStatusKey(item);
-      statusCounts.set(statusKey, (statusCounts.get(statusKey) || 0) + 1);
-      
-      // Author counts
-      const authorId = item.author_id || 'unknown';
-      authorCounts.set(authorId, (authorCounts.get(authorId) || 0) + 1);
-      
-      // Preference counts
-      if (item.favorable_future) {
-        preferenceCounts.set(item.favorable_future, (preferenceCounts.get(item.favorable_future) || 0) + 1);
-      }
-      
-      // Potential counts
-      if (item.plausibility !== undefined) {
-        const pot = String(item.plausibility);
-        potentialCounts.set(pot, (potentialCounts.get(pot) || 0) + 1);
-      }
-      
-      // Type counts
-      if (item.screenshot_type) {
-        typeCounts.set(item.screenshot_type, (typeCounts.get(item.screenshot_type) || 0) + 1);
-      }
-    });
-    
-    this.filterCounts.set({
-      status: statusCounts,
-      author: authorCounts,
-      preference: preferenceCounts,
-      potential: potentialCounts,
-      type: typeCounts
-    });
-  }
-
-  /**
-   * Open lightbox with specific photo
-   */
-  openLightbox(photoId: string): void {
-    this.lightboxPhotoId.set(photoId);
-    this.lightboxOpen.set(true);
-  }
-
-  /**
-   * Close lightbox
-   */
-  closeLightbox(): void {
-    this.lightboxOpen.set(false);
-    this.lightboxPhotoId.set(null);
-  }
-
-  /**
-   * Navigate lightbox to prev/next photo
-   */
-  navigateLightbox(direction: 'prev' | 'next'): void {
-    const photos = this.filteredPhotos();
-    const currentId = this.lightboxPhotoId();
-    
-    if (!currentId || photos.length === 0) {
-      return;
-    }
-    
-    const currentIndex = photos.findIndex((p: any) => p._id === currentId);
-    if (currentIndex === -1) {
-      return;
-    }
-    
-    let newIndex: number;
-    if (direction === 'prev') {
-      newIndex = currentIndex > 0 ? currentIndex - 1 : currentIndex;
-    } else {
-      newIndex = currentIndex < photos.length - 1 ? currentIndex + 1 : currentIndex;
-    }
-    
-    if (newIndex !== currentIndex) {
-      this.lightboxPhotoId.set(photos[newIndex]._id);
-    }
-  }
-
-  /**
-   * Set up click callback for lightbox
-   */
-  private setupLightboxClickCallback(): void {
-    // TODO: Add click detection in three-renderer.service
-    // This will be similar to the previous implementation
-    console.log('Lightbox click callback setup needed');
   }
 
 
