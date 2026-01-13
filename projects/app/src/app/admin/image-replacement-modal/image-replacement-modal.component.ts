@@ -33,7 +33,6 @@ export class ImageReplacementModalComponent {
   uploading = signal<boolean>(false);
   pendingNewImage = signal<string | null>(null);
   showComparison = signal<boolean>(false);
-  refreshGrid = output<void>();
   
   private router = inject(Router);
   private apiService = inject(ApiService);
@@ -253,86 +252,27 @@ export class ImageReplacementModalComponent {
     if (!sourceItemId) return;
     
     const sourceItem = this.workspaceItems().find(item => item._id === sourceItemId);
-    if (!sourceItem) return;
+    if (!sourceItem || !sourceItem.screenshot_url) return;
     
     this.uploading.set(true);
 
-    const targetUpdate = this.buildTargetUpdatePayload(sourceItem);
+    // Simply update the screenshot_url field in the target item
+    const updatePayload = {
+      screenshot_url: sourceItem.screenshot_url
+    };
 
-    this.adminApi.updateItem(this.workspaceId(), this.apiKey(), this.itemId(), targetUpdate).subscribe({
+    this.adminApi.updateItem(this.workspaceId(), this.apiKey(), this.itemId(), updatePayload).subscribe({
       next: () => {
-        // Build archive note with link to target item
-        const targetItem = this.currentItem();
-        const targetTitle = targetItem?.future_scenario_tagline || 'item';
-        const targetLink = `${window.location.origin}/admin?workspace=${this.workspaceId()}&api_key=${this.apiKey()}&item=${this.itemId()}`;
-        const archivalNote = `duplicate of [${targetTitle}](${targetLink})`;
-        
-        // Mark the source item as duplicate and rejected
-        this.adminApi.updateItem(this.workspaceId(), this.apiKey(), sourceItemId, { archival_note: archivalNote }).subscribe({
-          next: () => {
-            this.adminApi.updateItemModeration(this.workspaceId(), this.apiKey(), sourceItemId, 0).subscribe({
-              next: () => {
-                this.uploading.set(false);
-                this.imageReplaced.emit({ screenshot_url: sourceItem.screenshot_url });
-                this.refreshGrid.emit();
-                this.close();
-              },
-              error: (error) => {
-                console.error('Error marking source as rejected:', error);
-                this.uploading.set(false);
-                this.imageReplaced.emit({ screenshot_url: sourceItem.screenshot_url });
-                this.refreshGrid.emit();
-                this.close();
-              }
-            });
-          },
-          error: (error) => {
-            console.error('Error setting archival note on source item:', error);
-            // Still attempt to set status to rejected
-            this.adminApi.updateItemModeration(this.workspaceId(), this.apiKey(), sourceItemId, 0).subscribe({
-              next: () => {
-                this.uploading.set(false);
-                this.imageReplaced.emit({ screenshot_url: sourceItem.screenshot_url });
-                this.refreshGrid.emit();
-                this.close();
-              },
-              error: (err) => {
-                console.error('Error marking source as rejected after archival note failure:', err);
-                this.uploading.set(false);
-                this.imageReplaced.emit({ screenshot_url: sourceItem.screenshot_url });
-                this.refreshGrid.emit();
-                this.close();
-              }
-            });
-          }
-        });
+        this.uploading.set(false);
+        this.imageReplaced.emit({ screenshot_url: sourceItem.screenshot_url });
+        this.close();
       },
       error: (error) => {
-        console.error('Error updating item:', error);
+        console.error('Error updating item screenshot:', error);
         this.uploading.set(false);
         alert('Failed to replace image. Please try again.');
       }
     });
-  }
-
-  private buildTargetUpdatePayload(sourceItem: any): Record<string, any> {
-    const target = this.currentItem();
-    const payload: Record<string, any> = {
-      screenshot_url: sourceItem.screenshot_url
-    };
-
-    const needsPlausibility = target?.plausibility === undefined || target?.plausibility === null || target?.plausibility === '';
-    const needsFavorable = target?.favorable_future === undefined || target?.favorable_future === null || target?.favorable_future === '';
-
-    if (needsPlausibility && sourceItem.plausibility !== undefined && sourceItem.plausibility !== null) {
-      payload['plausibility'] = sourceItem.plausibility;
-    }
-
-    if (needsFavorable && sourceItem.favorable_future) {
-      payload['favorable_future'] = sourceItem.favorable_future;
-    }
-
-    return payload;
   }
   
   scanAgain() {
