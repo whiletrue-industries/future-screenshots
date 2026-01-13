@@ -119,7 +119,20 @@ The application uses Angular standalone components organized by feature:
 
 9. **Showcase WS** (`/showcase-ws`)
    - 3D immersive visualization using Three.js
-   - Custom camera controls and scene rendering
+   - Multiple layout strategies:
+     - Grid: Random positioning in a grid
+     - TSNE: AI-powered clustering based on image similarity
+     - SVG: Interactive placement on custom background with hotspots
+     - Circle Packing: Clustered circular arrangement by group
+   - User camera controls:
+     - Pan: Click and drag to move around the canvas
+     - Zoom: Mouse wheel to zoom in/out (centered on cursor)
+     - Keyboard: Arrow keys to pan, +/- to zoom, R to reset view
+     - Touch: Pinch-to-zoom and two-finger pan on mobile
+   - Auto-fit mode: Automatically frames all photos in view
+   - Smooth camera animations with damping
+   - QR code for easy mobile access
+   - Random showcase mode to highlight photos
 
 #### Admin Components
 
@@ -191,9 +204,15 @@ The application uses Angular standalone components organized by feature:
 
 **ThreeRendererService** (`projects/app/src/app/showcase-ws/three-renderer.service.ts`)
 - Three.js scene management
-- Camera controls
+- Camera controls with zoom and pan
+  - Mouse wheel zoom (centered on cursor)
+  - Click-and-drag panning
+  - Keyboard navigation (arrows, +/-, R for reset)
+  - Touch support for mobile devices
+  - Auto-fit mode with manual override
 - 3D visualization rendering
 - Animation loop management
+- Photo mesh creation and texture management
 
 **ShowcaseApiService** (`projects/app/src/app/showcase/showcase-api.service.ts`)
 - Public API for showcase data
@@ -263,6 +282,40 @@ Items returned → Visualization
    ├─ 2D Map (Leaflet)
    └─ 3D Scene (Three.js)
 ```
+
+### Showcase Camera Controls
+
+The Showcase WS component provides interactive camera controls for navigating the 3D visualization:
+
+**Camera Modes:**
+- **Auto-fit Mode**: Camera automatically positions to show all photos (default behavior)
+- **Manual Mode**: User controls camera with zoom and pan (activated on first interaction)
+
+**Input Methods:**
+
+*Mouse Controls:*
+- **Pan**: Click and drag on empty space (not on photos)
+- **Zoom**: Mouse wheel scroll (zoom centered on cursor position)
+- **Photo Drag**: Click and drag photos (only in SVG layout mode)
+
+*Keyboard Controls:*
+- **Arrow Keys**: Pan camera in respective direction
+- **+ / =**: Zoom in (centered on viewport)
+- **- / _**: Zoom out (centered on viewport)
+- **R**: Reset view to auto-fit mode
+
+*Touch Controls (Mobile):*
+- **Pan**: Two-finger drag
+- **Zoom**: Pinch gesture (to be enhanced)
+- **Photo Drag**: Single finger drag on photos (SVG layout only)
+
+**Technical Implementation:**
+- Camera position smoothly interpolates to target using damping (easing)
+- Zoom is constrained between minCamZ (300) and maxCamZ (50,000) units
+- Pan converts pixel deltas to world space coordinates
+- Cursor-centered zoom maintains the point under cursor during zoom
+- Separate event handling for photo dragging vs canvas panning
+- Reset button in UI returns to auto-fit mode with smooth animation
 
 ## API Protocols and Interfaces
 
