@@ -72,8 +72,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             screenshot_url: url,
             author_id: item.author_id,
             layout_x: item.layout_x,
-            layout_y: item.layout_y
+            layout_y: item.layout_y,
+            plausibility: item.plausibility,
+            favorable_future: item.favorable_future
           };
+          console.log('[METADATA] Initial load:', id, '-> plausibility:', item.plausibility, 'favorable_future:', item.favorable_future);
           
           try {
             await this.photoRepository.addPhoto(metadata); // Add initial photos
@@ -110,7 +113,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
               created_at: item.created_at,
               screenshot_url: url,
               author_id: item.author_id,
+              plausibility: item.plausibility,
+              favorable_future: item.favorable_future
             };
+            console.log('[METADATA] New photo:', id, '-> plausibility:', item.plausibility, 'favorable_future:', item.favorable_future);
             
             try {
               await this.photoRepository.addPhoto(metadata); // Add to queue for showcase
@@ -157,7 +163,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   getItems(): Observable<any[]> {
-    return this.http.get<any[]>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${this.workspace()}/items?page_size=10000`).pipe(
+    const httpOptions: { headers?: Record<string, string> } = {};
+    if (this.api_key()) {
+      httpOptions.headers = { 'Authorization': this.api_key()! };
+    }
+    return this.http.get<any[]>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${this.workspace()}/items?page_size=10000`, httpOptions).pipe(
       catchError((error) => {
         console.error('Error loading items:', error);
         return of([]);

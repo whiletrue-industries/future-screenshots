@@ -161,6 +161,11 @@ export class ThreeRendererService {
     const pos = photoData.currentPosition;
     mesh.position.set(pos.x, pos.y, pos.z);
     
+    // Apply rotation based on metadata
+    const rotation = this.calculatePhotoRotation(photoData);
+    mesh.rotation.z = rotation;
+    console.log('[CREATE_MESH] Photo:', photoData.id, 'mesh.rotation.z =', mesh.rotation.z, 'radians (', THREE.MathUtils.radToDeg(mesh.rotation.z).toFixed(1), '°)');
+    
     this.root.add(mesh);
     photoData.setMesh(mesh);
     // Track URL for LOD decisions
@@ -174,6 +179,11 @@ export class ThreeRendererService {
 
     const pos = photoData.currentPosition;
     photoData.mesh.position.set(pos.x, pos.y, pos.z);
+    
+    // Update rotation based on current metadata
+    const rotation = this.calculatePhotoRotation(photoData);
+    photoData.mesh.rotation.z = rotation;
+    console.log('[UPDATE_MESH] Photo:', photoData.id, 'mesh.rotation.z updated to', photoData.mesh.rotation.z, 'radians (', THREE.MathUtils.radToDeg(photoData.mesh.rotation.z).toFixed(1), '°)');
   }
 
   removePhotoMesh(photoData: PhotoData): void {
@@ -468,6 +478,54 @@ export class ThreeRendererService {
     // Pan camera to keep cursor pointing at same world location
     this.targetCamX += (worldBefore.x - worldAfter.x);
     this.targetCamY += (worldBefore.y - worldAfter.y);
+  }
+
+  /**
+   * Calculate rotation angle for a photo based on plausibility and favorable_future metadata
+   * Returns rotation in radians
+   */
+  private calculatePhotoRotation(photoData: PhotoData): number {
+    const metadata = photoData.metadata;
+    const plausibility = metadata['plausibility'];
+    const favorableFuture = metadata['favorable_future'];
+    
+    // If either value is missing, don't rotate
+    if (plausibility === undefined || plausibility === null || !favorableFuture) {
+      console.warn('[ROTATION] Missing data for photo:', photoData.id, '- plausibility:', plausibility, 'favorable_future:', favorableFuture);
+      return 0;
+    }
+    
+    // Normalize plausibility to 0-1 range (0=preposterous, 100=projected)
+    // Expected values: 0, 25, 50, 75, 100
+    const normalizedPlausibility = plausibility / 100;
+    
+    // Maximum rotation at extremes (32 degrees in radians)
+    const maxRotationDeg = 32;
+    const maxRotationRad = THREE.MathUtils.degToRad(maxRotationDeg);
+    
+    // Calculate base rotation based on plausibility
+    // At plausibility=0 (preposterous): full rotation
+    // At plausibility=100 (projected): no rotation
+    const rotationMagnitude = (1 - normalizedPlausibility) * maxRotationRad;
+    
+    // Apply direction based on favorable_future
+    // "favor" -> positive rotation, "prevent" -> negative rotation
+    const favorableFutureLower = favorableFuture.toLowerCase().trim();
+    const isFavor = favorableFutureLower === 'favor' || favorableFutureLower === 'favorable' || 
+                    favorableFutureLower === 'prefer' || favorableFutureLower === 'preferred';
+    const isPrevent = favorableFutureLower === 'prevent' || favorableFutureLower === 'prevented' || 
+                      favorableFutureLower === 'unfavorable';
+    
+    if (!isFavor && !isPrevent) {
+      // Unknown favorable_future value, don't rotate
+      console.warn('[ROTATION] Unknown favorable_future value:', favorableFuture, 'for photo:', photoData.id);
+      return 0;
+    }
+    
+    const finalRotation = isFavor ? rotationMagnitude : -rotationMagnitude;
+    console.log('[ROTATION] Photo:', photoData.id, 'plausibility:', plausibility, 'favorable_future:', favorableFuture, '-> rotation:', THREE.MathUtils.radToDeg(finalRotation).toFixed(1), '°');
+    
+    return finalRotation;
   }
 
   /**
