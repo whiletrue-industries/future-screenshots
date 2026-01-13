@@ -96,6 +96,18 @@ export class ThreeRendererService {
   private hoveredMesh: THREE.Mesh | null = null;
   private currentMatchedHotspot: { [key: string]: string | number } | null = null;
 
+  // Camera Controls (Zoom & Pan)
+  private userControlEnabled = true;
+  private targetCamX = 0;
+  private targetCamY = 0;
+  private minCamZ = 300;
+  private maxCamZ = 50000;
+  private isPanning = false;
+  private panStartMouse = new THREE.Vector2();
+  private panStartCameraPos = new THREE.Vector3();
+  private autoFitEnabled = true; // When true, camera auto-fits to bounds
+  private lastMousePos = new THREE.Vector2();
+
   constructor() {
     const opts: ThreeRendererOptions = {};
     this.PHOTO_W = opts.photoWidth ?? PHOTO_CONSTANTS.PHOTO_WIDTH;
@@ -339,18 +351,25 @@ export class ThreeRendererService {
   // Camera management
   updateCameraTarget(newBounds: SceneBounds): void {
     this.bounds = { ...newBounds };
-    const targetCamZ = this.computeFitZWithMargin(
-      this.bounds,
-      THREE.MathUtils.degToRad(this.camera.fov),
-      this.container!.clientWidth / this.container!.clientHeight,
-      this.CAM_MARGIN
-    );
-    this.targetCamZ = targetCamZ;
+    if (this.autoFitEnabled) {
+      const targetCamZ = this.computeFitZWithMargin(
+        this.bounds,
+        THREE.MathUtils.degToRad(this.camera.fov),
+        this.container!.clientWidth / this.container!.clientHeight,
+        this.CAM_MARGIN
+      );
+      this.targetCamZ = targetCamZ;
+    }
   }
 
   animateCameraTarget(newBounds: SceneBounds, durationSec: number): Promise<void> {
     return new Promise((resolve) => {
       this.bounds = { ...newBounds };
+      if (!this.autoFitEnabled) {
+        resolve();
+        return;
+      }
+      
       const targetCamZ = this.computeFitZWithMargin(
         this.bounds,
         THREE.MathUtils.degToRad(this.camera.fov),
@@ -379,6 +398,118 @@ export class ThreeRendererService {
       
       this.addTween(tweenFn);
     });
+  }
+
+  /**
+   * Enable or disable user camera controls
+   */
+  setUserControlEnabled(enabled: boolean): void {
+    this.userControlEnabled = enabled;
+  }
+
+  /**
+   * Enable or disable auto-fit mode
+   * When enabled, camera automatically fits all content
+   * When disabled, user controls the camera with zoom/pan
+   */
+  setAutoFit(enabled: boolean): void {
+    this.autoFitEnabled = enabled;
+    if (enabled) {
+      // Re-calculate target position to fit bounds
+      this.updateCameraTarget(this.bounds);
+    }
+  }
+
+  /**
+   * Reset camera view to fit all content
+   */
+  resetCameraView(animated = true): void {
+    this.autoFitEnabled = true;
+    this.targetCamX = 0;
+    this.targetCamY = 0;
+    
+    if (animated) {
+      this.animateCameraTarget(this.bounds, 0.5);
+    } else {
+      this.updateCameraTarget(this.bounds);
+    }
+  }
+
+  /**
+   * Zoom camera by a factor at a specific screen point
+   */
+  zoomAtPoint(factor: number, screenX: number, screenY: number): void {
+    if (!this.userControlEnabled || this.autoFitEnabled) return;
+
+    // Convert screen coordinates to normalized device coordinates
+    const rect = this.container!.getBoundingClientRect();
+    const x = ((screenX - rect.left) / rect.width) * 2 - 1;
+    const y = -((screenY - rect.top) / rect.height) * 2 + 1;
+
+    // Get world position at current depth before zoom
+    const beforeZoom = this.screenToWorld(x, y, this.targetCamZ);
+    
+    // Apply zoom
+    const newZ = THREE.MathUtils.clamp(
+      this.targetCamZ * factor,
+      this.minCamZ,
+      this.maxCamZ
+    );
+    this.targetCamZ = newZ;
+    
+    // Get world position after zoom
+    const afterZoom = this.screenToWorld(x, y, this.targetCamZ);
+    
+    // Adjust camera position to keep the zoom point stable
+    this.targetCamX += (beforeZoom.x - afterZoom.x);
+    this.targetCamY += (beforeZoom.y - afterZoom.y);
+  }
+
+  /**
+   * Pan camera by pixel amount
+   */
+  panCamera(deltaX: number, deltaY: number): void {
+    if (!this.userControlEnabled || this.autoFitEnabled) return;
+
+    const rect = this.container!.getBoundingClientRect();
+    // Convert pixel deltas to world space
+    const worldDeltaX = (deltaX / rect.width) * 2 * this.getVisibleWidth();
+    const worldDeltaY = (deltaY / rect.height) * 2 * this.getVisibleHeight();
+    
+    this.targetCamX -= worldDeltaX;
+    this.targetCamY += worldDeltaY;
+  }
+
+  /**
+   * Get visible world width at current zoom level
+   */
+  private getVisibleWidth(): number {
+    const vFOV = THREE.MathUtils.degToRad(this.camera.fov);
+    const height = 2 * Math.tan(vFOV / 2) * this.targetCamZ;
+    const width = height * this.camera.aspect;
+    return width / 2;
+  }
+
+  /**
+   * Get visible world height at current zoom level
+   */
+  private getVisibleHeight(): number {
+    const vFOV = THREE.MathUtils.degToRad(this.camera.fov);
+    const height = 2 * Math.tan(vFOV / 2) * this.targetCamZ;
+    return height / 2;
+  }
+
+  /**
+   * Convert screen coordinates to world coordinates at a given depth
+   */
+  private screenToWorld(x: number, y: number, depth: number): THREE.Vector3 {
+    const vector = new THREE.Vector3(x, y, 0.5);
+    vector.unproject(this.camera);
+    
+    const dir = vector.sub(this.camera.position).normalize();
+    const distance = (depth - this.camera.position.z) / dir.z;
+    
+    return this.camera.position.clone().add(dir.multiplyScalar(distance));
   }
 
   getCameraSpawnZ(): number {
@@ -979,30 +1110,40 @@ export class ThreeRendererService {
 
     const canvas = this.renderer.domElement;
 
-
-    // Mouse down - start dragging
+    // Mouse down - start dragging or panning
     canvas.addEventListener('mousedown', (event) => {
-
       this.updateMousePosition(event);
-      this.onMouseDown();
+      this.onMouseDown(event);
     });
 
-    // Mouse move - drag
+    // Mouse move - drag or pan
     canvas.addEventListener('mousemove', (event) => {
       this.updateMousePosition(event);
-      this.onMouseMove();
+      this.onMouseMove(event);
     });
 
-    // Mouse up - stop dragging
+    // Mouse up - stop dragging or panning
     canvas.addEventListener('mouseup', () => {
       this.onMouseUp();
     });
+
+    // Mouse wheel - zoom
+    canvas.addEventListener('wheel', (event) => {
+      this.onMouseWheel(event);
+    }, { passive: false });
 
     // Touch events for mobile
     canvas.addEventListener('touchstart', (event) => {
       if (event.touches.length === 1) {
         this.updateMousePositionFromTouch(event.touches[0]);
-        this.onMouseDown();
+        const mouseEvent = new MouseEvent('mousedown', {
+          clientX: event.touches[0].clientX,
+          clientY: event.touches[0].clientY
+        });
+        this.onMouseDown(mouseEvent);
+      } else if (event.touches.length === 2) {
+        // Two-finger touch for pinch zoom (to be implemented)
+        event.preventDefault();
       }
     });
 
@@ -1010,12 +1151,21 @@ export class ThreeRendererService {
       if (event.touches.length === 1) {
         event.preventDefault();
         this.updateMousePositionFromTouch(event.touches[0]);
-        this.onMouseMove();
+        const mouseEvent = new MouseEvent('mousemove', {
+          clientX: event.touches[0].clientX,
+          clientY: event.touches[0].clientY
+        });
+        this.onMouseMove(mouseEvent);
       }
     });
 
     canvas.addEventListener('touchend', () => {
       this.onMouseUp();
+    });
+
+    // Keyboard controls
+    window.addEventListener('keydown', (event) => {
+      this.onKeyDown(event);
     });
   }
 
@@ -1041,7 +1191,7 @@ export class ThreeRendererService {
     this.updatePreviewWidgetPosition(touch.clientX - rect.left, touch.clientY - rect.top);
   }
 
-  private onMouseDown(): void {
+  private onMouseDown(event: MouseEvent): void {
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(this.root.children, false);
 
@@ -1079,11 +1229,20 @@ export class ThreeRendererService {
             this.currentLayoutStrategy.onPhotoDragStart(photoData, startPosition);
           }
         }
+        return; // Don't start panning if dragging a photo
       }
+    }
+
+    // Start panning if not dragging a photo and user controls are enabled
+    if (this.userControlEnabled && !this.autoFitEnabled) {
+      this.isPanning = true;
+      this.panStartMouse.set(event.clientX, event.clientY);
+      this.panStartCameraPos.set(this.targetCamX, this.targetCamY, this.targetCamZ);
+      this.renderer.domElement.style.cursor = 'grabbing';
     }
   }
 
-  private onMouseMove(): void {
+  private onMouseMove(event: MouseEvent): void {
     if (this.isDragging && this.draggedMesh) {
       this.raycaster.setFromCamera(this.mouse, this.camera);
       
@@ -1123,6 +1282,12 @@ export class ThreeRendererService {
           }
         }
       }
+    } else if (this.isPanning) {
+      // Handle camera panning
+      const deltaX = event.clientX - this.panStartMouse.x;
+      const deltaY = event.clientY - this.panStartMouse.y;
+      this.panCamera(deltaX, deltaY);
+      this.panStartMouse.set(event.clientX, event.clientY);
     } else {
       // Check for hover effects
       this.raycaster.setFromCamera(this.mouse, this.camera);
@@ -1184,6 +1349,80 @@ export class ThreeRendererService {
       this.hoveredMesh = null; // Clear hovered mesh on drop
       this.currentMatchedHotspot = null; // Clear matched hotspot
       this.renderer.domElement.style.cursor = 'default';
+    } else if (this.isPanning) {
+      // Stop panning
+      this.isPanning = false;
+      this.renderer.domElement.style.cursor = 'default';
+    }
+  }
+
+  private onMouseWheel(event: WheelEvent): void {
+    if (!this.userControlEnabled) return;
+
+    event.preventDefault();
+
+    // Disable auto-fit when user starts zooming
+    if (this.autoFitEnabled) {
+      this.autoFitEnabled = false;
+    }
+
+    // Calculate zoom factor based on wheel delta
+    const delta = event.deltaY;
+    const zoomFactor = delta > 0 ? 1.1 : 0.9;
+
+    // Zoom at the cursor position
+    this.zoomAtPoint(zoomFactor, event.clientX, event.clientY);
+  }
+
+  private onKeyDown(event: KeyboardEvent): void {
+    if (!this.userControlEnabled) return;
+
+    const panSpeed = 50; // pixels per key press
+
+    switch (event.key) {
+      case 'ArrowUp':
+        event.preventDefault();
+        if (this.autoFitEnabled) this.autoFitEnabled = false;
+        this.panCamera(0, panSpeed);
+        break;
+      case 'ArrowDown':
+        event.preventDefault();
+        if (this.autoFitEnabled) this.autoFitEnabled = false;
+        this.panCamera(0, -panSpeed);
+        break;
+      case 'ArrowLeft':
+        event.preventDefault();
+        if (this.autoFitEnabled) this.autoFitEnabled = false;
+        this.panCamera(panSpeed, 0);
+        break;
+      case 'ArrowRight':
+        event.preventDefault();
+        if (this.autoFitEnabled) this.autoFitEnabled = false;
+        this.panCamera(-panSpeed, 0);
+        break;
+      case '+':
+      case '=':
+        event.preventDefault();
+        if (this.autoFitEnabled) this.autoFitEnabled = false;
+        // Zoom in at center of screen
+        const centerX = this.container!.clientWidth / 2;
+        const centerY = this.container!.clientHeight / 2;
+        this.zoomAtPoint(0.9, centerX, centerY);
+        break;
+      case '-':
+      case '_':
+        event.preventDefault();
+        if (this.autoFitEnabled) this.autoFitEnabled = false;
+        // Zoom out at center of screen
+        const centerX2 = this.container!.clientWidth / 2;
+        const centerY2 = this.container!.clientHeight / 2;
+        this.zoomAtPoint(1.1, centerX2, centerY2);
+        break;
+      case 'r':
+      case 'R':
+        event.preventDefault();
+        this.resetCameraView(true);
+        break;
     }
   }
 
@@ -1325,14 +1564,26 @@ export class ThreeRendererService {
       // Update tweens
       this.activeTweens = this.activeTweens.filter((fn) => !fn(dt));
 
-      // Camera damping
+      // Camera damping for X, Y, Z
+      this.camera.position.x = this.damp(
+        this.camera.position.x,
+        this.targetCamX,
+        this.CAM_DAMP,
+        dt
+      );
+      this.camera.position.y = this.damp(
+        this.camera.position.y,
+        this.targetCamY,
+        this.CAM_DAMP,
+        dt
+      );
       this.camera.position.z = this.damp(
         this.camera.position.z, 
         this.targetCamZ, 
         this.CAM_DAMP, 
         dt
       );
-      this.camera.lookAt(0, 0, 0);
+      this.camera.lookAt(this.targetCamX, this.targetCamY, 0);
 
       this.renderer.render(this.scene, this.camera);
       requestAnimationFrame(loop);

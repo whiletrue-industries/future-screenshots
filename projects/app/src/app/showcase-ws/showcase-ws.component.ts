@@ -474,6 +474,13 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     return `translateX(${translateX}px)`;
   }
 
+  /**
+   * Reset camera view to fit all content
+   */
+  resetView(): void {
+    this.rendererService.resetCameraView(true);
+  }
+
 
   ngOnDestroy() {
     this.destroy$.next();
