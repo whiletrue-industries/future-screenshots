@@ -531,6 +531,15 @@ export class CanvasCreatorComponent implements AfterViewInit {
     
     console.log('[Canvas Creator] Starting export...');
     console.log('[Canvas Creator] Canvas dimensions:', fabricCanvas.width, 'x', fabricCanvas.height);
+
+    // Remove untouched placeholders before export
+    const placeholders = this.placeholderTexts.filter(t => (t as any)._placeholder || ((t.text || '').trim() === ((t as any)._placeholderText || 'Type here...')));
+    if (placeholders.length) {
+      console.log('[Canvas Creator] Removing placeholder textboxes:', placeholders.length);
+      placeholders.forEach(tb => fabricCanvas.remove(tb));
+      this.placeholderTexts = this.placeholderTexts.filter(t => !placeholders.includes(t));
+      fabricCanvas.requestRenderAll();
+    }
     
     // Export canvas to JPEG data URL (matching scanner format)
     const dataURL = fabricCanvas.toDataURL({
@@ -657,17 +666,24 @@ export class CanvasCreatorComponent implements AfterViewInit {
       _placeholderText: placeholderText, // Store original placeholder
     });
     this.configureTextbox(text);
-    // Detect text direction on change
+    // Strip placeholder on first input and keep direction aligned
     text.on('changed', () => {
-      const txt = text.text || '';
-      const isRTL = this.detectRTL(txt);
+      const rawText = text.text || '';
+      if ((text as any)._placeholder) {
+        const placeholderStr = (text as any)._placeholderText || 'Type here...';
+        const cleaned = rawText.replace(placeholderStr, '').trimStart();
+        text.set({ text: cleaned, fill: this.currentColor(), _placeholder: false });
+      }
+
+      const effectiveText = text.text || '';
+      const isRTL = this.detectRTL(effectiveText);
       text.set({ direction: isRTL ? 'rtl' : 'ltr' });
       targetCanvas.requestRenderAll();
     });
     // Placeholder behavior
     text.on('editing:entered', () => {
       if ((text as any)._placeholder) {
-        text.set({ text: '', fill: this.currentColor(), _placeholder: false });
+        text.set({ text: '', fill: this.currentColor(), _placeholder: false, selectionStart: 0, selectionEnd: 0 });
       }
     });
     text.on('editing:exited', () => {
