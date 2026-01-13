@@ -172,11 +172,54 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Toggle SVG auto-positioning based on metadata
    */
   toggleSvgAutoPositioning() {
-    this.enableSvgAutoPositioning.set(!this.enableSvgAutoPositioning());
-    this.photoRepository.setSvgAutoPositioningEnabled(this.enableSvgAutoPositioning());
+    const wasEnabled = this.enableSvgAutoPositioning();
+    const willBeEnabled = !wasEnabled;
+    
+    console.log('[TOGGLE] SVG Auto-Positioning button clicked');
+    console.log('[TOGGLE] Current state:', { wasEnabled, willBeEnabled, currentLayout: this.currentLayout() });
+    
+    this.enableSvgAutoPositioning.set(willBeEnabled);
+    this.photoRepository.setSvgAutoPositioningEnabled(willBeEnabled);
+    
     if (this.currentLayout() === 'svg') {
-      // Reposition items based on metadata
+      console.log('[TOGGLE] On SVG layout, refreshing layout...');
       this.photoRepository.refreshLayout();
+      
+      // Give a moment for layout to complete, then try to show visualization
+      setTimeout(() => {
+        if (willBeEnabled) {
+          console.log('[TOGGLE] Auto-positioning now enabled, showing debug visualization');
+          this.showSvgHotspotDebugVisualization();
+        }
+      }, 100);
+    } else {
+      console.log('[TOGGLE] Not on SVG layout, skipping visualization');
+    }
+  }
+
+  /**
+   * Helper to show SVG hotspot debug visualization
+   */
+  private showSvgHotspotDebugVisualization() {
+    try {
+      const strategy = this.photoRepository.getLayoutStrategy();
+      console.log('[HOTSPOT-VIZ] Got strategy:', strategy?.constructor.name);
+      
+      if (!strategy) {
+        console.warn('[HOTSPOT-VIZ] No layout strategy available');
+        return;
+      }
+      
+      const showDebugMethod = (strategy as any).showAllHotspotsDebug;
+      if (typeof showDebugMethod === 'function') {
+        console.log('[HOTSPOT-VIZ] Calling showAllHotspotsDebug()...');
+        showDebugMethod.call(strategy);
+        console.log('[HOTSPOT-VIZ] Successfully called showAllHotspotsDebug()');
+      } else {
+        console.warn('[HOTSPOT-VIZ] showAllHotspotsDebug is not a function:', typeof showDebugMethod);
+      }
+    } catch (error) {
+      console.error('[HOTSPOT-VIZ] Error showing visualization:', error);
     }
   }
 
@@ -454,6 +497,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       
       // Switch the layout using PhotoDataRepository (this will initialize the strategy)
       await this.photoRepository.setLayoutStrategy(svgStrategy);
+      
+      // Pass layout strategy reference to renderer for debug visualization
+      this.rendererService.setLayoutStrategyReference(svgStrategy);
       
       // Set up SVG background in Three.js renderer
       const svgElement = svgStrategy.getSvgElement();

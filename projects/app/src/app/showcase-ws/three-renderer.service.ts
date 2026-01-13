@@ -82,6 +82,7 @@ export class ThreeRendererService {
   private meshToPhotoId = new Map<THREE.Mesh, string>();
   private meshToPhotoData = new Map<THREE.Mesh, any>(); // Store PhotoData for drag callbacks
   private currentLayoutStrategy: any = null; // Store reference to current layout strategy
+  private layoutStrategyRef: any = null; // Store reference for debug visualization
   
   // SVG Container for hotspot detection
   private svgContainer: HTMLElement | null = null;
@@ -765,6 +766,13 @@ export class ThreeRendererService {
    */
   setHotspotDropCallback(callback: (photoId: string, hotspotData: { [key: string]: string | number }, position: { x: number, y: number, z: number }) => Promise<void>): void {
     this.onHotspotDropCallback = callback;
+  }
+
+  /**
+   * Set layout strategy reference for debug visualization
+   */
+  setLayoutStrategyReference(strategy: any): void {
+    this.layoutStrategyRef = strategy;
   }
 
   /**

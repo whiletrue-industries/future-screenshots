@@ -289,6 +289,13 @@ export class PhotoDataRepository {
   }
 
   /**
+   * Get the current layout strategy
+   */
+  getLayoutStrategy(): LayoutStrategy | null {
+    return this.layoutStrategy;
+  }
+
+  /**
    * Get visible photos (opacity > 0)
    */
   getVisiblePhotos(): PhotoData[] {

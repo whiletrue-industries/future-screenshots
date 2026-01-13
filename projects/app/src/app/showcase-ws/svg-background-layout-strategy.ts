@@ -34,6 +34,8 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   private draggedPhoto: PhotoData | null = null;
   private isDragging = false;
   private hotspotPhotoCount = new Map<string, number>(); // Track how many photos are in each hotspot
+  private photoHotspotMap = new Map<string, SvgHotspot>(); // Track which hotspot each photo is matched to
+  private debugOverlay: SVGSVGElement | HTMLDivElement | null = null; // Debug visualization overlay
 
   // Configuration
   private options: Required<SvgLayoutOptions> = {
@@ -93,6 +95,8 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     this.draggedPhoto = null;
     this.isDragging = false;
     this.hotspotPhotoCount.clear();
+    this.photoHotspotMap.clear();
+    this.removeDebugOverlay();
   }
 
   private async loadSvgBackground(): Promise<void> {
@@ -640,6 +644,9 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         // Calculate distributed position within hotspot bounds
         const position = this.distributePhotoInHotspot(hotspot, photoIndex);
         
+        // Store the hotspot association for debug visualization
+        this.photoHotspotMap.set(photoData.id, hotspot);
+        
         return position;
       }
     }
@@ -651,6 +658,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   /**
    * Distribute a photo within a hotspot's bounds at equal spacing
    * Note: This uses a first-come, first-served distribution where each photo gets a sequential position
+   * Positions are validated to ensure they overlap with the actual path geometry, not just the bounding box
    */
   private distributePhotoInHotspot(hotspot: SvgHotspot, photoIndex: number): { auto_x: number; auto_y: number } {
     // Get SVG viewBox to understand coordinate system
@@ -660,37 +668,79 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       return { auto_x: 0, auto_y: 0 };
     }
     
-    // For a single photo per hotspot in a first-pass approach, just center it
-    // This distributes the first photo to center, second to slightly offset, etc.
-    // A more sophisticated approach would require counting total photos matching the metadata first
-    
-    const padding = Math.min(hotspot.bounds.width, hotspot.bounds.height) * 0.15; // 15% padding for safety
+    // Generate candidate positions in a grid pattern
+    const padding = Math.min(hotspot.bounds.width, hotspot.bounds.height) * 0.05; // Smaller padding (5%)
     const usableWidth = hotspot.bounds.width - (2 * padding);
     const usableHeight = hotspot.bounds.height - (2 * padding);
     
-    // Simple grid: assume maximum 3x3 grid (9 photos per hotspot)
-    const maxItemsPerRow = 3;
-    const row = Math.floor(photoIndex / maxItemsPerRow);
-    const col = photoIndex % maxItemsPerRow;
+    // Try to find a position that overlaps with the path
+    // We'll generate positions in a spiral pattern and test each one
+    const candidates: { svgX: number; svgY: number; distance: number }[] = [];
     
-    // Distribute within grid
-    const cellWidth = usableWidth / maxItemsPerRow;
-    const cellHeight = usableHeight / maxItemsPerRow;
+    // Sample points within the bounding box
+    const samplesPerRow = 8; // More samples for better coverage
+    const samplesPerCol = 8;
     
-    const xOffset = (col + 0.5) * cellWidth;
-    const yOffset = (row + 0.5) * cellHeight;
+    for (let row = 0; row < samplesPerCol; row++) {
+      for (let col = 0; col < samplesPerRow; col++) {
+        const xRatio = (col + 0.5) / samplesPerRow;
+        const yRatio = (row + 0.5) / samplesPerCol;
+        
+        const svgX = hotspot.bounds.x + padding + usableWidth * xRatio;
+        const svgY = hotspot.bounds.y + padding + usableHeight * yRatio;
+        
+        // Check if this point is inside the path
+        if (this.isPointInPath(hotspot.element, svgX, svgY)) {
+          // Calculate distance from center (prefer central positions)
+          const centerX = hotspot.bounds.x + hotspot.bounds.width / 2;
+          const centerY = hotspot.bounds.y + hotspot.bounds.height / 2;
+          const distance = Math.sqrt(Math.pow(svgX - centerX, 2) + Math.pow(svgY - centerY, 2));
+          
+          candidates.push({ svgX, svgY, distance });
+        }
+      }
+    }
     
-    const svgX = hotspot.bounds.x + padding + xOffset;
-    const svgY = hotspot.bounds.y + padding + yOffset;
+    if (candidates.length === 0) {
+      console.warn(`[AUTO-POS] No valid positions found in path for ${hotspot.parentGroupId}, using center`);
+      // Fallback to center of bounding box
+      const svgX = hotspot.bounds.x + hotspot.bounds.width / 2;
+      const svgY = hotspot.bounds.y + hotspot.bounds.height / 2;
+      const normalizedX = (svgX - viewBox.width / 2) / (viewBox.width / 2);
+      const normalizedY = (svgY - viewBox.height / 2) / (viewBox.height / 2);
+      return { auto_x: normalizedX, auto_y: normalizedY };
+    }
+    
+    // Sort candidates by distance from center (prefer central positions)
+    candidates.sort((a, b) => a.distance - b.distance);
+    
+    // Pick the position for this photo index (with wrapping)
+    const selectedIndex = photoIndex % candidates.length;
+    const selected = candidates[selectedIndex];
     
     // Transform SVG coordinates to normalized [-1, 1] space
-    // ViewBox is "0 0 800 800", so center is at 400, 400
-    const normalizedX = (svgX - viewBox.width / 2) / (viewBox.width / 2);
-    const normalizedY = (svgY - viewBox.height / 2) / (viewBox.height / 2);
+    const normalizedX = (selected.svgX - viewBox.width / 2) / (viewBox.width / 2);
+    const normalizedY = (selected.svgY - viewBox.height / 2) / (viewBox.height / 2);
     
-    console.log(`[AUTO-POS] Photo index=${photoIndex} in hotspot ${hotspot.parentGroupId}: bounds=(${hotspot.bounds.x.toFixed(1)}, ${hotspot.bounds.y.toFixed(1)}, ${hotspot.bounds.width.toFixed(1)}x${hotspot.bounds.height.toFixed(1)}), grid-pos=(row=${row},col=${col}), svg-coords=(${svgX.toFixed(1)}, ${svgY.toFixed(1)}), normalized=(${normalizedX.toFixed(3)}, ${normalizedY.toFixed(3)}), world=(${(normalizedX * this.options.circleRadius).toFixed(1)}, ${(normalizedY * this.options.circleRadius).toFixed(1)})`);
+    console.log(`[AUTO-POS] Photo index=${photoIndex} in hotspot ${hotspot.parentGroupId}: selected position ${selectedIndex}/${candidates.length}, svg-coords=(${selected.svgX.toFixed(1)}, ${selected.svgY.toFixed(1)}), normalized=(${normalizedX.toFixed(3)}, ${normalizedY.toFixed(3)}), world=(${(normalizedX * this.options.circleRadius).toFixed(1)}, ${(normalizedY * this.options.circleRadius).toFixed(1)})`);
     
     return { auto_x: normalizedX, auto_y: normalizedY };
+  }
+  
+  /**
+   * Check if a point is inside an SVG path
+   */
+  private isPointInPath(pathElement: SVGElement, x: number, y: number): boolean {
+    if (!this.svgElement) return false;
+    
+    // Create an SVGPoint for testing
+    const point = this.svgElement.createSVGPoint();
+    point.x = x;
+    point.y = y;
+    
+    // Use isPointInFill to check if the point is inside the path
+    // Cast to SVGPathElement which has the isPointInFill method
+    return (pathElement as SVGPathElement).isPointInFill(point);
   }
 
   /**
@@ -785,5 +835,107 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     this.photoPositions.set(photoId, hotspotDropPosition);
   }
 
+  /**
+   * Show all hotspot boundaries for debugging (call when auto-positioning is enabled)
+   */
+  showAllHotspotsDebug(): void {
+    console.log('[DEBUG] Showing all hotspots, count:', this.hotspots.length);
+    this.removeDebugOverlay();
+    this.createDebugOverlayForAllHotspots();
+  }
+
+  private createDebugOverlayForAllHotspots(): void {
+    if (this.hotspots.length === 0) {
+      console.warn('[DEBUG] No hotspots to display');
+      return;
+    }
+
+    // Create an HTML container div to hold our debug boxes
+    const container = document.createElement('div');
+    container.style.position = 'fixed';
+    container.style.top = '0';
+    container.style.left = '0';
+    container.style.width = '100%';
+    container.style.height = '100%';
+    container.style.pointerEvents = 'none';
+    container.style.zIndex = '9999';
+    container.id = 'svg-hotspot-debug-overlay';
+
+    // Get the SVG element's position and size on screen
+    if (!this.svgElement) {
+      console.warn('[DEBUG] SVG element not found');
+      return;
+    }
+
+    const svgRect = this.svgElement.getBoundingClientRect();
+    const viewBox = this.getSvgViewBox();
+    
+    if (!viewBox) {
+      console.warn('[DEBUG] Could not get SVG viewBox');
+      return;
+    }
+
+    console.log('[DEBUG] SVG on screen:', { 
+      top: svgRect.top, 
+      left: svgRect.left, 
+      width: svgRect.width, 
+      height: svgRect.height,
+      viewBox: viewBox
+    });
+
+    // Draw each hotspot as an HTML div (easier to position and style)
+    this.hotspots.forEach((hotspot, index) => {
+      // Calculate the position and size in screen coordinates
+      const x = svgRect.left + (hotspot.bounds.x / viewBox.width) * svgRect.width;
+      const y = svgRect.top + (hotspot.bounds.y / viewBox.height) * svgRect.height;
+      const w = (hotspot.bounds.width / viewBox.width) * svgRect.width;
+      const h = (hotspot.bounds.height / viewBox.height) * svgRect.height;
+
+      // Create the rectangle div
+      const rect = document.createElement('div');
+      rect.style.position = 'fixed';
+      rect.style.left = x + 'px';
+      rect.style.top = y + 'px';
+      rect.style.width = w + 'px';
+      rect.style.height = h + 'px';
+      rect.style.border = `2px solid hsl(${(index * 60) % 360}, 100%, 50%)`;
+      rect.style.backgroundColor = `rgba(${index % 2 === 0 ? 255 : 0}, ${index % 3 === 0 ? 255 : 0}, ${index % 4 === 0 ? 255 : 0}, 0.05)`;
+      rect.style.boxSizing = 'border-box';
+      rect.style.pointerEvents = 'none';
+      rect.style.zIndex = '9999';
+
+      // Create the label
+      const label = document.createElement('div');
+      label.style.position = 'absolute';
+      label.style.top = '2px';
+      label.style.left = '2px';
+      label.style.color = '#ffffff';
+      label.style.backgroundColor = `hsl(${(index * 60) % 360}, 100%, 40%)`;
+      label.style.padding = '2px 4px';
+      label.style.fontSize = '10px';
+      label.style.fontWeight = 'bold';
+      label.style.borderRadius = '2px';
+      label.textContent = hotspot.parentGroupId.substring(2); // Remove 's-' prefix
+      label.style.maxWidth = '90%';
+      label.style.overflow = 'hidden';
+      label.style.textOverflow = 'ellipsis';
+      label.style.whiteSpace = 'nowrap';
+
+      rect.appendChild(label);
+      container.appendChild(rect);
+    });
+
+    document.body.appendChild(container);
+    this.debugOverlay = container;
+    
+    console.log(`[DEBUG] Created debug overlay with ${this.hotspots.length} hotspots at z-index 9999`);
+  }
+
+  private removeDebugOverlay(): void {
+    if (this.debugOverlay && this.debugOverlay.parentNode) {
+      this.debugOverlay.parentNode.removeChild(this.debugOverlay);
+      this.debugOverlay = null;
+    }
+  }
 
 }
