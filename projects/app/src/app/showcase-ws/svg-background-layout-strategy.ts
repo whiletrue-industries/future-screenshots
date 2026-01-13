@@ -5,6 +5,7 @@ export interface SvgHotspot {
   id: string;
   bounds: { x: number; y: number; width: number; height: number };
   parentGroupId: string;
+  transitionBarPosition: string; // 'before', 'during', or 'after'
   element: SVGElement;
 }
 
@@ -32,6 +33,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   private photoPositions = new Map<string, LayoutPosition>();
   private draggedPhoto: PhotoData | null = null;
   private isDragging = false;
+  private hotspotPhotoCount = new Map<string, number>(); // Track how many photos are in each hotspot
 
   // Configuration
   private options: Required<SvgLayoutOptions> = {
@@ -90,6 +92,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     this.photoPositions.clear();
     this.draggedPhoto = null;
     this.isDragging = false;
+    this.hotspotPhotoCount.clear();
   }
 
   private async loadSvgBackground(): Promise<void> {
@@ -124,58 +127,82 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
 
     this.hotspots = [];
     
-    // Find all elements with IDs starting with "hit"
-    const hitElements = this.svgElement.querySelectorAll('[id^="hit"]');
+    // Temporarily attach SVG to DOM so getBBox() works correctly
+    // (getBBox returns 0x0 for detached elements)
+    const tempContainer = document.createElement('div');
+    tempContainer.style.position = 'absolute';
+    tempContainer.style.visibility = 'hidden';
+    tempContainer.style.pointerEvents = 'none';
+    tempContainer.appendChild(this.svgElement);
+    document.body.appendChild(tempContainer);
     
-
-    
-    hitElements.forEach((element) => {
-      const hitElement = element as SVGElement;
-      const elementId = hitElement.id;
+    try {
+      // Find all groups with IDs starting with 's-' (metadata groups)
+      const metadataGroups = this.svgElement.querySelectorAll('[id^="s-"]');
       
-      // Find the parent 'g' element
-      let parentGroup = hitElement.parentElement;
-      while (parentGroup && parentGroup.tagName.toLowerCase() !== 'g') {
-        parentGroup = parentGroup.parentElement;
-      }
-      
-      if (parentGroup && parentGroup.id) {
-        // Calculate bounding box for collision detection
-        const bbox = (hitElement as SVGGraphicsElement).getBBox();
+      metadataGroups.forEach((metadataGroup) => {
+        const groupElement = metadataGroup as SVGElement;
+        const groupId = groupElement.id;
+        
+        // Parse metadata from this group ID
+        const groupMetadata = this.parseGroupIdMetadata(groupId);
+        if (!groupMetadata) {
+          return;
+        }
+        
+        // Find the child element with ID starting with 'hit'
+        const hitElement = groupElement.querySelector('[id^="hit"]') as SVGElement;
+        if (!hitElement) {
+          console.warn(`No hit element found in group ${groupId}`);
+          return;
+        }
+        
+        // Find path element that starts with the transition_bar_position (e.g., 'before', 'during', 'after')
+        // The ID might be 'before_2' or just 'before', so we use startsWith
+        const pathElement = Array.from(hitElement.querySelectorAll('path'))
+          .find(p => p.id.startsWith(groupMetadata.transition_bar_position)) as SVGGraphicsElement;
+        
+        if (!pathElement) {
+          console.warn(`No path element found starting with '${groupMetadata.transition_bar_position}' in hit element of group ${groupId}`);
+          return;
+        }
+        
+        // Calculate bounding box for the specific path element
+        const bbox = pathElement.getBBox();
         
         const hotspot: SvgHotspot = {
-          id: elementId,
+          id: hitElement.id,
           bounds: {
             x: bbox.x,
             y: bbox.y,
             width: bbox.width,
             height: bbox.height
           },
-          parentGroupId: parentGroup.id,
-          element: hitElement
+          parentGroupId: groupId,
+          transitionBarPosition: groupMetadata.transition_bar_position,
+          element: pathElement
         };
         
+        console.log(`[SVG-HOTSPOT] ${groupId} -> bounds: (${bbox.x.toFixed(1)}, ${bbox.y.toFixed(1)}, ${bbox.width.toFixed(1)}x${bbox.height.toFixed(1)})`);
+        
         this.hotspots.push(hotspot);
-
-      } else {
-        console.warn(`Hotspot element ${elementId} has no parent group with ID`);
-      }
-    });
+      });
+    } finally {
+      // Remove temporary container
+      document.body.removeChild(tempContainer);
+    }
   }
 
-  async getPositionForPhoto(photoData: PhotoData, existingPhotos: PhotoData[]): Promise<LayoutPosition | null> {
+  async getPositionForPhoto(photoData: PhotoData, existingPhotos: PhotoData[], enableAutoPositioning: boolean = false): Promise<LayoutPosition | null> {
     this.validateInitialized();
-    
-
     
     // Check if this photo already has a stored position in current strategy
     const existingPosition = this.photoPositions.get(photoData.id);
     if (existingPosition) {
-
       return existingPosition;
     }
     
-    // Priority 1: Check for saved normalized coordinates (layout_x, layout_y)
+    // Priority 1: Check for saved manual layout coordinates (layout_x, layout_y) - user overrides auto positioning
     const layout_x = photoData.metadata['layout_x'];
     const layout_y = photoData.metadata['layout_y'];
     
@@ -202,7 +229,31 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       return restoredPosition;
     }
     
-    // Priority 2: Check if photo has a saved SVG layout position from previous session
+    // Priority 2: If auto-positioning is enabled, try to get position from metadata-hotspot matching
+    if (enableAutoPositioning) {
+      const autoPosition = this.getAutoPositionFromMetadata(photoData);
+      if (autoPosition) {
+        const x = autoPosition.auto_x * this.options.circleRadius;
+        const y = autoPosition.auto_y * this.options.circleRadius;
+        
+        const autoPositionData: LayoutPosition = {
+          x,
+          y,
+          metadata: {
+            layoutType: 'auto-positioned',
+            auto_x: autoPosition.auto_x,
+            auto_y: autoPosition.auto_y,
+            circleRadius: this.options.circleRadius
+          }
+        };
+        
+        this.photoPositions.set(photoData.id, autoPositionData);
+        photoData.setProperty('svgLayoutPosition', autoPositionData);
+        return autoPositionData;
+      }
+    }
+    
+    // Priority 3: Check if photo has a saved SVG layout position from previous session
     const savedSvgPosition = photoData.getProperty<LayoutPosition>('svgLayoutPosition');
 
     if (savedSvgPosition && savedSvgPosition.metadata?.['layoutType'] === 'proportional-circular') {
@@ -212,7 +263,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       return savedSvgPosition;
     }
     
-    // Generate position based on layout mode
+    // Fallback: Generate position based on layout mode
     const position = this.options.useProportionalLayout
       ? this.generateProportionalCircularPosition(photoData, existingPhotos)
       : this.generateRandomCircularPosition();
@@ -228,8 +279,11 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     return position;
   }
 
-  async calculateAllPositions(photos: PhotoData[]): Promise<(LayoutPosition | null)[]> {
+  async calculateAllPositions(photos: PhotoData[], enableAutoPositioning: boolean = false): Promise<(LayoutPosition | null)[]> {
     this.validateInitialized();
+    
+    // Reset hotspot photo count for fresh distribution
+    this.hotspotPhotoCount.clear();
     
     // Clear existing positions EXCEPT for dragged/free positions that should be preserved
     const preservedPositions = new Map<string, LayoutPosition>();
@@ -249,7 +303,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     const positions: (LayoutPosition | null)[] = [];
     
     for (const photo of photos) {
-      const position = await this.getPositionForPhoto(photo, photos);
+      const position = await this.getPositionForPhoto(photo, photos, enableAutoPositioning);
       positions.push(position);
     }
     
@@ -538,6 +592,169 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
 
   setPhotoPosition(photoId: string, position: LayoutPosition): void {
     this.photoPositions.set(photoId, position);
+  }
+
+  /**
+   * Calculate auto position for a photo based on its metadata matching SVG hotspot regions
+   * Returns null if no matching hotspot or if metadata is incomplete
+   */
+  getAutoPositionFromMetadata(photoData: PhotoData): { auto_x: number; auto_y: number } | null {
+    const metadata = photoData.metadata;
+    const plausibility = metadata['plausibility'];
+    const favorableFuture = metadata['favorable_future'];
+    const transitionBarPosition = metadata['transition_bar_position'];
+    
+    // Return null if metadata is missing
+    if (plausibility === undefined || !favorableFuture || !transitionBarPosition) {
+      console.log(`[AUTO-POS] Photo ${photoData.id}: missing metadata - plausibility=${plausibility}, favorable_future=${favorableFuture}, transition_bar_position=${transitionBarPosition}`);
+      return null;
+    }
+    
+    console.log(`[AUTO-POS] Matching photo ${photoData.id}: plausibility=${plausibility}, favorable_future=${favorableFuture}, transition_bar_position=${transitionBarPosition}`);
+    
+    // Find matching hotspot by comparing metadata from parent group ID
+    for (const hotspot of this.hotspots) {
+      // Parse metadata from parent group ID (format: s-favorable_future=X,plausibility=Y,...)
+      const parentGroupId = hotspot.parentGroupId;
+      if (!parentGroupId.startsWith('s-')) {
+        continue;
+      }
+      
+      // Extract metadata from group ID
+      const groupMetadata = this.parseGroupIdMetadata(parentGroupId);
+      if (!groupMetadata) {
+        continue;
+      }
+      
+      // Check if this hotspot matches the photo's metadata (all three fields must match)
+      if (groupMetadata.plausibility === plausibility && 
+          groupMetadata.favorable_future === favorableFuture &&
+          groupMetadata.transition_bar_position === transitionBarPosition) {
+        
+        console.log(`[AUTO-POS] MATCH FOUND for photo ${photoData.id} in hotspot ${parentGroupId}`);
+        
+        // Get how many photos are already in this hotspot
+        const photoIndex = this.hotspotPhotoCount.get(parentGroupId) || 0;
+        this.hotspotPhotoCount.set(parentGroupId, photoIndex + 1);
+        
+        // Calculate distributed position within hotspot bounds
+        const position = this.distributePhotoInHotspot(hotspot, photoIndex);
+        
+        return position;
+      }
+    }
+    
+    console.log(`[AUTO-POS] NO MATCH for photo ${photoData.id} - no hotspot found with plausibility=${plausibility}, favorable_future=${favorableFuture}, transition_bar_position=${transitionBarPosition}`);
+    return null;
+  }
+
+  /**
+   * Distribute a photo within a hotspot's bounds at equal spacing
+   * Note: This uses a first-come, first-served distribution where each photo gets a sequential position
+   */
+  private distributePhotoInHotspot(hotspot: SvgHotspot, photoIndex: number): { auto_x: number; auto_y: number } {
+    // Get SVG viewBox to understand coordinate system
+    const viewBox = this.getSvgViewBox();
+    if (!viewBox) {
+      console.warn('No SVG viewBox found, using default distribution');
+      return { auto_x: 0, auto_y: 0 };
+    }
+    
+    // For a single photo per hotspot in a first-pass approach, just center it
+    // This distributes the first photo to center, second to slightly offset, etc.
+    // A more sophisticated approach would require counting total photos matching the metadata first
+    
+    const padding = Math.min(hotspot.bounds.width, hotspot.bounds.height) * 0.15; // 15% padding for safety
+    const usableWidth = hotspot.bounds.width - (2 * padding);
+    const usableHeight = hotspot.bounds.height - (2 * padding);
+    
+    // Simple grid: assume maximum 3x3 grid (9 photos per hotspot)
+    const maxItemsPerRow = 3;
+    const row = Math.floor(photoIndex / maxItemsPerRow);
+    const col = photoIndex % maxItemsPerRow;
+    
+    // Distribute within grid
+    const cellWidth = usableWidth / maxItemsPerRow;
+    const cellHeight = usableHeight / maxItemsPerRow;
+    
+    const xOffset = (col + 0.5) * cellWidth;
+    const yOffset = (row + 0.5) * cellHeight;
+    
+    const svgX = hotspot.bounds.x + padding + xOffset;
+    const svgY = hotspot.bounds.y + padding + yOffset;
+    
+    // Transform SVG coordinates to normalized [-1, 1] space
+    // ViewBox is "0 0 800 800", so center is at 400, 400
+    const normalizedX = (svgX - viewBox.width / 2) / (viewBox.width / 2);
+    const normalizedY = (svgY - viewBox.height / 2) / (viewBox.height / 2);
+    
+    console.log(`[AUTO-POS] Photo index=${photoIndex} in hotspot ${hotspot.parentGroupId}: bounds=(${hotspot.bounds.x.toFixed(1)}, ${hotspot.bounds.y.toFixed(1)}, ${hotspot.bounds.width.toFixed(1)}x${hotspot.bounds.height.toFixed(1)}), grid-pos=(row=${row},col=${col}), svg-coords=(${svgX.toFixed(1)}, ${svgY.toFixed(1)}), normalized=(${normalizedX.toFixed(3)}, ${normalizedY.toFixed(3)}), world=(${(normalizedX * this.options.circleRadius).toFixed(1)}, ${(normalizedY * this.options.circleRadius).toFixed(1)})`);
+    
+    return { auto_x: normalizedX, auto_y: normalizedY };
+  }
+
+  /**
+   * Parse metadata from SVG group ID
+   * Format: s-favorable_future=preferred,plausibility=0,transition_bar_position=after
+   */
+  private parseGroupIdMetadata(groupId: string): { plausibility: number; favorable_future: string; transition_bar_position: string } | null {
+    try {
+      // Remove the 's-' prefix and split by comma
+      const metadataString = groupId.substring(2); // Remove 's-'
+      const pairs = metadataString.split(',');
+      
+      let plausibility: number | undefined;
+      let favorable_future: string | undefined;
+      let transition_bar_position: string | undefined;
+      
+      for (const pair of pairs) {
+        const [key, value] = pair.split('=');
+        if (key === 'plausibility') {
+          plausibility = parseInt(value, 10);
+        } else if (key === 'favorable_future') {
+          favorable_future = value;
+        } else if (key === 'transition_bar_position') {
+          transition_bar_position = value;
+        }
+      }
+      
+      if (plausibility !== undefined && favorable_future !== undefined && transition_bar_position !== undefined) {
+        return { plausibility, favorable_future, transition_bar_position };
+      }
+    } catch (error) {
+      console.warn(`Failed to parse group ID metadata: ${groupId}`, error);
+    }
+    
+    return null;
+  }
+
+  /**
+   * Get SVG viewBox dimensions
+   */
+  private getSvgViewBox(): { x: number; y: number; width: number; height: number } | null {
+    if (!this.svgElement) {
+      return null;
+    }
+    
+    const viewBoxAttr = this.svgElement.getAttribute('viewBox');
+    if (!viewBoxAttr) {
+      // Fallback to width/height attributes
+      const width = parseFloat(this.svgElement.getAttribute('width') || '800');
+      const height = parseFloat(this.svgElement.getAttribute('height') || '800');
+      return { x: 0, y: 0, width, height };
+    }
+    
+    const parts = viewBoxAttr.split(/\s+/);
+    if (parts.length === 4) {
+      return {
+        x: parseFloat(parts[0]),
+        y: parseFloat(parts[1]),
+        width: parseFloat(parts[2]),
+        height: parseFloat(parts[3])
+      };
+    }
+    
+    return null;
   }
 
   /**

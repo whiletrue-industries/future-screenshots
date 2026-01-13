@@ -37,6 +37,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   lang = signal('');
   currentLayout = signal<'grid' | 'tsne' | 'svg' | 'circle-packing'>('circle-packing');
   enableRandomShowcase = signal(false);
+  enableSvgAutoPositioning = signal(false);
   loadedPhotoIds = new Set<string>();
   private layoutChangeInProgress = false;
   qrUrl = computed(() => 
@@ -65,6 +66,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         const photoPromises = items.map(async (item) => {
           const id = item._id;
           const url = item.screenshot_url;
+          // Generate transition_bar_position if not provided by API
+          const transitionBarPosition = item.transition_bar_position || this.getDefaultTransitionBarPosition(item);
           const metadata: PhotoMetadata = {
             id,
             url,
@@ -74,9 +77,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             layout_x: item.layout_x,
             layout_y: item.layout_y,
             plausibility: item.plausibility,
-            favorable_future: item.favorable_future
+            favorable_future: item.favorable_future,
+            transition_bar_position: transitionBarPosition
           };
-          console.log('[METADATA] Initial load:', id, '-> plausibility:', item.plausibility, 'favorable_future:', item.favorable_future);
+          console.log('[METADATA] Initial load:', id, '-> plausibility:', item.plausibility, 'favorable_future:', item.favorable_future, 'transition_bar_position:', transitionBarPosition);
           
           try {
             await this.photoRepository.addPhoto(metadata); // Add initial photos
@@ -107,6 +111,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           const photoPromises = newItems.map(async (item) => {
             const id = item._id;
             const url = item.screenshot_url;
+            // Generate transition_bar_position if not provided by API
+            const transitionBarPosition = item.transition_bar_position || this.getDefaultTransitionBarPosition(item);
             const metadata: PhotoMetadata = {
               id,
               url,
@@ -114,9 +120,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
               screenshot_url: url,
               author_id: item.author_id,
               plausibility: item.plausibility,
-              favorable_future: item.favorable_future
+              favorable_future: item.favorable_future,
+              transition_bar_position: transitionBarPosition
             };
-            console.log('[METADATA] New photo:', id, '-> plausibility:', item.plausibility, 'favorable_future:', item.favorable_future);
+            console.log('[METADATA] New photo:', id, '-> plausibility:', item.plausibility, 'favorable_future:', item.favorable_future, 'transition_bar_position:', transitionBarPosition);
             
             try {
               await this.photoRepository.addPhoto(metadata); // Add to queue for showcase
@@ -159,7 +166,43 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   toggleRandomShowcase() {
     this.enableRandomShowcase.set(!this.enableRandomShowcase());
     this.photoRepository.setRandomShowcaseEnabled(this.enableRandomShowcase());
+  }
 
+  /**
+   * Toggle SVG auto-positioning based on metadata
+   */
+  toggleSvgAutoPositioning() {
+    this.enableSvgAutoPositioning.set(!this.enableSvgAutoPositioning());
+    this.photoRepository.setSvgAutoPositioningEnabled(this.enableSvgAutoPositioning());
+    if (this.currentLayout() === 'svg') {
+      // Reposition items based on metadata
+      this.photoRepository.refreshLayout();
+    }
+  }
+
+  /**
+   * Generate a default transition_bar_position if the API doesn't provide one
+   * Distributes photos evenly across 'before', 'during', and 'after' based on photo ID hash
+   */
+  private getDefaultTransitionBarPosition(item: any): 'before' | 'during' | 'after' {
+    // If API provides it, return it (this handles the fallback case)
+    if (item.transition_bar_position) {
+      return item.transition_bar_position;
+    }
+    
+    // Use photo ID to generate a stable hash
+    const positions = ['before', 'during', 'after'] as const;
+    let hash = 0;
+    const id = item._id || '';
+    for (let i = 0; i < id.length; i++) {
+      const char = id.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    
+    // Distribute evenly across the three positions
+    const index = Math.abs(hash) % 3;
+    return positions[index];
   }
 
   getItems(): Observable<any[]> {
