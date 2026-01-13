@@ -161,6 +161,9 @@ export class ThreeRendererService {
     const pos = photoData.currentPosition;
     mesh.position.set(pos.x, pos.y, pos.z);
     
+    // Set renderOrder to ensure photos are always rendered on top of background
+    mesh.renderOrder = 0;
+    
     // Apply rotation based on metadata
     const rotation = this.calculatePhotoRotation(photoData);
     mesh.rotation.z = rotation;
@@ -1975,8 +1978,12 @@ export class ThreeRendererService {
       
       this.svgBackgroundPlane = new THREE.Mesh(geometry, material);
       
-      // Position the plane just behind the photos at z = -0.01
-      this.svgBackgroundPlane.position.set(0, 0, -0.01);
+      // Position the plane far behind the photos at z = -1
+      // This ensures it's always behind photos which are at z = 0
+      this.svgBackgroundPlane.position.set(0, 0, -1);
+      
+      // Set renderOrder to ensure background is rendered first (lower values render first)
+      this.svgBackgroundPlane.renderOrder = -1000;
       
       // Apply any offset transformations
       if (svgOptions.offsetX) this.svgBackgroundPlane.position.x += svgOptions.offsetX;
