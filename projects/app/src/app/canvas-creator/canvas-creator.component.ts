@@ -513,32 +513,28 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const fabricCanvas = this.canvas();
     if (!fabricCanvas) return;
     
-    // Export at full resolution (1060x2000px)
-    const exportWidth = 1060;
-    const exportHeight = 2000;
+    console.log('[Canvas Creator] Starting export...');
+    console.log('[Canvas Creator] Canvas dimensions:', fabricCanvas.width, 'x', fabricCanvas.height);
     
-    // Calculate multiplier based on current canvas size
-    const multiplier = exportWidth / fabricCanvas.width;
-    
-    console.log('Canvas width:', fabricCanvas.width, 'Multiplier:', multiplier, 'Export size:', exportWidth, 'x', exportHeight);
-    
-    // Export canvas to blob at full resolution
+    // Export canvas to JPEG data URL (matching scanner format)
     const dataURL = fabricCanvas.toDataURL({
-      format: 'png',
-      quality: 1.0,
-      multiplier: multiplier,
+      format: 'jpeg',  // Use JPEG like scanner
+      quality: 0.95,   // Match scanner quality
+      multiplier: 1,   // Keep current size (1060x2000)
     });
     
-    // Verify the exported image size
-    const img = new Image();
-    img.onload = () => {
-      console.log('Exported image dimensions:', img.width, 'x', img.height);
-    };
-    img.src = dataURL;
+    console.log('[Canvas Creator] Data URL length:', dataURL.length);
     
-    const blob = await fetch(dataURL).then(r => r.blob());
-    console.log('Blob size:', blob.size, 'bytes');
-    this.state.setImage(blob);
+    // Convert data URL to blob with explicit MIME type
+    const response = await fetch(dataURL);
+    const blob = await response.blob();
+    
+    // Create JPEG blob with explicit MIME type (matching scanner)
+    const jpegBlob = new Blob([blob], { type: 'image/jpeg' });
+    
+    console.log('[Canvas Creator] Final blob - Type:', jpegBlob.type, 'Size:', jpegBlob.size, 'bytes');
+    
+    this.state.setImage(jpegBlob);
     this.router.navigate(['/confirm'], { queryParamsHandling: 'merge' });
   }
   
