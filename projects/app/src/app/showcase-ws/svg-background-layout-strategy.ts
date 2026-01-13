@@ -36,6 +36,10 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   private hotspotPhotoCount = new Map<string, number>(); // Track how many photos are in each hotspot
   private photoHotspotMap = new Map<string, SvgHotspot>(); // Track which hotspot each photo is matched to
   private debugOverlay: SVGSVGElement | HTMLDivElement | null = null; // Debug visualization overlay
+  private photoSizes = new Map<string, { width: number; height: number }>(); // Track photo dimensions
+  private readonly MAX_OVERLAP_PERCENT = 10; // Maximum 10% overlap allowed
+  private readonly PHOTO_WIDTH = 120; // Default photo width in pixels
+  private readonly PHOTO_HEIGHT = 120; // Default photo height in pixels
 
   // Configuration
   private options: Required<SvgLayoutOptions> = {
@@ -96,6 +100,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     this.isDragging = false;
     this.hotspotPhotoCount.clear();
     this.photoHotspotMap.clear();
+    this.photoSizes.clear();
     this.removeDebugOverlay();
   }
 
@@ -174,6 +179,18 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         // Calculate bounding box for the specific path element
         const bbox = pathElement.getBBox();
         
+        // CRITICAL: Log bbox at creation time to catch zero-size issues early
+        if (bbox.width === 0 || bbox.height === 0) {
+          console.error(`[SVG-HOTSPOT] ZERO-SIZE bbox at initialization for ${groupId}:`, {
+            elementId: pathElement.id,
+            elementTag: pathElement.tagName,
+            bbox: { x: bbox.x, y: bbox.y, width: bbox.width, height: bbox.height },
+            inDOM: document.contains(pathElement),
+            parentId: pathElement.parentElement?.id,
+            svg: this.svgElement ? 'exists' : 'null'
+          });
+        }
+        
         const hotspot: SvgHotspot = {
           id: hitElement.id,
           bounds: {
@@ -199,6 +216,11 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
 
   async getPositionForPhoto(photoData: PhotoData, existingPhotos: PhotoData[], enableAutoPositioning: boolean = false): Promise<LayoutPosition | null> {
     this.validateInitialized();
+    
+    // Track photo dimensions if available
+    const photoWidth = photoData.metadata['width'] as number | undefined || this.PHOTO_WIDTH;
+    const photoHeight = photoData.metadata['height'] as number | undefined || this.PHOTO_HEIGHT;
+    this.photoSizes.set(photoData.id, { width: photoWidth, height: photoHeight });
     
     // Check if this photo already has a stored position in current strategy
     const existingPosition = this.photoPositions.get(photoData.id);
@@ -637,15 +659,17 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         
         console.log(`[AUTO-POS] MATCH FOUND for photo ${photoData.id} in hotspot ${parentGroupId}`);
         
+        // Store the hotspot association BEFORE calculating position
+        // This ensures overlap detection can see all previously placed photos in this hotspot
+        this.photoHotspotMap.set(photoData.id, hotspot);
+        
         // Get how many photos are already in this hotspot
         const photoIndex = this.hotspotPhotoCount.get(parentGroupId) || 0;
         this.hotspotPhotoCount.set(parentGroupId, photoIndex + 1);
         
         // Calculate distributed position within hotspot bounds
+        // (now with access to complete photoHotspotMap)
         const position = this.distributePhotoInHotspot(hotspot, photoIndex);
-        
-        // Store the hotspot association for debug visualization
-        this.photoHotspotMap.set(photoData.id, hotspot);
         
         return position;
       }
@@ -673,6 +697,8 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     const usableWidth = hotspot.bounds.width - (2 * padding);
     const usableHeight = hotspot.bounds.height - (2 * padding);
     
+    console.log(`[DIST-DEBUG] Hotspot ${hotspot.parentGroupId}: bounds=(${hotspot.bounds.x.toFixed(1)},${hotspot.bounds.y.toFixed(1)}) size=(${hotspot.bounds.width.toFixed(1)}x${hotspot.bounds.height.toFixed(1)}), padding=${padding.toFixed(1)}, usable=(${usableWidth.toFixed(1)}x${usableHeight.toFixed(1)})`);
+    
     // Try to find a position that overlaps with the path
     // We'll generate positions in a spiral pattern and test each one
     const candidates: { svgX: number; svgY: number; distance: number }[] = [];
@@ -689,8 +715,13 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         const svgX = hotspot.bounds.x + padding + usableWidth * xRatio;
         const svgY = hotspot.bounds.y + padding + usableHeight * yRatio;
         
-        // Check if this point is inside the path
-        if (this.isPointInPath(hotspot.element, svgX, svgY)) {
+        // Check if this point is inside the path (use pre-calculated bounds to avoid DOM issues)
+        const isInPath = this.isPointInPathWithBounds(hotspot.bounds, svgX, svgY);
+        if (row === 0 && col === 0) {
+          console.log(`[DIST-DEBUG] Testing sample (0,0): svg=(${svgX.toFixed(1)},${svgY.toFixed(1)}), isInPath=${isInPath}`);
+        }
+        
+        if (isInPath) {
           // Calculate distance from center (prefer central positions)
           const centerX = hotspot.bounds.x + hotspot.bounds.width / 2;
           const centerY = hotspot.bounds.y + hotspot.bounds.height / 2;
@@ -701,6 +732,8 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       }
     }
     
+    console.log(`[DIST-DEBUG] Generated ${candidates.length} valid candidates out of ${samplesPerRow * samplesPerCol} samples for hotspot ${hotspot.parentGroupId}`);
+    
     if (candidates.length === 0) {
       console.warn(`[AUTO-POS] No valid positions found in path for ${hotspot.parentGroupId}, using center`);
       // Fallback to center of bounding box
@@ -708,39 +741,249 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       const svgY = hotspot.bounds.y + hotspot.bounds.height / 2;
       const normalizedX = (svgX - viewBox.width / 2) / (viewBox.width / 2);
       const normalizedY = (svgY - viewBox.height / 2) / (viewBox.height / 2);
+      console.log(`[DIST-DEBUG] Fallback to center: normalized=(${normalizedX.toFixed(3)}, ${normalizedY.toFixed(3)})`);
       return { auto_x: normalizedX, auto_y: normalizedY };
     }
     
     // Sort candidates by distance from center (prefer central positions)
     candidates.sort((a, b) => a.distance - b.distance);
+    console.log(`[DIST-DEBUG] Sorted candidates. First 3 candidates for ${hotspot.parentGroupId}:`);
+    for (let i = 0; i < Math.min(3, candidates.length); i++) {
+      console.log(`  [${i}] svg=(${candidates[i].svgX.toFixed(1)},${candidates[i].svgY.toFixed(1)}) dist=${candidates[i].distance.toFixed(1)}`);
+    }
     
-    // Pick the position for this photo index (with wrapping)
-    const selectedIndex = photoIndex % candidates.length;
-    const selected = candidates[selectedIndex];
+    // Find best position that minimizes overlap
+    let selectedCandidate = candidates[photoIndex % candidates.length];
+    let minOverlap = 100;
+    console.log(`[DIST-DEBUG] Starting evaluation loop for photo index ${photoIndex} (will check up to ${Math.min(candidates.length, 10)} candidates)`);
+    
+    // Only evaluate first 10 candidates to avoid performance issues
+    const evalCandidates = candidates.slice(0, Math.min(candidates.length, 10));
+    
+    for (let i = 0; i < evalCandidates.length; i++) {
+      const candidate = evalCandidates[i];
+      const normalizedX = (candidate.svgX - viewBox.width / 2) / (viewBox.width / 2);
+      const normalizedY = (candidate.svgY - viewBox.height / 2) / (viewBox.height / 2);
+      
+      const overlapPercent = this.calculateOverlapWithExistingPhotos(
+        normalizedX,
+        normalizedY,
+        hotspot
+      );
+      
+      if (i < 3) {
+        console.log(`[DIST-DEBUG] Candidate ${i}: normalized=(${normalizedX.toFixed(3)},${normalizedY.toFixed(3)}), overlap=${overlapPercent.toFixed(1)}%`);
+      }
+      
+      if (overlapPercent < minOverlap) {
+        minOverlap = overlapPercent;
+        selectedCandidate = candidate;
+        console.log(`[DIST-DEBUG] New best candidate ${i}: overlap=${overlapPercent.toFixed(1)}%`);
+        
+        // If we find a position with acceptable overlap, use it
+        if (overlapPercent <= this.MAX_OVERLAP_PERCENT) {
+          console.log(`[DIST-DEBUG] Found acceptable position at candidate ${i} with ${overlapPercent.toFixed(1)}% overlap`);
+          break;
+        }
+      }
+    }
     
     // Transform SVG coordinates to normalized [-1, 1] space
-    const normalizedX = (selected.svgX - viewBox.width / 2) / (viewBox.width / 2);
-    const normalizedY = (selected.svgY - viewBox.height / 2) / (viewBox.height / 2);
+    const normalizedX = (selectedCandidate.svgX - viewBox.width / 2) / (viewBox.width / 2);
+    const normalizedY = (selectedCandidate.svgY - viewBox.height / 2) / (viewBox.height / 2);
     
-    console.log(`[AUTO-POS] Photo index=${photoIndex} in hotspot ${hotspot.parentGroupId}: selected position ${selectedIndex}/${candidates.length}, svg-coords=(${selected.svgX.toFixed(1)}, ${selected.svgY.toFixed(1)}), normalized=(${normalizedX.toFixed(3)}, ${normalizedY.toFixed(3)}), world=(${(normalizedX * this.options.circleRadius).toFixed(1)}, ${(normalizedY * this.options.circleRadius).toFixed(1)})`);
+    console.log(`[AUTO-POS] Photo index=${photoIndex} in hotspot ${hotspot.parentGroupId}: FINAL position svg=(${selectedCandidate.svgX.toFixed(1)},${selectedCandidate.svgY.toFixed(1)}), normalized=(${normalizedX.toFixed(3)},${normalizedY.toFixed(3)}), minOverlap=${minOverlap.toFixed(1)}%`);
     
     return { auto_x: normalizedX, auto_y: normalizedY };
   }
   
   /**
-   * Check if a point is inside an SVG path
+   * Check if a point is inside an SVG path's bounding box
+   * Uses bounding box for efficiency since we're distributing multiple photos
+   * and the padding already handles boundary issues
    */
   private isPointInPath(pathElement: SVGElement, x: number, y: number): boolean {
-    if (!this.svgElement) return false;
+    if (!pathElement) {
+      console.log('[PATH-CHECK] No path element provided');
+      return false;
+    }
     
-    // Create an SVGPoint for testing
-    const point = this.svgElement.createSVGPoint();
-    point.x = x;
-    point.y = y;
+    try {
+      // CRITICAL: Check if element is still in DOM
+      const isConnected = document.contains(pathElement);
+      
+      // Get the bounding box of the path element
+      const bbox = (pathElement as SVGGraphicsElement).getBBox();
+      
+      // CRITICAL: Validate bbox is not zero (indicates element issues)
+      if (bbox.width === 0 || bbox.height === 0) {
+        console.warn(`[PATH-CHECK] ZERO-SIZE bbox detected:`, {
+          elementId: pathElement.id,
+          elementTag: pathElement.tagName,
+          bbox: { x: bbox.x, y: bbox.y, width: bbox.width, height: bbox.height },
+          inDOM: isConnected,
+          parentId: pathElement.parentElement?.id
+        });
+        return false;
+      }
+      
+      // Simple bounding box check: is the point within the bounds?
+      const isInside = x >= bbox.x && x <= (bbox.x + bbox.width) &&
+                       y >= bbox.y && y <= (bbox.y + bbox.height);
+      
+      if (!isInside && x < 450 && y < 300) {
+        // Log first few failures to debug
+        console.log(`[PATH-CHECK] Point (${x.toFixed(1)},${y.toFixed(1)}) OUTSIDE bbox (${bbox.x.toFixed(1)},${bbox.y.toFixed(1)},${bbox.width.toFixed(1)}x${bbox.height.toFixed(1)})`);
+      }
+      
+      return isInside;
+    } catch (e) {
+      console.error('[PATH-CHECK] Error checking point in path:', e);
+      // If anything fails, return false to be safe
+      return false;
+    }
+  }
+
+  /**
+   * Check if a point is inside a hotspot using pre-calculated bounds.
+   * This avoids DOM access issues since elements may be detached after initialization.
+   */
+  private isPointInPathWithBounds(bounds: { x: number; y: number; width: number; height: number }, x: number, y: number): boolean {
+    try {
+      // Validate bounds
+      if (!bounds || bounds.width === 0 || bounds.height === 0) {
+        console.warn(`[PATH-CHECK] Invalid bounds:`, bounds);
+        return false;
+      }
+      
+      // Simple bounding box check: is the point within the bounds?
+      const isInside = x >= bounds.x && x <= (bounds.x + bounds.width) &&
+                       y >= bounds.y && y <= (bounds.y + bounds.height);
+      
+      return isInside;
+    } catch (e) {
+      console.error('[PATH-CHECK] Error checking point with bounds:', e);
+      return false;
+    }
+  }
+
+  /**
+   * Calculate overlap percentage between a candidate position and existing photos in the hotspot
+   * Returns percentage of overlap (0-100%)
+   */
+  private calculateOverlapWithExistingPhotos(
+    normalizedX: number,
+    normalizedY: number,
+    hotspot: SvgHotspot
+  ): number {
+    const existingPhotosInHotspot: Array<{ x: number; y: number; width: number; height: number }> = [];
     
-    // Use isPointInFill to check if the point is inside the path
-    // Cast to SVGPathElement which has the isPointInFill method
-    return (pathElement as SVGPathElement).isPointInFill(point);
+    // Collect all photos already in this hotspot
+    for (const [photoId, position] of this.photoPositions.entries()) {
+      if (this.photoHotspotMap.get(photoId) === hotspot) {
+        const photoSize = this.photoSizes.get(photoId) || {
+          width: this.PHOTO_WIDTH,
+          height: this.PHOTO_HEIGHT
+        };
+        
+        existingPhotosInHotspot.push({
+          x: position.x,
+          y: position.y,
+          width: photoSize.width,
+          height: photoSize.height
+        });
+      }
+    }
+    
+    if (existingPhotosInHotspot.length === 0) {
+      console.log(`[OVERLAP-DEBUG] No existing photos in hotspot, overlap=0%`);
+      return 0; // No overlap if no existing photos
+    }
+    
+    console.log(`[OVERLAP-DEBUG] Checking ${existingPhotosInHotspot.length} existing photos in hotspot for candidate at (${normalizedX.toFixed(3)},${normalizedY.toFixed(3)})`);
+    
+    // Get dimensions of photo to be placed
+    const newPhotoSize = {
+      width: this.PHOTO_WIDTH,
+      height: this.PHOTO_HEIGHT
+    };
+    
+    // Calculate max overlap percentage with any existing photo
+    let maxOverlapPercent = 0;
+    
+    for (let i = 0; i < existingPhotosInHotspot.length; i++) {
+      const existing = existingPhotosInHotspot[i];
+      const overlapPercent = this.calculateRectangleOverlapPercent(
+        normalizedX * this.options.circleRadius,
+        normalizedY * this.options.circleRadius,
+        newPhotoSize.width,
+        newPhotoSize.height,
+        existing.x,
+        existing.y,
+        existing.width,
+        existing.height
+      );
+      
+      if (i === 0) {
+        console.log(`[OVERLAP-DEBUG] Existing photo ${i}: pos=(${existing.x.toFixed(1)},${existing.y.toFixed(1)}) size=(${existing.width},${existing.height}), overlap=${overlapPercent.toFixed(1)}%`);
+      }
+      
+      maxOverlapPercent = Math.max(maxOverlapPercent, overlapPercent);
+    }
+    
+    console.log(`[OVERLAP-DEBUG] Max overlap for this candidate: ${maxOverlapPercent.toFixed(1)}%`);
+    return maxOverlapPercent;
+  }
+
+  /**
+   * Calculate overlap percentage between two rectangles
+   * Returns percentage of the new rectangle that overlaps with the existing rectangle (0-100%)
+   */
+  private calculateRectangleOverlapPercent(
+    newX: number,
+    newY: number,
+    newWidth: number,
+    newHeight: number,
+    existingX: number,
+    existingY: number,
+    existingWidth: number,
+    existingHeight: number
+  ): number {
+    const newLeft = newX - newWidth / 2;
+    const newRight = newX + newWidth / 2;
+    const newTop = newY - newHeight / 2;
+    const newBottom = newY + newHeight / 2;
+    
+    const existingLeft = existingX - existingWidth / 2;
+    const existingRight = existingX + existingWidth / 2;
+    const existingTop = existingY - existingHeight / 2;
+    const existingBottom = existingY + existingHeight / 2;
+    
+    // Calculate intersection rectangle
+    const intersectLeft = Math.max(newLeft, existingLeft);
+    const intersectRight = Math.min(newRight, existingRight);
+    const intersectTop = Math.max(newTop, existingTop);
+    const intersectBottom = Math.min(newBottom, existingBottom);
+    
+    // No overlap if rectangles don't intersect
+    if (intersectRight <= intersectLeft || intersectBottom <= intersectTop) {
+      console.log('[RECT-MATH] No intersection: right<=left or bottom<=top');
+      return 0;
+    }
+    
+    // Calculate overlap area
+    const overlapWidth = intersectRight - intersectLeft;
+    const overlapHeight = intersectBottom - intersectTop;
+    const overlapArea = overlapWidth * overlapHeight;
+    
+    // Calculate percentage relative to new photo area
+    const newArea = newWidth * newHeight;
+    const overlapPercent = (overlapArea / newArea) * 100;
+    console.log('[RECT-MATH] New rect:', {newLeft, newTop, newRight, newBottom, newWidth, newHeight, newArea}, 
+                'Existing rect:', {existingLeft, existingTop, existingRight, existingBottom, existingWidth, existingHeight},
+                'Intersection:', {intersectLeft, intersectTop, intersectRight, intersectBottom, overlapWidth, overlapHeight, overlapArea},
+                'Result:', overlapPercent);
+    return overlapPercent;
   }
 
   /**
