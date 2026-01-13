@@ -685,9 +685,6 @@ export class CanvasCreatorComponent implements AfterViewInit {
       text.enterEditing();
     }
   }
-      text.enterEditing();
-    }
-  }
 
   private configureTextbox(text: any) {
     // Allow width resize via side handles only; corners will resize font uniformly
