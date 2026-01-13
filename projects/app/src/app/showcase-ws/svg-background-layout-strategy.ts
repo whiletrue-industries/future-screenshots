@@ -757,20 +757,37 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       return { auto_x: normalizedX, auto_y: normalizedY };
     }
     
-    // Sort candidates by distance from center (prefer central positions)
-    candidates.sort((a, b) => a.distance - b.distance);
-    console.log(`[DIST-DEBUG] Sorted candidates. First 3 candidates for ${hotspot.parentGroupId}:`);
-    for (let i = 0; i < Math.min(3, candidates.length); i++) {
-      console.log(`  [${i}] svg=(${candidates[i].svgX.toFixed(1)},${candidates[i].svgY.toFixed(1)}) dist=${candidates[i].distance.toFixed(1)}`);
+    // Calculate minimum distance to existing photos for each candidate
+    for (const candidate of candidates) {
+      const normalizedX = (candidate.svgX - viewBox.width / 2) / (viewBox.width / 2);
+      const normalizedY = (candidate.svgY - viewBox.height / 2) / (viewBox.height / 2);
+      const minDist = this.getMinDistanceToExistingPhotos(normalizedX, normalizedY, hotspot);
+      (candidate as any).minDistanceToExisting = minDist;
     }
     
-    // Find best position that minimizes overlap
-    let selectedCandidate = candidates[photoIndex % candidates.length];
-    let minOverlap = 100;
-    console.log(`[DIST-DEBUG] Starting evaluation loop for photo index ${photoIndex} (will check up to ${Math.min(candidates.length, 10)} candidates)`);
+    // Sort candidates by maximum distance to existing photos (prefer positions far from others)
+    candidates.sort((a, b) => (b as any).minDistanceToExisting - (a as any).minDistanceToExisting);
+    console.log(`[DIST-DEBUG] Sorted candidates by spacing. Top 5 candidates for ${hotspot.parentGroupId}:`);
+    for (let i = 0; i < Math.min(5, candidates.length); i++) {
+      console.log(`  [${i}] svg=(${candidates[i].svgX.toFixed(1)},${candidates[i].svgY.toFixed(1)}) minDist=${((candidates[i] as any).minDistanceToExisting).toFixed(1)}px`);
+    }
     
-    // Only evaluate first 10 candidates to avoid performance issues
-    const evalCandidates = candidates.slice(0, Math.min(candidates.length, 10));
+    // Filter out candidates that overlap with header elements
+    const filteredCandidates = candidates.filter(candidate => {
+      return !this.overlapsHeaderElement(candidate.svgX, candidate.svgY, viewBox);
+    });
+    
+    const useCandidates = filteredCandidates.length > 0 ? filteredCandidates : candidates;
+    console.log(`[DIST-DEBUG] Filtered ${candidates.length} -> ${filteredCandidates.length} candidates (removed header overlaps)`);
+    
+    // Find best position that minimizes overlap
+    let selectedCandidate = useCandidates[photoIndex % useCandidates.length];
+    let minOverlap = 100;
+    let bestSpacing = -1;
+    console.log(`[DIST-DEBUG] Starting evaluation loop for photo index ${photoIndex} (will check up to ${Math.min(useCandidates.length, 15)} candidates)`);
+    
+    // Evaluate first 15 candidates (increased from 10) to find best spacing
+    const evalCandidates = useCandidates.slice(0, Math.min(useCandidates.length, 15));
     
     for (let i = 0; i < evalCandidates.length; i++) {
       const candidate = evalCandidates[i];
@@ -783,20 +800,24 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         hotspot
       );
       
+      const spacing = (candidate as any).minDistanceToExisting;
+      
       if (i < 3) {
-        console.log(`[DIST-DEBUG] Candidate ${i}: normalized=(${normalizedX.toFixed(3)},${normalizedY.toFixed(3)}), overlap=${overlapPercent.toFixed(1)}%`);
+        console.log(`[DIST-DEBUG] Candidate ${i}: normalized=(${normalizedX.toFixed(3)},${normalizedY.toFixed(3)}), overlap=${overlapPercent.toFixed(1)}%, spacing=${spacing.toFixed(1)}px`);
       }
       
-      if (overlapPercent < minOverlap) {
+      // Prefer candidates with acceptable overlap and maximum spacing
+      if (overlapPercent <= this.MAX_OVERLAP_PERCENT) {
+        if (spacing > bestSpacing) {
+          bestSpacing = spacing;
+          minOverlap = overlapPercent;
+          selectedCandidate = candidate;
+          console.log(`[DIST-DEBUG] New best candidate ${i}: spacing=${spacing.toFixed(1)}px, overlap=${overlapPercent.toFixed(1)}%`);
+        }
+      } else if (overlapPercent < minOverlap && bestSpacing < 0) {
+        // Only use high-overlap candidates if we haven't found any acceptable ones
         minOverlap = overlapPercent;
         selectedCandidate = candidate;
-        console.log(`[DIST-DEBUG] New best candidate ${i}: overlap=${overlapPercent.toFixed(1)}%`);
-        
-        // If we find a position with acceptable overlap, use it
-        if (overlapPercent <= this.MAX_OVERLAP_PERCENT) {
-          console.log(`[DIST-DEBUG] Found acceptable position at candidate ${i} with ${overlapPercent.toFixed(1)}% overlap`);
-          break;
-        }
       }
     }
     
@@ -937,6 +958,76 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         isRejected: true
       }
     };
+  }
+  
+  /**
+   * Calculate minimum distance from a position to any existing photo in the same hotspot
+   */
+  private getMinDistanceToExistingPhotos(
+    normalizedX: number,
+    normalizedY: number,
+    hotspot: SvgHotspot
+  ): number {
+    const circleRadius = this.options.circleRadius;
+    const worldX = normalizedX * circleRadius;
+    const worldY = normalizedY * circleRadius;
+    
+    let minDistance = Number.MAX_VALUE;
+    
+    // Find all photos in the same hotspot
+    for (const [photoId, photoHotspot] of this.photoHotspotMap.entries()) {
+      if (photoHotspot.parentGroupId === hotspot.parentGroupId) {
+        const position = this.photoPositions.get(photoId);
+        if (position) {
+          const existingWorldX = position.x;
+          const existingWorldY = position.y;
+          const distance = Math.sqrt(
+            Math.pow(worldX - existingWorldX, 2) + 
+            Math.pow(worldY - existingWorldY, 2)
+          );
+          minDistance = Math.min(minDistance, distance);
+        }
+      }
+    }
+    
+    return minDistance;
+  }
+  
+  /**
+   * Check if a position overlaps with any header element (IDs starting with "header")
+   */
+  private overlapsHeaderElement(
+    svgX: number,
+    svgY: number,
+    viewBox: { x: number; y: number; width: number; height: number }
+  ): boolean {
+    if (!this.svgElement) return false;
+    
+    // Find all elements with IDs starting with "header"
+    const headerElements = Array.from(this.svgElement.querySelectorAll('[id^="header"]'));
+    
+    for (const element of headerElements) {
+      if (element instanceof SVGGraphicsElement) {
+        try {
+          const bbox = element.getBBox();
+          
+          // Check if point is within the header element's bounding box
+          // Add small buffer to avoid placing photos too close to headers
+          const buffer = 20; // 20px buffer
+          if (svgX >= (bbox.x - buffer) && 
+              svgX <= (bbox.x + bbox.width + buffer) &&
+              svgY >= (bbox.y - buffer) && 
+              svgY <= (bbox.y + bbox.height + buffer)) {
+            return true;
+          }
+        } catch (e) {
+          // If getBBox fails, skip this element
+          continue;
+        }
+      }
+    }
+    
+    return false;
   }
   
   /**
