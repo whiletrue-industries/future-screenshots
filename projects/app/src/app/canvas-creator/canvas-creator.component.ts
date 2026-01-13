@@ -679,11 +679,11 @@ export class CanvasCreatorComponent implements AfterViewInit {
     });
 
     fabricCanvas.add(text);
-    this.placeholderTexts.push(text);
     if (focus) {
       fabricCanvas.setActiveObject(text);
       text.enterEditing();
     }
+    return text; // Return the textbox so caller can track it
   }
 
   private configureTextbox(text: any) {
@@ -752,10 +752,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
         this.selectedHeight.set(props.height || 40);
         
         // Create textbox with preset placeholder and width
-        this.addTextboxAt(x, y, false, props.placeholder, props.width);
-        const created = this.canvas()?.getObjects().slice(-1)[0];
-        if (created) {
-          this.placeholderTexts.push(created);
+        const textbox = this.addTextboxAt(x, y, false, props.placeholder, props.width);
+        if (textbox) {
+          this.placeholderTexts.push(textbox);
           console.log('🔵 Textbox created and added to array');
         }
       });
@@ -766,9 +765,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
         { x: 150, y: 640 },
       ];
       boxes.forEach(pos => {
-        this.addTextboxAt(pos.x, pos.y, false);
-        const created = this.canvas()?.getObjects().slice(-1)[0];
-        if (created) this.placeholderTexts.push(created);
+        const textbox = this.addTextboxAt(pos.x, pos.y, false);
+        if (textbox) this.placeholderTexts.push(textbox);
       });
     }
     console.log('🔵 Total textboxes after placement:', this.placeholderTexts.length);
