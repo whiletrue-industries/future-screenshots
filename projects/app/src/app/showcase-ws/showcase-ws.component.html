@@ -78,6 +78,22 @@
     <div class='tab-buttons'>
       <button 
         class='tab-button camera-button'
+        (click)='zoomIn()'
+        title='Zoom In (+)'>
+        <svg viewBox='0 0 24 24' class='button-icon'>
+          <path d='M12 5v14M5 12h14' stroke='currentColor' stroke-width='2' stroke-linecap='round'/>
+        </svg>
+      </button>
+      <button 
+        class='tab-button camera-button'
+        (click)='zoomOut()'
+        title='Zoom Out (-)'>
+        <svg viewBox='0 0 24 24' class='button-icon'>
+          <path d='M5 12h14' stroke='currentColor' stroke-width='2' stroke-linecap='round'/>
+        </svg>
+      </button>
+      <button 
+        class='tab-button camera-button'
         (click)='resetView()'
         title='Reset View (R)'>
         <svg viewBox='0 0 24 24' class='button-icon'>

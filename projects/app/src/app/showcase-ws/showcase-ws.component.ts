@@ -481,6 +481,20 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.rendererService.resetCameraView(true);
   }
 
+  /**
+   * Zoom in at the cursor position (or center if unavailable)
+   */
+  zoomIn(): void {
+    this.rendererService.zoomAtCursor(0.65);
+  }
+
+  /**
+   * Zoom out at the cursor position (or center if unavailable)
+   */
+  zoomOut(): void {
+    this.rendererService.zoomAtCursor(1.5);
+  }
+
 
   ngOnDestroy() {
     this.destroy$.next();

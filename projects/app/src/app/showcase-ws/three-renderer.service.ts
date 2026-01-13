@@ -107,6 +107,11 @@ export class ThreeRendererService {
   private panStartCameraPos = new THREE.Vector3();
   private autoFitEnabled = true; // When true, camera auto-fits to bounds
   private lastMousePos = new THREE.Vector2();
+  private lastClientX: number | null = null;
+  private lastClientY: number | null = null;
+  private meshToUrl = new Map<THREE.Mesh, string>();
+  private highResActive = new Set<THREE.Mesh>();
+  private lodAccumTime = 0;
 
   constructor() {
     const opts: ThreeRendererOptions = {};
@@ -158,6 +163,8 @@ export class ThreeRendererService {
     
     this.root.add(mesh);
     photoData.setMesh(mesh);
+    // Track URL for LOD decisions
+    this.meshToUrl.set(mesh, photoData.url);
     
     return mesh;
   }
@@ -235,6 +242,8 @@ export class ThreeRendererService {
 
   removeMesh(mesh: THREE.Mesh): void {
     this.root.remove(mesh);
+    this.meshToUrl.delete(mesh);
+    this.highResActive.delete(mesh);
     
     // Clean up drag callback
     this.disableDragForMesh(mesh);
@@ -437,32 +446,46 @@ export class ThreeRendererService {
 
   /**
    * Zoom camera by a factor at a specific screen point
+   * Simple and direct: anchor to cursor position
    */
   zoomAtPoint(factor: number, screenX: number, screenY: number): void {
     if (!this.userControlEnabled || this.autoFitEnabled) return;
 
-    // Convert screen coordinates to normalized device coordinates
     const rect = this.container!.getBoundingClientRect();
-    const x = ((screenX - rect.left) / rect.width) * 2 - 1;
-    const y = -((screenY - rect.top) / rect.height) * 2 + 1;
+    const ndcX = ((screenX - rect.left) / rect.width) * 2 - 1;
+    const ndcY = -((screenY - rect.top) / rect.height) * 2 + 1;
 
-    // Get world position at current depth before zoom
-    const beforeZoom = this.screenToWorld(x, y, this.targetCamZ);
+    // Where does this screen point hit the world plane NOW?
+    const worldBefore = this.projectScreenToWorld(ndcX, ndcY, this.targetCamX, this.targetCamY, this.targetCamZ);
     
     // Apply zoom
-    const newZ = THREE.MathUtils.clamp(
-      this.targetCamZ * factor,
-      this.minCamZ,
-      this.maxCamZ
-    );
+    const newZ = THREE.MathUtils.clamp(this.targetCamZ * factor, this.minCamZ, this.maxCamZ);
     this.targetCamZ = newZ;
     
-    // Get world position after zoom
-    const afterZoom = this.screenToWorld(x, y, this.targetCamZ);
+    // Where does this screen point hit the world plane AFTER zoom?
+    const worldAfter = this.projectScreenToWorld(ndcX, ndcY, this.targetCamX, this.targetCamY, this.targetCamZ);
     
-    // Adjust camera position to keep the zoom point stable
-    this.targetCamX += (beforeZoom.x - afterZoom.x);
-    this.targetCamY += (beforeZoom.y - afterZoom.y);
+    // Pan camera to keep cursor pointing at same world location
+    this.targetCamX += (worldBefore.x - worldAfter.x);
+    this.targetCamY += (worldBefore.y - worldAfter.y);
+  }
+
+  /**
+   * Project a screen coordinate to world space at Z=0 plane
+   * camX, camY, camZ: camera position
+   * ndcX, ndcY: normalized device coordinates
+   */
+  private projectScreenToWorld(ndcX: number, ndcY: number, camX: number, camY: number, camZ: number): THREE.Vector3 {
+    // Field of view
+    const vFOV = THREE.MathUtils.degToRad(this.camera.fov);
+    const height = 2 * Math.tan(vFOV / 2) * camZ;
+    const width = height * this.camera.aspect;
+    
+    // World position on Z=0 plane
+    const worldX = camX + (ndcX * width / 2);
+    const worldY = camY + (ndcY * height / 2);
+    
+    return new THREE.Vector3(worldX, worldY, 0);
   }
 
   /**
@@ -491,6 +514,16 @@ export class ThreeRendererService {
   }
 
   /**
+   * Get visible half-width in world units at a specific depth from camera
+   */
+  private getVisibleWidthAtDepth(depth: number): number {
+    const vFOV = THREE.MathUtils.degToRad(this.camera.fov);
+    const height = 2 * Math.tan(vFOV / 2) * depth;
+    const width = height * this.camera.aspect;
+    return width / 2;
+  }
+
+  /**
    * Get visible world height at current zoom level
    */
   private getVisibleHeight(): number {
@@ -501,6 +534,7 @@ export class ThreeRendererService {
 
   /**
    * Convert screen coordinates to world coordinates at a given depth
+   * Used for non-zoom operations (drag detection, hotspot finding)
    */
   private screenToWorld(x: number, y: number, depth: number): THREE.Vector3 {
     const vector = new THREE.Vector3(x, y, 0.5);
@@ -1132,6 +1166,11 @@ export class ThreeRendererService {
       this.onMouseWheel(event);
     }, { passive: false });
 
+    // Double-click - zoom in/out
+    canvas.addEventListener('dblclick', (event) => {
+      this.onDoubleClick(event);
+    });
+
     // Touch events for mobile
     canvas.addEventListener('touchstart', (event) => {
       if (event.touches.length === 1) {
@@ -1175,6 +1214,8 @@ export class ThreeRendererService {
     const rect = this.container.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    this.lastClientX = event.clientX;
+    this.lastClientY = event.clientY;
     
     // Update preview widget position based on mouse screen coordinates
     this.updatePreviewWidgetPosition(event.clientX - rect.left, event.clientY - rect.top);
@@ -1186,6 +1227,8 @@ export class ThreeRendererService {
     const rect = this.container.getBoundingClientRect();
     this.mouse.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
+    this.lastClientX = touch.clientX;
+    this.lastClientY = touch.clientY;
     
     // Update preview widget position based on touch screen coordinates  
     this.updatePreviewWidgetPosition(touch.clientX - rect.left, touch.clientY - rect.top);
@@ -1366,12 +1409,36 @@ export class ThreeRendererService {
       this.autoFitEnabled = false;
     }
 
-    // Calculate zoom factor based on wheel delta
-    const delta = event.deltaY;
-    const zoomFactor = delta > 0 ? 1.1 : 0.9;
+    // Detect trackpad vs mouse wheel using deltaMode
+    // deltaMode 0 = pixels (trackpad), 1 = lines (mouse wheel), 2 = pages
+    const isTrackpad = event.deltaMode === 0;
+    
+    // Soften trackpad zoom significantly
+    const baseDelta = event.deltaY;
+    const adjustedDelta = isTrackpad ? baseDelta * 0.01 : baseDelta;
+    
+    // Calculate zoom factor based on adjusted delta
+    const zoomFactor = adjustedDelta > 0 ? 1.05 : 0.95;
 
     // Zoom at the cursor position
     this.zoomAtPoint(zoomFactor, event.clientX, event.clientY);
+  }
+
+  private onDoubleClick(event: MouseEvent): void {
+    if (!this.userControlEnabled) return;
+
+    event.preventDefault();
+
+    // Disable auto-fit when user starts zooming
+    if (this.autoFitEnabled) {
+      this.autoFitEnabled = false;
+    }
+
+    // Shift+double-click zooms out, normal double-click zooms in
+    const zoomFactor = event.shiftKey ? 1.6 : 0.6;
+
+    // Zoom at the cursor position with smooth animation
+    this.animatedZoomAtPoint(zoomFactor, event.clientX, event.clientY, 0.4);
   }
 
   private onKeyDown(event: KeyboardEvent): void {
@@ -1490,6 +1557,8 @@ export class ThreeRendererService {
     // Dispose Three.js objects
     this.renderer?.dispose();
     this.scene?.clear();
+    this.meshToUrl.clear();
+    this.highResActive.clear();
     
     this.rafRunning = false;
     this.isInitialized = false;
@@ -1586,6 +1655,12 @@ export class ThreeRendererService {
       this.camera.lookAt(this.targetCamX, this.targetCamY, 0);
 
       this.renderer.render(this.scene, this.camera);
+      // Run LOD checks at ~5Hz
+      this.lodAccumTime += dt;
+      if (this.lodAccumTime >= 0.2) {
+        this.lodAccumTime = 0;
+        this.runLodPass();
+      }
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
@@ -1874,5 +1949,97 @@ export class ThreeRendererService {
 
   private clamp01(t: number): number {
     return Math.max(0, Math.min(1, t));
+  }
+
+  /**
+   * Zoom using the last known cursor position (fallback to center) with smooth animation
+   */
+  zoomAtCursor(factor: number): void {
+    if (!this.container) return;
+    if (this.autoFitEnabled) this.autoFitEnabled = false;
+    const rect = this.container.getBoundingClientRect();
+    const cx = this.lastClientX ?? (rect.left + rect.width / 2);
+    const cy = this.lastClientY ?? (rect.top + rect.height / 2);
+    this.animatedZoomAtPoint(factor, cx, cy, 0.3);
+  }
+
+  /**
+   * Zoom at a point with smooth animation
+   * Maintains cursor position as exact anchor throughout animation
+   */
+  private animatedZoomAtPoint(factor: number, screenX: number, screenY: number, durationSec: number): void {
+    if (!this.userControlEnabled || this.autoFitEnabled) return;
+
+    const startZ = this.targetCamZ;
+    const startCamX = this.targetCamX;
+    const startCamY = this.targetCamY;
+
+    // Calculate new camera Z
+    const targetZ = THREE.MathUtils.clamp(
+      startZ * factor,
+      this.minCamZ,
+      this.maxCamZ
+    );
+
+    // Convert screen coordinates to NDC
+    const rect = this.container!.getBoundingClientRect();
+    const ndcX = ((screenX - rect.left) / rect.width) * 2 - 1;
+    const ndcY = -((screenY - rect.top) / rect.height) * 2 + 1;
+
+    // Calculate world position at start and target Z
+    const beforeZoom = this.projectScreenToWorld(ndcX, ndcY, startCamX, startCamY, startZ);
+    const afterZoom = this.projectScreenToWorld(ndcX, ndcY, startCamX, startCamY, targetZ);
+
+    // Pre-compute where the camera needs to be
+    const targetCamX = startCamX + (beforeZoom.x - afterZoom.x);
+    const targetCamY = startCamY + (beforeZoom.y - afterZoom.y);
+
+    // Animate smoothly
+    this.runTween(this.makeTween(durationSec, (progress) => {
+      this.targetCamZ = THREE.MathUtils.lerp(startZ, targetZ, progress);
+      this.targetCamX = THREE.MathUtils.lerp(startCamX, targetCamX, progress);
+      this.targetCamY = THREE.MathUtils.lerp(startCamY, targetCamY, progress);
+    }));
+  }
+
+  /**
+   * Decide whether to upgrade/downgrade textures based on on-screen size.
+   */
+  private runLodPass(): void {
+    if (!this.container) return;
+    // Hysteresis thresholds (in pixels) - lower for earlier high-res loading
+    const UPGRADE_THRESHOLD = 240;
+    const DOWNGRADE_THRESHOLD = 160;
+
+    // Iterate over meshes
+    for (const child of this.root.children) {
+      const mesh = child as THREE.Mesh;
+      const url = this.meshToUrl.get(mesh);
+      if (!url) continue;
+
+      const isHigh = this.highResActive.has(mesh);
+
+      // Compute projected width for this mesh based on its depth
+      const depth = Math.max(0.001, Math.abs(mesh.position.z - this.camera.position.z));
+      const fullWorldWidth = this.getVisibleWidthAtDepth(depth) * 2;
+      const pxPerWorldUnit = this.container.clientWidth / Math.max(1, fullWorldWidth);
+      const photoWidthPx = this.PHOTO_W * pxPerWorldUnit;
+
+      if (!isHigh && photoWidthPx >= UPGRADE_THRESHOLD) {
+        // Upgrade to high-res (fire-and-forget)
+        this.upgradeToHighResTexture(mesh, url)
+          .then(() => {
+            this.highResActive.add(mesh);
+          })
+          .catch(() => {/* keep low-res */});
+      } else if (isHigh && photoWidthPx <= DOWNGRADE_THRESHOLD) {
+        // Downgrade to low-res (fire-and-forget)
+        this.downgradeToLowResTexture(mesh, url)
+          .then(() => {
+            this.highResActive.delete(mesh);
+          })
+          .catch(() => {/* keep current */});
+      }
+    }
   }
 }

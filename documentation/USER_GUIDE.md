@@ -32,6 +32,8 @@ The Showcase WS view provides an interactive 3D visualization of all submitted p
 - Scroll your mouse wheel up to zoom in
 - Scroll your mouse wheel down to zoom out
 - Zoom is centered on your cursor position, making it easy to focus on specific areas
+- **Double-click** to zoom in at the cursor
+- **Shift + double-click** to zoom out at the cursor
 
 **Photo Interaction (SVG Layout Only):**
 - Click and drag photos to reposition them on the canvas
@@ -65,6 +67,11 @@ The Showcase WS view provides an interactive 3D visualization of all submitted p
 - Tap and drag a single photo to move it
 
 ### UI Controls
+
+**Zoom Buttons (+/−):**
+- Located in the camera controls at the bottom-right
+- Click `+` to zoom in and `−` to zoom out
+- Zoom uses your cursor position as the focal point (or center if the cursor isn’t over the canvas)
 
 **Reset View Button:**
 - Located at the bottom-right of the screen
@@ -160,8 +167,9 @@ As soon as you interact with the view (zoom, pan, or use arrow keys), the camera
 When viewing showcases with hundreds of photos:
 
 1. **Zoom In**: Performance is better when fewer photos are visible
-2. **Use Keyboard**: Arrow keys and +/- are efficient for navigation
-3. **Reset View**: Press `R` if the view feels sluggish to recalculate optimal framing
+2. **Use Keyboard/Buttons**: Arrow keys and +/- (or on-screen +/−) are efficient for navigation
+3. **Dynamic Image Resolution**: Images automatically upgrade to higher resolution when you zoom in close, and downgrade when zoomed out to save memory and improve performance
+4. **Reset View**: Press `R` if the view feels sluggish to recalculate optimal framing
 
 ### Layout Selection
 
@@ -218,6 +226,8 @@ The showcase supports keyboard-only navigation:
 | Pan Right | `→` (Right Arrow) |
 | Zoom In | `+` or `=` |
 | Zoom Out | `-` or `_` |
+| Double-click Zoom In | Double-click |
+| Double-click Zoom Out | Shift + Double-click |
 | Reset View | `R` |
 
 ## Getting Help
