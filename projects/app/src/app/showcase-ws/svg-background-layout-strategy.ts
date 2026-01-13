@@ -255,7 +255,19 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       return restoredPosition;
     }
     
-    // Priority 2: If auto-positioning is enabled, try to get position from metadata-hotspot matching
+    // Priority 2: Check for rejected status - place in packed circle on bottom left
+    const moderation = photoData.metadata['_private_moderation'] as number | undefined;
+    if (moderation === 0) { // Rejected
+      const rejectedPosition = this.getPositionForRejectedPhoto(photoData, existingPhotos);
+      if (rejectedPosition) {
+        this.photoPositions.set(photoData.id, rejectedPosition);
+        photoData.setProperty('svgLayoutPosition', rejectedPosition);
+        console.log(`[REJECTED] Photo ${photoData.id} placed in rejected area at (${rejectedPosition.x.toFixed(1)}, ${rejectedPosition.y.toFixed(1)})`);
+        return rejectedPosition;
+      }
+    }
+    
+    // Priority 3: If auto-positioning is enabled, try to get position from metadata-hotspot matching
     if (enableAutoPositioning) {
       const autoPosition = this.getAutoPositionFromMetadata(photoData);
       if (autoPosition) {
@@ -865,6 +877,124 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       console.error('[PATH-CHECK] Error checking point with bounds:', e);
       return false;
     }
+  }
+
+  /**
+   * Get position for rejected photo using circle packing on bottom left of SVG
+   */
+  private getPositionForRejectedPhoto(photoData: PhotoData, existingPhotos: PhotoData[]): LayoutPosition | null {
+    if (!this.svgElement) return null;
+    
+    const viewBox = this.getSvgViewBox();
+    if (!viewBox) return null;
+    
+    // Bottom left area: use 20% of width/height from bottom-left corner
+    const rejectedAreaSize = Math.min(viewBox.width, viewBox.height) * 0.2;
+    const centerX = -viewBox.width / 2 + rejectedAreaSize / 2;
+    const centerY = viewBox.height / 2 - rejectedAreaSize / 2;
+    
+    // Collect all existing rejected photos
+    const rejectedPhotos: Array<{ x: number; y: number; radius: number }> = [];
+    
+    for (const photo of existingPhotos) {
+      const photoModeration = photo.metadata['_private_moderation'] as number | undefined;
+      if (photoModeration === 0) { // Also rejected
+        const position = this.photoPositions.get(photo.id);
+        if (position) {
+          const photoSize = this.photoSizes.get(photo.id) || { width: this.PHOTO_WIDTH, height: this.PHOTO_HEIGHT };
+          const radius = Math.max(photoSize.width, photoSize.height) / 2;
+          rejectedPhotos.push({ x: position.x, y: position.y, radius });
+        }
+      }
+    }
+    
+    const photoSize = this.photoSizes.get(photoData.id) || { width: this.PHOTO_WIDTH, height: this.PHOTO_HEIGHT };
+    const newRadius = Math.max(photoSize.width, photoSize.height) / 2;
+    
+    // Find position using circle packing
+    let position: { x: number; y: number };
+    
+    if (rejectedPhotos.length === 0) {
+      // First rejected photo - place at center of rejected area
+      position = { x: centerX, y: centerY };
+    } else {
+      // Pack around existing rejected photos
+      position = this.findCirclePackPosition(
+        newRadius,
+        rejectedPhotos,
+        centerX,
+        centerY,
+        rejectedAreaSize / 2
+      );
+    }
+    
+    return {
+      x: position.x,
+      y: position.y,
+      metadata: {
+        layoutType: 'rejected-packed',
+        circleRadius: this.options.circleRadius,
+        isRejected: true
+      }
+    };
+  }
+  
+  /**
+   * Find best position for a circle using circle packing algorithm
+   */
+  private findCirclePackPosition(
+    radius: number,
+    existingCircles: Array<{ x: number; y: number; radius: number }>,
+    centerX: number,
+    centerY: number,
+    maxRadius: number
+  ): { x: number; y: number } {
+    const buffer = 50; // Small gap between circles
+    let bestPosition = { x: centerX, y: centerY };
+    let minDistanceFromCenter = Infinity;
+    
+    // Try positions around each existing circle
+    for (const existing of existingCircles) {
+      const angles = [
+        0,
+        Math.PI / 4,
+        Math.PI / 2,
+        Math.PI * 3 / 4,
+        Math.PI,
+        Math.PI * 5 / 4,
+        Math.PI * 3 / 2,
+        Math.PI * 7 / 4
+      ];
+      
+      for (const angle of angles) {
+        const distance = existing.radius + radius + buffer;
+        const x = existing.x + Math.cos(angle) * distance;
+        const y = existing.y + Math.sin(angle) * distance;
+        
+        // Check if this position conflicts with any existing circle
+        const conflicts = existingCircles.some(other => {
+          const dx = x - other.x;
+          const dy = y - other.y;
+          const distBetween = Math.sqrt(dx * dx + dy * dy);
+          return distBetween < (radius + other.radius + buffer);
+        });
+        
+        if (!conflicts) {
+          // Prefer positions closer to center of rejected area
+          const distFromCenter = Math.sqrt(
+            Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)
+          );
+          
+          // Only consider if within the rejected area
+          if (distFromCenter < maxRadius && distFromCenter < minDistanceFromCenter) {
+            minDistanceFromCenter = distFromCenter;
+            bestPosition = { x, y };
+          }
+        }
+      }
+    }
+    
+    return bestPosition;
   }
 
   /**
