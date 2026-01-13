@@ -327,6 +327,12 @@ export class PhotoDataRepository {
     const animationPromises = currentPhotos.map(async (photo, index) => {
       const newPosition = newPositions[index];
       
+      // Add stagger delay based on index for natural cascading effect
+      const staggerDelay = index * ANIMATION_CONSTANTS.LAYOUT_STAGGER_DELAY;
+      if (staggerDelay > 0) {
+        await new Promise(resolve => setTimeout(resolve, staggerDelay * 1000));
+      }
+      
       // Check if photo has valid position in new layout (not null)
       const hasValidPosition = newPosition !== null;
 
