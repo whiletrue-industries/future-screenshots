@@ -163,11 +163,14 @@ export class CanvasCreatorComponent implements AfterViewInit {
   }
   
   selectTemplate(template: Template) {
+    console.log('🔵 selectTemplate called with:', template.id, template.name);
     this.selectedTemplate.set(template);
     this.showTemplateGallery.set(false);
     this.showModeSelection.set(false);
     // Wait for view to update before initializing canvas
+    console.log('🔵 Scheduling initCanvas after next render');
     afterNextRender(() => {
+      console.log('🔵 afterNextRender callback executing');
       this.initCanvas();
     }, { injector: this.injector });
   }
@@ -205,15 +208,19 @@ export class CanvasCreatorComponent implements AfterViewInit {
   }
   
   initCanvas() {
+    console.log('🔵 initCanvas called');
     if (!this.canvasEl || !this.canvasEl.nativeElement) {
-      console.error('Canvas element not available');
+      console.error('❌ Canvas element not available - canvasEl:', !!this.canvasEl, 'nativeElement:', !!this.canvasEl?.nativeElement);
       return;
     }
     
+    console.log('🔵 Canvas element found, initializing...');
     const canvasElement = this.canvasEl.nativeElement;
     const container = canvasElement.parentElement;
     const containerWidth = container?.clientWidth || 360;
     const containerHeight = container?.clientHeight || 640;
+    
+    console.log('🔵 Container dimensions:', containerWidth, 'x', containerHeight);
     
     // Fixed dimensions: 1060x2000px
     const targetWidth = 1060;
