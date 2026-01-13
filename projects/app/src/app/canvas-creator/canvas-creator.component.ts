@@ -652,6 +652,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const targetCanvas = canvasRef;
     if (!targetCanvas) return;
     const placeholderColor = '#9aa0a6';
+    // Create textbox with placeholder text visible
     const text = new fabric.Textbox(placeholderText, {
       left: x,
       top: y,
@@ -666,26 +667,23 @@ export class CanvasCreatorComponent implements AfterViewInit {
       _placeholderText: placeholderText, // Store original placeholder
     });
     this.configureTextbox(text);
-    // Strip placeholder on first input and keep direction aligned
-    text.on('changed', () => {
-      const rawText = text.text || '';
+    // Placeholder behavior - select all on focus so typing replaces it
+    text.on('editing:entered', () => {
       if ((text as any)._placeholder) {
-        const placeholderStr = (text as any)._placeholderText || 'Type here...';
-        const cleaned = rawText.replace(placeholderStr, '').trimStart();
-        text.set({ text: cleaned, fill: this.currentColor(), _placeholder: false });
+        text.set({ fill: this.currentColor(), _placeholder: false });
+        // Select all text so first keystroke replaces it
+        text.selectAll();
+        targetCanvas.requestRenderAll();
       }
-
+    });
+    // Detect text direction on change
+    text.on('changed', () => {
       const effectiveText = text.text || '';
       const isRTL = this.detectRTL(effectiveText);
       text.set({ direction: isRTL ? 'rtl' : 'ltr' });
       targetCanvas.requestRenderAll();
     });
-    // Placeholder behavior
-    text.on('editing:entered', () => {
-      if ((text as any)._placeholder) {
-        text.set({ text: '', fill: this.currentColor(), _placeholder: false, selectionStart: 0, selectionEnd: 0 });
-      }
-    });
+    // Restore placeholder if empty
     text.on('editing:exited', () => {
       const content = text.text || '';
       if (content.trim() === '') {
@@ -698,6 +696,12 @@ export class CanvasCreatorComponent implements AfterViewInit {
     if (focus) {
       targetCanvas.setActiveObject(text);
       text.enterEditing();
+      // If focusing and it's a placeholder, select all so typing replaces it
+      if ((text as any)._placeholder) {
+        text.set({ fill: this.currentColor(), _placeholder: false });
+        text.selectAll();
+        targetCanvas.requestRenderAll();
+      }
     }
     return text; // Return the textbox so caller can track it
   }
