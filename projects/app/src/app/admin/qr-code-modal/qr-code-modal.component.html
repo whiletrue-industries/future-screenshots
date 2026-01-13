@@ -1,0 +1,41 @@
+<div class="modal-overlay" (click)="close()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Scan to Replace on Mobile</h2>
+      <button class="close-button" (click)="close()" aria-label="Close dialog">×</button>
+    </div>
+    
+    <div class="modal-body">
+      <p class="instructions">
+        Scan this QR code with your mobile device to open the scanner and replace this image.
+      </p>
+      
+      @if (qrCodeUrl()) {
+        <div class="qr-code-container">
+          <img [src]="qrCodeUrl()" alt="QR Code for scanning replacement image" class="qr-code">
+        </div>
+      } @else {
+        <div class="loading">
+          <p>Generating QR code...</p>
+        </div>
+      }
+      
+      <div class="actions">
+        <button class="button secondary" (click)="downloadQRCode()" [disabled]="!qrCodeUrl()">
+          Download QR Code
+        </button>
+        <button 
+          class="button primary" 
+          (click)="copyQRLink()" 
+          [disabled]="!qrCodeUrl()"
+        >
+          @if (copying()) {
+            Link Copied!
+          } @else {
+            Copy Link
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

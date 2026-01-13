@@ -316,6 +316,22 @@ export class ApiService {
 }
 ```
 
+### 3. Triggering AI Re‑analysis from the UI
+
+Moderators can now regenerate AI-generated metadata for a single item from the lightbox sidebar.
+
+- Button: "Regenerate AI fields" inside the item sidebar in Moderate view
+- Inputs used: `content_title`, `future_scenario_description`, `future_scenario_tagline`, `future_scenario_topics`
+- Topics source: derived from current `tags` when present, otherwise existing `future_scenario_topics`
+- Mechanism: frontend calls `AdminApiService.updateItem()` sending the user-edited fields and clears `embedding` and related certainty fields; the backend reprocesses and updates AI outputs
+
+Implementation entrypoint: [projects/app/src/app/admin/moderate/moderate.component.ts](projects/app/src/app/admin/moderate/moderate.component.ts) method `regenerateAiFieldsFromUserInput()`.
+
+Usage notes:
+- Ensure you have workspace ID and API key in the topbar inputs
+- Select an item, edit fields, then press "Regenerate AI fields"
+- Use the "Refresh" control if needed to see updated AI outputs across the grid
+
 ### 2. Define Data Models
 
 Create TypeScript interfaces for API data:

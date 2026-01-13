@@ -11,17 +11,24 @@
         display: flex;
         position: absolute;
         top: 50%;
-        right: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
 
         .qrcode {
             transition: all 0.5s ease-in-out;
-            transform-origin: top right;
+            transform-origin: bottom left;
         }
         transition: all 0.5s ease-in-out;
 
         &.small {
-            top: 0%;
-            right: 0%;
+            top: auto;
+            bottom: 20px;
+            left: 20px;
+            transform: none;
+            
+            .qrcode {
+                transform: scale(2);
+            }
         }
     }
 

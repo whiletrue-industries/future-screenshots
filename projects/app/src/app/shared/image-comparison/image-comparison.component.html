@@ -1,0 +1,58 @@
+<div class="comparison-container">
+  <div class="comparison-header">
+    <h3>Review Image Replacement</h3>
+    <button class="mode-toggle" (click)="toggleViewMode()" aria-label="Toggle between slider and split view">
+      @if (viewMode() === 'slider') {
+        <span>Split View</span>
+      } @else {
+        <span>Slider View</span>
+      }
+    </button>
+  </div>
+
+  @if (viewMode() === 'slider') {
+    <div class="slider-comparison">
+      <div class="comparison-image">
+        <img [src]="currentImage()" alt="Current image" class="base-image">
+        <div class="overlay-image" [style.clip-path]="'polygon(0 0, ' + sliderPosition() + '% 0, ' + sliderPosition() + '% 100%, 0 100%)'">
+          <img [src]="newImage()" alt="New image">
+        </div>
+      </div>
+      <input 
+        type="range" 
+        min="0" 
+        max="100" 
+        [value]="sliderPosition()" 
+        (input)="onSliderChange($event)"
+        class="slider"
+        aria-label="Compare images slider"
+      >
+      <div class="labels">
+        <span class="current">Current</span>
+        <span class="new">New</span>
+      </div>
+    </div>
+  } @else {
+    <div class="split-comparison">
+      <div class="split-image-container">
+        <div class="split-image">
+          <img [src]="currentImage()" alt="Current image">
+          <label>Current</label>
+        </div>
+        <div class="split-image">
+          <img [src]="newImage()" alt="New image">
+          <label>New</label>
+        </div>
+      </div>
+    </div>
+  }
+
+  <div class="comparison-actions">
+    <button class="button secondary" (click)="onCancel()" aria-label="Cancel replacement">
+      Cancel
+    </button>
+    <button class="button primary" (click)="onApprove()" aria-label="Approve replacement">
+      Approve Replacement
+    </button>
+  </div>
+</div>
