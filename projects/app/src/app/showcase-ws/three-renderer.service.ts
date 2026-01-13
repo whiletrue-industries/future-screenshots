@@ -492,7 +492,7 @@ export class ThreeRendererService {
     // If either value is missing, don't rotate
     if (plausibility === undefined || plausibility === null || !favorableFuture) {
       console.warn('[ROTATION] Missing data for photo:', photoData.id, '- plausibility:', plausibility, 'favorable_future:', favorableFuture);
-      return 0;
+      return this.getStableRandomRotation(photoData.id);
     }
     
     // Normalize plausibility to 0-1 range (0=preposterous, 100=projected)
@@ -519,13 +519,35 @@ export class ThreeRendererService {
     if (!isFavor && !isPrevent) {
       // Unknown favorable_future value, don't rotate
       console.warn('[ROTATION] Unknown favorable_future value:', favorableFuture, 'for photo:', photoData.id);
-      return 0;
+      return this.getStableRandomRotation(photoData.id);
     }
     
     const finalRotation = isFavor ? rotationMagnitude : -rotationMagnitude;
-    console.log('[ROTATION] Photo:', photoData.id, 'plausibility:', plausibility, 'favorable_future:', favorableFuture, '-> rotation:', THREE.MathUtils.radToDeg(finalRotation).toFixed(1), '°');
     
-    return finalRotation;
+    // Add natural-looking random offset (-1°, 0°, or +1°) for visual variety
+    const randomOffset = this.getStableRandomRotation(photoData.id);
+    const totalRotation = finalRotation + randomOffset;
+    
+    console.log('[ROTATION] Photo:', photoData.id, 'plausibility:', plausibility, 'favorable_future:', favorableFuture, '-> rotation:', THREE.MathUtils.radToDeg(totalRotation).toFixed(1), '°');
+    
+    return totalRotation;
+  }
+
+  /**
+   * Get a stable random rotation offset for natural layout
+   * Returns -1°, 0°, or +1° in radians, consistent for the same photo ID
+   */
+  private getStableRandomRotation(photoId: string): number {
+    // Simple hash of photo ID to get consistent random value
+    let hash = 0;
+    for (let i = 0; i < photoId.length; i++) {
+      hash = ((hash << 5) - hash) + photoId.charCodeAt(i);
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    
+    // Map hash to -1, 0, or +1 degrees
+    const offset = (Math.abs(hash) % 3) - 1; // Results in -1, 0, or 1
+    return THREE.MathUtils.degToRad(offset);
   }
 
   /**
