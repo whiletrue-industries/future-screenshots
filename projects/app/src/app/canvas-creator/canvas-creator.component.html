@@ -8,12 +8,15 @@
         </a>
         <h2 i18n>Choose a Template</h2>
       </div>
-      <div class="carousel-container">
+      <div class="carousel-container"
+           (touchstart)="onCarouselTouchStart($event)"
+           (touchmove)="onCarouselTouchMove($event)"
+           (touchend)="onCarouselTouchEnd()">
         @if (currentTemplate(); as current) {
           <button class="carousel-nav prev" (click)="previousTemplate()" aria-label="Previous template">
             ‹
           </button>
-          <div class="carousel-slide">
+          <div class="carousel-slide" (click)="useCurrentTemplate()">
             <img [src]="current.preview" [alt]="current.name">
             <div class="template-info">{{ current.name }}</div>
           </div>
@@ -22,6 +25,7 @@
           </button>
         }
       </div>
+      <!-- Tapping the slide selects; keep button for accessibility -->
       <button class="button primary use-template" (click)="useCurrentTemplate()" i18n>
         Use this template
       </button>
@@ -31,71 +35,62 @@
   <!-- Canvas Editor -->
   @if (selectedTemplate() && !showTemplateGallery()) {
     <div class="editor">
-      <div class="header">
-        <button class="button" (click)="restart()" i18n>Restart</button>
-        <h2>{{ selectedTemplate()?.name }}</h2>
-        <div class="mode-toggle">
-          <button 
-            class="toggle-button" 
-            [class.active]="currentMode() === 'type'"
-            (click)="setMode('type')" 
-            i18n>Write</button>
-          <button 
-            class="toggle-button" 
-            [class.active]="currentMode() === 'draw'"
-            (click)="setMode('draw')" 
-            i18n>Draw</button>
+      <!-- Top drawer overlay controls -->
+      <div class="top-drawer" [class.state-default]="drawerState() === 'default'" [class.state-full]="drawerState() === 'full'" [class.state-minimal]="drawerState() === 'minimal'"
+           [style.transform]="drawerTransform()" [style.transition]="drawerTransition()">
+        <div class="drawer-content" (touchstart)="onDrawerTouchStart($event)" (touchmove)="onDrawerTouchMove($event)" (touchend)="onDrawerTouchEnd()">
+          <!-- Advanced (only in full) -->
+          @if (drawerState() === 'full') {
+          <div class="row extended advanced">
+            <button class="icon" (click)="addText()" aria-label="Add text">➕T</button>
+            <button class="icon" (click)="addTransitionText()" aria-label="Add transition text">T↕</button>
+            <div class="font-picker">
+              <select [value]="selectedFont()" (change)="setFont(($any($event.target)).value)">
+                @for (f of handwritingFonts; track f) {
+                  <option [value]="f">{{ f }}</option>
+                }
+              </select>
+            </div>
+            <button class="icon" (click)="undo()" aria-label="Undo">↩︎</button>
+          </div>
+          <div class="row extended advanced">
+            <div class="line-height-control">
+              <label for="line-height">Line Height</label>
+              <input type="range" id="line-height" min="0.8" max="2" step="0.1" 
+                     [value]="selectedLineHeight()" 
+                     (input)="setLineHeight(+($any($event.target)).value)">
+              <span>{{ (selectedLineHeight() * 100).toFixed(0) }}%</span>
+            </div>
+            <div class="line-height-control">
+              <label for="text-height">Height</label>
+              <input type="range" id="text-height" min="20" max="200" step="5" 
+                     [value]="selectedHeight()" 
+                     (input)="setHeight(+($any($event.target)).value)">
+              <span>{{ selectedHeight() }}px</span>
+            </div>
+            <div class="transition-selector inline">
+              <button class="chip" [class.selected]="transitionChoice() === 'before'" (click)="selectTransition('before')" i18n>Before</button>
+              <button class="chip" [class.selected]="transitionChoice() === 'during'" (click)="selectTransition('during')" i18n>During</button>
+              <button class="chip" [class.selected]="transitionChoice() === 'after'" (click)="selectTransition('after')" i18n>After</button>
+            </div>
+          </div>
+          }
+
+          <!-- Basic buttons (default & full) -->
+          @if (drawerState() !== 'minimal') {
+          <div class="row core">
+            <button class="icon" [class.active]="currentMode() === 'type'" (click)="setMode('type')" aria-label="Text mode">✍️</button>
+            <button class="icon" [class.active]="currentMode() === 'draw'" (click)="setMode('draw')" aria-label="Draw mode">🖊</button>
+            <button class="icon" (click)="clearCanvas()" aria-label="Clear">🗑</button>
+            <button class="icon primary" (click)="submit()" aria-label="Submit">⤴</button>
+          </div>
+          }
         </div>
+        <div class="drawer-handle" (click)="toggleControls()" (touchstart)="onDrawerTouchStart($event)" (touchmove)="onDrawerTouchMove($event)" (touchend)="onDrawerTouchEnd()" aria-label="Toggle controls" role="button" tabindex="0"></div>
       </div>
       
       <div class="canvas-container">
         <canvas #canvasEl></canvas>
-      </div>
-      
-      <div class="toolbar">
-        @if (currentMode() === 'type') {
-          <button class="tool-button" (click)="addText()" i18n>
-            Add Text
-          </button>
-          <button class="tool-button" (click)="addTransitionText()" i18n>
-            Text on Transition
-          </button>
-        }
-        
-        <div class="transition-selector">
-          <span i18n>Mark transition:</span>
-          <button 
-            class="tool-button" 
-            [class.selected]="transitionChoice() === 'before'" 
-            (click)="selectTransition('before')" 
-            i18n>
-            Before
-          </button>
-          <button 
-            class="tool-button" 
-            [class.selected]="transitionChoice() === 'during'" 
-            (click)="selectTransition('during')" 
-            i18n>
-            During
-          </button>
-          <button 
-            class="tool-button" 
-            [class.selected]="transitionChoice() === 'after'" 
-            (click)="selectTransition('after')" 
-            i18n>
-            After
-          </button>
-        </div>
-        
-        <button class="tool-button" (click)="undo()" i18n>
-          Undo
-        </button>
-        <button class="tool-button" (click)="clearCanvas()" i18n>
-          Clear
-        </button>
-        <button class="button primary submit-button" (click)="submit()" i18n>
-          Submit
-        </button>
       </div>
     </div>
   }

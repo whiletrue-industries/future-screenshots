@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, DestroyRef, ElementRef, signal, ViewChild, computed, afterNextRender, Injector, inject } from '@angular/core';
+import { AfterViewInit, Component, DestroyRef, ElementRef, signal, ViewChild, computed, afterNextRender, Injector, inject, HostListener } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
@@ -32,6 +32,18 @@ export class CanvasCreatorComponent implements AfterViewInit {
   showModeSelection = signal(false);
   transitionChoice = signal<'before' | 'during' | 'after' | null>(null);
   currentTemplateIndex = signal(0); // For carousel navigation
+  drawerState = signal<'minimal' | 'default' | 'full'>('default');
+  selectedFont = signal<string>('Caveat, cursive');
+  selectedLineHeight = signal<number>(1.16);
+  selectedHeight = signal<number>(40);
+  drawerDragOffset = signal<number>(0);
+  drawerDragging = signal<boolean>(false);
+  private touchStartX: number | null = null;
+  private touchDeltaX = 0;
+  private isSwiping = false;
+  private drawerTouchStartY: number | null = null;
+  private drawerTouchDeltaY = 0;
+  private placeholderTexts: any[] = [];
   
   private injector = inject(Injector);
   
@@ -40,6 +52,71 @@ export class CanvasCreatorComponent implements AfterViewInit {
     { id: 'chat', name: 'Chat', url: '/templates/FS_template_chat.png', preview: '/templates/FS_template_chat.png' },
     { id: 'holyland', name: 'Map', url: '/templates/FS_template_holyland.png', preview: '/templates/FS_template_holyland.png' },
   ];
+
+  // Template presets: GeoJSON with textbox positions and properties
+  templatePresets: { [key: string]: any } = {
+    chat: {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [71.98606597335078, 78.890625],
+          },
+          properties: {
+            id: 'textbox-1',
+            placeholder: 'message 1a',
+            'line-height': 1.1,
+            width: 225.1559961000974,
+            height: 31.64,
+          },
+        },
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [42.01979548725569, 300.3671875],
+          },
+          properties: {
+            id: 'textbox-2',
+            placeholder: 'message 2',
+            'line-height': 1.1,
+            width: 222.44713078601603,
+            height: 31.64,
+          },
+        },
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [69.17226310413666, 494.140625],
+          },
+          properties: {
+            id: 'textbox-3',
+            placeholder: 'message 1b',
+            'line-height': 1.1,
+            width: 220.41225799712151,
+            height: 31.64,
+          },
+        },
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [90.24133548447011, 569.28125],
+          },
+          properties: {
+            id: 'transition',
+            placeholder: 'transition',
+            'line-height': 1.1,
+            width: 156.50540298992513,
+            height: 31.64,
+          },
+        },
+      ],
+    },
+  };
   
   currentTemplate = computed(() => this.templates[this.currentTemplateIndex()]);
   
@@ -68,11 +145,20 @@ export class CanvasCreatorComponent implements AfterViewInit {
     this.api.updateFromRoute(this.route.snapshot);
     // Select random color on init
     this.currentColor.set(this.markerColors[Math.floor(Math.random() * this.markerColors.length)]);
+    this.preloadFonts();
   }
   
   ngAfterViewInit(): void {
     if (!this.platform.browser()) {
       return;
+    }
+  }
+  
+  @HostListener('window:keydown', ['$event'])
+  handleKeyboardEvent(event: KeyboardEvent) {
+    if (event.ctrlKey && event.shiftKey && event.key === 'E') {
+      event.preventDefault();
+      this.exportTextboxesAsGeoJSON();
     }
   }
   
@@ -108,6 +194,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
       if (mode === 'draw') {
         this.setupRoughBrush(fabricCanvas);
       }
+      this.updatePlaceholderVisibility(mode === 'type');
     }
   }
   
@@ -184,8 +271,53 @@ export class CanvasCreatorComponent implements AfterViewInit {
     if (this.currentMode() === 'draw') {
       this.setupRoughBrush(fabricCanvas);
     }
-    
+    // Place initial chat placeholders
+    this.placeInitialChatBoxes(fabricCanvas);
+    this.updatePlaceholderVisibility(this.currentMode() === 'type');
+
     this.canvas.set(fabricCanvas);
+    
+    // Expose console debug helpers directly
+    (window as any).textboxDebug = {
+      getLineHeight: () => {
+        const active = this.canvas()?.getActiveObject();
+        if (active) {
+          console.log('Current textbox lineHeight:', active.lineHeight);
+          return active.lineHeight;
+        }
+        console.warn('No textbox selected');
+      },
+      setLineHeight: (value: number) => {
+        this.setLineHeight(value);
+        const active = this.canvas()?.getActiveObject();
+        console.log('LineHeight set to:', value, '- Current:', active?.lineHeight);
+      },
+      getHeight: () => {
+        const active = this.canvas()?.getActiveObject();
+        if (active) {
+          console.log('Current textbox height:', active.height);
+          return active.height;
+        }
+        console.warn('No textbox selected');
+      },
+      setHeight: (value: number) => {
+        this.setHeight(value);
+        const active = this.canvas()?.getActiveObject();
+        console.log('Height set to:', value, '- Current:', active?.height);
+      },
+      showAll: () => {
+        console.log('Available commands:');
+        console.log('  textboxDebug.getLineHeight() - Get current lineHeight');
+        console.log('  textboxDebug.setLineHeight(1.2) - Set lineHeight (try 0.8-2.0)');
+        console.log('  textboxDebug.getHeight() - Get current height');
+        console.log('  textboxDebug.setHeight(50) - Set height in pixels');
+        console.log('  textboxDebug.export() - Export all textboxes as GeoJSON');
+      },
+      export: () => {
+        this.exportTextboxesAsGeoJSON();
+      },
+    };
+    console.log('✅ textboxDebug is now available!');
   }
   
   setupRoughBrush(fabricCanvas: any) {
@@ -291,27 +423,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
   addText() {
     const fabricCanvas = this.canvas();
     if (!fabricCanvas) return;
-    
-    const randomFont = this.handwritingFonts[Math.floor(Math.random() * this.handwritingFonts.length)];
-    const text = new fabric.IText('Type here...', {
-      left: 100,
-      top: 100,
-      fontFamily: randomFont,
-      fontSize: 24,
-      fill: this.currentColor(),
-    });
-    
-    // Detect text direction
-    text.on('changed', () => {
-      const textContent = text.text || '';
-      const isRTL = this.detectRTL(textContent);
-      text.set({ direction: isRTL ? 'rtl' : 'ltr' });
-      fabricCanvas.renderAll();
-    });
-    
-    fabricCanvas.add(text);
-    fabricCanvas.setActiveObject(text);
-    text.enterEditing();
+    this.addTextboxAt(100, 100, true);
   }
   
   detectRTL(text: string): boolean {
@@ -363,16 +475,16 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const fabricCanvas = this.canvas();
     if (!fabricCanvas) return;
     
-    const randomFont = this.handwritingFonts[Math.floor(Math.random() * this.handwritingFonts.length)];
-    const text = new fabric.IText('Type above transition...', {
+    const text = new fabric.Textbox('Type above transition...', {
       left: 180,
       top: 1850,
-      fontFamily: randomFont,
+      fontFamily: this.selectedFont(),
       fontSize: 20,
       fill: this.currentColor(),
       textAlign: 'center',
+      width: 320,
     });
-    
+    this.configureTextbox(text);
     fabricCanvas.add(text);
     fabricCanvas.setActiveObject(text);
     text.enterEditing();
@@ -438,5 +550,331 @@ export class CanvasCreatorComponent implements AfterViewInit {
     if (objects.length > 0) {
       fabricCanvas.remove(objects[objects.length - 1]);
     }
+  }
+
+  // ----- Carousel swipe handlers -----
+  onCarouselTouchStart(ev: TouchEvent) {
+    if (ev.touches.length !== 1) return;
+    this.touchStartX = ev.touches[0].clientX;
+    this.touchDeltaX = 0;
+    this.isSwiping = true;
+  }
+
+  onCarouselTouchMove(ev: TouchEvent) {
+    if (!this.isSwiping || this.touchStartX === null) return;
+    this.touchDeltaX = ev.touches[0].clientX - this.touchStartX;
+  }
+
+  onCarouselTouchEnd() {
+    if (!this.isSwiping) return;
+    const threshold = 50;
+    if (this.touchDeltaX > threshold) {
+      this.previousTemplate();
+    } else if (this.touchDeltaX < -threshold) {
+      this.nextTemplate();
+    }
+    this.touchStartX = null;
+    this.touchDeltaX = 0;
+    this.isSwiping = false;
+  }
+
+  // ----- Drawer helpers -----
+  toggleControls() {
+    const state = this.drawerState();
+    if (state === 'default') {
+      this.drawerState.set('full');
+    } else if (state === 'full') {
+      this.drawerState.set('minimal');
+    } else {
+      this.drawerState.set('default');
+    }
+    this.drawerDragOffset.set(0);
+    this.drawerDragging.set(false);
+  }
+
+  setFont(font: string) {
+    this.selectedFont.set(font);
+    this.loadFont(font);
+    const fabricCanvas = this.canvas();
+    if (!fabricCanvas) return;
+    const active = fabricCanvas.getActiveObject();
+    if (active && active.type === 'textbox') {
+      active.set('fontFamily', font);
+      fabricCanvas.requestRenderAll();
+    }
+  }
+
+  setLineHeight(lineHeight: number) {
+    this.selectedLineHeight.set(lineHeight);
+    const fabricCanvas = this.canvas();
+    if (!fabricCanvas) return;
+    const active = fabricCanvas.getActiveObject();
+    if (active && active.type === 'textbox') {
+      active.set('lineHeight', lineHeight);
+      fabricCanvas.requestRenderAll();
+    }
+  }
+
+  setHeight(height: number) {
+    this.selectedHeight.set(height);
+    const fabricCanvas = this.canvas();
+    if (!fabricCanvas) return;
+    const active = fabricCanvas.getActiveObject();
+    if (active && active.type === 'textbox') {
+      active.set('height', height);
+      fabricCanvas.requestRenderAll();
+    }
+  }
+
+  private addTextboxAt(x: number, y: number, focus = false, placeholderText = 'Type here...', width?: number) {
+    const fabricCanvas = this.canvas();
+    if (!fabricCanvas) return;
+    const placeholderColor = '#9aa0a6';
+    const text = new fabric.Textbox(placeholderText, {
+      left: x,
+      top: y,
+      fontFamily: this.selectedFont(),
+      fontSize: 28,
+      fill: placeholderColor,
+      width: width || Math.min(360, fabricCanvas.getWidth() * 0.6),
+      height: this.selectedHeight(),
+      editable: true,
+      lineHeight: this.selectedLineHeight(),
+      _placeholder: true,
+      _placeholderText: placeholderText, // Store original placeholder
+    });
+    this.configureTextbox(text);
+    // Detect text direction on change
+    text.on('changed', () => {
+      const txt = text.text || '';
+      const isRTL = this.detectRTL(txt);
+      text.set({ direction: isRTL ? 'rtl' : 'ltr' });
+      fabricCanvas.requestRenderAll();
+    });
+    // Placeholder behavior
+    text.on('editing:entered', () => {
+      if ((text as any)._placeholder) {
+        text.set({ text: '', fill: this.currentColor(), _placeholder: false });
+      }
+    });
+    text.on('editing:exited', () => {
+      const content = text.text || '';
+      if (content.trim() === '') {
+        const originalPlaceholder = (text as any)._placeholderText || 'Type here...';
+        text.set({ text: originalPlaceholder, fill: placeholderColor, _placeholder: true });
+      }
+    });
+
+    fabricCanvas.add(text);
+    this.placeholderTexts.push(text);
+    if (focus) {
+      fabricCanvas.setActiveObject(text);
+      text.enterEditing();
+    }
+  }
+      text.enterEditing();
+    }
+  }
+
+  private configureTextbox(text: any) {
+    // Allow width resize via side handles only; corners will resize font uniformly
+    text.setControlsVisibility({
+      ml: true, mr: true,
+      mt: false, mb: false,
+      tl: true, tr: true, bl: true, br: true,
+      mtr: false,
+    });
+
+    // Prevent letter stretching: convert side scaling to width changes
+    text.on('scaling', (e: any) => {
+      const t = e.transform?.target;
+      if (!t) return;
+      const corner = e.transform?.corner;
+      if (corner === 'ml' || corner === 'mr') {
+        const newW = Math.max(80, t.width * t.scaleX);
+        t.set({ width: newW, scaleX: 1 });
+      } else if (corner === 'mt' || corner === 'mb') {
+        // disallow vertical-only scaling for textboxes
+        t.set({ scaleY: 1 });
+      }
+    });
+
+    // Convert corner uniform scaling into font size + width change
+    text.on('scaled', (e: any) => {
+      const t = e.transform?.target;
+      if (!t) return;
+      const corner = e.transform?.corner;
+      if (corner === 'tl' || corner === 'tr' || corner === 'bl' || corner === 'br') {
+        // Use average scale to keep proportions
+        const s = (t.scaleX + t.scaleY) / 2;
+        const nextFont = Math.max(8, Math.min(128, t.fontSize * s));
+        const nextWidth = Math.max(80, t.width * s);
+        t.set({ fontSize: nextFont, width: nextWidth, scaleX: 1, scaleY: 1 });
+        t.setCoords();
+      } else {
+        t.set({ scaleX: 1, scaleY: 1 });
+      }
+      t.canvas?.requestRenderAll();
+    });
+  }
+
+  private placeInitialChatBoxes(fabricCanvas: any) {
+    console.log('🔵 placeInitialChatBoxes called, existing boxes:', this.placeholderTexts.length);
+    if (this.placeholderTexts.length) return;
+    
+    const template = this.selectedTemplate();
+    console.log('🔵 Selected template:', template?.id);
+    if (!template) return;
+    
+    // Load textboxes from template preset if available
+    const preset = this.templatePresets[template.id];
+    console.log('🔵 Preset found:', preset ? 'yes' : 'no', preset);
+    if (preset && preset.features) {
+      console.log('🔵 Creating', preset.features.length, 'textboxes');
+      preset.features.forEach((feature: any) => {
+        const props = feature.properties;
+        const [x, y] = feature.geometry.coordinates;
+        
+        console.log('🔵 Creating textbox at', x, y, 'with placeholder:', props.placeholder);
+        
+        // Set current values from preset
+        this.selectedLineHeight.set(props['line-height'] || 1.16);
+        this.selectedHeight.set(props.height || 40);
+        
+        // Create textbox with preset placeholder and width
+        this.addTextboxAt(x, y, false, props.placeholder, props.width);
+        const created = this.canvas()?.getObjects().slice(-1)[0];
+        if (created) {
+          this.placeholderTexts.push(created);
+          console.log('🔵 Textbox created and added to array');
+        }
+      });
+    } else {
+      // Fallback to default positions
+      const boxes = [
+        { x: 150, y: 360 },
+        { x: 150, y: 640 },
+      ];
+      boxes.forEach(pos => {
+        this.addTextboxAt(pos.x, pos.y, false);
+        const created = this.canvas()?.getObjects().slice(-1)[0];
+        if (created) this.placeholderTexts.push(created);
+      });
+    }
+    console.log('🔵 Total textboxes after placement:', this.placeholderTexts.length);
+  }
+
+  private loadFont(font: string) {
+    if (typeof document === 'undefined' || !(document as any).fonts?.load) return;
+    (document as any).fonts.load(`400 16px ${font}`).catch(() => {});
+  }
+
+  private preloadFonts() {
+    this.handwritingFonts.forEach(f => this.loadFont(f));
+  }
+
+  // Drawer touch (swipe) handlers
+  onDrawerTouchStart(ev: TouchEvent) {
+    if (ev.touches.length !== 1) return;
+    this.drawerTouchStartY = ev.touches[0].clientY;
+    this.drawerTouchDeltaY = 0;
+    this.drawerDragging.set(true);
+  }
+
+  onDrawerTouchMove(ev: TouchEvent) {
+    if (this.drawerTouchStartY === null) return;
+    this.drawerTouchDeltaY = ev.touches[0].clientY - this.drawerTouchStartY;
+    const clamped = Math.max(-100, Math.min(60, this.drawerTouchDeltaY));
+    this.drawerDragOffset.set(clamped);
+  }
+
+  onDrawerTouchEnd() {
+    const threshold = 30;
+    if (this.drawerTouchDeltaY > threshold) {
+      this.openMoreDrawer();
+    } else if (this.drawerTouchDeltaY < -threshold) {
+      this.closeDrawerLevel();
+    }
+    this.drawerTouchStartY = null;
+    this.drawerTouchDeltaY = 0;
+    this.drawerDragOffset.set(0);
+    this.drawerDragging.set(false);
+  }
+
+  private openMoreDrawer() {
+    const state = this.drawerState();
+    if (state === 'minimal') this.drawerState.set('default');
+    else if (state === 'default') this.drawerState.set('full');
+    this.drawerDragOffset.set(0);
+    this.drawerDragging.set(false);
+  }
+
+  private closeDrawerLevel() {
+    const state = this.drawerState();
+    if (state === 'full') this.drawerState.set('default');
+    else if (state === 'default') this.drawerState.set('minimal');
+    this.drawerDragOffset.set(0);
+    this.drawerDragging.set(false);
+  }
+
+  drawerTransform(): string {
+    const base = this.drawerBaseOffset();
+    const drag = this.drawerDragOffset();
+    return `translateY(${base + drag}px)`;
+  }
+
+  drawerTransition(): string {
+    return this.drawerDragging() ? 'none' : 'transform 0.22s cubic-bezier(0.25, 0.8, 0.3, 1)';
+  }
+
+  private drawerBaseOffset(): number {
+    const state = this.drawerState();
+    if (state === 'full') return 0;
+    if (state === 'default') return -30;
+    return -70; // minimal
+  }
+
+  private updatePlaceholderVisibility(show: boolean) {
+    this.placeholderTexts.forEach(t => {
+      t.set({ visible: show });
+    });
+    this.canvas()?.requestRenderAll();
+  }
+
+  private exportTextboxesAsGeoJSON() {
+    const fabricCanvas = this.canvas();
+    if (!fabricCanvas) {
+      console.warn('Canvas not initialized');
+      return;
+    }
+
+    console.log('Debug: placeholderTexts count:', this.placeholderTexts.length);
+    if (this.placeholderTexts.length > 0) {
+      console.log('Debug: first textbox sample:', this.placeholderTexts[0]);
+    }
+    
+    const features = this.placeholderTexts.map((textbox, index) => ({
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [textbox.left, textbox.top],
+      },
+      properties: {
+        id: `textbox-${index}`,
+        placeholder: textbox._presetPlaceholder || textbox.text || 'message…',
+        'line-height': textbox.lineHeight || 1.16,
+        width: textbox.width,
+        height: textbox.height || 40,
+      },
+    }));
+
+    const geojson = {
+      type: 'FeatureCollection',
+      features,
+    };
+
+    console.log('📍 Textbox Positions (GeoJSON)');
+    console.log(JSON.stringify(geojson, null, 2));
+    console.log('Copy the above JSON to use as a preset.');
   }
 }
