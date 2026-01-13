@@ -105,6 +105,12 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   }
 
   private async loadSvgBackground(): Promise<void> {
+    // Skip on server-side rendering
+    if (typeof fetch === 'undefined' || typeof document === 'undefined') {
+      console.log('[SVG-LOAD] Skipping SVG load on server-side rendering');
+      return;
+    }
+    
     try {
 
       const response = await fetch(this.options.svgPath);
@@ -129,6 +135,12 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   }
 
   private extractHotspots(): void {
+    // Skip on server-side rendering
+    if (typeof document === 'undefined') {
+      console.log('[SVG-HOTSPOT] Skipping hotspot extraction on server-side rendering');
+      return;
+    }
+    
     if (!this.svgElement) {
       console.warn('SVG element not loaded, cannot extract hotspots');
       return;
@@ -166,8 +178,9 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
           return;
         }
         
-        // Find path element that starts with the transition_bar_position (e.g., 'before', 'during', 'after')
-        // The ID might be 'before_2' or just 'before', so we use startsWith
+        // Find path element that represents the actual hit region
+        // For prefer/prevent regions, we need to find the path that corresponds to the transition_bar_position
+        // The path ID should start with the transition_bar_position (e.g., 'before', 'during', 'after')
         const pathElement = Array.from(hitElement.querySelectorAll('path'))
           .find(p => p.id.startsWith(groupMetadata.transition_bar_position)) as SVGGraphicsElement;
         
@@ -178,6 +191,9 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         
         // Calculate bounding box for the specific path element
         const bbox = pathElement.getBBox();
+        
+        // DEBUG: Log which element and metadata we're using for hotspot matching
+        console.log(`[HOTSPOT-EXTRACT] Group: ${groupId}, favorable_future=${groupMetadata.favorable_future}, path=${pathElement.id}, bbox=(${bbox.x.toFixed(1)},${bbox.y.toFixed(1)})`);
         
         // CRITICAL: Log bbox at creation time to catch zero-size issues early
         if (bbox.width === 0 || bbox.height === 0) {
@@ -669,7 +685,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
           groupMetadata.favorable_future === favorableFuture &&
           groupMetadata.transition_bar_position === transitionBarPosition) {
         
-        console.log(`[AUTO-POS] MATCH FOUND for photo ${photoData.id} in hotspot ${parentGroupId}`);
+        console.log(`[AUTO-POS] MATCH FOUND for photo ${photoData.id} (favorable_future=${favorableFuture}) in hotspot ${parentGroupId}`);
         
         // Store the hotspot association BEFORE calculating position
         // This ensures overlap detection can see all previously placed photos in this hotspot
@@ -752,7 +768,8 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       const svgX = hotspot.bounds.x + hotspot.bounds.width / 2;
       const svgY = hotspot.bounds.y + hotspot.bounds.height / 2;
       const normalizedX = (svgX - viewBox.width / 2) / (viewBox.width / 2);
-      const normalizedY = (svgY - viewBox.height / 2) / (viewBox.height / 2);
+      // Invert Y axis: SVG has Y increasing downward, but 3D world has Y increasing upward
+      const normalizedY = -((svgY - viewBox.height / 2) / (viewBox.height / 2));
       console.log(`[DIST-DEBUG] Fallback to center: normalized=(${normalizedX.toFixed(3)}, ${normalizedY.toFixed(3)})`);
       return { auto_x: normalizedX, auto_y: normalizedY };
     }
@@ -823,7 +840,8 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     
     // Transform SVG coordinates to normalized [-1, 1] space
     const normalizedX = (selectedCandidate.svgX - viewBox.width / 2) / (viewBox.width / 2);
-    const normalizedY = (selectedCandidate.svgY - viewBox.height / 2) / (viewBox.height / 2);
+    // Invert Y axis: SVG has Y increasing downward, but 3D world has Y increasing upward
+    const normalizedY = -((selectedCandidate.svgY - viewBox.height / 2) / (viewBox.height / 2));
     
     console.log(`[AUTO-POS] Photo index=${photoIndex} in hotspot ${hotspot.parentGroupId}: FINAL position svg=(${selectedCandidate.svgX.toFixed(1)},${selectedCandidate.svgY.toFixed(1)}), normalized=(${normalizedX.toFixed(3)},${normalizedY.toFixed(3)}), minOverlap=${minOverlap.toFixed(1)}%`);
     
@@ -994,31 +1012,74 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   }
   
   /**
-   * Check if a position overlaps with any header element (IDs starting with "header")
+   * Check if a photo at a position would overlap with any header element (IDs starting with "header")
+   * or any elements within header elements
    */
   private overlapsHeaderElement(
     svgX: number,
     svgY: number,
     viewBox: { x: number; y: number; width: number; height: number }
   ): boolean {
+    // Skip on server-side rendering
+    if (typeof document === 'undefined') {
+      return false;
+    }
+    
     if (!this.svgElement) return false;
+    
+    // Calculate photo bounds in SVG coordinates (center point given)
+    // Using default photo size, need to convert from world space to SVG space
+    const photoWidthInSvg = (this.PHOTO_WIDTH / this.options.circleRadius) * (viewBox.width / 2);
+    const photoHeightInSvg = (this.PHOTO_HEIGHT / this.options.circleRadius) * (viewBox.height / 2);
+    
+    const photoLeft = svgX - photoWidthInSvg / 2;
+    const photoRight = svgX + photoWidthInSvg / 2;
+    const photoTop = svgY - photoHeightInSvg / 2;
+    const photoBottom = svgY + photoHeightInSvg / 2;
     
     // Find all elements with IDs starting with "header"
     const headerElements = Array.from(this.svgElement.querySelectorAll('[id^="header"]'));
     
-    for (const element of headerElements) {
-      if (element instanceof SVGGraphicsElement) {
+    for (const headerElement of headerElements) {
+      if (headerElement instanceof SVGGraphicsElement) {
         try {
-          const bbox = element.getBBox();
+          // Check the header element itself
+          const bbox = headerElement.getBBox();
+          const buffer = 30; // Increased buffer to avoid placing photos too close
           
-          // Check if point is within the header element's bounding box
-          // Add small buffer to avoid placing photos too close to headers
-          const buffer = 20; // 20px buffer
-          if (svgX >= (bbox.x - buffer) && 
-              svgX <= (bbox.x + bbox.width + buffer) &&
-              svgY >= (bbox.y - buffer) && 
-              svgY <= (bbox.y + bbox.height + buffer)) {
+          // Check if photo bounds overlap with header element bounds (with buffer)
+          const overlaps = !(
+            photoRight < (bbox.x - buffer) ||
+            photoLeft > (bbox.x + bbox.width + buffer) ||
+            photoBottom < (bbox.y - buffer) ||
+            photoTop > (bbox.y + bbox.height + buffer)
+          );
+          
+          if (overlaps) {
             return true;
+          }
+          
+          // Also check all descendants of the header element
+          const descendants = headerElement.querySelectorAll('*');
+          for (const descendant of descendants) {
+            if (descendant instanceof SVGGraphicsElement) {
+              try {
+                const descBbox = descendant.getBBox();
+                const descOverlaps = !(
+                  photoRight < (descBbox.x - buffer) ||
+                  photoLeft > (descBbox.x + descBbox.width + buffer) ||
+                  photoBottom < (descBbox.y - buffer) ||
+                  photoTop > (descBbox.y + descBbox.height + buffer)
+                );
+                
+                if (descOverlaps) {
+                  return true;
+                }
+              } catch (e) {
+                // If getBBox fails, skip this descendant
+                continue;
+              }
+            }
           }
         } catch (e) {
           // If getBBox fails, skip this element
@@ -1246,6 +1307,11 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
    * Get SVG viewBox dimensions
    */
   private getSvgViewBox(): { x: number; y: number; width: number; height: number } | null {
+    // Skip on server-side rendering
+    if (typeof document === 'undefined') {
+      return null;
+    }
+    
     if (!this.svgElement) {
       return null;
     }
