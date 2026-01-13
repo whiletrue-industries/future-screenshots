@@ -284,15 +284,14 @@ export class CanvasCreatorComponent implements AfterViewInit {
       }
     }
     
+    this.canvas.set(fabricCanvas);
     // Configure drawing brush with Rough.js sketchy effect
     if (this.currentMode() === 'draw') {
       this.setupRoughBrush(fabricCanvas);
     }
-    // Place initial chat placeholders
+    // Place initial chat placeholders (needs canvas to be registered first)
     this.placeInitialChatBoxes(fabricCanvas);
     this.updatePlaceholderVisibility(this.currentMode() === 'type');
-
-    this.canvas.set(fabricCanvas);
     
     // Expose console debug helpers directly
     (window as any).textboxDebug = {
@@ -639,9 +638,10 @@ export class CanvasCreatorComponent implements AfterViewInit {
     }
   }
 
-  private addTextboxAt(x: number, y: number, focus = false, placeholderText = 'Type here...', width?: number) {
-    const fabricCanvas = this.canvas();
-    if (!fabricCanvas) return;
+  private addTextboxAt(x: number, y: number, focus = false, placeholderText = 'Type here...', width?: number, fabricCanvas?: any) {
+    const canvasRef = fabricCanvas || this.canvas();
+    const targetCanvas = canvasRef;
+    if (!targetCanvas) return;
     const placeholderColor = '#9aa0a6';
     const text = new fabric.Textbox(placeholderText, {
       left: x,
@@ -649,7 +649,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
       fontFamily: this.selectedFont(),
       fontSize: 28,
       fill: placeholderColor,
-      width: width || Math.min(360, fabricCanvas.getWidth() * 0.6),
+      width: width || Math.min(360, targetCanvas.getWidth() * 0.6),
       height: this.selectedHeight(),
       editable: true,
       lineHeight: this.selectedLineHeight(),
@@ -662,7 +662,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
       const txt = text.text || '';
       const isRTL = this.detectRTL(txt);
       text.set({ direction: isRTL ? 'rtl' : 'ltr' });
-      fabricCanvas.requestRenderAll();
+      targetCanvas.requestRenderAll();
     });
     // Placeholder behavior
     text.on('editing:entered', () => {
@@ -678,9 +678,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
       }
     });
 
-    fabricCanvas.add(text);
+    targetCanvas.add(text);
     if (focus) {
-      fabricCanvas.setActiveObject(text);
+      targetCanvas.setActiveObject(text);
       text.enterEditing();
     }
     return text; // Return the textbox so caller can track it
@@ -752,7 +752,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
         this.selectedHeight.set(props.height || 40);
         
         // Create textbox with preset placeholder and width
-        const textbox = this.addTextboxAt(x, y, false, props.placeholder, props.width);
+        const textbox = this.addTextboxAt(x, y, false, props.placeholder, props.width, fabricCanvas);
         if (textbox) {
           this.placeholderTexts.push(textbox);
           console.log('🔵 Textbox created and added to array');
@@ -765,7 +765,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
         { x: 150, y: 640 },
       ];
       boxes.forEach(pos => {
-        const textbox = this.addTextboxAt(pos.x, pos.y, false);
+        const textbox = this.addTextboxAt(pos.x, pos.y, false, 'Type here...', undefined, fabricCanvas);
         if (textbox) this.placeholderTexts.push(textbox);
       });
     }
