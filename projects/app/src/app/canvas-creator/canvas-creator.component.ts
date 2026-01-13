@@ -142,16 +142,26 @@ export class CanvasCreatorComponent implements AfterViewInit {
     private route: ActivatedRoute,
     private api: ApiService,
   ) {
+    console.log('🔵🔵🔵 CanvasCreatorComponent constructor called');
+    console.log('🔵 Platform browser?:', this.platform.browser());
+    console.log('🔵 Route snapshot:', this.route.snapshot);
     this.api.updateFromRoute(this.route.snapshot);
     // Select random color on init
     this.currentColor.set(this.markerColors[Math.floor(Math.random() * this.markerColors.length)]);
+    console.log('🔵 Selected color:', this.currentColor());
     this.preloadFonts();
+    console.log('🔵 Constructor complete');
   }
   
   ngAfterViewInit(): void {
+    console.log('🔵🔵🔵 ngAfterViewInit called');
+    console.log('🔵 Templates loaded:', this.templates.length);
+    console.log('🔵 Show template gallery:', this.showTemplateGallery());
     if (!this.platform.browser()) {
+      console.log('❌ Not in browser, exiting');
       return;
     }
+    console.log('🔵 ngAfterViewInit complete');
   }
   
   @HostListener('window:keydown', ['$event'])
