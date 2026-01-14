@@ -1,6 +1,5 @@
 import { AfterViewInit, Component, computed, ElementRef, input, signal, ViewChild } from '@angular/core';
 
-import QRCode from 'qrcode'
 import { PlatformService } from '../../../platform.service';
 
 @Component({
@@ -34,14 +33,21 @@ export class QrcodeComponent implements AfterViewInit {
   async ngAfterViewInit() {
     if (!this.platform.browser()) return;
     this.mainEl.set(this.el.nativeElement);
-    await QRCode.toCanvas(this.qrCodeEl.nativeElement, 
-      this.url(), {
-      scale: 16,
-      color: {
-        light: '#FFFDF6',
-        dark: '#4E02B2'
-      }
-    });
-    this.codeSize.set(this.qrCodeEl.nativeElement.height);    
+
+    try {
+      // Dynamically import qrcode only in browser
+      const QRCode = (await import('qrcode')).default;
+      await QRCode.toCanvas(this.qrCodeEl.nativeElement,
+        this.url(), {
+        scale: 16,
+        color: {
+          light: '#FFFDF6',
+          dark: '#4E02B2'
+        }
+      });
+      this.codeSize.set(this.qrCodeEl.nativeElement.height);
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+    }
   }
 }
