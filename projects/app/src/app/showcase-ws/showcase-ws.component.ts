@@ -37,6 +37,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   lang = signal('');
   currentLayout = signal<'grid' | 'tsne' | 'svg' | 'circle-packing'>('circle-packing');
   enableRandomShowcase = signal(false);
+  enableSvgAutoPositioning = signal(false);
   loadedPhotoIds = new Set<string>();
   private layoutChangeInProgress = false;
   qrUrl = computed(() => 
@@ -65,6 +66,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         const photoPromises = items.map(async (item) => {
           const id = item._id;
           const url = item.screenshot_url;
+          // Generate transition_bar_position if not provided by API
+          const transitionBarPosition = item.transition_bar_position || this.getDefaultTransitionBarPosition(item);
           const metadata: PhotoMetadata = {
             id,
             url,
@@ -72,8 +75,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             screenshot_url: url,
             author_id: item.author_id,
             layout_x: item.layout_x,
-            layout_y: item.layout_y
+            layout_y: item.layout_y,
+            plausibility: item.plausibility,
+            favorable_future: item.favorable_future,
+            transition_bar_position: transitionBarPosition
           };
+          console.log('[METADATA] Initial load:', id, '-> plausibility:', item.plausibility, 'favorable_future:', item.favorable_future, 'transition_bar_position:', transitionBarPosition);
           
           try {
             await this.photoRepository.addPhoto(metadata); // Add initial photos
@@ -104,13 +111,19 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           const photoPromises = newItems.map(async (item) => {
             const id = item._id;
             const url = item.screenshot_url;
+            // Generate transition_bar_position if not provided by API
+            const transitionBarPosition = item.transition_bar_position || this.getDefaultTransitionBarPosition(item);
             const metadata: PhotoMetadata = {
               id,
               url,
               created_at: item.created_at,
               screenshot_url: url,
               author_id: item.author_id,
+              plausibility: item.plausibility,
+              favorable_future: item.favorable_future,
+              transition_bar_position: transitionBarPosition
             };
+            console.log('[METADATA] New photo:', id, '-> plausibility:', item.plausibility, 'favorable_future:', item.favorable_future, 'transition_bar_position:', transitionBarPosition);
             
             try {
               await this.photoRepository.addPhoto(metadata); // Add to queue for showcase
@@ -153,11 +166,94 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   toggleRandomShowcase() {
     this.enableRandomShowcase.set(!this.enableRandomShowcase());
     this.photoRepository.setRandomShowcaseEnabled(this.enableRandomShowcase());
+  }
 
+  /**
+   * Toggle SVG auto-positioning based on metadata
+   */
+  toggleSvgAutoPositioning() {
+    const wasEnabled = this.enableSvgAutoPositioning();
+    const willBeEnabled = !wasEnabled;
+    
+    console.log('[TOGGLE] SVG Auto-Positioning button clicked');
+    console.log('[TOGGLE] Current state:', { wasEnabled, willBeEnabled, currentLayout: this.currentLayout() });
+    
+    this.enableSvgAutoPositioning.set(willBeEnabled);
+    this.photoRepository.setSvgAutoPositioningEnabled(willBeEnabled);
+    
+    if (this.currentLayout() === 'svg') {
+      console.log('[TOGGLE] On SVG layout, refreshing layout...');
+      this.photoRepository.refreshLayout();
+      
+      // Give a moment for layout to complete, then try to show visualization
+      setTimeout(() => {
+        if (willBeEnabled) {
+          console.log('[TOGGLE] Auto-positioning now enabled, showing debug visualization');
+          this.showSvgHotspotDebugVisualization();
+        }
+      }, 100);
+    } else {
+      console.log('[TOGGLE] Not on SVG layout, skipping visualization');
+    }
+  }
+
+  /**
+   * Helper to show SVG hotspot debug visualization
+   */
+  private showSvgHotspotDebugVisualization() {
+    try {
+      const strategy = this.photoRepository.getLayoutStrategy();
+      console.log('[HOTSPOT-VIZ] Got strategy:', strategy?.constructor.name);
+      
+      if (!strategy) {
+        console.warn('[HOTSPOT-VIZ] No layout strategy available');
+        return;
+      }
+      
+      const showDebugMethod = (strategy as any).showAllHotspotsDebug;
+      if (typeof showDebugMethod === 'function') {
+        console.log('[HOTSPOT-VIZ] Calling showAllHotspotsDebug()...');
+        showDebugMethod.call(strategy);
+        console.log('[HOTSPOT-VIZ] Successfully called showAllHotspotsDebug()');
+      } else {
+        console.warn('[HOTSPOT-VIZ] showAllHotspotsDebug is not a function:', typeof showDebugMethod);
+      }
+    } catch (error) {
+      console.error('[HOTSPOT-VIZ] Error showing visualization:', error);
+    }
+  }
+
+  /**
+   * Generate a default transition_bar_position if the API doesn't provide one
+   * Distributes photos evenly across 'before', 'during', and 'after' based on photo ID hash
+   */
+  private getDefaultTransitionBarPosition(item: any): 'before' | 'during' | 'after' {
+    // If API provides it, return it (this handles the fallback case)
+    if (item.transition_bar_position) {
+      return item.transition_bar_position;
+    }
+    
+    // Use photo ID to generate a stable hash
+    const positions = ['before', 'during', 'after'] as const;
+    let hash = 0;
+    const id = item._id || '';
+    for (let i = 0; i < id.length; i++) {
+      const char = id.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    
+    // Distribute evenly across the three positions
+    const index = Math.abs(hash) % 3;
+    return positions[index];
   }
 
   getItems(): Observable<any[]> {
-    return this.http.get<any[]>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${this.workspace()}/items?page_size=10000`).pipe(
+    const httpOptions: { headers?: Record<string, string> } = {};
+    if (this.api_key()) {
+      httpOptions.headers = { 'Authorization': this.api_key()! };
+    }
+    return this.http.get<any[]>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${this.workspace()}/items?page_size=10000`, httpOptions).pipe(
       catchError((error) => {
         console.error('Error loading items:', error);
         return of([]);
@@ -402,6 +498,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Switch the layout using PhotoDataRepository (this will initialize the strategy)
       await this.photoRepository.setLayoutStrategy(svgStrategy);
       
+      // Pass layout strategy reference to renderer for debug visualization
+      this.rendererService.setLayoutStrategyReference(svgStrategy);
+      
       // Set up SVG background in Three.js renderer
       const svgElement = svgStrategy.getSvgElement();
 
@@ -472,6 +571,27 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
                        this.currentLayout() === 'svg' ? 2 : 3;
     const translateX = layoutIndex * 48; // 44px width + 4px gap
     return `translateX(${translateX}px)`;
+  }
+
+  /**
+   * Reset camera view to fit all content
+   */
+  resetView(): void {
+    this.rendererService.resetCameraView(true);
+  }
+
+  /**
+   * Zoom in at the cursor position (or center if unavailable)
+   */
+  zoomIn(): void {
+    this.rendererService.zoomAtCursor(0.65);
+  }
+
+  /**
+   * Zoom out at the cursor position (or center if unavailable)
+   */
+  zoomOut(): void {
+    this.rendererService.zoomAtCursor(1.5);
   }
 
 
