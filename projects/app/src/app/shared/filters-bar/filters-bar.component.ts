@@ -429,7 +429,15 @@ export class FiltersBarComponent {
     // Emit debounced change for immediate view update
     this.emitDebouncedChange();
   }
-  
+
+  removeStatusChip(status: string): void {
+    this.toggleStatusFilter(status);
+  }
+
+  clearStatusSearch(): void {
+    this.statusSearchText.set('');
+  }
+
   // Preference filter methods
   togglePreferenceDropdown(): void {
     const wasOpen = this.preferenceDropdownOpen();
@@ -496,7 +504,37 @@ export class FiltersBarComponent {
     // Emit debounced change for immediate view update
     this.emitDebouncedChange();
   }
-  
+
+  removePreferenceChip(pref: string): void {
+    this.togglePreferenceFilter(pref);
+  }
+
+  getPreferenceLabel(pref: string): string {
+    const labels: { [key: string]: string } = {
+      'prefer': 'Prefer',
+      'mostly prefer': 'Mostly Prefer',
+      'uncertain': 'Uncertain',
+      'mostly prevent': 'Mostly Prevent',
+      'prevent': 'Prevent',
+      'none': 'None'
+    };
+    return labels[pref] || pref;
+  }
+
+  getFilteredPreferenceOptions(): string[] {
+    const searchTerm = this.preferenceSearchText().toLowerCase();
+    if (!searchTerm) {
+      return this.preferenceOptions;
+    }
+    return this.preferenceOptions.filter(pref =>
+      this.getPreferenceLabel(pref).toLowerCase().includes(searchTerm)
+    );
+  }
+
+  clearPreferenceSearch(): void {
+    this.preferenceSearchText.set('');
+  }
+
   // Potential filter methods
   togglePotentialDropdown(): void {
     const wasOpen = this.potentialDropdownOpen();
@@ -533,7 +571,59 @@ export class FiltersBarComponent {
   getSelectedPotentialCount(): number {
     return this.filterPotential().length;
   }
-  
+
+  /**
+   * Get deselected potentials (inverse of selected)
+   * Only relevant when 1-2 items are deselected
+   */
+  getDeselectedPotentials(): string[] {
+    const selected = this.filterPotential();
+    return this.potentialOptions.filter(pot => !selected.includes(pot));
+  }
+
+  /**
+   * Check if we should show deselected chips instead of selected
+   * True when 1-2 items are deselected (sparse deselection pattern)
+   */
+  shouldShowDeselectedPotentialChips(): boolean {
+    const deselected = this.getDeselectedPotentials();
+    return deselected.length > 0 && deselected.length <= 2;
+  }
+
+  selectAllPotentials(): void {
+    this.filterPotential.set(['100', '75', '50', '25', '0']);
+    // Emit debounced change for immediate view update
+    this.emitDebouncedChange();
+  }
+
+  deselectAllPotentials(): void {
+    this.filterPotential.set([]);
+    // Emit debounced change for immediate view update
+    this.emitDebouncedChange();
+  }
+
+  removePotentialChip(pot: string): void {
+    this.togglePotentialFilter(pot);
+  }
+
+  getPotentialLabel(pot: string): string {
+    return this.potentialLabelMap[pot] || pot;
+  }
+
+  getFilteredPotentialOptions(): string[] {
+    const searchTerm = this.potentialSearchText().toLowerCase();
+    if (!searchTerm) {
+      return this.potentialOptions;
+    }
+    return this.potentialOptions.filter(pot =>
+      this.getPotentialLabel(pot).toLowerCase().includes(searchTerm)
+    );
+  }
+
+  clearPotentialSearch(): void {
+    this.potentialSearchText.set('');
+  }
+
   // Get status options - shows all known status types
   // Statuses with data will have counts, others will show (0)
   getAvailableStatusOptions(): string[] {
