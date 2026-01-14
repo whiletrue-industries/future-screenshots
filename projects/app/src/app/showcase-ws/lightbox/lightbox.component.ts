@@ -1,12 +1,13 @@
-import { Component, input, output, signal, effect, HostListener } from '@angular/core';
+import { Component, input, output, signal, effect, inject, afterNextRender, OnDestroy } from '@angular/core';
 import { PhotoMetadata } from '../photo-data';
+import { PlatformService } from '../../platform.service';
 
 @Component({
   selector: 'app-lightbox',
   templateUrl: './lightbox.component.html',
   styleUrl: './lightbox.component.less'
 })
-export class LightboxComponent {
+export class LightboxComponent implements OnDestroy {
   // Inputs
   isOpen = input<boolean>(false);
   photos = input<PhotoMetadata[]>([]);
@@ -20,7 +21,17 @@ export class LightboxComponent {
   currentPhoto = signal<PhotoMetadata | null>(null);
   currentIndex = signal<number>(-1);
 
+  private platform = inject(PlatformService);
+  private keyboardListener?: (event: KeyboardEvent) => void;
+
   constructor() {
+    // Set up keyboard listener only in browser
+    afterNextRender(() => {
+      this.platform.browser(() => {
+        this.keyboardListener = this.handleKeyboardEvent.bind(this);
+        document.addEventListener('keydown', this.keyboardListener);
+      });
+    });
     // Update current photo when inputs change
     effect(() => {
       const photoId = this.currentPhotoId();
@@ -45,8 +56,7 @@ export class LightboxComponent {
   /**
    * Handle keyboard navigation
    */
-  @HostListener('document:keydown', ['$event'])
-  handleKeyboardEvent(event: KeyboardEvent): void {
+  private handleKeyboardEvent(event: KeyboardEvent): void {
     if (!this.isOpen()) {
       return;
     }
@@ -102,5 +112,14 @@ export class LightboxComponent {
    */
   hasNext(): boolean {
     return this.currentIndex() < this.photos().length - 1;
+  }
+
+  ngOnDestroy(): void {
+    // Clean up keyboard listener
+    if (this.keyboardListener) {
+      this.platform.browser(() => {
+        document.removeEventListener('keydown', this.keyboardListener!);
+      });
+    }
   }
 }

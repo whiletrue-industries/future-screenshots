@@ -1,4 +1,4 @@
-import { Component, effect, signal, computed, HostListener } from '@angular/core';
+import { Component, effect, signal, computed, inject, afterNextRender, OnDestroy } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AdminApiService } from '../../../admin-api.service';
 import { FormsModule } from '@angular/forms';
@@ -7,6 +7,7 @@ import { firstValueFrom } from 'rxjs';
 import { ImageReplacementModalComponent } from '../image-replacement-modal/image-replacement-modal.component';
 import { QrCodeModalComponent } from '../qr-code-modal/qr-code-modal.component';
 import { CommonModule } from '@angular/common';
+import { PlatformService } from '../../../platform.service';
 
 export type Filter = {
   name: string;
@@ -25,9 +26,12 @@ export type Filter = {
   templateUrl: './moderate.component.html',
   styleUrl: './moderate.component.less'
 })
-export class ModerateComponent {
+export class ModerateComponent implements OnDestroy {
 
   Array = Array; // Make Array available in template
+
+  private platform = inject(PlatformService);
+  private documentClickListener?: (event: MouseEvent) => void;
 
   FILTERS = [
     {name: 'highlighted', filter:'metadata._private_moderation == 5'},
@@ -130,8 +134,7 @@ export class ModerateComponent {
   showQRModal = signal<boolean>(false);
   qrItemId = signal<string | null>(null);
 
-    @HostListener('document:click', ['$event'])
-    onDocumentClick(event: MouseEvent): void {
+    private onDocumentClick(event: MouseEvent): void {
       const target = event.target as HTMLElement;
       if (target && !target.closest('.custom-multiselect')) {
         this.statusDropdownOpen.set(false);
@@ -314,6 +317,14 @@ export class ModerateComponent {
       
       this.updateHashParams();
       this.applyFiltersAndSort();
+    });
+
+    // Set up document click listener only in browser
+    afterNextRender(() => {
+      this.platform.browser(() => {
+        this.documentClickListener = this.onDocumentClick.bind(this);
+        document.addEventListener('click', this.documentClickListener);
+      });
     });
   }
 
@@ -1416,5 +1427,14 @@ export class ModerateComponent {
   closeQrModal(): void {
     this.showQRModal.set(false);
     this.qrItemId.set(null);
+  }
+
+  ngOnDestroy(): void {
+    // Clean up document click listener
+    if (this.documentClickListener) {
+      this.platform.browser(() => {
+        document.removeEventListener('click', this.documentClickListener!);
+      });
+    }
   }
 }

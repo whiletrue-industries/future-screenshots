@@ -1,6 +1,7 @@
-import { Component, output, input, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, output, input, signal, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import QRCode from 'qrcode';
+import { PlatformService } from '../../../platform.service';
 
 @Component({
   selector: 'app-qr-code-modal',
@@ -17,9 +18,14 @@ export class QrCodeModalComponent implements OnInit {
   
   qrCodeUrl = signal<string | null>(null);
   copying = signal<boolean>(false);
-  
+
+  private platform = inject(PlatformService);
+
   ngOnInit() {
-    this.generateQRCode();
+    // Only generate QR code in browser
+    this.platform.browser(() => {
+      this.generateQRCode();
+    });
   }
   
   private async generateQRCode() {
@@ -42,7 +48,11 @@ export class QrCodeModalComponent implements OnInit {
   }
   
   private buildScanUrl(): string {
-    const baseUrl = window.location.origin;
+    // Get baseUrl from window (only available in browser)
+    let baseUrl = '';
+    if (typeof window !== 'undefined') {
+      baseUrl = window.location.origin;
+    }
     const params = new URLSearchParams({
       workspace: this.workspaceId(),
       api_key: this.apiKey(),
@@ -52,19 +62,23 @@ export class QrCodeModalComponent implements OnInit {
   }
   
   downloadQRCode() {
-    const link = document.createElement('a');
-    link.href = this.qrCodeUrl() || '';
-    link.download = `qr-code-replace-item-${this.itemId()}.png`;
-    link.click();
+    this.platform.browser(() => {
+      const link = document.createElement('a');
+      link.href = this.qrCodeUrl() || '';
+      link.download = `qr-code-replace-item-${this.itemId()}.png`;
+      link.click();
+    });
   }
   
   copyQRLink() {
-    this.copying.set(true);
-    const scanUrl = this.buildScanUrl();
-    navigator.clipboard.writeText(scanUrl).then(() => {
-      setTimeout(() => this.copying.set(false), 2000);
-    }).catch(() => {
-      this.copying.set(false);
+    this.platform.browser(() => {
+      this.copying.set(true);
+      const scanUrl = this.buildScanUrl();
+      navigator.clipboard.writeText(scanUrl).then(() => {
+        setTimeout(() => this.copying.set(false), 2000);
+      }).catch(() => {
+        this.copying.set(false);
+      });
     });
   }
   
