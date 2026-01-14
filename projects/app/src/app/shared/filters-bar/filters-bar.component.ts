@@ -1,5 +1,6 @@
-import { Component, input, output, signal, effect, HostListener } from '@angular/core';
+import { Component, input, output, signal, effect, inject, afterNextRender, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { PlatformService } from '../../../platform.service';
 
 export interface FiltersBarState {
   status: string[];
@@ -184,7 +185,7 @@ export class FilterHelpers {
   templateUrl: './filters-bar.component.html',
   styleUrl: './filters-bar.component.less'
 })
-export class FiltersBarComponent {
+export class FiltersBarComponent implements OnDestroy {
   // Inputs
   counts = input<FilterCounts>({
     status: new Map(),
@@ -248,8 +249,17 @@ export class FiltersBarComponent {
   private changeEffectTriggered = false;
   private debounceTimer: any = null;
   private readonly DEBOUNCE_DELAY = 300; // 300ms debounce for view updates
-  
+  private platform = inject(PlatformService);
+  private documentClickListener?: (event: MouseEvent) => void;
+
   constructor() {
+    // Set up document click listener only in browser
+    this.platform.browser(() => {
+      afterNextRender(() => {
+        this.documentClickListener = this.onDocumentClick.bind(this);
+        document.addEventListener('click', this.documentClickListener);
+      });
+    });
     // Set initial state from parent if provided
     effect(() => {
       const state = this.initialState();
@@ -306,8 +316,7 @@ export class FiltersBarComponent {
     });
   }
   
-  @HostListener('document:click', ['$event'])
-  onDocumentClick(event: MouseEvent): void {
+  private onDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
     if (target && !target.closest('.custom-multiselect')) {
       const wasOpen = this.statusDropdownOpen() || this.preferenceDropdownOpen() || this.potentialDropdownOpen();
@@ -706,5 +715,19 @@ export class FiltersBarComponent {
     this.viewMode.set(this.viewMode() === 'grid' ? 'list' : 'grid');
     // Emit change immediately so parent component can update view
     this.emitFiltersChange();
+  }
+
+  ngOnDestroy(): void {
+    // Clean up document click listener
+    if (this.documentClickListener) {
+      this.platform.browser(() => {
+        document.removeEventListener('click', this.documentClickListener!);
+      });
+    }
+
+    // Clear any pending debounce timer
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+    }
   }
 }
