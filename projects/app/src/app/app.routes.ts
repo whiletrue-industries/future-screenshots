@@ -32,25 +32,30 @@ export const routes: Routes = [
     {
         'path': 'admin/login',
         loadComponent: () => import('./admin/login/login.component').then(m => m.LoginComponent),
+        data: { ssr: false },
     },
     {
         'path': 'admin/moderate',
         loadComponent: () => import('./admin/moderate/moderate.component').then(m => m.ModerateComponent),
+        data: { ssr: false },
     },
     {
         'path': 'admin/new',
         loadComponent: () => import('./admin/workspace-form/workspace-form.component').then(m => m.WorkspaceFormComponent),
         canActivate: [AuthGuard],
+        data: { ssr: false },
     },
     {
         'path': 'admin/edit/:workspaceId',
         loadComponent: () => import('./admin/workspace-form/workspace-form.component').then(m => m.WorkspaceFormComponent),
         canActivate: [],
+        data: { ssr: false },
     },
     {
         'path': 'admin',
         loadComponent: () => import('./admin/admin/admin.component').then(m => m.AdminComponent),
         canActivate: [AuthGuard],
+        data: { ssr: false },
     },
     {
         'path': 'scan',

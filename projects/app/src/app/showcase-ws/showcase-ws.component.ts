@@ -156,6 +156,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.api_key.set(qp['api_key'] || 'API_KEY_NOT_SET');
     this.admin_key.set(qp['admin_key'] || 'ADMIN_KEY_NOT_SET');
     this.lang.set(qp['lang'] ? qp['lang'] + '/' : '');
+    const layoutParam = qp['layout'];
+    if (layoutParam && ['grid','tsne','svg','circle-packing'].includes(layoutParam)) {
+      this.currentLayout.set(layoutParam as any);
+    }
     apiService.updateFromRoute(this.activatedRoute.snapshot);
     apiService.api_key.set(this.admin_key());
   }
@@ -181,17 +185,30 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.enableSvgAutoPositioning.set(willBeEnabled);
     this.photoRepository.setSvgAutoPositioningEnabled(willBeEnabled);
     
+    // Show/hide debug visualization immediately (before layout refresh)
+    if (willBeEnabled) {
+      console.log('[TOGGLE] Auto-positioning enabled, showing debug visualization NOW');
+      this.showSvgHotspotDebugVisualization();
+    } else {
+      console.log('[TOGGLE] Auto-positioning disabled, hiding debug visualization');
+      // Hide the debug overlay
+      const strategy = this.photoRepository.getLayoutStrategy();
+      if (strategy && (strategy as any).removeDebugOverlay) {
+        (strategy as any).removeDebugOverlay();
+      }
+    }
+    
     if (this.currentLayout() === 'svg') {
       console.log('[TOGGLE] On SVG layout, refreshing layout...');
       this.photoRepository.refreshLayout();
       
-      // Give a moment for layout to complete, then try to show visualization
+      // Show visualization again after layout refresh
       setTimeout(() => {
         if (willBeEnabled) {
-          console.log('[TOGGLE] Auto-positioning now enabled, showing debug visualization');
+          console.log('[TOGGLE] Refreshing debug visualization after layout');
           this.showSvgHotspotDebugVisualization();
         }
-      }, 100);
+      }, 500);
     } else {
       console.log('[TOGGLE] Not on SVG layout, skipping visualization');
     }
@@ -439,9 +456,13 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Update UI immediately for responsive feedback
       this.currentLayout.set('svg');
       
+      // Read optional `svg` query param to override background path
+      const svgParam = this.activatedRoute.snapshot.queryParams['svg'];
+      const svgPath = svgParam || '/showcase-bg.svg';
+
       // Create SVG background layout strategy (without callback since three-renderer handles it)
       const svgStrategy = new SvgBackgroundLayoutStrategy({
-        svgPath: '/showcase-bg.svg',
+        svgPath,
         centerX: 0,
         centerY: 0,
         circleRadius: 20000,

@@ -1981,7 +1981,8 @@ export class ThreeRendererService {
       const material = new THREE.MeshBasicMaterial({
         map: this.svgBackgroundTexture,
         transparent: true,
-        opacity: 0.8 // Make background more visible
+        opacity: 0.8, // Make background more visible
+        depthWrite: false // Transparent background shouldn't write to depth buffer
       });
       
       this.svgBackgroundPlane = new THREE.Mesh(geometry, material);
