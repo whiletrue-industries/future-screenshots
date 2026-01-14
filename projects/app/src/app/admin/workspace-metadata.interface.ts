@@ -11,6 +11,7 @@ export interface WorkspaceMetadata {
 
   // Optional fields
   keywords?: string[];
+  share_group_link?: string; // WhatsApp or Signal group invite link
 
   // Auto-generated fields
   'context-label'?: string; // '{City}, {Month Name} {Year}'

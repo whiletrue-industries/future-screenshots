@@ -158,6 +158,19 @@
       }
     </div>
 
+    <!-- Share to Group Link -->
+    <div class="form-group">
+      <label for="share_group_link">Share to Group Link (optional)</label>
+      <p class="field-hint">WhatsApp or Signal group invite link. If provided, users can share their screenshots to this group at the end of the scanning flow.</p>
+      <input
+        type="url"
+        id="share_group_link"
+        name="share_group_link"
+        [(ngModel)]="formData().share_group_link"
+        placeholder="https://chat.whatsapp.com/... or https://signal.group/..."
+      />
+    </div>
+
     <!-- Auto-generated fields (read-only display) -->
     <div class="auto-generated-section">
       <h3>Auto-Generated Fields</h3>
