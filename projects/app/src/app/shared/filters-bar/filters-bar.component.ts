@@ -254,8 +254,8 @@ export class FiltersBarComponent implements OnDestroy {
 
   constructor() {
     // Set up document click listener only in browser
-    this.platform.browser(() => {
-      afterNextRender(() => {
+    afterNextRender(() => {
+      this.platform.browser(() => {
         this.documentClickListener = this.onDocumentClick.bind(this);
         document.addEventListener('click', this.documentClickListener);
       });
