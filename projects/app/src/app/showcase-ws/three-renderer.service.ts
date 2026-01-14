@@ -168,7 +168,6 @@ export class ThreeRendererService {
     // Apply rotation based on metadata
     const rotation = this.calculatePhotoRotation(photoData);
     mesh.rotation.z = rotation;
-    console.log('[CREATE_MESH] Photo:', photoData.id, 'mesh.rotation.z =', mesh.rotation.z, 'radians (', THREE.MathUtils.radToDeg(mesh.rotation.z).toFixed(1), '°)');
     
     this.root.add(mesh);
     photoData.setMesh(mesh);
@@ -531,8 +530,6 @@ export class ThreeRendererService {
     // Add natural-looking random offset (-1°, 0°, or +1°) for visual variety
     const randomOffset = this.getStableRandomRotation(photoData.id);
     const totalRotation = finalRotation + randomOffset;
-    
-    console.log('[ROTATION] Photo:', photoData.id, 'plausibility:', plausibility, 'favorable_future:', favorableFuture, '-> rotation:', THREE.MathUtils.radToDeg(totalRotation).toFixed(1), '°');
     
     return totalRotation;
   }

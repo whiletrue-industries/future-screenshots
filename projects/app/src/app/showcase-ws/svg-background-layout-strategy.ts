@@ -213,9 +213,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         // Calculate bounding box for the specific path element
         const bbox = pathElement.getBBox();
         
-        // DEBUG: Log which element and metadata we're using for hotspot matching
-        console.log(`[HOTSPOT-EXTRACT] Group: ${groupId}, favorable_future=${groupMetadata.favorable_future}, path=${pathElement.id}, bbox=(${bbox.x.toFixed(1)},${bbox.y.toFixed(1)})`);
-        
         // CRITICAL: Log bbox at creation time to catch zero-size issues early
         if (bbox.width === 0 || bbox.height === 0) {
           console.error(`[SVG-HOTSPOT] ZERO-SIZE bbox at initialization for ${groupId}:`, {
@@ -240,8 +237,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
           transitionBarPosition: groupMetadata.transition_bar_position,
           element: pathElement
         };
-        
-        console.log(`[SVG-HOTSPOT] ${groupId} -> bounds: (${bbox.x.toFixed(1)}, ${bbox.y.toFixed(1)}, ${bbox.width.toFixed(1)}x${bbox.height.toFixed(1)})`);
         
         this.hotspots.push(hotspot);
       });
@@ -295,7 +290,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     // Priority 2: Check for rejected status - hide rejected photos by returning null
     const moderation = photoData.metadata['_private_moderation'] as number | undefined;
     if (moderation === 0) { // Rejected
-      console.log(`[REJECTED] Photo ${photoData.id} hidden (moderation=0)`);
       return null;
     }
     
@@ -680,20 +674,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     
     // Return null if metadata is missing
     if (plausibility === null || !favorableFuture || !transitionBarPosition) {
-      console.log(`[AUTO-POS] Photo ${photoData.id}: missing/invalid metadata - plausibility=${plausibilityRaw}, favorable_future=${favorableFuture}, transition_bar_position=${transitionBarPosition}`);
       return null;
-    }
-    
-    console.log(`[AUTO-POS] Matching photo ${photoData.id}: plausibility=${plausibility}, favorable_future=${favorableFuture}, transition_bar_position=${transitionBarPosition}`);
-    
-    if (this.slotLogEnabled) {
-      console.log(`[AUTO-POS] Available hotspots: ${this.hotspots.length}`);
-      this.hotspots.forEach(h => {
-        const gm = this.parseGroupIdMetadata(h.parentGroupId);
-        if (gm) {
-          console.log(`  - ${h.parentGroupId} path=${(h.element as SVGElement)?.id} favorable=${gm.favorable_future} plaus=${gm.plausibility} trans=${gm.transition_bar_position}`);
-        }
-      });
     }
     
     // Find matching hotspot by comparing metadata from parent group ID
@@ -722,8 +703,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
           groupFavorable === favorableFuture &&
           groupTransition === transitionBarPosition) {
         
-        console.log(`[AUTO-POS] MATCH FOUND for photo ${photoData.id} (favorable_future=${favorableFuture}) in hotspot ${parentGroupId}`);
-        
         // Store the hotspot association BEFORE calculating position
         // This ensures overlap detection can see all previously placed photos in this hotspot
         this.photoHotspotMap.set(photoData.id, hotspot);
@@ -742,7 +721,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       }
     }
     
-    console.log(`[AUTO-POS] NO MATCH for photo ${photoData.id} - no hotspot found with plausibility=${plausibility}, favorable_future=${favorableFuture}, transition_bar_position=${transitionBarPosition}`);
     return null;
   }
 
@@ -783,26 +761,16 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       this.batchPositionedPhotos.set(hotspotKey, []);
     }
     const usedPositions = this.batchPositionedPhotos.get(hotspotKey)!;
-    if (this.slotLogEnabled) {
-      console.log(`[DIST] hotspotKey=${hotspotKey} candidates=${useCandidates.length} usedPositions=${usedPositions.length}`);
-      if (usedPositions.length > 0) {
-        console.log(`[DIST] Previously used positions:`, usedPositions.map(p => `(${p.svgX.toFixed(1)},${p.svgY.toFixed(1)})`).join(', '));
-      }
-    }
 
     const POSITION_THRESHOLD = 12; // Consider positions within 12px as "same position" (adjusted for 20px grid)
     const isUsedPosition = (candidate: { svgX: number; svgY: number }) => {
-      const result = usedPositions.some((pos: { svgX: number; svgY: number }) => {
+      return usedPositions.some((pos: { svgX: number; svgY: number }) => {
         const dist = Math.sqrt(
           Math.pow(candidate.svgX - pos.svgX, 2) +
           Math.pow(candidate.svgY - pos.svgY, 2)
         );
         return dist < POSITION_THRESHOLD;
       });
-      if (this.slotLogEnabled && result) {
-        console.log(`[DIST-SKIP] Candidate (${candidate.svgX.toFixed(1)},${candidate.svgY.toFixed(1)}) already used`);
-      }
-      return result;
     };
 
     let bestPlacement = {
@@ -837,7 +805,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
           svgX: candidate.svgX,
           svgY: candidate.svgY,
         };
-        console.log(`[DIST-EVAL] Photo ${photoIndex}, Slot ${i}: ASSIGNED without overlap check at (${candidate.svgX.toFixed(1)},${candidate.svgY.toFixed(1)})`);
         break;
       }
 
@@ -850,10 +817,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
 
       const spacing = this.getMinDistanceToExistingPhotos(resolved.normalizedX, resolved.normalizedY, hotspot);
       const svgCoords = this.normalizedToSvg(resolved.normalizedX, resolved.normalizedY, viewBox);
-
-      if (i < 3) {
-        console.log(`[DIST-EVAL] Photo ${photoIndex}, Slot ${i}: pos=(${candidate.svgX.toFixed(1)},${candidate.svgY.toFixed(1)}), overlap=${resolved.overlap.toFixed(1)}%, displacement=${resolved.displacement.toFixed(1)}px, spacing=${spacing.toFixed(1)}px`);
-      }
 
       const isBetter =
         resolved.overlap < bestPlacement.overlap ||
@@ -884,8 +847,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       const bestCandidate = useCandidates[slotIndex];
       
       if (this.slotLogEnabled) {
-        console.log(`[DIST-FALLBACK] All ${useCandidates.length} slots used by ${usedPositions.length} photos, using round-robin slot ${slotIndex} at (${bestCandidate.svgX.toFixed(1)},${bestCandidate.svgY.toFixed(1)})`);
-      }
+        console.log(`[OVERFLOW] Hotspot capacity exceeded, using round-robin slot ${slotIndex}/${useCandidates.length}`);\n      }
       
       const baseNormalizedX = (bestCandidate.svgX - viewBox.width / 2) / (viewBox.width / 2);
       const baseNormalizedY = -((bestCandidate.svgY - viewBox.height / 2) / (viewBox.height / 2));
@@ -919,8 +881,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     // Record this position as used
     usedPositions.push({ svgX: bestPlacement.svgX, svgY: bestPlacement.svgY });
 
-    console.log(`[AUTO-POS] Photo index=${photoIndex} in hotspot ${hotspot.parentGroupId}: FINAL position svg=(${bestPlacement.svgX.toFixed(1)},${bestPlacement.svgY.toFixed(1)}), normalized=(${bestPlacement.normalizedX.toFixed(3)},${bestPlacement.normalizedY.toFixed(3)}), overlap=${bestPlacement.overlap.toFixed(1)}%, displacement=${bestPlacement.displacement.toFixed(1)}px`);
-
     return { auto_x: bestPlacement.normalizedX, auto_y: bestPlacement.normalizedY };
   }
   
@@ -942,9 +902,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       const bboxHit = x >= bounds.x && x <= (bounds.x + bounds.width) &&
                       y >= bounds.y && y <= (bounds.y + bounds.height);
       if (!bboxHit) {
-        if (this.slotLogEnabled) {
-          console.log(`[PATH-CHECK] bbox miss: (${x.toFixed(1)},${y.toFixed(1)}) not in [(${bounds.x.toFixed(1)},${bounds.y.toFixed(1)}) -> (${(bounds.x+bounds.width).toFixed(1)},${(bounds.y+bounds.height).toFixed(1)})]`);
-        }
         return false;
       }
 
@@ -955,18 +912,11 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         if (pt) {
           pt.x = x;
           pt.y = y;
-          const inFill = element.isPointInFill(pt);
-          if (this.slotLogEnabled && !inFill) {
-            console.log(`[PATH-CHECK] fill miss: (${x.toFixed(1)},${y.toFixed(1)}) bbox hit but not in fill`);
-          }
-          return inFill;
+          return element.isPointInFill(pt);
         }
       }
 
       // Fallback: accept bounding box hit
-      if (this.slotLogEnabled) {
-        console.log(`[PATH-CHECK] bbox accept: (${x.toFixed(1)},${y.toFixed(1)})`);
-      }
       return true;
     } catch (e) {
       console.error('[PATH-CHECK] Error checking point with bounds:', e);
@@ -1093,9 +1043,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     const key = `${hotspot.parentGroupId}:${hotspot.transitionBarPosition}:${elementId}`;
     const cached = this.hotspotSlots.get(key);
     if (cached && cached.length > 0) {
-      if (this.slotLogEnabled) {
-        console.log(`[SLOTS] reuse key=${key} count=${cached.length}`);
-      }
       return cached;
     }
 
@@ -1103,36 +1050,22 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     // Use fixed SVG pixel spacing instead of world-coordinate-based photo size
     const stepX = 15; // 15 SVG pixels for maximum density (eliminate all stacking)
     const stepY = 15;
-    if (this.slotLogEnabled) {
-      console.log(`[SLOTS-GEN] bounds=(${hotspot.bounds.x.toFixed(1)},${hotspot.bounds.y.toFixed(1)}) size=(${hotspot.bounds.width.toFixed(1)}x${hotspot.bounds.height.toFixed(1)}) viewBox=(${viewBox.width.toFixed(1)}x${viewBox.height.toFixed(1)}) step=(${stepX},${stepY}) padding=${padding.toFixed(1)}`);
-    }
-
+    
     const slots: Array<{ svgX: number; svgY: number }> = [];
-    let testedCount = 0;
-    let acceptedCount = 0;
-
     let rowIndex = 0;
     for (let y = hotspot.bounds.y + padding; y <= hotspot.bounds.y + hotspot.bounds.height - padding; y += stepY) {
       const offsetX = (rowIndex % 2 === 1) ? stepX * 0.5 : 0; // hex-like staggering
       for (let x = hotspot.bounds.x + padding + offsetX; x <= hotspot.bounds.x + hotspot.bounds.width - padding; x += stepX) {
-        testedCount++;
         if (this.isPointInHotspot(hotspot, x, y)) {
-          acceptedCount++;
           slots.push({ svgX: x, svgY: y });
         }
       }
       rowIndex++;
     }
-    if (this.slotLogEnabled) {
-      console.log(`[SLOTS-GEN] tested=${testedCount} accepted=${acceptedCount}`);
-    }
 
     // Deterministic spread ordering
     const seed = Math.abs(this.hashCode(key));
     const ordered = this.seededShuffle(slots, seed);
-    if (this.slotLogEnabled) {
-      console.log(`[SLOTS] build key=${key} seed=${seed} count=${ordered.length}`);
-    }
     this.hotspotSlots.set(key, ordered);
     return ordered;
   }

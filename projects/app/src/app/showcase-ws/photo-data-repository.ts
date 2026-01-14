@@ -232,7 +232,6 @@ export class PhotoDataRepository {
     // Add to showcase queue for new photo introduction
     if (hasValidPosition) {
       this.photoQueue.push(metadata.id);
-      console.log('Added photo to queue:', metadata.id, 'Queue length:', this.photoQueue.length);
     }
 
     // Update camera bounds if photo was placed immediately (not animated)

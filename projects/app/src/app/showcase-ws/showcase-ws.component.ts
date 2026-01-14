@@ -80,7 +80,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             favorable_future: item.favorable_future,
             transition_bar_position: transitionBarPosition
           };
-          console.log('[METADATA] Initial load:', id, '-> plausibility:', item.plausibility, 'favorable_future:', item.favorable_future, 'transition_bar_position:', transitionBarPosition);
           
           try {
             await this.photoRepository.addPhoto(metadata); // Add initial photos
