@@ -1,6 +1,5 @@
 import { Component, output, input, signal, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import QRCode from 'qrcode';
 import { PlatformService } from '../../../platform.service';
 
 @Component({
@@ -30,6 +29,8 @@ export class QrCodeModalComponent implements OnInit {
   
   private async generateQRCode() {
     try {
+      // Dynamically import qrcode only in browser
+      const QRCode = (await import('qrcode')).default;
       const scanUrl = this.buildScanUrl();
       const dataUrl = await QRCode.toDataURL(scanUrl, {
         errorCorrectionLevel: 'H',
