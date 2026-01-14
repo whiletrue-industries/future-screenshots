@@ -12,8 +12,11 @@ import { Jma25Component } from './showcase/jma25/jma25.component';
 import { OutputMapComponent } from './showcase/output-map/output-map.component';
 import { CollectPropertiesComponent } from './collect-properties/collect-properties.component';
 import { AboutComponent } from './about/about.component';
-import { AdminComponent } from './admin/admin/admin.component';
 import { AuthGuard } from './auth.guard';
+import { LoginComponent } from './admin/login/login.component';
+import { ModerateComponent } from './admin/moderate/moderate.component';
+import { WorkspaceFormComponent } from './admin/workspace-form/workspace-form.component';
+import { AdminComponent } from './admin/admin/admin.component';
 
 export const routes: Routes = [
     // Showcase routes
@@ -29,25 +32,25 @@ export const routes: Routes = [
     // Admin routes
     {
         'path': 'admin/login',
-        loadComponent: () => import('./admin/login/login.component').then(m => m.LoginComponent),
+        component: LoginComponent
     },
     {
         'path': 'admin/moderate',
-        loadComponent: () => import('./admin/moderate/moderate.component').then(m => m.ModerateComponent),
+        component: ModerateComponent
     },
     {
         'path': 'admin/new',
-        loadComponent: () => import('./admin/workspace-form/workspace-form.component').then(m => m.WorkspaceFormComponent),
+        component: WorkspaceFormComponent,
         canActivate: [AuthGuard],
     },
     {
         'path': 'admin/edit/:workspaceId',
-        loadComponent: () => import('./admin/workspace-form/workspace-form.component').then(m => m.WorkspaceFormComponent),
-        canActivate: [],
+        component: WorkspaceFormComponent,
+        canActivate: [AuthGuard],
     },
     {
         'path': 'admin',
-        loadComponent: () => import('./admin/admin/admin.component').then(m => m.AdminComponent),
+        component: AdminComponent,
         canActivate: [AuthGuard],
     },
     {
