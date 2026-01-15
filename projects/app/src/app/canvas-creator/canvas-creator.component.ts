@@ -150,6 +150,45 @@ export class CanvasCreatorComponent implements AfterViewInit {
         },
       ],
     },
+    notification: {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              80.9471191791634,
+              203.19921875
+            ]
+          },
+          "properties": {
+            "id": "textbox-0",
+            "placeholder": "App name",
+            "line-height": 1.16,
+            "width": 201.93,
+            "height": 31.639999999999993
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              150,
+              640
+            ]
+          },
+          "properties": {
+            "id": "textbox-1",
+            "placeholder": "Notification text",
+            "line-height": 1.16,
+            "width": 201.93,
+            "height": 31.639999999999993
+          }
+        }
+      ]
+    },
   };
   
   currentTemplate = computed(() => this.templates[this.currentTemplateIndex()]);
