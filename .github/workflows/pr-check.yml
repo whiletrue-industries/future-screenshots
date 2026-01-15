@@ -12,10 +12,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js (LTS)
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          # Angular 19 supports active LTS Node versions; pin to 20.x for stability
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
