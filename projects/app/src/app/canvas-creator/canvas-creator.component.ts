@@ -574,16 +574,26 @@ export class CanvasCreatorComponent implements AfterViewInit {
     // Frame visible = text mode, no frame = draw mode
     const component = this;
     let mouseDownPos: { x: number; y: number } | null = null;
+    let wasAlreadySelected = false;
+    let selectionTime = 0; // Track when a textbox was selected
+    const MIN_DELAY_MS = 300; // Minimum delay between selection and edit mode
     
-    // Track mouse down position
+    // Track mouse down position and selection state
     fabricCanvas.on('mouse:down', (e: any) => {
       mouseDownPos = { x: e.pointer.x, y: e.pointer.y };
+      const target = e.target;
+      const activeObject = fabricCanvas.getActiveObject();
+      // Track if the clicked textbox was already selected
+      wasAlreadySelected = (target && target.type === 'textbox' && activeObject === target);
     });
     
-    // On mouse up, check if it was a click (not a drag) on a selected textbox
+    // On mouse up, check if it was a click (not a drag) on an already-selected textbox
     fabricCanvas.on('mouse:up', (e: any) => {
       const target = e.target;
-      if (target && target.type === 'textbox' && mouseDownPos) {
+      const now = Date.now();
+      const timeSinceSelection = now - selectionTime;
+      
+      if (target && target.type === 'textbox' && mouseDownPos && wasAlreadySelected && timeSinceSelection >= MIN_DELAY_MS) {
         // Check if this was a click (not a drag)
         const distance = Math.sqrt(
           Math.pow(e.pointer.x - mouseDownPos.x, 2) + 
@@ -591,28 +601,26 @@ export class CanvasCreatorComponent implements AfterViewInit {
         );
         
         // If it's a small movement (less than 5 pixels), treat it as a click
-        if (distance < 5) {
-          const activeObject = fabricCanvas.getActiveObject();
-          // If the textbox is already selected (has handles) and we clicked on it
-          if (activeObject === target && !target.isEditing) {
-            // Enter editing mode
-            target.editable = true;
-            target.enterEditing();
-            setTimeout(() => {
-              if (target.isEditing) {
-                target.selectAll();
-              }
-            }, 50);
-          }
+        if (distance < 5 && !target.isEditing) {
+          // Enter editing mode only if the textbox was already selected
+          target.editable = true;
+          target.enterEditing();
+          setTimeout(() => {
+            if (target.isEditing) {
+              target.selectAll();
+            }
+          }, 50);
         }
       }
       mouseDownPos = null;
+      wasAlreadySelected = false;
     });
     
     // When a textbox is selected (frame appears), switch to text mode
     fabricCanvas.on('selection:created', (e: any) => {
       const target = e.selected?.[0];
       if (target && target.type === 'textbox') {
+        selectionTime = Date.now(); // Record when this textbox was selected
         fabricCanvas.isDrawingMode = false;
         component.currentMode.set('type');
         // First click - just show handles, don't enter editing
@@ -623,6 +631,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     fabricCanvas.on('selection:updated', (e: any) => {
       const target = e.selected?.[0];
       if (target && target.type === 'textbox') {
+        selectionTime = Date.now(); // Record when this textbox was selected
         fabricCanvas.isDrawingMode = false;
         component.currentMode.set('type');
         // Exit editing mode if we were in it
@@ -634,6 +643,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     
     // When selection is cleared (frame disappears), switch back to draw mode
     fabricCanvas.on('selection:cleared', () => {
+      selectionTime = 0; // Reset selection time
       fabricCanvas.isDrawingMode = true;
       component.currentMode.set('draw');
       component.setupRoughBrush(fabricCanvas);
