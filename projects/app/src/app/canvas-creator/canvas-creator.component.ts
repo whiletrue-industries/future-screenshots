@@ -452,13 +452,26 @@ export class CanvasCreatorComponent implements AfterViewInit {
   
   setupRoughBrush(fabricCanvas: any) {
     const color = this.currentColor();
+    const component = this; // Capture component context for callbacks
     
-    // Create custom Rough.js brush
+    // Create custom Rough.js brush that avoids drawing over textboxes
     const RoughBrush = fabric.util.createClass(fabric.PencilBrush, {
       color: color,
       width: 3,
       
       onMouseDown: function(pointer: any, options: any) {
+        // Check if we're clicking on a textbox - if so, don't start drawing
+        const target = this.canvas.findTarget(options.e, false);
+        if (target && target.type === 'textbox') {
+          // Switch to text editing mode instead
+          this.canvas.isDrawingMode = false;
+          this.canvas.setActiveObject(target);
+          target.enterEditing();
+          target.selectAll();
+          this.canvas.renderAll();
+          return; // Don't start drawing
+        }
+        
         this.started = true;
         this._prepareForDrawing(pointer);
         this._captureDrawingPath(pointer);
@@ -511,6 +524,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
         
         // Convert to fabric image and add to canvas
         const dataURL = offscreenCanvas.toDataURL();
+        const brushCanvas = this.canvas;
         fabric.Image.fromURL(dataURL, (img: any) => {
           img.set({
             left: 0,
@@ -518,9 +532,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
             selectable: false,
             evented: false,
           });
-          this.canvas.add(img);
-          this.canvas.renderAll();
-          this.hasContent.set(true);
+          brushCanvas.add(img);
+          brushCanvas.renderAll();
+          component.hasContent.set(true);
         });
         
         this._reset();
@@ -559,28 +573,44 @@ export class CanvasCreatorComponent implements AfterViewInit {
   
   setupDrawModeTextboxInteraction(fabricCanvas: any) {
     // Handle text box selection and editing in draw mode
-    // Textboxes should work exactly like in text mode - allow full editing with focus
+    // We need to intercept clicks on textboxes BEFORE the drawing brush activates
     
-    fabricCanvas.on('mouse:down', (e: any) => {
-      if (!fabricCanvas.isDrawingMode) return;
-
-      const target = e.target;
+    // Use mouse:down:before to catch events before the drawing brush
+    fabricCanvas.on('mouse:down:before', (e: any) => {
+      const currentMode = this.currentMode();
+      if (currentMode !== 'draw' || !fabricCanvas.isDrawingMode) return;
+      
+      // Check if we're clicking on a textbox
+      const pointer = fabricCanvas.getPointer(e.e);
+      const target = fabricCanvas.findTarget(e.e, false);
+      
       if (target && target.type === 'textbox') {
-        // Disable drawing mode to allow textbox interaction
-        fabricCanvas.isDrawingMode = false;
+        // Prevent drawing from starting
+        e.e.preventDefault();
+        e.e.stopPropagation();
         
-        // Set the textbox as active and put it in edit mode
+        // Disable drawing mode and enter edit mode
+        fabricCanvas.isDrawingMode = false;
         fabricCanvas.setActiveObject(target);
         target.enterEditing();
         target.selectAll();
-        
         fabricCanvas.renderAll();
       }
     });
-
-    // Re-enable drawing mode when exiting text editing by pressing Escape or clicking away
-    fabricCanvas.on('text:changed', () => {
-      // Text is being edited, stay in edit mode
+    
+    // Handle clicking outside textbox when in edit mode
+    fabricCanvas.on('mouse:down', (e: any) => {
+      const currentMode = this.currentMode();
+      if (currentMode !== 'draw') return;
+      
+      const target = e.target;
+      
+      // If we're not in drawing mode and clicking outside a textbox, re-enable drawing
+      if (!fabricCanvas.isDrawingMode && (!target || target.type !== 'textbox')) {
+        fabricCanvas.discardActiveObject();
+        fabricCanvas.isDrawingMode = true;
+        fabricCanvas.renderAll();
+      }
     });
   }
 
