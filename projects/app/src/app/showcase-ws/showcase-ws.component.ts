@@ -38,6 +38,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   currentLayout = signal<'grid' | 'tsne' | 'svg' | 'circle-packing'>('circle-packing');
   enableRandomShowcase = signal(false);
   enableSvgAutoPositioning = signal(false);
+  fisheyeEnabled = signal(false);
   loadedPhotoIds = new Set<string>();
   private layoutChangeInProgress = false;
   qrUrl = computed(() => 
@@ -169,6 +170,15 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   toggleRandomShowcase() {
     this.enableRandomShowcase.set(!this.enableRandomShowcase());
     this.photoRepository.setRandomShowcaseEnabled(this.enableRandomShowcase());
+  }
+
+  /**
+   * Toggle fisheye lens effect
+   */
+  toggleFisheyeEffect() {
+    const willBeEnabled = !this.fisheyeEnabled();
+    this.fisheyeEnabled.set(willBeEnabled);
+    this.rendererService.enableFisheyeEffect(willBeEnabled);
   }
 
   /**

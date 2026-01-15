@@ -847,7 +847,8 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       const bestCandidate = useCandidates[slotIndex];
       
       if (this.slotLogEnabled) {
-        console.log(`[OVERFLOW] Hotspot capacity exceeded, using round-robin slot ${slotIndex}/${useCandidates.length}`);\n      }
+        console.log(`[OVERFLOW] Hotspot capacity exceeded, using round-robin slot ${slotIndex}/${useCandidates.length}`);
+      }
       
       const baseNormalizedX = (bestCandidate.svgX - viewBox.width / 2) / (viewBox.width / 2);
       const baseNormalizedY = -((bestCandidate.svgY - viewBox.height / 2) / (viewBox.height / 2));

@@ -123,4 +123,25 @@
       </button>
     </div>
   </div>
+
+  <!-- Fisheye Effect Toggle Tab -->
+  <div class='control-tab fisheye-tab'>
+    <div class='tab-background'>
+      <div class='fisheye-indicator' 
+           [class.active]='fisheyeEnabled()'></div>
+    </div>
+    <div class='tab-buttons'>
+      <button 
+        class='tab-button fisheye-button'
+        [class.active]='fisheyeEnabled()'
+        (click)='toggleFisheyeEffect()'
+        title='Toggle Fisheye Lens Effect'>
+        <svg viewBox='0 0 24 24' class='button-icon'>
+          <circle cx='12' cy='12' r='10' stroke='currentColor' stroke-width='2' fill='none'/>
+          <circle cx='12' cy='12' r='6' stroke='currentColor' stroke-width='2' fill='none'/>
+          <circle cx='12' cy='12' r='2' fill='currentColor'/>
+        </svg>
+      </button>
+    </div>
+  </div>
 </div>

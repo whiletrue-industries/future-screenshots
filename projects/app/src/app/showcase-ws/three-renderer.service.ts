@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Injectable } from '@angular/core';
 import { PhotoData, PhotoAnimationState } from './photo-data';
 import { PHOTO_CONSTANTS } from './photo-constants';
+import { FisheyeEffectService } from './fisheye-effect.service';
 
 export interface ThreeRendererOptions {
   photoWidth?: number;   // default PHOTO_CONSTANTS.PHOTO_WIDTH
@@ -114,7 +115,15 @@ export class ThreeRendererService {
   private highResActive = new Set<THREE.Mesh>();
   private lodAccumTime = 0;
 
+  // Fisheye Effect
+  private fisheyeService: FisheyeEffectService;
+  private fisheyeEnabled = false;
+  private fisheyeAffectedMeshes = new Set<THREE.Mesh>();
+  private fisheyeFocusPoint = new THREE.Vector3();
+  private meshOriginalStates = new Map<THREE.Mesh, { position: THREE.Vector3; scale: THREE.Vector3; renderOrder: number }>();
+
   constructor() {
+    this.fisheyeService = new FisheyeEffectService();
     const opts: ThreeRendererOptions = {};
     this.PHOTO_W = opts.photoWidth ?? PHOTO_CONSTANTS.PHOTO_WIDTH;
     this.PHOTO_H = opts.photoHeight ?? PHOTO_CONSTANTS.PHOTO_HEIGHT;
@@ -635,6 +644,27 @@ export class ThreeRendererService {
     return { ...this.bounds };
   }
 
+  // Fisheye Effect API
+  enableFisheyeEffect(enabled: boolean): void {
+    this.fisheyeEnabled = enabled;
+    if (!enabled) {
+      // Reset all affected meshes to their original state
+      this.resetAllFisheyeEffects();
+    }
+  }
+
+  isFisheyeEnabled(): boolean {
+    return this.fisheyeEnabled;
+  }
+
+  setFisheyeConfig(config: { radius?: number; magnification?: number; distortion?: number }): void {
+    this.fisheyeService.setConfig(config);
+  }
+
+  getFisheyeConfig() {
+    return this.fisheyeService.getConfig();
+  }
+
   // Animation system
   addTween(tweenFn: TweenFn): void {
     this.activeTweens.push(tweenFn);
@@ -695,6 +725,75 @@ export class ThreeRendererService {
 
   damp(current: number, target: number, lambda: number, deltaTime: number): number {
     return THREE.MathUtils.lerp(current, target, 1 - Math.exp(-lambda * deltaTime));
+  }
+
+  // Fisheye Effect Helper Methods
+  private applyFisheyeEffect(): void {
+    if (!this.fisheyeEnabled) {
+      return;
+    }
+
+    // Get the world position of the mouse cursor
+    const worldPos = this.screenToWorld(this.mouse.x, this.mouse.y, 0);
+    this.fisheyeFocusPoint.set(worldPos.x, worldPos.y, 0);
+
+    // Clear previously affected meshes
+    const previouslyAffected = new Set(this.fisheyeAffectedMeshes);
+    this.fisheyeAffectedMeshes.clear();
+
+    // Apply fisheye effect to all meshes in the scene
+    this.root.children.forEach((child) => {
+      const mesh = child as THREE.Mesh;
+      if (!mesh.isMesh) return;
+
+      // Store original state if not already stored
+      if (!this.meshOriginalStates.has(mesh)) {
+        this.meshOriginalStates.set(mesh, {
+          position: mesh.position.clone(),
+          scale: mesh.scale.clone(),
+          renderOrder: mesh.renderOrder
+        });
+      }
+
+      const originalState = this.meshOriginalStates.get(mesh)!;
+      const effect = this.fisheyeService.calculateEffect(originalState.position, this.fisheyeFocusPoint);
+
+      if (effect) {
+        // Mesh is within fisheye radius - apply effect
+        this.fisheyeAffectedMeshes.add(mesh);
+
+        // Apply scale
+        const targetScale = originalState.scale.x * effect.scale;
+        mesh.scale.set(targetScale, targetScale, 1);
+
+        // Apply position offset (radial displacement)
+        mesh.position.set(
+          originalState.position.x + effect.positionOffset.x,
+          originalState.position.y + effect.positionOffset.y,
+          originalState.position.z
+        );
+
+        // Apply render order (z-index)
+        mesh.renderOrder = effect.renderOrder;
+      } else {
+        // Mesh is outside fisheye radius - reset to original
+        if (previouslyAffected.has(mesh)) {
+          mesh.scale.copy(originalState.scale);
+          mesh.position.copy(originalState.position);
+          mesh.renderOrder = originalState.renderOrder;
+        }
+      }
+    });
+  }
+
+  private resetAllFisheyeEffects(): void {
+    // Reset all meshes to their original state
+    this.meshOriginalStates.forEach((originalState, mesh) => {
+      mesh.scale.copy(originalState.scale);
+      mesh.position.copy(originalState.position);
+      mesh.renderOrder = originalState.renderOrder;
+    });
+    this.fisheyeAffectedMeshes.clear();
   }
 
   /**
@@ -1249,6 +1348,11 @@ export class ThreeRendererService {
       this.onMouseUp();
     });
 
+    // Mouse leave - reset fisheye effect
+    canvas.addEventListener('mouseleave', () => {
+      this.resetAllFisheyeEffects();
+    });
+
     // Mouse wheel - zoom
     canvas.addEventListener('wheel', (event) => {
       this.onMouseWheel(event);
@@ -1442,6 +1546,9 @@ export class ThreeRendererService {
           this.hidePreviewWidget();
         }
       }
+
+      // Apply fisheye effect during normal mouse movement
+      this.applyFisheyeEffect();
     }
   }
 
