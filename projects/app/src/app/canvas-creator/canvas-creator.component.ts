@@ -206,6 +206,17 @@ export class CanvasCreatorComponent implements AfterViewInit {
       event.preventDefault();
       this.exportTextboxesAsGeoJSON();
     }
+    
+    // Escape key: exit draw mode and return to type mode
+    if (event.key === 'Escape' && this.currentMode() === 'draw') {
+      event.preventDefault();
+      const fabricCanvas = this.canvas();
+      if (fabricCanvas) {
+        fabricCanvas.discardActiveObject();
+        fabricCanvas.isDrawingMode = false;
+      }
+      this.setMode('type');
+    }
   }
   
   selectTemplate(template: Template) {
@@ -547,12 +558,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
   }
   
   setupDrawModeTextboxInteraction(fabricCanvas: any) {
-    // Handle text box selection and dragging in draw mode
-    let selectedTextbox: any = null;
-    let isDraggingTextbox = false;
-    let dragOffsetX = 0;
-    let dragOffsetY = 0;
-
+    // Handle text box selection and editing in draw mode
+    // Textboxes should work exactly like in text mode - allow full editing with focus
+    
     fabricCanvas.on('mouse:down', (e: any) => {
       if (!fabricCanvas.isDrawingMode) return;
 
@@ -560,47 +568,19 @@ export class CanvasCreatorComponent implements AfterViewInit {
       if (target && target.type === 'textbox') {
         // Disable drawing mode to allow textbox interaction
         fabricCanvas.isDrawingMode = false;
-        fabricCanvas.forceRenderAll();
         
-        selectedTextbox = target;
-        isDraggingTextbox = true;
+        // Set the textbox as active and put it in edit mode
+        fabricCanvas.setActiveObject(target);
+        target.enterEditing();
+        target.selectAll();
         
-        // Store the offset between mouse position and object position
-        dragOffsetX = e.pointer.x - target.left;
-        dragOffsetY = e.pointer.y - target.top;
-        
-        // Show the textbox selection frame
-        target.set({
-          stroke: 'rgba(0, 0, 0, 0.3)',
-          strokeWidth: 2
-        });
         fabricCanvas.renderAll();
       }
     });
 
-    fabricCanvas.on('mouse:move', (e: any) => {
-      if (!isDraggingTextbox || !selectedTextbox) return;
-
-      // Update textbox position
-      selectedTextbox.set({
-        left: e.pointer.x - dragOffsetX,
-        top: e.pointer.y - dragOffsetY
-      });
-      fabricCanvas.renderAll();
-    });
-
-    fabricCanvas.on('mouse:up', () => {
-      if (isDraggingTextbox && selectedTextbox) {
-        selectedTextbox.set({
-          stroke: null,
-          strokeWidth: 0
-        });
-        // Re-enable drawing mode
-        fabricCanvas.isDrawingMode = true;
-        fabricCanvas.renderAll();
-      }
-      isDraggingTextbox = false;
-      selectedTextbox = null;
+    // Re-enable drawing mode when exiting text editing by pressing Escape or clicking away
+    fabricCanvas.on('text:changed', () => {
+      // Text is being edited, stay in edit mode
     });
   }
 
@@ -1037,8 +1017,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
   }
 
   private updatePlaceholderVisibility(show: boolean) {
+    // Always show text boxes, regardless of mode - they should be visible and editable in both modes
     this.placeholderTexts.forEach(t => {
-      t.set({ visible: show });
+      t.set({ visible: true });
     });
     this.canvas()?.requestRenderAll();
   }
