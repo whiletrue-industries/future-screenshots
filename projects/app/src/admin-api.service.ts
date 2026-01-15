@@ -35,7 +35,7 @@ export class AdminApiService {
   getItems(workspace: string, api_key: string, page: number, filters: string | null): Observable<any> {
     let params: any = {
       page: page,
-      page_size: 50,
+      page_size: 500,
     };
     if (filters) {
       params.filters = filters;

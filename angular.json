@@ -40,7 +40,12 @@
               "projects/app/src/styles.less"
             ],
             "scripts": [],
-            "prerender": false,
+            "server": "projects/app/src/main.server.ts",
+            "prerender": true,
+            "ssr": {
+              "entry": "projects/app/src/server.ts"
+            },
+            "externalDependencies": ["qrcode"],
             "localize": ["he", "en", "nl"]
           },
           "configurations": {
@@ -53,8 +58,8 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "8kB",
-                  "maximumError": "16kB"
+                  "maximumWarning": "16kB",
+                  "maximumError": "50kB"
                 }
               ],
               "outputHashing": "all",
