@@ -28,6 +28,7 @@
 
   <div class="filters-bar-row">
     <app-filters-bar
+      [mode]="'moderation'"
       [counts]="filterCounts()"
       [totalCount]="allFetchedItems().length"
       [filteredCount]="items().length"

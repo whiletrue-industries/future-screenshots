@@ -1366,17 +1366,19 @@ export class ModerateComponent implements OnDestroy {
   filterCounts = computed<FilterCounts>(() => ({
     status: this.statusCounts(),
     author: this.authorCounts(),
+    language: new Map(),
+    facilitator: new Map(),
     preference: this.preferenceCounts(),
     potential: this.potentialCounts(),
     type: this.typeCounts()
   }));
 
   onFiltersChange(newState: FiltersBarState): void {
-    this.filterStatus.set(newState.status);
-    this.filterAuthor.set(newState.author);
-    this.filterPreference.set(newState.preference);
-    this.filterPotential.set(newState.potential);
-    this.filterType.set(newState.type);
+    if (newState.status !== undefined) this.filterStatus.set(newState.status);
+    if (newState.author !== undefined) this.filterAuthor.set(newState.author);
+    if (newState.preference !== undefined) this.filterPreference.set(newState.preference);
+    if (newState.potential !== undefined) this.filterPotential.set(newState.potential);
+    if (newState.type !== undefined) this.filterType.set(newState.type);
     this.searchText.set(newState.search);
     this.orderBy.set(newState.orderBy);
     if (newState.view) {

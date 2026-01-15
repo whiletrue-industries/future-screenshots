@@ -14,66 +14,16 @@
     <div class="success-message" role="status">{{ successMessage() }}</div>
   }
 
-  <section class="filters" aria-label="Filters">
-    <div class="filter-row">
-      <div class="filter-group">
-        <label for="status">Status:</label>
-        <select id="status" [value]="statusFilter()" (change)="statusFilter.set($any($event.target).value)">
-          <option value="all">all</option>
-          <option value="upcoming">Upcoming</option>
-          <option value="active">Active</option>
-          <option value="in-review">In Review</option>
-          <option value="done">Done</option>
-        </select>
-      </div>
-
-      <div class="filter-group">
-        <label for="language">Language:</label>
-        <select id="language" [value]="languageFilter()" (change)="languageFilter.set($any($event.target).value)">
-          <option value="all">all</option>
-          <option value="en">English</option>
-          <option value="nl">Dutch</option>
-          <option value="he">Hebrew</option>
-          <option value="ar">Arabic</option>
-        </select>
-      </div>
-
-      <div class="filter-group">
-        <label for="facilitator">Facilitator:</label>
-        <select id="facilitator" [value]="facilitatorFilter()" (change)="facilitatorFilter.set($any($event.target).value)">
-          <option value="all">all</option>
-          @for (facilitator of allFacilitators(); track facilitator) {
-            <option [value]="facilitator">{{ facilitator }}</option>
-          }
-        </select>
-      </div>
-
-      <div class="filter-group search-group">
-        <label for="search">Search:</label>
-        <input 
-          id="search" 
-          type="search" 
-          placeholder="any text" 
-          list="keywords-list"
-          [value]="searchQuery()" 
-          (input)="searchQuery.set($any($event.target).value)" />
-        <datalist id="keywords-list">
-          @for (keyword of allKeywords(); track keyword) {
-            <option [value]="keyword">{{ keyword }}</option>
-          }
-        </datalist>
-      </div>
-
-      <div class="filter-group">
-        <label for="order">Order by:</label>
-        <select id="order" [value]="orderBy()" (change)="orderBy.set($any($event.target).value)">
-          <option value="date">Date</option>
-          <option value="screenshots">Screenshots</option>
-          <option value="completion">Completion</option>
-        </select>
-      </div>
-    </div>
-  </section>
+  <app-filters-bar
+    [mode]="'admin'"
+    [counts]="filterCounts()"
+    [totalCount]="workspaces().length"
+    [filteredCount]="filteredWorkspaces().length"
+    [showViewToggle]="false"
+    [initialState]="filterState()"
+    (filtersChange)="onFiltersChange($event)"
+    (filtersCommit)="onFiltersCommit($event)"
+  ></app-filters-bar>
 
   <div class="workspaces-list" role="list">
     @for (workspace of filteredWorkspaces(); track workspace.id) {
