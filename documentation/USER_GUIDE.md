@@ -90,6 +90,27 @@ The Showcase WS view provides an interactive 3D visualization of all submitted p
 - Located at the bottom-right of the screen
 - Toggle to enable/disable random photo highlighting
 
+**Fisheye Lens Effect:**
+- Located at the bottom-right of the screen (purple circular icon)
+- When enabled, creates a magnifying lens effect that follows your cursor
+- Photos under the cursor are magnified and slightly displaced, making it easier to explore dense areas without zooming
+- Click the fisheye icon to toggle the effect on/off
+- The effect is particularly useful when exploring compositions with many overlapping photos
+
+### Configuration Options
+
+The fisheye effect can be customized using URL query parameters:
+
+- `fisheye=1` - Enable fisheye effect by default
+- `fisheye_radius=800` - Set the radius of the lens effect (default: 800, in world units)
+- `fisheye_magnification=2.0` - Set magnification strength (default: 2.0, where 1.0 = no magnification)
+- `fisheye_distortion=0.3` - Set radial displacement strength (default: 0.3, where 0 = no distortion)
+
+**Example URL:**
+```
+?workspace=xxx&api_key=xxx&fisheye=1&fisheye_radius=1000&fisheye_magnification=2.5
+```
+
 ## Understanding Layouts
 
 ### Grid Layout (G)
