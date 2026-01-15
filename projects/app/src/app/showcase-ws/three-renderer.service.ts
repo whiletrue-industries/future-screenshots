@@ -820,7 +820,7 @@ export class ThreeRendererService {
   }
 
   private resetAllFisheyeEffects(): void {
-    // Reset all affected meshes to their logical positions
+    // Reset all affected meshes to their original positions
     this.fisheyeAffectedMeshes.forEach((mesh) => {
       const photoData = this.meshToPhotoData.get(mesh);
       if (photoData && photoData.currentPosition) {
