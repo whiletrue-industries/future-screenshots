@@ -389,6 +389,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
     // Configure drawing brush with Rough.js sketchy effect
     if (this.currentMode() === 'draw') {
       this.setupRoughBrush(fabricCanvas);
+      // Allow text box interaction in draw mode
+      this.setupDrawModeTextboxInteraction(fabricCanvas);
     }
     // Place initial chat placeholders (needs canvas to be registered first)
     this.placeInitialChatBoxes(fabricCanvas);
@@ -544,6 +546,64 @@ export class CanvasCreatorComponent implements AfterViewInit {
     this.addTextboxAt(100, 100, true);
   }
   
+  setupDrawModeTextboxInteraction(fabricCanvas: any) {
+    // Handle text box selection and dragging in draw mode
+    let selectedTextbox: any = null;
+    let isDraggingTextbox = false;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+
+    fabricCanvas.on('mouse:down', (e: any) => {
+      if (!fabricCanvas.isDrawingMode) return;
+
+      const target = e.target;
+      if (target && target.type === 'textbox') {
+        // Disable drawing mode to allow textbox interaction
+        fabricCanvas.isDrawingMode = false;
+        fabricCanvas.forceRenderAll();
+        
+        selectedTextbox = target;
+        isDraggingTextbox = true;
+        
+        // Store the offset between mouse position and object position
+        dragOffsetX = e.pointer.x - target.left;
+        dragOffsetY = e.pointer.y - target.top;
+        
+        // Show the textbox selection frame
+        target.set({
+          stroke: 'rgba(0, 0, 0, 0.3)',
+          strokeWidth: 2
+        });
+        fabricCanvas.renderAll();
+      }
+    });
+
+    fabricCanvas.on('mouse:move', (e: any) => {
+      if (!isDraggingTextbox || !selectedTextbox) return;
+
+      // Update textbox position
+      selectedTextbox.set({
+        left: e.pointer.x - dragOffsetX,
+        top: e.pointer.y - dragOffsetY
+      });
+      fabricCanvas.renderAll();
+    });
+
+    fabricCanvas.on('mouse:up', () => {
+      if (isDraggingTextbox && selectedTextbox) {
+        selectedTextbox.set({
+          stroke: null,
+          strokeWidth: 0
+        });
+        // Re-enable drawing mode
+        fabricCanvas.isDrawingMode = true;
+        fabricCanvas.renderAll();
+      }
+      isDraggingTextbox = false;
+      selectedTextbox = null;
+    });
+  }
+
   detectRTL(text: string): boolean {
     // Hebrew: \u0590-\u05FF, Arabic: \u0600-\u06FF
     const rtlPattern = /[\u0590-\u05FF\u0600-\u06FF]/;

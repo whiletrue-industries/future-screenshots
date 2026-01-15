@@ -31,7 +31,7 @@
 
 @keyframes slideInDrawer {
   from {
-    transform: translateY(100%);
+    transform: translateY(-100%);
     opacity: 0;
   }
   to {
@@ -266,17 +266,18 @@
     .control-bar {
       display: flex;
       align-items: center;
-      justify-content: flex-start;
-      gap: 12px;
+      justify-content: space-between;
+      gap: 8px;
       position: absolute;
       top: 0;
       left: 0;
       right: 0;
       padding: 12px 16px;
-      background: rgba(0, 0, 0, 0.85);
+      background: rgba(0, 0, 0, 0.75);
       border-radius: 0 0 16px 16px;
       z-index: 100;
       backdrop-filter: blur(8px);
+      transform: translateY(-100%);
     }
 
     .control-btn {
@@ -284,7 +285,7 @@
       height: 40px;
       border-radius: 50%;
       background: transparent;
-      border: 2px solid rgba(255, 255, 255, 0.6);
+      border: none;
       color: @color-white;
       display: inline-flex;
       align-items: center;
@@ -303,7 +304,6 @@
 
       &:hover:not(:disabled) {
         background: rgba(255, 255, 255, 0.1);
-        border-color: @color-white;
         transform: scale(1.05);
       }
 
@@ -314,7 +314,6 @@
       &.submit {
         width: 44px;
         height: 44px;
-        margin-left: auto;
         background: transparent;
         border: none;
 
@@ -327,11 +326,19 @@
       &.submit:disabled {
         opacity: 0.25;
         cursor: not-allowed;
+
+        &:hover {
+          background: transparent;
+          transform: none;
+        }
+      }
+
+      &.submit:not(:disabled):hover {
+        background: rgba(255, 255, 255, 0.1);
       }
 
       &.draw.active {
         background: rgba(255, 255, 255, 0.15);
-        border-color: @color-primary;
       }
     }
 
