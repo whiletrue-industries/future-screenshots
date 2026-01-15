@@ -145,3 +145,9 @@
     </div>
   </div>
 </div>
+
+<!-- Settings Panel (Removable - Delete these 3 lines and the component to remove) -->
+<app-settings-panel 
+  [initialSettings]="cameraSettings()"
+  (settingsChange)="onSettingsChange($event)">
+</app-settings-panel>

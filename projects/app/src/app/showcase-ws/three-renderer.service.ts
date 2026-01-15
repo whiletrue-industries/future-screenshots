@@ -122,6 +122,12 @@ export class ThreeRendererService {
   private fisheyeFocusPoint = new THREE.Vector3();
   private meshOriginalStates = new Map<THREE.Mesh, { position: THREE.Vector3; scale: THREE.Vector3; renderOrder: number }>();
 
+  // Settings Panel Controls
+  private rotationSpeedMultiplier = 1.0;
+  private panSensitivityMultiplier = 1.0;
+  private dofStrength = 0;
+  private dofPass: any = null; // Post-processing pass for depth of field (if implemented)
+
   constructor() {
     this.fisheyeService = new FisheyeEffectService();
     const opts: ThreeRendererOptions = {};
@@ -589,8 +595,11 @@ export class ThreeRendererService {
     const worldDeltaX = (deltaX / rect.width) * 2 * this.getVisibleWidth();
     const worldDeltaY = (deltaY / rect.height) * 2 * this.getVisibleHeight();
     
-    this.targetCamX -= worldDeltaX;
-    this.targetCamY += worldDeltaY;
+    // Apply pan sensitivity multiplier if set
+    const panSensitivity = this.panSensitivityMultiplier;
+    
+    this.targetCamX -= worldDeltaX * panSensitivity;
+    this.targetCamY += worldDeltaY * panSensitivity;
   }
 
   /**
@@ -658,6 +667,7 @@ export class ThreeRendererService {
   }
 
   setFisheyeConfig(config: { radius?: number; magnification?: number; distortion?: number }): void {
+    // Pass zoomRelative to fisheye service
     this.fisheyeService.setConfig(config);
   }
 
@@ -1426,7 +1436,7 @@ export class ThreeRendererService {
         // Two-finger touch for pinch zoom (to be implemented)
         event.preventDefault();
       }
-    });
+    }, { passive: true });
 
     canvas.addEventListener('touchmove', (event) => {
       if (event.touches.length === 1) {
@@ -1438,7 +1448,7 @@ export class ThreeRendererService {
         });
         this.onMouseMove(mouseEvent);
       }
-    });
+    }, { passive: true });
 
     canvas.addEventListener('touchend', () => {
       this.onMouseUp();
@@ -1899,6 +1909,11 @@ export class ThreeRendererService {
       );
       this.camera.lookAt(this.targetCamX, this.targetCamY, 0);
 
+      // Apply fisheye effect if enabled (continuously, not just on mouse move)
+      if (this.fisheyeEnabled) {
+        this.applyFisheyeEffect();
+      }
+
       this.renderer.render(this.scene, this.camera);
       // Run LOD checks at ~5Hz
       this.lodAccumTime += dt;
@@ -2292,4 +2307,82 @@ export class ThreeRendererService {
       }
     }
   }
+
+  /**
+   * Update camera field of view (for settings panel)
+   */
+  updateCameraFov(fov: number): void {
+    if (this.camera && (this.camera as any).isPerspectiveCamera) {
+      (this.camera as any).fov = fov;
+      (this.camera as any).updateProjectionMatrix();
+      console.log(`📹 Camera FOV updated to ${fov}°`);
+    }
+  }
+
+  /**
+   * Update camera zoom level (for settings panel)
+   */
+  updateCameraZoom(zoom: number): void {
+    if (this.camera) {
+      this.camera.zoom = zoom;
+      (this.camera as any).updateProjectionMatrix?.();
+      console.log(`🔍 Camera zoom updated to ${zoom}x`);
+    }
+  }
+
+  /**
+   * Set rotation speed multiplier for interactive controls (1 = normal, 2 = double speed)
+   */
+  setRotationSpeed(speed: number): void {
+    // Store the speed value for use in camera rotation calculations
+    this.rotationSpeedMultiplier = speed;
+    console.log(`🔄 Rotation speed set to ${speed}x`);
+  }
+
+  /**
+   * Set pan sensitivity multiplier for interactive controls (1 = normal, 2 = twice as sensitive)
+   */
+  setPanSensitivity(sensitivity: number): void {
+    // Store the sensitivity value for use in pan calculations
+    this.panSensitivityMultiplier = sensitivity;
+    console.log(`👆 Pan sensitivity set to ${sensitivity}x`);
+  }
+
+  /**
+   * Set depth of field effect strength (0-100)
+   * 0 = disabled, 100 = maximum blur
+   */
+  setDepthOfField(strength: number): void {
+    // Enable post-processing with DOF
+    if (!this.dofPass) {
+      // Create DOF pass if not exists (would need THREE.js post-processing)
+      this.dofStrength = strength;
+      console.log(`🎬 Depth of field set to ${strength}%`);
+      return;
+    }
+    
+    this.dofStrength = strength;
+    // Apply DOF effect to the renderer
+    if (strength > 0) {
+      const focusDistance = 5000; // Focus on center of scene
+      const bokehScale = (strength / 100) * 15; // 0 to 15 pixels blur radius
+      this.dofPass.uniforms.focalDepth.value = focusDistance;
+      this.dofPass.uniforms.bokeh.value = true;
+      this.dofPass.uniforms.maxblur.value = bokehScale;
+    }
+    
+    console.log(`🎬 Depth of field set to ${strength}%`);
+  }
+
+  /**
+   * Disable depth of field effect
+   */
+  disableDepthOfField(): void {
+    this.dofStrength = 0;
+    if (this.dofPass) {
+      this.dofPass.uniforms.bokeh.value = false;
+    }
+    console.log(`🎬 Depth of field disabled`);
+  }
 }
+

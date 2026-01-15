@@ -5,6 +5,7 @@ export interface FisheyeConfig {
   radius: number;          // Radius of the fisheye lens in world units
   magnification: number;   // Maximum magnification strength (1.0 = no magnification)
   distortion: number;      // Position distortion strength (0 = no distortion)
+  zoomRelative?: number;   // 0 = no change, 1 = full reduction with zoom
 }
 
 /**
@@ -43,7 +44,8 @@ export class FisheyeEffectService {
    */
   calculateEffect(
     meshPosition: THREE.Vector3,
-    focusPoint: THREE.Vector3
+    focusPoint: THREE.Vector3,
+    cameraZoom: number = 1
   ): { scale: number; positionOffset: THREE.Vector2; renderOrder: number } | null {
     // Calculate distance from focus point (in XY plane)
     const dx = meshPosition.x - focusPoint.x;
@@ -64,7 +66,14 @@ export class FisheyeEffectService {
     // Calculate scale magnification
     // At focus point (distance=0): scale = magnification
     // At edge (distance=radius): scale = 1.0
-    const scale = 1.0 + (this.config.magnification - 1.0) * falloff;
+    // Optionally reduce magnification as zoom increases
+    let magnification = this.config.magnification;
+    if (this.config.zoomRelative !== undefined && this.config.zoomRelative > 0) {
+      // As zoom increases, reduce magnification
+      magnification = 1.0 + (this.config.magnification - 1.0) * (1 - this.config.zoomRelative * (cameraZoom - 1));
+      if (magnification < 1.0) magnification = 1.0;
+    }
+    const scale = 1.0 + (magnification - 1.0) * falloff;
 
     // Calculate position distortion (push items away from center)
     // This creates the "lens" effect by moving items radially

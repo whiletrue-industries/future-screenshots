@@ -4,6 +4,7 @@ import { PlatformService } from '../../platform.service';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
 import { QrcodeComponent } from "./qrcode/qrcode.component";
+import { SettingsPanelComponent, FisheyeSettings } from './settings-panel.component';
 import { PhotoData, PhotoAnimationState, PhotoMetadata } from './photo-data';
 import { ThreeRendererService } from './three-renderer.service';
 import { LayoutStrategy } from './layout-strategy.interface';
@@ -19,7 +20,7 @@ import e from 'express';
 
 @Component({
   selector: 'app-showcase-ws',
-  imports: [QrcodeComponent],
+  imports: [QrcodeComponent, SettingsPanelComponent],
   templateUrl: './showcase-ws.component.html',
   styleUrl: './showcase-ws.component.less'
 })
@@ -39,6 +40,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   enableRandomShowcase = signal(false);
   enableSvgAutoPositioning = signal(false);
   fisheyeEnabled = signal(false);
+  fisheyeSettings = signal<FisheyeSettings>({
+    maxMagnification: 2,
+    radius: 800,
+    zoomRelative: 0.5
+  });
+
+  // Track if fisheye is currently enabled
+  // No longer needed: private currentFisheyeValue = 0;
   loadedPhotoIds = new Set<string>();
   private layoutChangeInProgress = false;
   qrUrl = computed(() => 
@@ -307,12 +316,23 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     });
 
     // Apply fisheye settings from query parameters
+    const qp = this.activatedRoute.snapshot.queryParams;
     if (this.fisheyeEnabled()) {
       this.rendererService.enableFisheyeEffect(true);
+      
+      // Calculate fisheye value from query params (default to 100% if enabled)
+      // This ensures the slider shows the correct value
+      const fisheyeValue = 100; // Default enabled value
+      this.currentFisheyeValue = fisheyeValue;
+      
+      // Update camera settings to reflect actual state
+      this.cameraSettings.update(settings => ({
+        ...settings,
+        fisheye: fisheyeValue
+      }));
     }
     
     // Read optional fisheye configuration from query params
-    const qp = this.activatedRoute.snapshot.queryParams;
     if (qp['fisheye_radius']) {
       const radius = parseFloat(qp['fisheye_radius']);
       if (!isNaN(radius)) {
@@ -656,6 +676,18 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.rendererService.zoomAtCursor(1.5);
   }
 
+  /**
+   * Handle camera settings changes from the settings panel
+   */
+  onSettingsChange(settings: FisheyeSettings): void {
+    this.fisheyeSettings.set(settings);
+    console.log('[SHOWCASE_WS] onFisheyeSettingsChange', { ...settings });
+    this.rendererService.setFisheyeConfig({
+      magnification: settings.maxMagnification,
+      radius: settings.radius,
+      zoomRelative: settings.zoomRelative
+    });
+  }
 
   ngOnDestroy() {
     this.destroy$.next();
