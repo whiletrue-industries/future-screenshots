@@ -41,7 +41,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
   isTemplateExpanding = signal(false);
   isTransitioning = signal(false);
   isEditorShowing = signal(false);
-  currentMode = signal<'draw' | 'type'>('type'); // Default to write mode
+  currentMode = signal<'draw' | 'type'>('draw'); // Default to draw mode
   currentColor = signal<string>(this.colorPalette[0]); // Start with red
   currentColorIndex = signal(0);
   hasContent = signal(false);
@@ -397,12 +397,10 @@ export class CanvasCreatorComponent implements AfterViewInit {
     }
     
     this.canvas.set(fabricCanvas);
-    // Configure drawing brush with Rough.js sketchy effect
-    if (this.currentMode() === 'draw') {
-      this.setupRoughBrush(fabricCanvas);
-      // Allow text box interaction in draw mode
-      this.setupDrawModeTextboxInteraction(fabricCanvas);
-    }
+    // Configure drawing brush with Rough.js sketchy effect (default mode is draw)
+    this.setupRoughBrush(fabricCanvas);
+    // Track mode based on textbox selection frames
+    this.setupSelectionModeTracking(fabricCanvas);
     // Place initial chat placeholders (needs canvas to be registered first)
     this.placeInitialChatBoxes(fabricCanvas);
     this.updatePlaceholderVisibility(this.currentMode() === 'type');
@@ -571,46 +569,35 @@ export class CanvasCreatorComponent implements AfterViewInit {
     this.addTextboxAt(100, 100, true);
   }
   
-  setupDrawModeTextboxInteraction(fabricCanvas: any) {
-    // Handle text box selection and editing in draw mode
-    // We need to intercept clicks on textboxes BEFORE the drawing brush activates
+  setupSelectionModeTracking(fabricCanvas: any) {
+    // Track mode based on textbox selection frames
+    // Frame visible = text mode, no frame = draw mode
+    const component = this;
     
-    // Use mouse:down:before to catch events before the drawing brush
-    fabricCanvas.on('mouse:down:before', (e: any) => {
-      const currentMode = this.currentMode();
-      if (currentMode !== 'draw' || !fabricCanvas.isDrawingMode) return;
-      
-      // Check if we're clicking on a textbox
-      const pointer = fabricCanvas.getPointer(e.e);
-      const target = fabricCanvas.findTarget(e.e, false);
-      
+    // When a textbox is selected (frame appears), switch to text mode
+    fabricCanvas.on('selection:created', (e: any) => {
+      const target = e.selected?.[0];
       if (target && target.type === 'textbox') {
-        // Prevent drawing from starting
-        e.e.preventDefault();
-        e.e.stopPropagation();
-        
-        // Disable drawing mode and enter edit mode
         fabricCanvas.isDrawingMode = false;
-        fabricCanvas.setActiveObject(target);
-        target.enterEditing();
-        target.selectAll();
-        fabricCanvas.renderAll();
+        component.currentMode.set('type');
       }
     });
     
-    // Handle clicking outside textbox when in edit mode
-    fabricCanvas.on('mouse:down', (e: any) => {
-      const currentMode = this.currentMode();
-      if (currentMode !== 'draw') return;
-      
-      const target = e.target;
-      
-      // If we're not in drawing mode and clicking outside a textbox, re-enable drawing
-      if (!fabricCanvas.isDrawingMode && (!target || target.type !== 'textbox')) {
-        fabricCanvas.discardActiveObject();
-        fabricCanvas.isDrawingMode = true;
-        fabricCanvas.renderAll();
+    // When selection changes to another textbox
+    fabricCanvas.on('selection:updated', (e: any) => {
+      const target = e.selected?.[0];
+      if (target && target.type === 'textbox') {
+        fabricCanvas.isDrawingMode = false;
+        component.currentMode.set('type');
       }
+    });
+    
+    // When selection is cleared (frame disappears), switch back to draw mode
+    fabricCanvas.on('selection:cleared', () => {
+      fabricCanvas.isDrawingMode = true;
+      component.currentMode.set('draw');
+      component.setupRoughBrush(fabricCanvas);
+      fabricCanvas.renderAll();
     });
   }
 
