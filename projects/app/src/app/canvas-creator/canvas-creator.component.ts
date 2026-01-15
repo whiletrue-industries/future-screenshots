@@ -568,7 +568,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     console.log('[Canvas Creator] Final blob - Type:', jpegBlob.type, 'Size:', jpegBlob.size, 'bytes');
     
     this.state.setImage(jpegBlob);
-    this.router.navigate(['/confirm'], { queryParamsHandling: 'merge' });
+    this.router.navigate(['/confirm'], { queryParamsHandling: 'merge', queryParams: { template: 'true' } });
   }
   
   undo() {
