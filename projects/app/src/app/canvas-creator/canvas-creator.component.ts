@@ -26,6 +26,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
   
   canvas = signal<any | null>(null);
   selectedTemplate = signal<Template | null>(null);
+  isTemplateExpanding = signal(false);
+  isEditorShowing = signal(false);
   currentMode = signal<'draw' | 'type'>('type'); // Default to write mode
   currentColor = signal<string>('#4E02B2'); // Default purple
   showTemplateGallery = signal(true);
@@ -217,7 +219,16 @@ export class CanvasCreatorComponent implements AfterViewInit {
   }
 
   useCurrentTemplate() {
-    this.selectTemplate(this.currentTemplate());
+    const template = this.currentTemplate();
+    this.selectTemplate(template);
+    this.isTemplateExpanding.set(true);
+    
+    // Show editor after template has expanded (1s animation)
+    setTimeout(() => {
+      this.showTemplateGallery.set(false);
+      this.isEditorShowing.set(true);
+      this.isTemplateExpanding.set(false);
+    }, 800);
   }
 
   private spinCarouselToRandomTemplate() {

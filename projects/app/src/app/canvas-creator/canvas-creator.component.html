@@ -1,7 +1,7 @@
 <div class="canvas-creator">
   <!-- Template Carousel -->
   @if (showTemplateGallery()) {
-    <div class="template-gallery">
+    <div class="template-gallery" [class.expanding]="isTemplateExpanding()">
       <div class="gallery-background"></div>
       <div class="gallery-content">
         <h1 class="gallery-title" i18n>Choose a Template</h1>
@@ -15,6 +15,7 @@
             @for (template of templates; track template.id; let i = $index) {
               <div class="carousel-item"
                    [class.active]="i === currentTemplateIndex()"
+                   [class.expanding]="isTemplateExpanding() && i === currentTemplateIndex()"
                    (click)="currentTemplateIndex.set(i); useCurrentTemplate()">
                 <div class="carousel-item-content">
                   <img [src]="template.preview" [alt]="template.name" loading="lazy">
@@ -40,7 +41,7 @@
   
   <!-- Canvas Editor -->
   @if (selectedTemplate() && !showTemplateGallery()) {
-    <div class="editor">
+    <div class="editor" [class.entering]="isEditorShowing()">
       <!-- Top drawer overlay controls -->
       <div class="top-drawer" [class.state-default]="drawerState() === 'default'" [class.state-full]="drawerState() === 'full'" [class.state-minimal]="drawerState() === 'minimal'"
            [style.transform]="drawerTransform()" [style.transition]="drawerTransition()">
