@@ -2,7 +2,6 @@ import { Injectable } from '@angular/core';
 import * as THREE from 'three';
 
 export interface FisheyeConfig {
-  enabled: boolean;
   radius: number;          // Radius of the fisheye lens in world units
   magnification: number;   // Maximum magnification strength (1.0 = no magnification)
   distortion: number;      // Position distortion strength (0 = no distortion)
@@ -17,7 +16,6 @@ export interface FisheyeConfig {
 })
 export class FisheyeEffectService {
   private config: FisheyeConfig = {
-    enabled: true,
     radius: 800,
     magnification: 2.0,
     distortion: 0.3
@@ -47,10 +45,6 @@ export class FisheyeEffectService {
     meshPosition: THREE.Vector3,
     focusPoint: THREE.Vector3
   ): { scale: number; positionOffset: THREE.Vector2; renderOrder: number } | null {
-    if (!this.config.enabled) {
-      return null;
-    }
-
     // Calculate distance from focus point (in XY plane)
     const dx = meshPosition.x - focusPoint.x;
     const dy = meshPosition.y - focusPoint.y;

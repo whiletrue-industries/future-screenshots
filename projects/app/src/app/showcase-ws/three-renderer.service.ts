@@ -742,6 +742,9 @@ export class ThreeRendererService {
     this.fisheyeAffectedMeshes.clear();
 
     // Apply fisheye effect to all meshes in the scene
+    const config = this.fisheyeService.getConfig();
+    const effectRadiusSquared = config.radius * config.radius; // Use squared distance to avoid sqrt
+    
     this.root.children.forEach((child) => {
       const mesh = child as THREE.Mesh;
       if (!mesh.isMesh) return;
@@ -768,6 +771,22 @@ export class ThreeRendererService {
           });
         }
         logicalPosition = this.meshOriginalStates.get(mesh)!.position.clone();
+      }
+
+      // Early culling: check squared distance to avoid sqrt calculation
+      const dx = logicalPosition.x - this.fisheyeFocusPoint.x;
+      const dy = logicalPosition.y - this.fisheyeFocusPoint.y;
+      const distanceSquared = dx * dx + dy * dy;
+      
+      // Skip meshes that are clearly outside the effect radius
+      if (distanceSquared > effectRadiusSquared) {
+        // Reset if previously affected
+        if (previouslyAffected.has(mesh)) {
+          mesh.scale.set(1, 1, 1);
+          mesh.position.copy(logicalPosition);
+          mesh.renderOrder = 0;
+        }
+        return;
       }
 
       const effect = this.fisheyeService.calculateEffect(logicalPosition, this.fisheyeFocusPoint);
