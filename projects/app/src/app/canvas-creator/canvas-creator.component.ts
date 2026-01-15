@@ -573,6 +573,41 @@ export class CanvasCreatorComponent implements AfterViewInit {
     // Track mode based on textbox selection frames
     // Frame visible = text mode, no frame = draw mode
     const component = this;
+    let mouseDownPos: { x: number; y: number } | null = null;
+    
+    // Track mouse down position
+    fabricCanvas.on('mouse:down', (e: any) => {
+      mouseDownPos = { x: e.pointer.x, y: e.pointer.y };
+    });
+    
+    // On mouse up, check if it was a click (not a drag) on a selected textbox
+    fabricCanvas.on('mouse:up', (e: any) => {
+      const target = e.target;
+      if (target && target.type === 'textbox' && mouseDownPos) {
+        // Check if this was a click (not a drag)
+        const distance = Math.sqrt(
+          Math.pow(e.pointer.x - mouseDownPos.x, 2) + 
+          Math.pow(e.pointer.y - mouseDownPos.y, 2)
+        );
+        
+        // If it's a small movement (less than 5 pixels), treat it as a click
+        if (distance < 5) {
+          const activeObject = fabricCanvas.getActiveObject();
+          // If the textbox is already selected (has handles) and we clicked on it
+          if (activeObject === target && !target.isEditing) {
+            // Enter editing mode
+            target.editable = true;
+            target.enterEditing();
+            setTimeout(() => {
+              if (target.isEditing) {
+                target.selectAll();
+              }
+            }, 50);
+          }
+        }
+      }
+      mouseDownPos = null;
+    });
     
     // When a textbox is selected (frame appears), switch to text mode
     fabricCanvas.on('selection:created', (e: any) => {
@@ -580,6 +615,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
       if (target && target.type === 'textbox') {
         fabricCanvas.isDrawingMode = false;
         component.currentMode.set('type');
+        // First click - just show handles, don't enter editing
       }
     });
     
@@ -589,6 +625,10 @@ export class CanvasCreatorComponent implements AfterViewInit {
       if (target && target.type === 'textbox') {
         fabricCanvas.isDrawingMode = false;
         component.currentMode.set('type');
+        // Exit editing mode if we were in it
+        if (target.isEditing) {
+          target.exitEditing();
+        }
       }
     });
     
@@ -598,6 +638,14 @@ export class CanvasCreatorComponent implements AfterViewInit {
       component.currentMode.set('draw');
       component.setupRoughBrush(fabricCanvas);
       fabricCanvas.renderAll();
+    });
+    
+    // When text editing exits, disable editable again
+    fabricCanvas.on('text:editing:exited', (e: any) => {
+      const target = e.target;
+      if (target && target.type === 'textbox') {
+        target.editable = false;
+      }
     });
   }
 
@@ -878,12 +926,17 @@ export class CanvasCreatorComponent implements AfterViewInit {
   }
 
   private configureTextbox(text: any) {
+    // Prevent entering edit mode on single click - only allow double-click
+    text.editable = false; // Disable editing by default
+    text.lockMovementX = false;
+    text.lockMovementY = false;
+    
     // Allow width resize via side handles only; corners will resize font uniformly
     text.setControlsVisibility({
       ml: true, mr: true,
       mt: false, mb: false,
       tl: true, tr: true, bl: true, br: true,
-      mtr: false,
+      mtr: true, // Show rotation handle
     });
 
     // Prevent letter stretching: convert side scaling to width changes
