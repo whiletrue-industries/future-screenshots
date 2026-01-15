@@ -27,6 +27,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
   canvas = signal<any | null>(null);
   selectedTemplate = signal<Template | null>(null);
   isTemplateExpanding = signal(false);
+  isTransitioning = signal(false);
   isEditorShowing = signal(false);
   currentMode = signal<'draw' | 'type'>('type'); // Default to write mode
   currentColor = signal<string>('#4E02B2'); // Default purple
@@ -222,12 +223,18 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const template = this.currentTemplate();
     this.selectTemplate(template);
     this.isTemplateExpanding.set(true);
+    this.isTransitioning.set(true);
     
-    // Show editor after template has expanded (1s animation)
+    // Show editor while image is zooming, and fade out gallery
+    setTimeout(() => {
+      this.isEditorShowing.set(true);
+    }, 50);
+    
+    // Hide gallery after it fades out (0.3s delay + 0.5s fade)
     setTimeout(() => {
       this.showTemplateGallery.set(false);
-      this.isEditorShowing.set(true);
       this.isTemplateExpanding.set(false);
+      this.isTransitioning.set(false);
     }, 800);
   }
 

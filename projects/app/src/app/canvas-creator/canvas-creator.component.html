@@ -1,7 +1,7 @@
 <div class="canvas-creator">
   <!-- Template Carousel -->
   @if (showTemplateGallery()) {
-    <div class="template-gallery" [class.expanding]="isTemplateExpanding()">
+    <div class="template-gallery" [class.transitioning]="isTransitioning()">
       <div class="gallery-background"></div>
       <div class="gallery-content">
         <h1 class="gallery-title" i18n>Choose a Template</h1>
