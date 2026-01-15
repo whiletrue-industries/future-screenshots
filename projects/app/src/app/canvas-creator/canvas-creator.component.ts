@@ -541,11 +541,19 @@ export class CanvasCreatorComponent implements AfterViewInit {
       fabricCanvas.requestRenderAll();
     }
     
-    // Export canvas to JPEG data URL (matching scanner format)
+    // Calculate multiplier to export at full resolution (1060x2000)
+    // Current canvas is display size, we need to scale up to target size
+    const targetWidth = 1060;
+    const targetHeight = 2000;
+    const multiplier = targetWidth / fabricCanvas.width!;
+    
+    console.log('[Canvas Creator] Export multiplier:', multiplier, `(${fabricCanvas.width}x${fabricCanvas.height} -> ${targetWidth}x${targetHeight})`);
+    
+    // Export canvas to JPEG data URL at full resolution
     const dataURL = fabricCanvas.toDataURL({
-      format: 'jpeg',  // Use JPEG like scanner
-      quality: 0.95,   // Match scanner quality
-      multiplier: 1,   // Keep current size (1060x2000)
+      format: 'jpeg',    // Use JPEG like scanner
+      quality: 0.95,     // Match scanner quality
+      multiplier: multiplier,  // Scale up to 1060x2000
     });
     
     console.log('[Canvas Creator] Data URL length:', dataURL.length);
