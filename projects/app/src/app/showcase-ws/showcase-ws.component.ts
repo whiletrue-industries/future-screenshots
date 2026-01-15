@@ -160,6 +160,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     if (layoutParam && ['grid','tsne','svg','circle-packing'].includes(layoutParam)) {
       this.currentLayout.set(layoutParam as any);
     }
+    
+    // Check for fisheye parameters
+    if (qp['fisheye'] === '1' || qp['fisheye'] === 'true') {
+      this.fisheyeEnabled.set(true);
+    }
+    
     apiService.updateFromRoute(this.activatedRoute.snapshot);
     apiService.api_key.set(this.admin_key());
   }
@@ -299,6 +305,32 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
       photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT
     });
+
+    // Apply fisheye settings from query parameters
+    if (this.fisheyeEnabled()) {
+      this.rendererService.enableFisheyeEffect(true);
+    }
+    
+    // Read optional fisheye configuration from query params
+    const qp = this.activatedRoute.snapshot.queryParams;
+    if (qp['fisheye_radius']) {
+      const radius = parseFloat(qp['fisheye_radius']);
+      if (!isNaN(radius)) {
+        this.rendererService.setFisheyeConfig({ radius });
+      }
+    }
+    if (qp['fisheye_magnification']) {
+      const magnification = parseFloat(qp['fisheye_magnification']);
+      if (!isNaN(magnification)) {
+        this.rendererService.setFisheyeConfig({ magnification });
+      }
+    }
+    if (qp['fisheye_distortion']) {
+      const distortion = parseFloat(qp['fisheye_distortion']);
+      if (!isNaN(distortion)) {
+        this.rendererService.setFisheyeConfig({ distortion });
+      }
+    }
 
     // Initialize PhotoDataRepository with default grid strategy first
     const defaultGridStrategy = new GridLayoutStrategy({

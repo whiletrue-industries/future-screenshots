@@ -746,52 +746,80 @@ export class ThreeRendererService {
       const mesh = child as THREE.Mesh;
       if (!mesh.isMesh) return;
 
-      // Store original state if not already stored
-      if (!this.meshOriginalStates.has(mesh)) {
-        this.meshOriginalStates.set(mesh, {
-          position: mesh.position.clone(),
-          scale: mesh.scale.clone(),
-          renderOrder: mesh.renderOrder
-        });
+      // Get the logical position from PhotoData (if available)
+      const photoData = this.meshToPhotoData.get(mesh);
+      let logicalPosition: THREE.Vector3;
+      
+      if (photoData && photoData.currentPosition) {
+        // Use PhotoData's current position as the logical position
+        logicalPosition = new THREE.Vector3(
+          photoData.currentPosition.x,
+          photoData.currentPosition.y,
+          photoData.currentPosition.z
+        );
+      } else {
+        // Fallback to mesh's current position if no PhotoData
+        // Store original state if not already stored
+        if (!this.meshOriginalStates.has(mesh)) {
+          this.meshOriginalStates.set(mesh, {
+            position: mesh.position.clone(),
+            scale: mesh.scale.clone(),
+            renderOrder: mesh.renderOrder
+          });
+        }
+        logicalPosition = this.meshOriginalStates.get(mesh)!.position.clone();
       }
 
-      const originalState = this.meshOriginalStates.get(mesh)!;
-      const effect = this.fisheyeService.calculateEffect(originalState.position, this.fisheyeFocusPoint);
+      const effect = this.fisheyeService.calculateEffect(logicalPosition, this.fisheyeFocusPoint);
 
       if (effect) {
         // Mesh is within fisheye radius - apply effect
         this.fisheyeAffectedMeshes.add(mesh);
 
-        // Apply scale
-        const targetScale = originalState.scale.x * effect.scale;
+        // Apply scale (magnification)
+        const targetScale = effect.scale;
         mesh.scale.set(targetScale, targetScale, 1);
 
-        // Apply position offset (radial displacement)
+        // Apply position offset (radial displacement from logical position)
         mesh.position.set(
-          originalState.position.x + effect.positionOffset.x,
-          originalState.position.y + effect.positionOffset.y,
-          originalState.position.z
+          logicalPosition.x + effect.positionOffset.x,
+          logicalPosition.y + effect.positionOffset.y,
+          logicalPosition.z
         );
 
         // Apply render order (z-index)
         mesh.renderOrder = effect.renderOrder;
       } else {
-        // Mesh is outside fisheye radius - reset to original
+        // Mesh is outside fisheye radius - reset to logical position
         if (previouslyAffected.has(mesh)) {
-          mesh.scale.copy(originalState.scale);
-          mesh.position.copy(originalState.position);
-          mesh.renderOrder = originalState.renderOrder;
+          mesh.scale.set(1, 1, 1);
+          mesh.position.copy(logicalPosition);
+          mesh.renderOrder = 0;
         }
       }
     });
   }
 
   private resetAllFisheyeEffects(): void {
-    // Reset all meshes to their original state
-    this.meshOriginalStates.forEach((originalState, mesh) => {
-      mesh.scale.copy(originalState.scale);
-      mesh.position.copy(originalState.position);
-      mesh.renderOrder = originalState.renderOrder;
+    // Reset all affected meshes to their logical positions
+    this.fisheyeAffectedMeshes.forEach((mesh) => {
+      const photoData = this.meshToPhotoData.get(mesh);
+      if (photoData && photoData.currentPosition) {
+        // Reset to PhotoData's current position
+        mesh.position.set(
+          photoData.currentPosition.x,
+          photoData.currentPosition.y,
+          photoData.currentPosition.z
+        );
+      } else if (this.meshOriginalStates.has(mesh)) {
+        // Fallback to stored original position
+        const originalState = this.meshOriginalStates.get(mesh)!;
+        mesh.position.copy(originalState.position);
+      }
+      
+      // Reset scale and render order
+      mesh.scale.set(1, 1, 1);
+      mesh.renderOrder = 0;
     });
     this.fisheyeAffectedMeshes.clear();
   }
