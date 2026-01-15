@@ -1378,7 +1378,10 @@ export class ThreeRendererService {
 
     // Mouse leave - reset fisheye effect
     canvas.addEventListener('mouseleave', () => {
-      this.resetAllFisheyeEffects();
+      // Only reset if fisheye is enabled and there are affected meshes
+      if (this.fisheyeEnabled && this.fisheyeAffectedMeshes.size > 0) {
+        this.resetAllFisheyeEffects();
+      }
     });
 
     // Mouse wheel - zoom
