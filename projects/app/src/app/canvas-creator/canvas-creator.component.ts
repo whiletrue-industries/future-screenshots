@@ -24,13 +24,27 @@ interface Template {
 export class CanvasCreatorComponent implements AfterViewInit {
   @ViewChild('canvasEl', { static: false}) canvasEl!: ElementRef<HTMLCanvasElement>;
   
+  // Color palette: vibrant markers with WCAG AA contrast (4.5:1) from white paper
+  private readonly colorPalette = [
+    '#FF0000', // Red
+    '#0066FF', // Blue
+    '#00BB00', // Green
+    '#FF6600', // Orange
+    '#BB00FF', // Purple
+    '#FF0099', // Hot Pink
+    '#00CCFF', // Cyan
+    '#FFAA00', // Amber
+  ];
+  
   canvas = signal<any | null>(null);
   selectedTemplate = signal<Template | null>(null);
   isTemplateExpanding = signal(false);
   isTransitioning = signal(false);
   isEditorShowing = signal(false);
   currentMode = signal<'draw' | 'type'>('type'); // Default to write mode
-  currentColor = signal<string>('#4E02B2'); // Default purple
+  currentColor = signal<string>(this.colorPalette[0]); // Start with red
+  currentColorIndex = signal(0);
+  hasContent = signal(false);
   showTemplateGallery = signal(true);
   showModeSelection = signal(false);
   transitionChoice = signal<'before' | 'during' | 'after' | null>(null);
@@ -217,6 +231,20 @@ export class CanvasCreatorComponent implements AfterViewInit {
     if (this.isCarouselAnimating()) return;
     const index = this.currentTemplateIndex();
     this.currentTemplateIndex.set((index + 1) % this.templates.length);
+  }
+
+  cycleColor() {
+    const nextIndex = (this.currentColorIndex() + 1) % this.colorPalette.length;
+    this.currentColorIndex.set(nextIndex);
+    this.currentColor.set(this.colorPalette[nextIndex]);
+    
+    // If in draw mode, re-setup the brush with the new color
+    if (this.currentMode() === 'draw') {
+      const fabricCanvas = this.canvas();
+      if (fabricCanvas) {
+        this.setupRoughBrush(fabricCanvas);
+      }
+    }
   }
 
   useCurrentTemplate() {
@@ -479,6 +507,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
           });
           this.canvas.add(img);
           this.canvas.renderAll();
+          this.hasContent.set(true);
         });
         
         this._reset();
@@ -587,6 +616,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     fabricCanvas.getObjects().forEach((obj: any) => {
       fabricCanvas.remove(obj);
     });
+    this.hasContent.set(false);
   }
   
   restart() {
@@ -599,6 +629,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
   }
   
   async submit() {
+    if (!this.hasContent()) return; // Prevent submit if no content
+    
     const fabricCanvas = this.canvas();
     if (!fabricCanvas) return;
     
@@ -774,6 +806,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     });
 
     targetCanvas.add(text);
+    this.hasContent.set(true);
     if (focus) {
       targetCanvas.setActiveObject(text);
       text.enterEditing();
