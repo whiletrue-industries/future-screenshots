@@ -17,7 +17,7 @@ interface Template {
 
 @Component({
   selector: 'app-canvas-creator',
-  imports: [RouterLink],
+  imports: [],
   templateUrl: './canvas-creator.component.html',
   styleUrl: './canvas-creator.component.less'
 })
@@ -32,6 +32,13 @@ export class CanvasCreatorComponent implements AfterViewInit {
   showModeSelection = signal(false);
   transitionChoice = signal<'before' | 'during' | 'after' | null>(null);
   currentTemplateIndex = signal(0); // For carousel navigation
+  isCarouselAnimating = signal(false);
+  carouselTransform = computed(() => {
+    const index = this.currentTemplateIndex();
+    // Center item: viewport is 100vw, item is 75vw, so center offset is 12.5vw
+    // Item n is at position n*75vw, so translate to 12.5vw: translateX(12.5vw - n*75vw)
+    return `translateX(calc(12.5vw - ${index * 75}vw))`;
+  });
   drawerState = signal<'minimal' | 'default' | 'full'>('default');
   selectedFont = signal<string>('Caveat, cursive');
   selectedLineHeight = signal<number>(1.16);
@@ -47,10 +54,20 @@ export class CanvasCreatorComponent implements AfterViewInit {
   
   private injector = inject(Injector);
   
-  // Template gallery
+  // Template gallery with new order
   templates: Template[] = [
+    { id: 'post', name: 'Post', url: '/templates/FS_template_post.png', preview: '/templates/FS_template_post.png' },
     { id: 'chat', name: 'Chat', url: '/templates/FS_template_chat.png', preview: '/templates/FS_template_chat.png' },
-    { id: 'holyland', name: 'Map', url: '/templates/FS_template_holyland.png', preview: '/templates/FS_template_holyland.png' },
+    { id: 'notification', name: 'Notification', url: '/templates/FS_template_notification.png', preview: '/templates/FS_template_notification.png' },
+    { id: 'review', name: 'Review', url: '/templates/FS_template_review.png', preview: '/templates/FS_template_review.png' },
+    { id: 'prompt', name: 'Prompt', url: '/templates/FS_template_prompt.png', preview: '/templates/FS_template_prompt.png' },
+    { id: 'photo', name: 'Photo', url: '/templates/FS_template_photo.png', preview: '/templates/FS_template_photo.png' },
+    { id: 'sign', name: 'Sign', url: '/templates/FS_template_sign.png', preview: '/templates/FS_template_sign.png' },
+    { id: 'holyland', name: 'Holy Land', url: '/templates/FS_template_holyland.png', preview: '/templates/FS_template_holyland.png' },
+    { id: 'world', name: 'World', url: '/templates/FS_template_world.png', preview: '/templates/FS_template_world.png' },
+    { id: 'jerusalem', name: 'Jerusalem', url: '/templates/FS_template_jerusalem.png', preview: '/templates/FS_template_jerusalem.png' },
+    { id: 'europe', name: 'Europe', url: '/templates/FS_template_europe.png', preview: '/templates/FS_template_europe.png' },
+    { id: 'us', name: 'United States', url: '/templates/FS_template_US.png', preview: '/templates/FS_template_US.png' },
   ];
 
   // Template presets: GeoJSON with textbox positions and properties
@@ -161,6 +178,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
       console.log('❌ Not in browser, exiting');
       return;
     }
+    // Start carousel spin animation
+    this.spinCarouselToRandomTemplate();
     console.log('🔵 ngAfterViewInit complete');
   }
   
@@ -186,17 +205,53 @@ export class CanvasCreatorComponent implements AfterViewInit {
   }
   
   previousTemplate() {
+    if (this.isCarouselAnimating()) return;
     const index = this.currentTemplateIndex();
     this.currentTemplateIndex.set(index > 0 ? index - 1 : this.templates.length - 1);
   }
-  
+
   nextTemplate() {
+    if (this.isCarouselAnimating()) return;
     const index = this.currentTemplateIndex();
     this.currentTemplateIndex.set((index + 1) % this.templates.length);
   }
-  
+
   useCurrentTemplate() {
     this.selectTemplate(this.currentTemplate());
+  }
+
+  private spinCarouselToRandomTemplate() {
+    if (!this.platform.browser()) return;
+    
+    const randomIndex = Math.floor(Math.random() * this.templates.length);
+    // Calculate spins to reach the random index in ~1.5 seconds
+    const totalSpins = randomIndex + Math.floor(Math.random() * 2 + 3) * this.templates.length;
+    const animationDuration = 1500; // 1.5 seconds
+    
+    this.isCarouselAnimating.set(true);
+    let currentSpin = 0;
+    const startTime = Date.now();
+    
+    const spin = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / animationDuration, 1);
+      
+      // Ease-out cubic: 1 - (1-t)^3
+      const easeOutProgress = 1 - Math.pow(1 - progress, 3);
+      const targetSpin = Math.round(totalSpins * easeOutProgress);
+      
+      this.currentTemplateIndex.set(targetSpin % this.templates.length);
+      
+      if (progress < 1) {
+        requestAnimationFrame(spin);
+      } else {
+        // Final settle on random index
+        this.currentTemplateIndex.set(randomIndex);
+        this.isCarouselAnimating.set(false);
+      }
+    };
+    
+    requestAnimationFrame(spin);
   }
   
   setMode(mode: 'draw' | 'type') {

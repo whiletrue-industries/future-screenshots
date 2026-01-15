@@ -1,34 +1,40 @@
 <div class="canvas-creator">
   <!-- Template Carousel -->
   @if (showTemplateGallery()) {
-    <div class="template-carousel">
-      <div class="header">
-        <a [routerLink]="['/prescan']" queryParamsHandling="preserve" class="back">
-          <img src="/icon-back.svg" alt="Back">
-        </a>
-        <h2 i18n>Choose a Template</h2>
-      </div>
-      <div class="carousel-container"
-           (touchstart)="onCarouselTouchStart($event)"
-           (touchmove)="onCarouselTouchMove($event)"
-           (touchend)="onCarouselTouchEnd()">
-        @if (currentTemplate(); as current) {
-          <button class="carousel-nav prev" (click)="previousTemplate()" aria-label="Previous template">
-            ‹
-          </button>
-          <div class="carousel-slide" (click)="useCurrentTemplate()">
-            <img [src]="current.preview" [alt]="current.name">
-            <div class="template-info">{{ current.name }}</div>
+    <div class="template-gallery">
+      <div class="gallery-background"></div>
+      <div class="gallery-content">
+        <h1 class="gallery-title" i18n>Choose a Template</h1>
+        <div class="carousel-wrapper">
+          <div class="carousel"
+               [class.animating]="isCarouselAnimating()"
+               [style.transform]="carouselTransform()"
+               (touchstart)="onCarouselTouchStart($event)"
+               (touchmove)="onCarouselTouchMove($event)"
+               (touchend)="onCarouselTouchEnd()">
+            @for (template of templates; track template.id; let i = $index) {
+              <div class="carousel-item"
+                   [class.active]="i === currentTemplateIndex()"
+                   (click)="currentTemplateIndex.set(i); useCurrentTemplate()">
+                <div class="carousel-item-content">
+                  <img [src]="template.preview" [alt]="template.name" loading="lazy">
+                  <div class="template-label">{{ template.name }}</div>
+                </div>
+              </div>
+            }
           </div>
-          <button class="carousel-nav next" (click)="nextTemplate()" aria-label="Next template">
-            ›
-          </button>
-        }
+        </div>
+        <div class="carousel-controls">
+          <button class="carousel-nav prev" 
+                  (click)="previousTemplate()"
+                  [disabled]="isCarouselAnimating()"
+                  aria-label="Previous template">‹</button>
+          <button class="carousel-nav next" 
+                  (click)="nextTemplate()"
+                  [disabled]="isCarouselAnimating()"
+                  aria-label="Next template">›</button>
+        </div>
       </div>
-      <!-- Tapping the slide selects; keep button for accessibility -->
-      <button class="button primary use-template" (click)="useCurrentTemplate()" i18n>
-        Use this template
-      </button>
     </div>
   }
   
