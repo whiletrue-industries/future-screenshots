@@ -18,6 +18,11 @@
             color: @color-light-purple;
         }
     }
+    
+    // Ensure proper z-index stacking when ingest menu is open
+    &:has(.ingest-menu) {
+        z-index: 1001;
+    }
 }
 
 .workspace-link {
@@ -111,7 +116,7 @@
     border-radius: 12px;
     box-shadow: 0 4px 12px fade(@color-purple, 15%);
     overflow: hidden;
-    z-index: 100;
+    z-index: 1002;
     
     .menu-item {
         display: flex;
