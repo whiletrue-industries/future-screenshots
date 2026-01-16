@@ -817,36 +817,25 @@ export class CanvasCreatorComponent implements AfterViewInit {
       getLineHeight: () => {
         const active = this.canvas()?.getActiveObject();
         if (active) {
-          console.log('Current textbox lineHeight:', active.lineHeight);
           return active.lineHeight;
         }
         console.warn('No textbox selected');
       },
       setLineHeight: (value: number) => {
         this.setLineHeight(value);
-        const active = this.canvas()?.getActiveObject();
-        console.log('LineHeight set to:', value, '- Current:', active?.lineHeight);
       },
       getHeight: () => {
         const active = this.canvas()?.getActiveObject();
         if (active) {
-          console.log('Current textbox height:', active.height);
           return active.height;
         }
         console.warn('No textbox selected');
       },
       setHeight: (value: number) => {
         this.setHeight(value);
-        const active = this.canvas()?.getActiveObject();
-        console.log('Height set to:', value, '- Current:', active?.height);
       },
       showAll: () => {
-        console.log('Available commands:');
-        console.log('  textboxDebug.getLineHeight() - Get current lineHeight');
-        console.log('  textboxDebug.setLineHeight(1.2) - Set lineHeight (try 0.8-2.0)');
-        console.log('  textboxDebug.getHeight() - Get current height');
-        console.log('  textboxDebug.setHeight(50) - Set height in pixels');
-        console.log('  textboxDebug.export() - Export all textboxes as GeoJSON');
+        // Available commands: getLineHeight(), setLineHeight(value), getHeight(), setHeight(value), export()
       },
       export: () => {
         this.exportTextboxesAsGeoJSON();
@@ -1451,7 +1440,6 @@ export class CanvasCreatorComponent implements AfterViewInit {
 
     // Get all textbox objects from the canvas
     const textboxes = fabricCanvas.getObjects().filter((obj: any) => obj.type === 'textbox');
-    console.log('Debug: textboxes on canvas:', textboxes.length);
     
     if (textboxes.length === 0) {
       console.warn('No textboxes found on canvas');
@@ -1482,8 +1470,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
       features,
     };
 
-    console.log('📍 Textbox Positions (GeoJSON)');
+    console.log('Textbox Positions (GeoJSON)');
     console.log(JSON.stringify(geojson, null, 2));
-    console.log('Copy the above JSON to use as a preset.');
   }
 }
