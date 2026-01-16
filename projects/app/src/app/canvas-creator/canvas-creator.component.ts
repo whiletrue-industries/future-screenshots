@@ -765,6 +765,10 @@ export class CanvasCreatorComponent implements AfterViewInit {
       displayWidth = displayHeight * aspectRatio;
     }
     
+    // Set the canvas element's style to match exact dimensions
+    canvasElement.style.width = displayWidth + 'px';
+    canvasElement.style.height = displayHeight + 'px';
+    
     const fabricCanvas = new fabric.Canvas(canvasElement, {
       width: displayWidth,
       height: displayHeight,
