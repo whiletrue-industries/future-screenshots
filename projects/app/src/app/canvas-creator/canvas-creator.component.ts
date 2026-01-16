@@ -5,7 +5,7 @@ import { ApiService } from '../../api.service';
 import { PlatformService } from '../../platform.service';
 import { StateService } from '../../state.service';
 import * as fabric from 'fabric';
-import rough from 'roughjs';
+import { getStroke } from 'perfect-freehand';
 
 interface Template {
   id: string;
@@ -845,66 +845,127 @@ export class CanvasCreatorComponent implements AfterViewInit {
   
   setupRoughBrush(fabricCanvas: any) {
     const color = this.currentColor();
-    const component = this; // Capture component context for callbacks
+    const component = this;
     
-    // Use the standard PencilBrush and configure it with Rough.js styling
-    const brush = new fabric.PencilBrush(fabricCanvas);
-    brush.color = color;
-    brush.width = 3;
-    
-    fabricCanvas.freeDrawingBrush = brush;
-    
-    // Listen for path created event to apply rough styling
-    fabricCanvas.on('path:created', async (e: any) => {
-      const path = e.path;
-      if (!path) return;
-      
-      // Remove the smooth path
-      fabricCanvas.remove(path);
-      
-      // Get the path data
-      const pathData = path.path;
-      if (!pathData || pathData.length < 2) return;
-      
-      // Convert path to points for rough.js
-      const points: [number, number][] = [];
-      pathData.forEach((segment: any) => {
-        if (segment[0] === 'M' || segment[0] === 'L') {
-          points.push([segment[1], segment[2]]);
-        } else if (segment[0] === 'Q') {
-          points.push([segment[3], segment[4]]);
+    // Create custom brush using perfect-freehand for crisp, smooth strokes
+    const componentRef = component;
+    const BaseBrush: any = fabric.PencilBrush;
+    class PerfectFreehandBrush extends BaseBrush {
+      color = color;
+      width = 3;
+      points: number[][] = [];
+      started = false;
+
+      onMouseDown(pointer: any, options: any) {
+        const target = (this as any).canvas.findTarget(options.e, false);
+        if (target && target.type === 'textbox') {
+          (this as any).canvas.isDrawingMode = false;
+          (this as any).canvas.setActiveObject(target);
+          target.enterEditing();
+          target.selectAll();
+          (this as any).canvas.renderAll();
+          return;
         }
-      });
-      
-      if (points.length < 2) return;
-      
-      // Create an offscreen canvas for rough.js
-      const offscreenCanvas = document.createElement('canvas');
-      offscreenCanvas.width = fabricCanvas.width;
-      offscreenCanvas.height = fabricCanvas.height;
-      const rc = rough.canvas(offscreenCanvas);
-      
-      // Draw the rough path
-      rc.linearPath(points, {
-        stroke: color,
-        strokeWidth: 3,
-        roughness: 1.2,
-        bowing: 0.5,
-      });
-      
-      // Convert to fabric image and add to canvas
-      const dataURL = offscreenCanvas.toDataURL();
-      const img = await fabric.FabricImage.fromURL(dataURL);
-      img.set({
-        left: 0,
-        top: 0,
-        selectable: false,
-        evented: false,
-      });
-      fabricCanvas.add(img);
-      component.hasContent.set(true);
-      fabricCanvas.renderAll();
-    });
+
+        this.started = true;
+        this.points = [[pointer.x, pointer.y, 0.5]];
+        (this as any)._render();
+      }
+
+      onMouseMove(pointer: any) {
+        if (!this.started) return;
+        this.points.push([pointer.x, pointer.y, 0.5]);
+        (this as any)._render();
+      }
+
+      onMouseUp() {
+        if (!this.started) return;
+        this.started = false;
+        (this as any)._finalizeAndAddPath();
+      }
+
+      _render() {
+        const canvas = (this as any).canvas;
+        const ctx = canvas.contextTop;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (this.points.length > 1) {
+          const outlinePoints = getStroke(this.points, {
+            size: 4,
+            thinning: 0.6,
+            smoothing: 0.5,
+            streamline: 0.5,
+          });
+
+          (this as any)._drawStroke(ctx, outlinePoints);
+        }
+      }
+
+      _drawStroke(ctx: CanvasRenderingContext2D, outlinePoints: number[][]) {
+        if (outlinePoints.length < 2) return;
+
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.moveTo(outlinePoints[0][0], outlinePoints[0][1]);
+
+        for (let i = 1; i < outlinePoints.length; i++) {
+          ctx.lineTo(outlinePoints[i][0], outlinePoints[i][1]);
+        }
+
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      _finalizeAndAddPath() {
+        if (this.points.length < 2) {
+          this.points = [];
+          return;
+        }
+
+        const outlinePoints = getStroke(this.points, {
+          size: 4,
+          thinning: 0.6,
+          smoothing: 0.5,
+          streamline: 0.5,
+        });
+
+        // Convert outline to SVG path for vector output
+        if (outlinePoints.length > 2) {
+          const pathData = this._outlineToSvgPath(outlinePoints);
+          const strokePath = new fabric.Path(pathData, {
+            fill: this.color,
+            strokeWidth: 0,
+            left: 0,
+            top: 0,
+            selectable: false,
+            evented: false,
+            objectCaching: false,
+          });
+
+          (this as any).canvas.add(strokePath);
+          (this as any).canvas.requestRenderAll();
+        }
+
+        componentRef.hasContent.set(true);
+        this.points = [];
+      }
+
+      _outlineToSvgPath(points: number[][]): string {
+        if (points.length < 2) return '';
+        const len = points.length;
+        const commands: string[] = [];
+        for (let i = 0; i < len; i++) {
+          const [x0, y0] = points[i];
+          const [x1, y1] = points[(i + 1) % len];
+          commands.push(`${x0},${y0} ${(x0 + x1) / 2},${(y0 + y1) / 2}`);
+        }
+        return `M ${commands[0]} Q ${commands.slice(1).join(' ')} Z`;
+      }
+    }
+
+    fabricCanvas.freeDrawingBrush = new (PerfectFreehandBrush as any)(fabricCanvas);
+    fabricCanvas.freeDrawingBrush.color = color;
+    fabricCanvas.freeDrawingBrush.width = 3;
   }
   
   addText() {
@@ -1014,25 +1075,22 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const fabricCanvas = this.canvas();
     if (!fabricCanvas) return;
     
-    // Add sketchy circle around the selected transition option using Rough.js
-    // The transition section is at bottom: y ~1900, x positions: before=60, during=180, after=300
+    // Add circle around the selected transition option using canvas arc
     let x = 60;
     if (choice === 'during') x = 180;
     if (choice === 'after') x = 300;
     
-    // Create an offscreen canvas for rough.js circle
+    // Draw circle using canvas native arc
     const offscreenCanvas = document.createElement('canvas');
     offscreenCanvas.width = fabricCanvas.width;
     offscreenCanvas.height = fabricCanvas.height;
-    const rc = rough.canvas(offscreenCanvas);
+    const ctx = offscreenCanvas.getContext('2d');
     
-    // Draw rough circle
-    rc.circle(x, 1930, 60, {
-      stroke: this.currentColor(),
-      strokeWidth: 3,
-      roughness: 1.2,
-      fill: 'transparent',
-    });
+    ctx!.strokeStyle = this.currentColor();
+    ctx!.lineWidth = 3;
+    ctx!.beginPath();
+    ctx!.arc(x, 1930, 60, 0, Math.PI * 2);
+    ctx!.stroke();
     
     // Convert to fabric image and add to canvas
     const dataURL = offscreenCanvas.toDataURL();
