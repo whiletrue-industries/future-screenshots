@@ -67,6 +67,10 @@ export class CanvasCreatorComponent implements AfterViewInit {
   private drawerTouchStartY: number | null = null;
   private drawerTouchDeltaY = 0;
   private placeholderTexts: any[] = [];
+  private templateBaseWidth = 1060;
+  private templateBaseHeight = 2000;
+  private templateScaleX = 1;
+  private templateScaleY = 1;
   
   private injector = inject(Injector);
   
@@ -780,6 +784,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
     // Set both canvas attributes and style to ensure consistent rendering
     canvasElement.width = displayWidth;
     canvasElement.height = displayHeight;
+    canvasElement.style.width = `${displayWidth}px`;
+    canvasElement.style.height = `${displayHeight}px`;
     canvasElement.style.display = 'block';
     
     const fabricCanvas = new fabric.Canvas(canvasElement, {
@@ -787,6 +793,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
       height: displayHeight,
       backgroundColor: '#f5f0e7',
       isDrawingMode: this.currentMode() === 'draw',
+      enableRetinaScaling: false,
     });
     
     // Load template as background
@@ -799,36 +806,40 @@ export class CanvasCreatorComponent implements AfterViewInit {
         const { objects, options } = await fabric.loadSVGFromURL(template.url);
         const filteredObjects = objects.filter((obj): obj is NonNullable<typeof obj> => obj !== null);
         const obj = fabric.util.groupSVGElements(filteredObjects, options);
-         const scaleX = fabricCanvas.width! / obj.width!;
-         const scaleY = fabricCanvas.height! / obj.height!;
+        this.templateBaseWidth = obj.width || this.templateBaseWidth;
+        this.templateBaseHeight = obj.height || this.templateBaseHeight;
+        this.templateScaleX = fabricCanvas.width! / this.templateBaseWidth;
+        this.templateScaleY = fabricCanvas.height! / this.templateBaseHeight;
         obj.set({
-           scaleX: scaleX,
-           scaleY: scaleY,
-           left: fabricCanvas.width! / 2,
-           top: fabricCanvas.height! / 2,
-           originX: 'center',
-           originY: 'center',
+          scaleX: this.templateScaleX,
+          scaleY: this.templateScaleY,
+          left: 0,
+          top: 0,
+          originX: 'left',
+          originY: 'top',
           selectable: false,
           evented: false,
         });
-        fabricCanvas.backgroundImage = obj;
+        fabricCanvas.set('backgroundImage', obj);
         fabricCanvas.renderAll();
       } else {
         // Load PNG/JPG template
         const img = await fabric.FabricImage.fromURL(template.url);
-         const scaleX = fabricCanvas.width! / img.width!;
-         const scaleY = fabricCanvas.height! / img.height!;
+        this.templateBaseWidth = img.width || this.templateBaseWidth;
+        this.templateBaseHeight = img.height || this.templateBaseHeight;
+        this.templateScaleX = fabricCanvas.width! / this.templateBaseWidth;
+        this.templateScaleY = fabricCanvas.height! / this.templateBaseHeight;
         img.set({
-           scaleX: scaleX,
-           scaleY: scaleY,
-           left: fabricCanvas.width! / 2,
-           top: fabricCanvas.height! / 2,
-           originX: 'center',
-           originY: 'center',
+          scaleX: this.templateScaleX,
+          scaleY: this.templateScaleY,
+          left: 0,
+          top: 0,
+          originX: 'left',
+          originY: 'top',
           selectable: false,
           evented: false,
         });
-        fabricCanvas.backgroundImage = img;
+        fabricCanvas.set('backgroundImage', img);
         fabricCanvas.renderAll();
       }
     }
@@ -888,8 +899,20 @@ export class CanvasCreatorComponent implements AfterViewInit {
       points: number[][] = [];
       started = false;
 
+      private _resolvePointer(pointer: any, options: any) {
+        if (pointer && typeof pointer.x === 'number' && typeof pointer.y === 'number') {
+          return pointer;
+        }
+        const canvas = (this as any).canvas;
+        if (canvas && typeof canvas.getPointer === 'function' && options?.e) {
+          return canvas.getPointer(options.e, false);
+        }
+        return null;
+      }
+
       onMouseDown(pointer: any, options: any) {
-        if (!pointer) {
+        const resolved = this._resolvePointer(pointer, options);
+        if (!resolved) {
           console.warn('pointer is undefined in onMouseDown');
           return;
         }
@@ -905,13 +928,15 @@ export class CanvasCreatorComponent implements AfterViewInit {
         }
 
         this.started = true;
-        this.points = [[pointer.x, pointer.y, 0.5]];
+        this.points = [[resolved.x, resolved.y, 0.5]];
         (this as any)._render();
       }
 
-      onMouseMove(pointer: any) {
+      onMouseMove(pointer: any, options: any) {
         if (!this.started) return;
-        this.points.push([pointer.x, pointer.y, 0.5]);
+        const resolved = this._resolvePointer(pointer, options);
+        if (!resolved) return;
+        this.points.push([resolved.x, resolved.y, 0.5]);
         (this as any)._render();
       }
 
@@ -968,12 +993,20 @@ export class CanvasCreatorComponent implements AfterViewInit {
 
         // Convert outline to SVG path for vector output
         if (outlinePoints.length > 2) {
-          const pathData = this._outlineToSvgPath(outlinePoints);
+          const xs = outlinePoints.map((p) => p[0]);
+          const ys = outlinePoints.map((p) => p[1]);
+          const minX = Math.min(...xs);
+          const minY = Math.min(...ys);
+          const normalized = outlinePoints.map(([x, y]) => [x - minX, y - minY]);
+
+          const pathData = this._outlineToSvgPath(normalized);
           const strokePath = new fabric.Path(pathData, {
             fill: this.color,
             strokeWidth: 0,
-            left: 0,
-            top: 0,
+            left: minX,
+            top: minY,
+            originX: 'left',
+            originY: 'top',
             selectable: false,
             evented: false,
             objectCaching: false,
@@ -1310,7 +1343,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     }
   }
 
-  private addTextboxAt(x: number, y: number, focus = false, placeholderText = 'Type here...', width?: number, fabricCanvas?: any, textAlign?: string, originY?: string) {
+  private addTextboxAt(x: number, y: number, focus = false, placeholderText = 'Type here...', width?: number, fabricCanvas?: any, textAlign?: string, originY?: string, originX?: string) {
     const canvasRef = fabricCanvas || this.canvas();
     const targetCanvas = canvasRef;
     if (!targetCanvas) return;
@@ -1328,6 +1361,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
       lineHeight: this.selectedLineHeight(),
       textAlign: (textAlign as any) || 'left',
       originY: (originY as any) || 'top',
+      originX: (originX as any) || 'left',
       _placeholder: true,
       _placeholderText: placeholderText, // Store original placeholder
     });
@@ -1424,20 +1458,93 @@ export class CanvasCreatorComponent implements AfterViewInit {
     
     const template = this.selectedTemplate();
     if (!template) return;
+
+    // Presets were authored on a downscaled view (~320px wide) of the template.
+    // Convert authoring-space coordinates back to template-space, then map to canvas using background scale.
+    const templateWidth = this.templateBaseWidth || 1060;
+    const templateHeight = this.templateBaseHeight || 2000;
+    const authoringWidth = 320; // width used when presets were originally captured
+    const authoringHeight = authoringWidth * (templateHeight / templateWidth); // keep template aspect
+    const authorToTemplateX = templateWidth / authoringWidth;
+    const authorToTemplateY = templateHeight / authoringHeight;
+    const scaleX = this.templateScaleX || ((fabricCanvas?.getWidth?.() ?? templateWidth) / templateWidth);
+    const scaleY = this.templateScaleY || ((fabricCanvas?.getHeight?.() ?? templateHeight) / templateHeight);
+    const contentScale = 0.95; // Shrink presets by 5% relative to anchor to correct drift
+
+    // Optional per-template alignment adjustment using textbox-0 as anchor
+    let dxTemplate = 0;
+    let dyTemplate = 0;
+    const preset = this.templatePresets[template.id];
+    if (preset && preset.features && template.id === 'chat') {
+      const anchor = preset.features.find((f: any) => f.properties?.id === 'textbox-0');
+      if (anchor) {
+        // Convert anchor from authoring-space to template-space
+        const ax_t = anchor.geometry.coordinates[0] * authorToTemplateX;
+        const aw_t = (anchor.properties?.width ?? 0) * authorToTemplateX;
+        const anchorCenterX_t = ax_t + aw_t / 2;
+        // Center horizontally in template space
+        dxTemplate = (templateWidth / 2) - anchorCenterX_t;
+        // Lift slightly from the bottom for a small margin (convert authoring margin into template units)
+        const marginAuthor = 10; // ~10px at authoring scale
+        dyTemplate = -(marginAuthor * authorToTemplateY);
+      }
+    }
+
+    // Global upward adjustment: pop all chat Y positions up by 5% of template height
+    const yPopFraction = 0.03;
+    const yPopTemplate = (template.id === 'chat') ? (yPopFraction * templateHeight) : 0;
     
     // Load textboxes from template preset if available
-    const preset = this.templatePresets[template.id];
     if (preset && preset.features) {
+      // Determine anchor reference in template-space after dx/dy, for centric scaling
+      let anchorRefX_t: number | null = null;
+      let anchorRefY_t: number | null = null;
+      const anchorF = preset.features.find((f: any) => f.properties?.id === 'textbox-0');
+      if (anchorF) {
+        const axAuthor = anchorF.geometry.coordinates[0];
+        const ayAuthor = anchorF.geometry.coordinates[1];
+        const ax_t = (axAuthor * authorToTemplateX) + dxTemplate;
+        const ay_t = (ayAuthor * authorToTemplateY) + dyTemplate;
+        const aw_t = (anchorF.properties?.width ?? 0) * authorToTemplateX;
+        anchorRefX_t = ax_t + aw_t / 2; // center-x as reference
+        anchorRefY_t = ay_t; // use provided y (respects originY)
+      }
+
       preset.features.forEach((feature: any) => {
         const props = feature.properties;
-        const [x, y] = feature.geometry.coordinates;
+        const [xAuthor, yAuthor] = feature.geometry.coordinates;
+        // Convert authoring-space to template-space and apply centric content scaling around anchor
+        let xTemplate = (xAuthor * authorToTemplateX) + dxTemplate;
+        let yTemplate = (yAuthor * authorToTemplateY) + dyTemplate;
+        if (anchorRefX_t !== null && anchorRefY_t !== null) {
+          const vx = xTemplate - anchorRefX_t;
+          const vy = yTemplate - anchorRefY_t;
+          xTemplate = anchorRefX_t + contentScale * vx;
+          yTemplate = anchorRefY_t + contentScale * vy;
+        }
+        // Apply global upward pop for chat
+        yTemplate -= yPopTemplate;
+        const sx = xTemplate * scaleX;
+        const sy = yTemplate * scaleY;
+        const presetWidth = props.width ? ((props.width * authorToTemplateX) * scaleX * contentScale) : undefined;
+        const presetHeight = props.height ? ((props.height * authorToTemplateY) * scaleY * contentScale) : undefined;
         
         // Set current values from preset
         this.selectedLineHeight.set(props['line-height'] || 1.16);
-        this.selectedHeight.set(props.height || 40);
+        this.selectedHeight.set(presetHeight || props.height || 40);
         
         // Create textbox with preset placeholder and width
-        const textbox = this.addTextboxAt(x, y, false, props.placeholder, props.width, fabricCanvas, props.textAlign, props.originY);
+        const textbox = this.addTextboxAt(
+          sx,
+          sy,
+          false,
+          props.placeholder,
+          presetWidth,
+          fabricCanvas,
+          props.textAlign,
+          props.originY,
+          props.originX
+        );
         if (textbox) {
           this.placeholderTexts.push(textbox);
         }
@@ -1445,8 +1552,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
     } else {
       // Fallback to default positions
       const boxes = [
-        { x: 150, y: 360 },
-        { x: 150, y: 640 },
+        { x: 150 * scaleX, y: 360 * scaleY },
+        { x: 150 * scaleX, y: 640 * scaleY },
       ];
       boxes.forEach(pos => {
         const textbox = this.addTextboxAt(pos.x, pos.y, false, 'Type here...', undefined, fabricCanvas);
