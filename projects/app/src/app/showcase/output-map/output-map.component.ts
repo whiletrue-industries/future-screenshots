@@ -450,6 +450,8 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
     });
     this.addTileLayer(map);
     timer(0).subscribe(() => {
+      // Add mask layer only if doLoop is enabled and the mask SVG element exists
+      // This prevents errors when the mask isn't present in the DOM
       if (this.doLoop && this.maskElement?.nativeElement) {
         const maskElement = this.maskElement.nativeElement.querySelector('svg');
         if (maskElement) {
@@ -457,6 +459,8 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
           this.maskLayer?.addTo(map);
         }
       }
+      // Add cluster labels layer only if the SVG element exists
+      // This ensures the overlay is only created when the required DOM element is available
       if (this.clusterLabelsElement?.nativeElement) {
         const clusterLabelsElement = this.clusterLabelsElement.nativeElement.querySelector('svg');
         if (clusterLabelsElement) {

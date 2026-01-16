@@ -349,14 +349,10 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
           this.videoEl.nativeElement.pause();
           this.stream = null;
           // Convert the result to a JPEG image
-          console.log('[Scanner] Converting frame to JPEG blob...');
-          frame.toBlob((blob: Blob | null) => {
+          frame.toBlob((blob: Blob) => {
             if (blob) {
-              console.log('[Scanner] Blob created - Type:', blob.type, 'Size:', blob.size, 'bytes');
               this.state.setImage(blob);
               this.router.navigate(['/confirm'], { queryParamsHandling: 'merge' });
-            } else {
-              console.error('[Scanner] Failed to create blob from frame');
             }
           }, 'image/jpeg', 0.95);
         }

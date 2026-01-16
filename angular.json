@@ -39,13 +39,15 @@
             "styles": [
               "projects/app/src/styles.less"
             ],
-            "scripts": [],
+            "scripts": [
+              "node_modules/fabric/dist/fabric.min.js",
+              "node_modules/roughjs/bundled/rough.js"
+            ],
             "server": "projects/app/src/main.server.ts",
             "prerender": true,
             "ssr": {
               "entry": "projects/app/src/server.ts"
             },
-            "externalDependencies": ["qrcode"],
             "localize": ["he", "en", "nl"]
           },
           "configurations": {
