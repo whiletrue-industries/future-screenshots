@@ -89,105 +89,356 @@ export class CanvasCreatorComponent implements AfterViewInit {
 
   // Template presets: GeoJSON with textbox positions and properties
   templatePresets: { [key: string]: any } = {
-    chat: {
+    post: {
       type: 'FeatureCollection',
       features: [
         {
           type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates: [71.98606597335078, 78.890625],
+          geometry: { type: 'Point', coordinates: [80, 604] },
+          properties: {
+            id: 'textbox-0',
+            placeholder: 'transition',
+            'line-height': 0.75,
+            width: 175,
+            height: 32,
+            textAlign: 'center',
+            originY: 'bottom',
           },
+        },
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [80, 55] },
           properties: {
             id: 'textbox-1',
-            placeholder: 'message 1a',
-            'line-height': 1.1,
-            width: 225.1559961000974,
-            height: 31.64,
+            placeholder: 'Name',
+            'line-height': 0.75,
+            width: 202,
+            height: 32,
           },
         },
         {
           type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates: [42.01979548725569, 300.3671875],
-          },
+          geometry: { type: 'Point', coordinates: [46, 114] },
           properties: {
             id: 'textbox-2',
-            placeholder: 'message 2',
-            'line-height': 1.1,
-            width: 222.44713078601603,
-            height: 31.64,
-          },
-        },
-        {
-          type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates: [69.17226310413666, 494.140625],
-          },
-          properties: {
-            id: 'textbox-3',
-            placeholder: 'message 1b',
-            'line-height': 1.1,
-            width: 220.41225799712151,
-            height: 31.64,
-          },
-        },
-        {
-          type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates: [90.24133548447011, 569.28125],
-          },
-          properties: {
-            id: 'transition',
-            placeholder: 'transition',
-            'line-height': 1.1,
-            width: 156.50540298992513,
-            height: 31.64,
+            placeholder: 'Type here...',
+            'line-height': 0.75,
+            width: 243,
+            height: 32,
           },
         },
       ],
     },
+    chat: {
+          "type": "FeatureCollection",
+          "features": [
+            {
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [
+                  80,
+                  604
+                ]
+              },
+              "properties": {
+                "id": "textbox-0",
+                "placeholder": "transition",
+                "line-height": 1,
+                "width": 175,
+                "height": 32,
+                "textAlign": "center",
+                "originY": "bottom"
+              }
+            },
+            {
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [
+                  72,
+                  79
+                ]
+              },
+              "properties": {
+                "id": "textbox-1",
+                "placeholder": "Type here...",
+                "line-height": 1,
+                "width": 225,
+                "height": 32
+              }
+            },
+            {
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [
+                  42,
+                  300
+                ]
+              },
+              "properties": {
+                "id": "textbox-2",
+                "placeholder": "and here...",
+                "line-height": 1,
+                "width": 222,
+                "height": 32
+              }
+            },
+            {
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [
+                  69,
+                  494
+                ]
+              },
+              "properties": {
+                "id": "textbox-3",
+                "placeholder": "maybe here",
+                "line-height": 1,
+                "width": 220,
+                "height": 32
+              }
+            },
+            {
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [
+                  73,
+                  46
+                ]
+              },
+              "properties": {
+                "id": "textbox-4",
+                "placeholder": "Name-1",
+                "line-height": 1,
+                "width": 219,
+                "height": 32
+              }
+            },
+            {
+              "type": "Feature",
+              "geometry": {
+                "type": "Point",
+                "coordinates": [
+                  43,
+                  268
+                ]
+              },
+              "properties": {
+                "id": "textbox-5",
+                "placeholder": "Name-2",
+                "line-height": 1,
+                "width": 217,
+                "height": 32
+              }
+            }
+          ]
+        },
     notification: {
-      "type": "FeatureCollection",
-      "features": [
+      type: 'FeatureCollection',
+      features: [
         {
-          "type": "Feature",
-          "geometry": {
-            "type": "Point",
-            "coordinates": [
-              80.9471191791634,
-              203.19921875
-            ]
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [80, 604] },
+          properties: {
+            id: 'textbox-0',
+            placeholder: 'transition',
+            'line-height': 0.75,
+            width: 175,
+            height: 59,
+            textAlign: 'center',
+            originY: 'bottom',
           },
-          "properties": {
-            "id": "textbox-0",
-            "placeholder": "App name",
-            "line-height": 1.16,
-            "width": 201.93,
-            "height": 31.639999999999993
-          }
         },
         {
-          "type": "Feature",
-          "geometry": {
-            "type": "Point",
-            "coordinates": [
-              150,
-              640
-            ]
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [81, 203] },
+          properties: {
+            id: 'textbox-1',
+            placeholder: 'App name',
+            'line-height': 1.16,
+            width: 202,
+            height: 32,
           },
-          "properties": {
-            "id": "textbox-1",
-            "placeholder": "Notification text",
-            "line-height": 1.16,
-            "width": 201.93,
-            "height": 31.639999999999993
-          }
-        }
-      ]
+        },
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [150, 640] },
+          properties: {
+            id: 'textbox-2',
+            placeholder: 'Notification text',
+            'line-height': 1.16,
+            width: 202,
+            height: 32,
+          },
+        },
+      ],
+    },
+    world: {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [80, 604] },
+          properties: {
+            id: 'textbox-0',
+            placeholder: 'transition',
+            'line-height': 0.75,
+            width: 175,
+            height: 59,
+            textAlign: 'center',
+            originY: 'bottom',
+          },
+        },
+      ],
+    },
+    review: {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [80, 604] },
+          properties: {
+            id: 'textbox-0',
+            placeholder: 'transition',
+            'line-height': 0.75,
+            width: 175,
+            height: 59,
+            textAlign: 'center',
+            originY: 'bottom',
+          },
+        },
+      ],
+    },
+    prompt: {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [80, 604] },
+          properties: {
+            id: 'textbox-0',
+            placeholder: 'transition',
+            'line-height': 0.75,
+            width: 175,
+            height: 59,
+            textAlign: 'center',
+            originY: 'bottom',
+          },
+        },
+      ],
+    },
+    photo: {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [80, 604] },
+          properties: {
+            id: 'textbox-0',
+            placeholder: 'transition',
+            'line-height': 0.75,
+            width: 175,
+            height: 59,
+            textAlign: 'center',
+            originY: 'bottom',
+          },
+        },
+      ],
+    },
+    sign: {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [80, 604] },
+          properties: {
+            id: 'textbox-0',
+            placeholder: 'transition',
+            'line-height': 0.75,
+            width: 175,
+            height: 59,
+            textAlign: 'center',
+            originY: 'bottom',
+          },
+        },
+      ],
+    },
+    holyland: {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [80, 604] },
+          properties: {
+            id: 'textbox-0',
+            placeholder: 'transition',
+            'line-height': 0.75,
+            width: 175,
+            height: 59,
+            textAlign: 'center',
+            originY: 'bottom',
+          },
+        },
+      ],
+    },
+    jerusalem: {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [80, 604] },
+          properties: {
+            id: 'textbox-0',
+            placeholder: 'transition',
+            'line-height': 0.75,
+            width: 175,
+            height: 59,
+            textAlign: 'center',
+            originY: 'bottom',
+          },
+        },
+      ],
+    },
+    europe: {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [80, 604] },
+          properties: {
+            id: 'textbox-0',
+            placeholder: 'transition',
+            'line-height': 0.75,
+            width: 175,
+            height: 59,
+            textAlign: 'center',
+            originY: 'bottom',
+          },
+        },
+      ],
+    },
+    us: {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [80, 604] },
+          properties: {
+            id: 'textbox-0',
+            placeholder: 'transition',
+            'line-height': 0.75,
+            width: 175,
+            height: 59,
+            textAlign: 'center',
+            originY: 'bottom',
+          },
+        },
+      ],
     },
   };
   
@@ -436,6 +687,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
     }
     
     this.canvas.set(fabricCanvas);
+    // Clear any previous placeholder references
+    this.placeholderTexts = [];
     // Configure drawing brush with Rough.js sketchy effect (default mode is draw)
     this.setupRoughBrush(fabricCanvas);
     // Track mode based on textbox selection frames
@@ -914,7 +1167,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     }
   }
 
-  private addTextboxAt(x: number, y: number, focus = false, placeholderText = 'Type here...', width?: number, fabricCanvas?: any) {
+  private addTextboxAt(x: number, y: number, focus = false, placeholderText = 'Type here...', width?: number, fabricCanvas?: any, textAlign?: string, originY?: string) {
     const canvasRef = fabricCanvas || this.canvas();
     const targetCanvas = canvasRef;
     if (!targetCanvas) return;
@@ -930,6 +1183,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
       height: this.selectedHeight(),
       editable: true,
       lineHeight: this.selectedLineHeight(),
+      textAlign: textAlign || 'left',
+      originY: originY || 'top',
       _placeholder: true,
       _placeholderText: placeholderText, // Store original placeholder
     });
@@ -1045,7 +1300,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
         this.selectedHeight.set(props.height || 40);
         
         // Create textbox with preset placeholder and width
-        const textbox = this.addTextboxAt(x, y, false, props.placeholder, props.width, fabricCanvas);
+        const textbox = this.addTextboxAt(x, y, false, props.placeholder, props.width, fabricCanvas, props.textAlign, props.originY);
         if (textbox) {
           this.placeholderTexts.push(textbox);
           console.log('🔵 Textbox created and added to array');
@@ -1150,23 +1405,31 @@ export class CanvasCreatorComponent implements AfterViewInit {
       return;
     }
 
-    console.log('Debug: placeholderTexts count:', this.placeholderTexts.length);
-    if (this.placeholderTexts.length > 0) {
-      console.log('Debug: first textbox sample:', this.placeholderTexts[0]);
-    }
+    // Get all textbox objects from the canvas
+    const textboxes = fabricCanvas.getObjects().filter((obj: any) => obj.type === 'textbox');
+    console.log('Debug: textboxes on canvas:', textboxes.length);
     
-    const features = this.placeholderTexts.map((textbox, index) => ({
+    if (textboxes.length === 0) {
+      console.warn('No textboxes found on canvas');
+      return;
+    }
+
+    const roundNumber = (value: number | undefined) => Math.round(value ?? 0);
+    
+    const features = textboxes.map((textbox: any, index: number) => ({
       type: 'Feature',
       geometry: {
         type: 'Point',
-        coordinates: [textbox.left, textbox.top],
+        coordinates: [roundNumber(textbox.left), roundNumber(textbox.top)],
       },
       properties: {
         id: `textbox-${index}`,
-        placeholder: textbox._presetPlaceholder || textbox.text || 'message…',
-        'line-height': textbox.lineHeight || 1.16,
-        width: textbox.width,
-        height: textbox.height || 40,
+        placeholder: textbox._placeholderText || textbox.text || 'message…',
+        'line-height': roundNumber(textbox.lineHeight || 1.16),
+        width: roundNumber(textbox.width),
+        height: roundNumber(textbox.height || 40),
+        ...(textbox.textAlign !== 'left' && { textAlign: textbox.textAlign }),
+        ...(textbox.originY !== 'top' && { originY: textbox.originY }),
       },
     }));
 
