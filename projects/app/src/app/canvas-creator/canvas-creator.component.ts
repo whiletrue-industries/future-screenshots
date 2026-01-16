@@ -1490,9 +1490,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
       }
     }
 
-    // Global upward adjustment: pop all chat Y positions up by 5% of template height
-    const yPopFraction = 0.03;
-    const yPopTemplate = (template.id === 'chat') ? (yPopFraction * templateHeight) : 0;
+    // Global upward adjustment: pop all presets up by 3% of template height
+    const yPopFraction = 0.045;
+    const yPopTemplate = yPopFraction * templateHeight;
     
     // Load textboxes from template preset if available
     if (preset && preset.features) {
