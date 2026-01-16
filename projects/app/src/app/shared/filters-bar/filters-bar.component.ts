@@ -3,13 +3,11 @@ import { FormsModule } from '@angular/forms';
 import { PlatformService } from '../../../platform.service';
 
 export interface FiltersBarState {
-  status?: string[];
-  author?: string;
-  language?: string;
-  facilitator?: string;
-  preference?: string[];
-  potential?: string[];
-  type?: string;
+  status: string[];
+  author: string;
+  preference: string[];
+  potential: string[];
+  type: string;
   search: string;
   orderBy: string;
   view?: string;
@@ -18,14 +16,10 @@ export interface FiltersBarState {
 export interface FilterCounts {
   status: Map<string, number>;
   author: Map<string, number>;
-  language: Map<string, number>;
-  facilitator: Map<string, number>;
   preference: Map<string, number>;
   potential: Map<string, number>;
   type: Map<string, number>;
 }
-
-export type FilterMode = 'moderation' | 'admin';
 
 /**
  * Status value mapping for _private_moderation field
@@ -193,12 +187,9 @@ export class FilterHelpers {
 })
 export class FiltersBarComponent implements OnDestroy {
   // Inputs
-  mode = input<FilterMode>('moderation'); // 'moderation' or 'admin'
   counts = input<FilterCounts>({
     status: new Map(),
     author: new Map(),
-    language: new Map(),
-    facilitator: new Map(),
     preference: new Map(),
     potential: new Map(),
     type: new Map()
@@ -216,8 +207,6 @@ export class FiltersBarComponent implements OnDestroy {
   // Filter state
   filterStatus = signal<string[]>(FilterHelpers.DEFAULT_STATUSES);
   filterAuthor = signal<string>('all');
-  filterLanguage = signal<string>('all');
-  filterFacilitator = signal<string>('all');
   filterPreference = signal<string[]>(['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent']);
   filterPotential = signal<string[]>(['100', '75', '50', '25', '0']);
   filterType = signal<string>('all');
@@ -278,13 +267,11 @@ export class FiltersBarComponent implements OnDestroy {
       if (state && !this.initialized) {
         console.log('[FiltersBar] Setting initial state');
         this.isInitializing = true;
-        if (state.status !== undefined) this.filterStatus.set(state.status);
-        if (state.author !== undefined) this.filterAuthor.set(state.author);
-        if (state.language !== undefined) this.filterLanguage.set(state.language);
-        if (state.facilitator !== undefined) this.filterFacilitator.set(state.facilitator);
-        if (state.preference !== undefined) this.filterPreference.set(state.preference);
-        if (state.potential !== undefined) this.filterPotential.set(state.potential);
-        if (state.type !== undefined) this.filterType.set(state.type);
+        this.filterStatus.set(state.status);
+        this.filterAuthor.set(state.author);
+        this.filterPreference.set(state.preference);
+        this.filterPotential.set(state.potential);
+        this.filterType.set(state.type);
         this.searchText.set(state.search);
         this.orderBy.set(state.orderBy);
         if (state.view) {
@@ -348,8 +335,6 @@ export class FiltersBarComponent implements OnDestroy {
     this.filtersChange.emit({
       status: this.filterStatus(),
       author: this.filterAuthor(),
-      language: this.filterLanguage(),
-      facilitator: this.filterFacilitator(),
       preference: this.filterPreference(),
       potential: this.filterPotential(),
       type: this.filterType(),
@@ -363,8 +348,6 @@ export class FiltersBarComponent implements OnDestroy {
     this.filtersCommit.emit({
       status: this.filterStatus(),
       author: this.filterAuthor(),
-      language: this.filterLanguage(),
-      facilitator: this.filterFacilitator(),
       preference: this.filterPreference(),
       potential: this.filterPotential(),
       type: this.filterType(),
@@ -712,32 +695,18 @@ export class FiltersBarComponent implements OnDestroy {
     this.filterAuthor.set(value);
     this.emitDebouncedChange();
   }
-
-  onLanguageChange(event: any): void {
-    const value = (event.target as HTMLSelectElement).value;
-    this.filterLanguage.set(value);
-    this.emitDebouncedChange();
-  }
-
-  onFacilitatorChange(event: any): void {
-    const value = (event.target as HTMLSelectElement).value;
-    this.filterFacilitator.set(value);
-    this.emitDebouncedChange();
-  }
   
   onTypeChange(value: string): void {
     this.filterType.set(value);
     this.emitDebouncedChange();
   }
   
-  onSearchChange(event: any): void {
-    const value = (event.target as HTMLInputElement).value;
+  onSearchChange(value: string): void {
     this.searchText.set(value);
     this.emitDebouncedChange();
   }
   
-  onOrderByChange(event: any): void {
-    const value = (event.target as HTMLSelectElement).value;
+  onOrderByChange(value: string): void {
     this.orderBy.set(value);
     this.emitDebouncedChange();
   }
