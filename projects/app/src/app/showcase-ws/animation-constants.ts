@@ -3,7 +3,10 @@
  */
 export const ANIMATION_CONSTANTS = {
   /** Duration for layout strategy transitions (seconds) */
-  LAYOUT_TRANSITION_DURATION: 3,
+  LAYOUT_TRANSITION_DURATION: 0.8,
+  
+  /** Stagger delay between items during layout transitions (seconds) */
+  LAYOUT_STAGGER_DELAY: 0.02,
   
   /** Duration for new photo animations from spawn to position (seconds) */
   NEW_PHOTO_ANIMATION_DURATION: 3,

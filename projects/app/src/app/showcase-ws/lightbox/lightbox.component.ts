@@ -1,6 +1,6 @@
 import { Component, input, output, signal, effect, inject, afterNextRender, OnDestroy } from '@angular/core';
 import { PhotoMetadata } from '../photo-data';
-import { PlatformService } from '../../platform.service';
+import { PlatformService } from '../../../platform.service';
 
 @Component({
   selector: 'app-lightbox',
@@ -95,7 +95,7 @@ export class LightboxComponent implements OnDestroy {
    * Handle overlay click (close lightbox)
    */
   onOverlayClick(event: MouseEvent): void {
-    if (event.target === event.currentTarget) {
+    if ((event.target as EventTarget) === (event.currentTarget as EventTarget)) {
       this.onClose();
     }
   }

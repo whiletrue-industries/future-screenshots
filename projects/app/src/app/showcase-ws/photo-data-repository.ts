@@ -27,6 +27,7 @@ export class PhotoDataRepository {
   
   // Configuration
   private enableRandomShowcase = false;
+  private enableSvgAutoPositioning = false;
   private showcaseInterval: number = ANIMATION_CONSTANTS.SHOWCASE_INTERVAL;
   private newPhotoAnimationDelay: number = ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DELAY;
   
@@ -288,6 +289,13 @@ export class PhotoDataRepository {
   }
 
   /**
+   * Get the current layout strategy
+   */
+  getLayoutStrategy(): LayoutStrategy | null {
+    return this.layoutStrategy;
+  }
+
+  /**
    * Get visible photos (opacity > 0)
    */
   getVisiblePhotos(): PhotoData[] {
@@ -326,6 +334,12 @@ export class PhotoDataRepository {
     // Update all photos with new positions and visibility
     const animationPromises = currentPhotos.map(async (photo, index) => {
       const newPosition = newPositions[index];
+      
+      // Add stagger delay based on index for natural cascading effect
+      const staggerDelay = index * ANIMATION_CONSTANTS.LAYOUT_STAGGER_DELAY;
+      if (staggerDelay > 0) {
+        await new Promise(resolve => setTimeout(resolve, staggerDelay * 1000));
+      }
       
       // Check if photo has valid position in new layout (not null)
       const hasValidPosition = newPosition !== null;
@@ -426,6 +440,121 @@ export class PhotoDataRepository {
     this.enableRandomShowcase = enabled;
     this.updateShowcaseLoop();
     // Note: Camera bounds don't need updating just for showcase behavior change
+  }
+
+  /**
+   * Enable or disable SVG auto-positioning
+   */
+  setSvgAutoPositioningEnabled(enabled: boolean): void {
+    this.enableSvgAutoPositioning = enabled;
+  }
+
+  /**
+   * Refresh layout with current auto-positioning setting
+   */
+  async refreshLayout(): Promise<void> {
+    if (!this.layoutStrategy) {
+      console.warn('Layout strategy not initialized');
+      return;
+    }
+
+    const allPhotos = Array.from(this.photos.values());
+    
+    // For SVG layout, pass the auto-positioning flag
+    let positions: (LayoutPosition | null)[] = [];
+    if (this.layoutStrategy.getConfiguration().name === 'svg-background' && 'calculateAllPositions' in this.layoutStrategy) {
+      // Cast to any to access method with optional parameter
+      positions = await (this.layoutStrategy as any).calculateAllPositions(allPhotos, this.enableSvgAutoPositioning);
+    } else {
+      // For other layouts, use standard calculateAllPositions
+      positions = await (this.layoutStrategy as any).calculateAllPositions(allPhotos);
+    }
+
+    // Update all photos with new positions and visibility
+    const animationPromises = allPhotos.map(async (photo, index) => {
+      const newPosition = positions[index];
+      
+      // Add stagger delay based on index for natural cascading effect
+      const staggerDelay = index * ANIMATION_CONSTANTS.LAYOUT_STAGGER_DELAY;
+      if (staggerDelay > 0) {
+        await new Promise(resolve => setTimeout(resolve, staggerDelay * 1000));
+      }
+      
+      // Check if photo has valid position in new layout (not null)
+      const hasValidPosition = newPosition !== null;
+
+      // Get current opacity from mesh material
+      const currentOpacity = photo.mesh?.material && 'opacity' in photo.mesh.material ? 
+        (photo.mesh.material as any).opacity : 1;
+      
+      if (hasValidPosition) {
+        // Always make photo visible when it has a valid position
+        photo.setProperty('opacity', 1);
+        photo.setTargetPosition({
+          x: newPosition.x,
+          y: newPosition.y,
+          z: photo.targetPosition.z
+        });
+        
+        // Store layout metadata
+        if (newPosition.metadata) {
+          photo.updateMetadata(newPosition.metadata);
+        }
+        if (newPosition.gridKey) {
+          photo.setProperty('gridKey', newPosition.gridKey);
+        }
+        
+        // Animate both position and opacity to visible state
+        if (photo.mesh) {
+          const actualCurrentPosition = {
+            x: photo.mesh.position.x,
+            y: photo.mesh.position.y,
+            z: photo.mesh.position.z
+          };
+          
+          return this.animateToPositionWithOpacityUpdate(
+            photo,
+            actualCurrentPosition,
+            photo.targetPosition,
+            currentOpacity,
+            1, // target opacity
+            ANIMATION_CONSTANTS.LAYOUT_TRANSITION_DURATION
+          );
+        }
+      } else {
+        // Hide photo and move to (0,0)
+        photo.setProperty('opacity', 0);
+        photo.setTargetPosition({ x: 0, y: 0, z: 0 });
+        // Animate to (0,0) and fade out simultaneously
+        if (photo.mesh) {
+          const actualCurrentPosition = {
+            x: photo.mesh.position.x,
+            y: photo.mesh.position.y,
+            z: photo.mesh.position.z
+          };
+          
+          return this.animateToPositionWithOpacityUpdate(
+            photo,
+            actualCurrentPosition,
+            { x: 0, y: 0, z: 0 },
+            currentOpacity,
+            0, // target opacity
+            ANIMATION_CONSTANTS.INVISIBLE_POSITION_TRANSITION_DURATION
+          );
+        }
+      }
+    });
+
+    // Start camera animation simultaneously with photo animations
+    const cameraAnimationPromise = this.updateCameraBoundsAnimated(true);
+    
+    // Wait for both photo animations and camera animation to complete
+    await Promise.all([
+      Promise.all(animationPromises.filter(Boolean)),
+      cameraAnimationPromise
+    ]);
+
+    this.layoutChangedSubject.next();
   }
 
   /**

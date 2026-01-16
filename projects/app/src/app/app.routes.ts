@@ -13,6 +13,7 @@ import { OutputMapComponent } from './showcase/output-map/output-map.component';
 import { CollectPropertiesComponent } from './collect-properties/collect-properties.component';
 import { AboutComponent } from './about/about.component';
 import { AuthGuard } from './auth.guard';
+import { CanvasCreatorComponent } from './canvas-creator/canvas-creator.component';
 import { LoginComponent } from './admin/login/login.component';
 import { ModerateComponent } from './admin/moderate/moderate.component';
 import { WorkspaceFormComponent } from './admin/workspace-form/workspace-form.component';
@@ -56,6 +57,10 @@ export const routes: Routes = [
     {
         'path': 'scan',
         'component': ScannerComponent
+    },
+    {
+        'path': 'canvas-creator',
+        'component': CanvasCreatorComponent
     },
     {
         'path': 'confirm',
