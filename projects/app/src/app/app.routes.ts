@@ -13,7 +13,6 @@ import { OutputMapComponent } from './showcase/output-map/output-map.component';
 import { CollectPropertiesComponent } from './collect-properties/collect-properties.component';
 import { AboutComponent } from './about/about.component';
 import { AuthGuard } from './auth.guard';
-import { ShowcaseWsComponent } from './showcase-ws/showcase-ws.component';
 import { CanvasCreatorComponent } from './canvas-creator/canvas-creator.component';
 import { LoginComponent } from './admin/login/login.component';
 import { ModerateComponent } from './admin/moderate/moderate.component';
