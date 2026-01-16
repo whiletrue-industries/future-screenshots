@@ -744,9 +744,12 @@ export class CanvasCreatorComponent implements AfterViewInit {
     }
     
     const canvasElement = this.canvasEl.nativeElement;
+    // Get the canvas-container element (parent of the canvas)
     const container = canvasElement.parentElement;
-    const containerWidth = container?.clientWidth || 360;
-    const containerHeight = container?.clientHeight || 640;
+    
+    // Ensure the container has dimensions, default to viewport fallback
+    const containerWidth = container?.clientWidth || window.innerWidth - 40;
+    const containerHeight = container?.clientHeight || window.innerHeight - 100;
     
     // Fixed dimensions: 1060x2000px
     const targetWidth = 1060;
@@ -857,6 +860,11 @@ export class CanvasCreatorComponent implements AfterViewInit {
       started = false;
 
       onMouseDown(pointer: any, options: any) {
+        if (!pointer) {
+          console.warn('pointer is undefined in onMouseDown');
+          return;
+        }
+        
         const target = (this as any).canvas.findTarget(options.e, false);
         if (target && target.type === 'textbox') {
           (this as any).canvas.isDrawingMode = false;
@@ -985,6 +993,11 @@ export class CanvasCreatorComponent implements AfterViewInit {
     
     // Track mouse down position and selection state
     fabricCanvas.on('mouse:down', (e: any) => {
+      if (!e.pointer) {
+        console.warn('mouse:down event without pointer property:', e);
+        mouseDownPos = null;
+        return;
+      }
       mouseDownPos = { x: e.pointer.x, y: e.pointer.y };
       const target = e.target;
       const activeObject = fabricCanvas.getActiveObject();
@@ -994,6 +1007,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
     
     // On mouse up, check if it was a click (not a drag) on an already-selected textbox
     fabricCanvas.on('mouse:up', (e: any) => {
+      if (!e.pointer) return;
+      
       const target = e.target;
       const now = Date.now();
       const timeSinceSelection = now - selectionTime;
