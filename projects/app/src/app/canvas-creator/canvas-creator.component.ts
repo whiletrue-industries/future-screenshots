@@ -239,82 +239,64 @@ export class CanvasCreatorComponent implements AfterViewInit {
           ]
         },
     notification: {
-      type: 'FeatureCollection',
-      features: [
+      "type": "FeatureCollection",
+      "features": [
         {
-          type: 'Feature',
-          geometry: { type: 'Point', coordinates: [80, 604] },
-          properties: {
-            id: 'textbox-0',
-            placeholder: 'transition',
-            'line-height': 0.75,
-            width: 175,
-            height: 59,
-            textAlign: 'center',
-            originY: 'bottom',
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              80,
+              604
+            ]
           },
+          "properties": {
+            "id": "textbox-0",
+            "placeholder": "transition",
+            "line-height": 1,
+            "width": 175,
+            "height": 32,
+            "textAlign": "center",
+            "originY": "bottom"
+          }
         },
         {
-          type: 'Feature',
-          geometry: { type: 'Point', coordinates: [81, 203] },
-          properties: {
-            id: 'textbox-1',
-            placeholder: 'App name',
-            'line-height': 1.16,
-            width: 202,
-            height: 32,
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              81,
+              203
+            ]
           },
+          "properties": {
+            "id": "textbox-1",
+            "placeholder": "App name",
+            "line-height": 1,
+            "width": 202,
+            "height": 32
+          }
         },
         {
-          type: 'Feature',
-          geometry: { type: 'Point', coordinates: [150, 640] },
-          properties: {
-            id: 'textbox-2',
-            placeholder: 'Notification text',
-            'line-height': 1.16,
-            width: 202,
-            height: 32,
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              44,
+              251
+            ]
           },
-        },
-      ],
+          "properties": {
+            "id": "textbox-2",
+            "placeholder": "Type here...",
+            "line-height": 1,
+            "width": 247,
+            "height": 32
+          }
+        }
+      ]
     },
     world: {
-      type: 'FeatureCollection',
-      features: [
-        {
-          type: 'Feature',
-          geometry: { type: 'Point', coordinates: [80, 604] },
-          properties: {
-            id: 'textbox-0',
-            placeholder: 'transition',
-            'line-height': 0.75,
-            width: 175,
-            height: 59,
-            textAlign: 'center',
-            originY: 'bottom',
-          },
-        },
-      ],
-    },
-    review: {
-      type: 'FeatureCollection',
-      features: [
-        {
-          type: 'Feature',
-          geometry: { type: 'Point', coordinates: [80, 604] },
-          properties: {
-            id: 'textbox-0',
-            placeholder: 'transition',
-            'line-height': 0.75,
-            width: 175,
-            height: 59,
-            textAlign: 'center',
-            originY: 'bottom',
-          },
-        },
-      ],
-    },
-    prompt: {
       type: 'FeatureCollection',
       features: [
         {
@@ -349,6 +331,156 @@ export class CanvasCreatorComponent implements AfterViewInit {
           },
         },
       ],
+    },
+    review: {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              80,
+              604
+            ]
+          },
+          "properties": {
+            "id": "textbox-0",
+            "placeholder": "transition",
+            "line-height": 1,
+            "width": 175,
+            "height": 32,
+            "textAlign": "center",
+            "originY": "bottom"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              118,
+              62
+            ]
+          },
+          "properties": {
+            "id": "textbox-1",
+            "placeholder": "Title",
+            "line-height": 1,
+            "width": 145,
+            "height": 32
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              43,
+              205
+            ]
+          },
+          "properties": {
+            "id": "textbox-2",
+            "placeholder": "factor a",
+            "line-height": 1,
+            "width": 132,
+            "height": 32
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              42,
+              232
+            ]
+          },
+          "properties": {
+            "id": "textbox-3",
+            "placeholder": "factor b",
+            "line-height": 1,
+            "width": 126,
+            "height": 32
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              42,
+              260
+            ]
+          },
+          "properties": {
+            "id": "textbox-4",
+            "placeholder": "factor c",
+            "line-height": 1,
+            "width": 123,
+            "height": 32
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              42,
+              306
+            ]
+          },
+          "properties": {
+            "id": "textbox-5",
+            "placeholder": "Review here...",
+            "line-height": 1.1,
+            "width": 202,
+            "height": 32
+          }
+        }
+      ]
+    },
+    prompt: {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              80,
+              604
+            ]
+          },
+          "properties": {
+            "id": "textbox-0",
+            "placeholder": "transition",
+            "line-height": 1,
+            "width": 175,
+            "height": 32,
+            "textAlign": "center",
+            "originY": "bottom"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              41,
+              157
+            ]
+          },
+          "properties": {
+            "id": "textbox-1",
+            "placeholder": "Type here...",
+            "line-height": 1,
+            "width": 253,
+            "height": 32
+          }
+        }
+      ]
     },
     sign: {
       type: 'FeatureCollection',
