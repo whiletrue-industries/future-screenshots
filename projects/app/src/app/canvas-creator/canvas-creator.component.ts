@@ -744,12 +744,22 @@ export class CanvasCreatorComponent implements AfterViewInit {
     }
     
     const canvasElement = this.canvasEl.nativeElement;
-    // Get the canvas-container element (parent of the canvas)
     const container = canvasElement.parentElement;
     
-    // Ensure the container has dimensions, default to viewport fallback
-    const containerWidth = container?.clientWidth || window.innerWidth - 40;
-    const containerHeight = container?.clientHeight || window.innerHeight - 100;
+    // Wait for layout to settle before reading dimensions
+    await new Promise(resolve => setTimeout(resolve, 0));
+    
+    let containerWidth = container?.clientWidth || 0;
+    let containerHeight = container?.clientHeight || 0;
+    
+    // If container dimensions are not available, wait and try again
+    if (containerWidth === 0 || containerHeight === 0) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      containerWidth = container?.clientWidth || window.innerWidth - 40;
+      containerHeight = container?.clientHeight || window.innerHeight - 100;
+    }
+    
+    console.log('Canvas dimensions - Container:', containerWidth, 'x', containerHeight);
     
     // Fixed dimensions: 1060x2000px
     const targetWidth = 1060;
@@ -757,17 +767,20 @@ export class CanvasCreatorComponent implements AfterViewInit {
     
     // Calculate display dimensions to fit in container while maintaining aspect ratio
     const aspectRatio = targetWidth / targetHeight;
-    let displayWidth = containerWidth - 32; // padding
+    let displayWidth = Math.max(100, containerWidth - 32); // padding, min 100px
     let displayHeight = displayWidth / aspectRatio;
     
     if (displayHeight > containerHeight - 32) {
-      displayHeight = containerHeight - 32;
+      displayHeight = Math.max(100, containerHeight - 32);
       displayWidth = displayHeight * aspectRatio;
     }
     
-    // Set the canvas element's style to match exact dimensions
-    canvasElement.style.width = displayWidth + 'px';
-    canvasElement.style.height = displayHeight + 'px';
+    console.log('Canvas display size:', displayWidth, 'x', displayHeight);
+    
+    // Set both canvas attributes and style to ensure consistent rendering
+    canvasElement.width = displayWidth;
+    canvasElement.height = displayHeight;
+    canvasElement.style.display = 'block';
     
     const fabricCanvas = new fabric.Canvas(canvasElement, {
       width: displayWidth,
@@ -786,9 +799,15 @@ export class CanvasCreatorComponent implements AfterViewInit {
         const { objects, options } = await fabric.loadSVGFromURL(template.url);
         const filteredObjects = objects.filter((obj): obj is NonNullable<typeof obj> => obj !== null);
         const obj = fabric.util.groupSVGElements(filteredObjects, options);
+         const scaleX = fabricCanvas.width! / obj.width!;
+         const scaleY = fabricCanvas.height! / obj.height!;
         obj.set({
-          scaleX: fabricCanvas.width! / obj.width!,
-          scaleY: fabricCanvas.height! / obj.height!,
+           scaleX: scaleX,
+           scaleY: scaleY,
+           left: fabricCanvas.width! / 2,
+           top: fabricCanvas.height! / 2,
+           originX: 'center',
+           originY: 'center',
           selectable: false,
           evented: false,
         });
@@ -797,9 +816,15 @@ export class CanvasCreatorComponent implements AfterViewInit {
       } else {
         // Load PNG/JPG template
         const img = await fabric.FabricImage.fromURL(template.url);
+         const scaleX = fabricCanvas.width! / img.width!;
+         const scaleY = fabricCanvas.height! / img.height!;
         img.set({
-          scaleX: fabricCanvas.width! / img.width!,
-          scaleY: fabricCanvas.height! / img.height!,
+           scaleX: scaleX,
+           scaleY: scaleY,
+           left: fabricCanvas.width! / 2,
+           top: fabricCanvas.height! / 2,
+           originX: 'center',
+           originY: 'center',
           selectable: false,
           evented: false,
         });
