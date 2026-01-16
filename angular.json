@@ -45,7 +45,6 @@
             "ssr": {
               "entry": "projects/app/src/server.ts"
             },
-            "externalDependencies": ["qrcode"],
             "localize": ["he", "en", "nl"]
           },
           "configurations": {

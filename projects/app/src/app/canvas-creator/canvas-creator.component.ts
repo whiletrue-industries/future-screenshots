@@ -4,9 +4,8 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
 import { PlatformService } from '../../platform.service';
 import { StateService } from '../../state.service';
-
-declare const fabric: any;
-declare const rough: any;
+import * as fabric from 'fabric';
+import rough from 'roughjs';
 
 interface Template {
   id: string;
@@ -598,28 +597,18 @@ export class CanvasCreatorComponent implements AfterViewInit {
     private route: ActivatedRoute,
     private api: ApiService,
   ) {
-    console.log('🔵🔵🔵 CanvasCreatorComponent constructor called');
-    console.log('🔵 Platform browser?:', this.platform.browser());
-    console.log('🔵 Route snapshot:', this.route.snapshot);
     this.api.updateFromRoute(this.route.snapshot);
     // Select random color on init
     this.currentColor.set(this.markerColors[Math.floor(Math.random() * this.markerColors.length)]);
-    console.log('🔵 Selected color:', this.currentColor());
     this.preloadFonts();
-    console.log('🔵 Constructor complete');
   }
   
   ngAfterViewInit(): void {
-    console.log('🔵🔵🔵 ngAfterViewInit called');
-    console.log('🔵 Templates loaded:', this.templates.length);
-    console.log('🔵 Show template gallery:', this.showTemplateGallery());
     if (!this.platform.browser()) {
-      console.log('❌ Not in browser, exiting');
       return;
     }
     // Start carousel spin animation
     this.spinCarouselToRandomTemplate();
-    console.log('🔵 ngAfterViewInit complete');
   }
   
   @HostListener('window:keydown', ['$event'])
@@ -642,14 +631,11 @@ export class CanvasCreatorComponent implements AfterViewInit {
   }
   
   selectTemplate(template: Template) {
-    console.log('🔵 selectTemplate called with:', template.id, template.name);
     this.selectedTemplate.set(template);
     this.showTemplateGallery.set(false);
     this.showModeSelection.set(false);
     // Wait for view to update before initializing canvas
-    console.log('🔵 Scheduling initCanvas after next render');
     afterNextRender(() => {
-      console.log('🔵 afterNextRender callback executing');
       this.initCanvas();
     }, { injector: this.injector });
   }
@@ -751,20 +737,16 @@ export class CanvasCreatorComponent implements AfterViewInit {
     this.initCanvas();
   }
   
-  initCanvas() {
-    console.log('🔵 initCanvas called');
+  async initCanvas() {
     if (!this.canvasEl || !this.canvasEl.nativeElement) {
-      console.error('❌ Canvas element not available - canvasEl:', !!this.canvasEl, 'nativeElement:', !!this.canvasEl?.nativeElement);
+      console.error('Canvas element not available');
       return;
     }
     
-    console.log('🔵 Canvas element found, initializing...');
     const canvasElement = this.canvasEl.nativeElement;
     const container = canvasElement.parentElement;
     const containerWidth = container?.clientWidth || 360;
     const containerHeight = container?.clientHeight || 640;
-    
-    console.log('🔵 Container dimensions:', containerWidth, 'x', containerHeight);
     
     // Fixed dimensions: 1060x2000px
     const targetWidth = 1060;
@@ -794,27 +776,28 @@ export class CanvasCreatorComponent implements AfterViewInit {
       
       if (isSVG) {
         // Load SVG template
-        fabric.loadSVGFromURL(template.url, (objects: any, options: any) => {
-          const obj = fabric.util.groupSVGElements(objects, options);
-          obj.set({
-            scaleX: fabricCanvas.width! / obj.width!,
-            scaleY: fabricCanvas.height! / obj.height!,
-            selectable: false,
-            evented: false,
-          });
-          fabricCanvas.setBackgroundImage(obj, fabricCanvas.renderAll.bind(fabricCanvas));
+        const { objects, options } = await fabric.loadSVGFromURL(template.url);
+        const filteredObjects = objects.filter((obj): obj is NonNullable<typeof obj> => obj !== null);
+        const obj = fabric.util.groupSVGElements(filteredObjects, options);
+        obj.set({
+          scaleX: fabricCanvas.width! / obj.width!,
+          scaleY: fabricCanvas.height! / obj.height!,
+          selectable: false,
+          evented: false,
         });
+        fabricCanvas.backgroundImage = obj;
+        fabricCanvas.renderAll();
       } else {
         // Load PNG/JPG template
-        fabric.Image.fromURL(template.url, (img: any) => {
-          img.set({
-            scaleX: fabricCanvas.width! / img.width!,
-            scaleY: fabricCanvas.height! / img.height!,
-            selectable: false,
-            evented: false,
-          });
-          fabricCanvas.setBackgroundImage(img, fabricCanvas.renderAll.bind(fabricCanvas));
+        const img = await fabric.FabricImage.fromURL(template.url);
+        img.set({
+          scaleX: fabricCanvas.width! / img.width!,
+          scaleY: fabricCanvas.height! / img.height!,
+          selectable: false,
+          evented: false,
         });
+        fabricCanvas.backgroundImage = img;
+        fabricCanvas.renderAll();
       }
     }
     
@@ -869,122 +852,70 @@ export class CanvasCreatorComponent implements AfterViewInit {
         this.exportTextboxesAsGeoJSON();
       },
     };
-    console.log('✅ textboxDebug is now available!');
   }
   
   setupRoughBrush(fabricCanvas: any) {
     const color = this.currentColor();
     const component = this; // Capture component context for callbacks
     
-    // Create custom Rough.js brush that avoids drawing over textboxes
-    const RoughBrush = fabric.util.createClass(fabric.PencilBrush, {
-      color: color,
-      width: 3,
-      
-      onMouseDown: function(pointer: any, options: any) {
-        // Check if we're clicking on a textbox - if so, don't start drawing
-        const target = this.canvas.findTarget(options.e, false);
-        if (target && target.type === 'textbox') {
-          // Switch to text editing mode instead
-          this.canvas.isDrawingMode = false;
-          this.canvas.setActiveObject(target);
-          target.enterEditing();
-          target.selectAll();
-          this.canvas.renderAll();
-          return; // Don't start drawing
-        }
-        
-        this.started = true;
-        this._prepareForDrawing(pointer);
-        this._captureDrawingPath(pointer);
-        this._render();
-      },
-      
-      onMouseMove: function(pointer: any, options: any) {
-        if (!this.started) return;
-        this._captureDrawingPath(pointer);
-        this._render();
-      },
-      
-      onMouseUp: function(options: any) {
-        if (!this.started) return;
-        this.started = false;
-        this._finalizeAndAddPath();
-      },
-      
-      _render: function() {
-        const canvas = this.canvas;
-        const ctx = canvas.contextTop;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        if (this._points.length > 1) {
-          // Draw rough preview path
-          this._drawRoughPath(ctx, this._points, false);
-        }
-      },
-      
-      _finalizeAndAddPath: function() {
-        if (this._points.length < 2) {
-          this._reset();
-          return;
-        }
-        
-        // Create an offscreen canvas for rough.js
-        const offscreenCanvas = document.createElement('canvas');
-        offscreenCanvas.width = this.canvas.width;
-        offscreenCanvas.height = this.canvas.height;
-        const rc = rough.canvas(offscreenCanvas);
-        
-        // Draw the rough path
-        const points = this._points.map((p: any) => [p.x, p.y]);
-        rc.linearPath(points, {
-          stroke: this.color,
-          strokeWidth: this.width,
-          roughness: 1.2,
-          bowing: 0.5,
-        });
-        
-        // Convert to fabric image and add to canvas
-        const dataURL = offscreenCanvas.toDataURL();
-        const brushCanvas = this.canvas;
-        fabric.Image.fromURL(dataURL, (img: any) => {
-          img.set({
-            left: 0,
-            top: 0,
-            selectable: false,
-            evented: false,
-          });
-          brushCanvas.add(img);
-          brushCanvas.renderAll();
-          component.hasContent.set(true);
-        });
-        
-        this._reset();
-      },
-      
-      _drawRoughPath: function(ctx: any, points: any[], finalize: boolean) {
-        if (points.length < 2) return;
-        
-        ctx.save();
-        ctx.strokeStyle = this.color;
-        ctx.lineWidth = this.width;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        
-        // Simple preview (smooth)
-        ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].y);
-        for (let i = 1; i < points.length; i++) {
-          ctx.lineTo(points[i].x, points[i].y);
-        }
-        ctx.stroke();
-        ctx.restore();
-      }
-    });
+    // Use the standard PencilBrush and configure it with Rough.js styling
+    const brush = new fabric.PencilBrush(fabricCanvas);
+    brush.color = color;
+    brush.width = 3;
     
-    fabricCanvas.freeDrawingBrush = new RoughBrush(fabricCanvas);
-    fabricCanvas.freeDrawingBrush.color = color;
-    fabricCanvas.freeDrawingBrush.width = 3;
+    fabricCanvas.freeDrawingBrush = brush;
+    
+    // Listen for path created event to apply rough styling
+    fabricCanvas.on('path:created', async (e: any) => {
+      const path = e.path;
+      if (!path) return;
+      
+      // Remove the smooth path
+      fabricCanvas.remove(path);
+      
+      // Get the path data
+      const pathData = path.path;
+      if (!pathData || pathData.length < 2) return;
+      
+      // Convert path to points for rough.js
+      const points: [number, number][] = [];
+      pathData.forEach((segment: any) => {
+        if (segment[0] === 'M' || segment[0] === 'L') {
+          points.push([segment[1], segment[2]]);
+        } else if (segment[0] === 'Q') {
+          points.push([segment[3], segment[4]]);
+        }
+      });
+      
+      if (points.length < 2) return;
+      
+      // Create an offscreen canvas for rough.js
+      const offscreenCanvas = document.createElement('canvas');
+      offscreenCanvas.width = fabricCanvas.width;
+      offscreenCanvas.height = fabricCanvas.height;
+      const rc = rough.canvas(offscreenCanvas);
+      
+      // Draw the rough path
+      rc.linearPath(points, {
+        stroke: color,
+        strokeWidth: 3,
+        roughness: 1.2,
+        bowing: 0.5,
+      });
+      
+      // Convert to fabric image and add to canvas
+      const dataURL = offscreenCanvas.toDataURL();
+      const img = await fabric.FabricImage.fromURL(dataURL);
+      img.set({
+        left: 0,
+        top: 0,
+        selectable: false,
+        evented: false,
+      });
+      fabricCanvas.add(img);
+      component.hasContent.set(true);
+      fabricCanvas.renderAll();
+    });
   }
   
   addText() {
@@ -1089,7 +1020,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     return rtlPattern.test(text);
   }
   
-  selectTransition(choice: 'before' | 'during' | 'after') {
+  async selectTransition(choice: 'before' | 'during' | 'after') {
     this.transitionChoice.set(choice);
     const fabricCanvas = this.canvas();
     if (!fabricCanvas) return;
@@ -1116,16 +1047,15 @@ export class CanvasCreatorComponent implements AfterViewInit {
     
     // Convert to fabric image and add to canvas
     const dataURL = offscreenCanvas.toDataURL();
-    fabric.Image.fromURL(dataURL, (img: any) => {
-      img.set({
-        left: 0,
-        top: 0,
-        selectable: false,
-        evented: false,
-      });
-      fabricCanvas.add(img);
-      fabricCanvas.renderAll();
+    const img = await fabric.FabricImage.fromURL(dataURL);
+    img.set({
+      left: 0,
+      top: 0,
+      selectable: false,
+      evented: false,
     });
+    fabricCanvas.add(img);
+    fabricCanvas.renderAll();
   }
   
   addTransitionText() {
@@ -1172,14 +1102,10 @@ export class CanvasCreatorComponent implements AfterViewInit {
     
     const fabricCanvas = this.canvas();
     if (!fabricCanvas) return;
-    
-    console.log('[Canvas Creator] Starting export...');
-    console.log('[Canvas Creator] Canvas dimensions:', fabricCanvas.width, 'x', fabricCanvas.height);
 
     // Remove untouched placeholders before export
     const placeholders = this.placeholderTexts.filter(t => (t as any)._placeholder || ((t.text || '').trim() === ((t as any)._placeholderText || 'Type here...')));
     if (placeholders.length) {
-      console.log('[Canvas Creator] Removing placeholder textboxes:', placeholders.length);
       placeholders.forEach(tb => fabricCanvas.remove(tb));
       this.placeholderTexts = this.placeholderTexts.filter(t => !placeholders.includes(t));
       fabricCanvas.requestRenderAll();
@@ -1191,8 +1117,6 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const targetHeight = 2000;
     const multiplier = targetWidth / fabricCanvas.width!;
     
-    console.log('[Canvas Creator] Export multiplier:', multiplier, `(${fabricCanvas.width}x${fabricCanvas.height} -> ${targetWidth}x${targetHeight})`);
-    
     // Export canvas to JPEG data URL at full resolution
     const dataURL = fabricCanvas.toDataURL({
       format: 'jpeg',    // Use JPEG like scanner
@@ -1200,16 +1124,12 @@ export class CanvasCreatorComponent implements AfterViewInit {
       multiplier: multiplier,  // Scale up to 1060x2000
     });
     
-    console.log('[Canvas Creator] Data URL length:', dataURL.length);
-    
     // Convert data URL to blob with explicit MIME type
     const response = await fetch(dataURL);
     const blob = await response.blob();
     
     // Create JPEG blob with explicit MIME type (matching scanner)
     const jpegBlob = new Blob([blob], { type: 'image/jpeg' });
-    
-    console.log('[Canvas Creator] Final blob - Type:', jpegBlob.type, 'Size:', jpegBlob.size, 'bytes');
     
     this.state.setImage(jpegBlob);
     this.router.navigate(['/confirm'], { queryParamsHandling: 'merge', queryParams: { template: 'true' } });
@@ -1315,8 +1235,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
       height: this.selectedHeight(),
       editable: true,
       lineHeight: this.selectedLineHeight(),
-      textAlign: textAlign || 'left',
-      originY: originY || 'top',
+      textAlign: (textAlign as any) || 'left',
+      originY: (originY as any) || 'top',
       _placeholder: true,
       _placeholderText: placeholderText, // Store original placeholder
     });
@@ -1409,23 +1329,17 @@ export class CanvasCreatorComponent implements AfterViewInit {
   }
 
   private placeInitialChatBoxes(fabricCanvas: any) {
-    console.log('🔵 placeInitialChatBoxes called, existing boxes:', this.placeholderTexts.length);
     if (this.placeholderTexts.length) return;
     
     const template = this.selectedTemplate();
-    console.log('🔵 Selected template:', template?.id);
     if (!template) return;
     
     // Load textboxes from template preset if available
     const preset = this.templatePresets[template.id];
-    console.log('🔵 Preset found:', preset ? 'yes' : 'no', preset);
     if (preset && preset.features) {
-      console.log('🔵 Creating', preset.features.length, 'textboxes');
       preset.features.forEach((feature: any) => {
         const props = feature.properties;
         const [x, y] = feature.geometry.coordinates;
-        
-        console.log('🔵 Creating textbox at', x, y, 'with placeholder:', props.placeholder);
         
         // Set current values from preset
         this.selectedLineHeight.set(props['line-height'] || 1.16);
@@ -1435,7 +1349,6 @@ export class CanvasCreatorComponent implements AfterViewInit {
         const textbox = this.addTextboxAt(x, y, false, props.placeholder, props.width, fabricCanvas, props.textAlign, props.originY);
         if (textbox) {
           this.placeholderTexts.push(textbox);
-          console.log('🔵 Textbox created and added to array');
         }
       });
     } else {
@@ -1449,7 +1362,6 @@ export class CanvasCreatorComponent implements AfterViewInit {
         if (textbox) this.placeholderTexts.push(textbox);
       });
     }
-    console.log('🔵 Total textboxes after placement:', this.placeholderTexts.length);
   }
 
   private loadFont(font: string) {

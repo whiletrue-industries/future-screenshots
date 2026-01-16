@@ -16,7 +16,7 @@
 <div class='action'>
     <canvas #canvas></canvas>
     <video #video autoplay playsinline muted volume='0' (loadeddata)='playing()'></video>
-    <svg xmlns="http://www.w3.org/2000/svg" class='overlay' [attr.viewBox]='viewBox()' class='overlay-svg' preserveAspectRatio="none">
+    <svg xmlns="http://www.w3.org/2000/svg" class='overlay' [attr.viewBox]='viewBox()' class='overlay-svg' preserveAspectRatio="false">
         <defs>
             <mask id="mask">
                 <rect x="0" y="0" width="100%" height="100%" fill="white" />
