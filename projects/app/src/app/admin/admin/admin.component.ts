@@ -1,17 +1,18 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, signal } from '@angular/core';
 import { AdminApiService } from '../../../admin-api.service';
 import { WorkspaceItemComponent } from "../workspace-item/workspace-item.component";
-import { FiltersBarComponent, FiltersBarState, FilterCounts } from "../../shared/filters-bar/filters-bar.component";
 import { delay, filter, take } from 'rxjs';
 import { AuthService } from '../../auth.service';
 import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 
+type WorkspaceStatus = 'all' | 'upcoming' | 'active' | 'in-review' | 'done';
+type OrderBy = 'date' | 'screenshots' | 'completion';
+
 @Component({
   selector: 'app-admin',
   imports: [
     WorkspaceItemComponent,
-    FiltersBarComponent,
     RouterModule,
     CommonModule
   ],
@@ -24,28 +25,32 @@ export class AdminComponent implements OnInit {
   workspaces = signal<any[]>([]);
   successMessage = signal<string | null>(null);
 
-  // Filter state - now delegated to filters-bar, but we maintain local state for filtering logic
-  filterState = signal<FiltersBarState>({
-    status: ['all'],
-    language: 'all',
-    facilitator: 'all',
-    search: '',
-    orderBy: 'date'
+  // UI state
+  statusFilter = signal<WorkspaceStatus>('all');
+  languageFilter = signal<string>('all');
+  facilitatorFilter = signal<string>('all');
+  searchQuery = signal<string>('');
+  orderBy = signal<OrderBy>('date');
+
+  // All available facilitators and keywords from workspaces
+  allFacilitators = computed(() => {
+    const facilitators = new Set<string>();
+    this.workspaces().forEach(w => {
+      (w?.metadata?.facilitator_names || []).forEach((f: string) => facilitators.add(f));
+    });
+    return Array.from(facilitators).sort();
   });
 
-  // Filter counts for the filters-bar component
-  filterCounts = computed<FilterCounts>(() => ({
-    status: new Map(),
-    author: new Map(),
-    language: new Map(),
-    facilitator: new Map(),
-    preference: new Map(),
-    potential: new Map(),
-    type: new Map()
-  }));
+  allKeywords = computed(() => {
+    const keywords = new Set<string>();
+    this.workspaces().forEach(w => {
+      (w?.metadata?.keywords || []).forEach((k: string) => keywords.add(k));
+    });
+    return Array.from(keywords).sort();
+  });
 
   // Helper to get workspace status
-  getWorkspaceStatus(w: any): string {
+  getWorkspaceStatus(w: any): WorkspaceStatus {
     const date = w?.metadata?.date;
     if (!date) return 'upcoming';
     
@@ -71,12 +76,11 @@ export class AdminComponent implements OnInit {
 
   // Derived state with filtering + sorting
   filteredWorkspaces = computed(() => {
-    const state = this.filterState();
-    const q = state.search?.trim().toLowerCase() ?? '';
-    const lang = state.language ?? 'all';
-    const status = state.status?.[0] ?? 'all';
-    const facilitator = state.facilitator ?? 'all';
-    const order = state.orderBy ?? 'date';
+    const q = this.searchQuery().trim().toLowerCase();
+    const lang = this.languageFilter();
+    const status = this.statusFilter();
+    const facilitator = this.facilitatorFilter();
+    const order = this.orderBy();
 
     const list = [...this.workspaces()]
       .filter(w => {
@@ -158,13 +162,5 @@ export class AdminComponent implements OnInit {
         this.workspaces.set(sorted);
       });
     });
-  }
-
-  onFiltersChange(state: FiltersBarState): void {
-    this.filterState.set(state);
-  }
-
-  onFiltersCommit(state: FiltersBarState): void {
-    this.filterState.set(state);
   }
 }
