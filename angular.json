@@ -39,10 +39,7 @@
             "styles": [
               "projects/app/src/styles.less"
             ],
-            "scripts": [
-              "node_modules/fabric/dist/fabric.min.js",
-              "node_modules/roughjs/bundled/rough.js"
-            ],
+            "scripts": [],
             "server": "projects/app/src/main.server.ts",
             "prerender": true,
             "ssr": {
