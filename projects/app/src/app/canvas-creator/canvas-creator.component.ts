@@ -919,12 +919,12 @@ export class CanvasCreatorComponent implements AfterViewInit {
         
         const target = (this as any).canvas.findTarget(options.e, false);
         if (target && target.type === 'textbox') {
+          // Textbox detected: switch to text mode and select (first click frame, no edit yet)
           (this as any).canvas.isDrawingMode = false;
+          component.currentMode.set('type');
           (this as any).canvas.setActiveObject(target);
-          target.enterEditing();
-          target.selectAll();
           (this as any).canvas.renderAll();
-          return;
+          return; // Do not draw
         }
 
         this.started = true;
@@ -1049,63 +1049,80 @@ export class CanvasCreatorComponent implements AfterViewInit {
     // Frame visible = text mode, no frame = draw mode
     const component = this;
     let mouseDownPos: { x: number; y: number } | null = null;
-    let wasAlreadySelected = false;
-    let selectionTime = 0; // Track when a textbox was selected
-    const MIN_DELAY_MS = 300; // Minimum delay between selection and edit mode
+    let mouseDownTarget: any = null;
     
-    // Track mouse down position and selection state
+    // Track mouse down position and find target manually
     fabricCanvas.on('mouse:down', (e: any) => {
-      if (!e.pointer) {
-        console.warn('mouse:down event without pointer property:', e);
+      const pointer = e.pointer || e.scenePoint;
+      if (!pointer) {
         mouseDownPos = null;
+        mouseDownTarget = null;
         return;
       }
-      mouseDownPos = { x: e.pointer.x, y: e.pointer.y };
-      const target = e.target;
-      const activeObject = fabricCanvas.getActiveObject();
-      // Track if the clicked textbox was already selected
-      wasAlreadySelected = (target && target.type === 'textbox' && activeObject === target);
+      mouseDownPos = { x: pointer.x, y: pointer.y };
+      
+      // Get target from event
+      let target = e.target;
+      
+      // If clicked object is a textbox, switch to text mode immediately
+      if (target && target.type === 'textbox') {
+        fabricCanvas.isDrawingMode = false;
+        component.currentMode.set('type');
+        mouseDownTarget = target;
+      } else {
+        mouseDownTarget = null;
+      }
     });
     
-    // On mouse up, check if it was a click (not a drag) on an already-selected textbox
+    // On mouse up, handle click vs drag for textboxes
     fabricCanvas.on('mouse:up', (e: any) => {
-      if (!e.pointer) return;
+      if (!mouseDownPos) {
+        mouseDownTarget = null;
+        return;
+      }
       
-      const target = e.target;
-      const now = Date.now();
-      const timeSinceSelection = now - selectionTime;
+      const pointer = e.pointer || e.scenePoint;
+      if (!pointer) {
+        mouseDownPos = null;
+        mouseDownTarget = null;
+        return;
+      }
       
-      if (target && target.type === 'textbox' && mouseDownPos && wasAlreadySelected && timeSinceSelection >= MIN_DELAY_MS) {
-        // Check if this was a click (not a drag)
-        const distance = Math.sqrt(
-          Math.pow(e.pointer.x - mouseDownPos.x, 2) + 
-          Math.pow(e.pointer.y - mouseDownPos.y, 2)
-        );
-        
-        // If it's a small movement (less than 5 pixels), treat it as a click
-        if (distance < 5 && !target.isEditing) {
-          // Enter editing mode only if the textbox was already selected
-          target.editable = true;
-          target.enterEditing();
+      // Calculate distance to distinguish click from drag
+      const distance = Math.sqrt(
+        Math.pow(pointer.x - mouseDownPos.x, 2) + 
+        Math.pow(pointer.y - mouseDownPos.y, 2)
+      );
+      
+      // If small movement, treat as click on textbox
+      if (distance < 5 && mouseDownTarget && mouseDownTarget.type === 'textbox') {
+        const activeObject = fabricCanvas.getActiveObject();
+        if (activeObject !== mouseDownTarget) {
+          // First click: select the textbox frame
+          fabricCanvas.setActiveObject(mouseDownTarget);
+          fabricCanvas.requestRenderAll();
+        } else {
+          // Second click on same textbox: enter editing
+          mouseDownTarget.editable = true;
+          mouseDownTarget.enterEditing();
           setTimeout(() => {
-            if (target.isEditing) {
-              target.selectAll();
+            if (mouseDownTarget.isEditing) {
+              mouseDownTarget.selectAll();
             }
           }, 50);
         }
       }
+      
       mouseDownPos = null;
-      wasAlreadySelected = false;
+      mouseDownTarget = null;
     });
     
     // When a textbox is selected (frame appears), switch to text mode
     fabricCanvas.on('selection:created', (e: any) => {
       const target = e.selected?.[0];
       if (target && target.type === 'textbox') {
-        selectionTime = Date.now(); // Record when this textbox was selected
         fabricCanvas.isDrawingMode = false;
         component.currentMode.set('type');
-        // First click - just show handles, don't enter editing
       }
     });
     
@@ -1113,7 +1130,6 @@ export class CanvasCreatorComponent implements AfterViewInit {
     fabricCanvas.on('selection:updated', (e: any) => {
       const target = e.selected?.[0];
       if (target && target.type === 'textbox') {
-        selectionTime = Date.now(); // Record when this textbox was selected
         fabricCanvas.isDrawingMode = false;
         component.currentMode.set('type');
         // Exit editing mode if we were in it
@@ -1125,7 +1141,6 @@ export class CanvasCreatorComponent implements AfterViewInit {
     
     // When selection is cleared (frame disappears), switch back to draw mode
     fabricCanvas.on('selection:cleared', () => {
-      selectionTime = 0; // Reset selection time
       fabricCanvas.isDrawingMode = true;
       component.currentMode.set('draw');
       component.setupRoughBrush(fabricCanvas);
@@ -1357,11 +1372,13 @@ export class CanvasCreatorComponent implements AfterViewInit {
       fill: placeholderColor,
       width: width || Math.min(360, targetCanvas.getWidth() * 0.6),
       height: this.selectedHeight(),
-      editable: true,
+      editable: false,
       lineHeight: this.selectedLineHeight(),
       textAlign: (textAlign as any) || 'left',
       originY: (originY as any) || 'top',
       originX: (originX as any) || 'left',
+      selectable: true,
+      evented: true,
       _placeholder: true,
       _placeholderText: placeholderText, // Store original placeholder
     });
