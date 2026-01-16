@@ -1,4 +1,5 @@
 import { AfterViewInit, Component, computed, ElementRef, input, signal, ViewChild } from '@angular/core';
+import QRCode from 'qrcode';
 
 import { PlatformService } from '../../../platform.service';
 
@@ -35,8 +36,6 @@ export class QrcodeComponent implements AfterViewInit {
     this.mainEl.set(this.el.nativeElement);
 
     try {
-      // Dynamically import qrcode only in browser
-      const QRCode = (await import('qrcode')).default;
       await QRCode.toCanvas(this.qrCodeEl.nativeElement,
         this.url(), {
         scale: 16,
