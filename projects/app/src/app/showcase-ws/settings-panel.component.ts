@@ -36,6 +36,72 @@ export interface FisheyeSettings {
       </div>
 
       <div class="panel-content" *ngIf="!isCollapsed()">
+        <!-- FISHEYE LENS EFFECT SECTION -->
+        <div class="section-title">🔍 Fisheye Lens</div>
+        
+        <!-- Max Magnification (Size of enlargement) -->
+        <div class="slider-group">
+          <label>Max Magnification</label>
+          <input
+            type="range"
+            min="1"
+            max="5"
+            step="0.1"
+            [(ngModel)]="settings.maxMagnification"
+            (input)="updateSettings()"
+            class="slider"
+          />
+          <span class="value">{{ settings.maxMagnification.toFixed(1) }}×</span>
+        </div>
+
+        <!-- Radius of fisheye influence -->
+        <div class="slider-group">
+          <label>Lens Radius</label>
+          <input
+            type="range"
+            min="100"
+            max="2000"
+            step="10"
+            [(ngModel)]="settings.radius"
+            (input)="updateSettings()"
+            class="slider"
+          />
+          <span class="value">{{ settings.radius }} px</span>
+        </div>
+
+        <!-- Distortion Strength (Radial displacement) -->
+        <div class="slider-group">
+          <label>Lens Distortion</label>
+          <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.1"
+            [(ngModel)]="settings.fisheye"
+            (input)="updateSettings()"
+            class="slider"
+          />
+          <span class="value">{{ (settings.fisheye * 50).toFixed(0) }}%</span>
+        </div>
+
+        <!-- Size reduction with zoom -->
+        <div class="slider-group">
+          <label>Zoom Relative</label>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            [(ngModel)]="settings.zoomRelative"
+            (input)="updateSettings()"
+            class="slider"
+          />
+          <span class="value">{{ (settings.zoomRelative * 100).toFixed(0) }}%</span>
+        </div>
+
+        <!-- CAMERA SECTION -->
+        <div class="section-title">📹 Camera</div>
+        
         <!-- FOV Slider -->
         <div class="slider-group">
           <label>Field of View</label>
@@ -51,21 +117,6 @@ export interface FisheyeSettings {
           <span class="value">{{ settings.fov }}°</span>
         </div>
 
-        <!-- Fisheye Strength -->
-        <div class="slider-group">
-          <label>Fisheye Effect</label>
-          <input
-            type="range"
-            min="0"
-            max="2"
-            step="0.1"
-            [(ngModel)]="settings.fisheye"
-            (input)="updateSettings()"
-            class="slider"
-          />
-          <span class="value">{{ (settings.fisheye * 100).toFixed(0) }}%</span>
-        </div>
-
         <!-- Zoom -->
         <div class="slider-group">
           <label>Zoom Level</label>
@@ -78,37 +129,7 @@ export interface FisheyeSettings {
             (input)="updateSettings()"
             class="slider"
           />
-          <span class="value">{{ settings.zoom.toFixed(1) }}x</span>
-        </div>
-
-        <!-- Rotation Speed -->
-        <div class="slider-group">
-          <label>Rotation Speed</label>
-          <input
-            type="range"
-            min="0.1"
-            max="2"
-            step="0.1"
-            [(ngModel)]="settings.rotationSpeed"
-            (input)="updateSettings()"
-            class="slider"
-          />
-          <span class="value">{{ settings.rotationSpeed.toFixed(1) }}x</span>
-        </div>
-
-        <!-- Pan Sensitivity -->
-        <div class="slider-group">
-          <label>Pan Sensitivity</label>
-          <input
-            type="range"
-            min="0.1"
-            max="2"
-            step="0.1"
-            [(ngModel)]="settings.panSensitivity"
-            (input)="updateSettings()"
-            class="slider"
-          />
-          <span class="value">{{ settings.panSensitivity.toFixed(1) }}x</span>
+          <span class="value">{{ settings.zoom.toFixed(1) }}×</span>
         </div>
 
         <!-- Depth of Field -->
@@ -124,6 +145,39 @@ export interface FisheyeSettings {
             class="slider"
           />
           <span class="value">{{ (settings.depthOfField * 100).toFixed(0) }}%</span>
+        </div>
+
+        <!-- INTERACTION SECTION -->
+        <div class="section-title">👆 Interaction</div>
+        
+        <!-- Rotation Speed -->
+        <div class="slider-group">
+          <label>Rotation Speed</label>
+          <input
+            type="range"
+            min="0.1"
+            max="2"
+            step="0.1"
+            [(ngModel)]="settings.rotationSpeed"
+            (input)="updateSettings()"
+            class="slider"
+          />
+          <span class="value">{{ settings.rotationSpeed.toFixed(1) }}×</span>
+        </div>
+
+        <!-- Pan Sensitivity -->
+        <div class="slider-group">
+          <label>Pan Sensitivity</label>
+          <input
+            type="range"
+            min="0.1"
+            max="2"
+            step="0.1"
+            [(ngModel)]="settings.panSensitivity"
+            (input)="updateSettings()"
+            class="slider"
+          />
+          <span class="value">{{ settings.panSensitivity.toFixed(1) }}×</span>
         </div>
 
         <!-- Action Buttons -->
@@ -232,6 +286,23 @@ export interface FisheyeSettings {
       gap: 8px;
       margin-bottom: 12px;
       align-items: center;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: bold;
+      color: #00ff88;
+      text-transform: uppercase;
+      margin: 16px 0 8px 0;
+      padding-top: 8px;
+      border-top: 1px solid rgba(0, 255, 136, 0.2);
+      letter-spacing: 1px;
+    }
+
+    .section-title:first-of-type {
+      margin-top: 0;
+      border-top: none;
+      padding-top: 0;
     }
 
     .slider-group label {

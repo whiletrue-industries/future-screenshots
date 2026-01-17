@@ -676,14 +676,30 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
   /**
    * Handle camera settings changes from the settings panel
+   * Applies all slider adjustments to the renderer
    */
   onSettingsChange(settings: FisheyeSettings): void {
     this.fisheyeSettings.set(settings);
     console.log('[SHOWCASE_WS] onFisheyeSettingsChange', { ...settings });
+    
+    // Apply fisheye configuration (magnification, radius, distortion)
     this.rendererService.setFisheyeConfig({
       magnification: settings.maxMagnification,
-      radius: settings.radius
+      radius: settings.radius,
+      distortion: settings.fisheye * 0.5, // Map 0-2 to 0-1 distortion range
+      zoomRelative: settings.zoomRelative
     });
+    
+    // Apply camera settings
+    this.rendererService.updateCameraFov(settings.fov);
+    this.rendererService.updateCameraZoom(settings.zoom);
+    
+    // Apply control sensitivity settings
+    this.rendererService.setRotationSpeed(settings.rotationSpeed);
+    this.rendererService.setPanSensitivity(settings.panSensitivity);
+    
+    // Apply depth of field effect
+    this.rendererService.setDepthOfField(settings.depthOfField * 100);
   }
 
   ngOnDestroy() {

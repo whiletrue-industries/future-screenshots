@@ -666,8 +666,8 @@ export class ThreeRendererService {
     return this.fisheyeEnabled;
   }
 
-  setFisheyeConfig(config: { radius?: number; magnification?: number; distortion?: number }): void {
-    // Pass zoomRelative to fisheye service
+  setFisheyeConfig(config: { radius?: number; magnification?: number; distortion?: number; zoomRelative?: number }): void {
+    // Pass all config parameters to fisheye service
     this.fisheyeService.setConfig(config);
   }
 
