@@ -41,6 +41,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   enableSvgAutoPositioning = signal(false);
   fisheyeEnabled = signal(false);
   fisheyeSettings = signal<FisheyeSettings>({
+    fov: 75,
+    fisheye: 0,
+    zoom: 1,
+    rotationSpeed: 1,
+    panSensitivity: 1,
+    depthOfField: 0,
     maxMagnification: 2,
     radius: 800,
     zoomRelative: 0.5
@@ -320,16 +326,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     if (this.fisheyeEnabled()) {
       this.rendererService.enableFisheyeEffect(true);
       
-      // Calculate fisheye value from query params (default to 100% if enabled)
-      // This ensures the slider shows the correct value
-      const fisheyeValue = 100; // Default enabled value
-      this.currentFisheyeValue = fisheyeValue;
-      
-      // Update camera settings to reflect actual state
-      this.cameraSettings.update(settings => ({
-        ...settings,
-        fisheye: fisheyeValue
-      }));
+      // Fisheye settings are already initialized in fisheyeSettings signal
+      // No additional updates needed here
     }
     
     // Read optional fisheye configuration from query params
@@ -684,8 +682,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     console.log('[SHOWCASE_WS] onFisheyeSettingsChange', { ...settings });
     this.rendererService.setFisheyeConfig({
       magnification: settings.maxMagnification,
-      radius: settings.radius,
-      zoomRelative: settings.zoomRelative
+      radius: settings.radius
     });
   }
 

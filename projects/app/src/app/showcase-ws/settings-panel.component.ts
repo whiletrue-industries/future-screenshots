@@ -3,6 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 export interface FisheyeSettings {
+  fov: number;
+  fisheye: number;
+  zoom: number;
+  rotationSpeed: number;
+  panSensitivity: number;
+  depthOfField: number;
   maxMagnification: number; // max-size of enlargement
   radius: number;          // radius of fisheye influence
   zoomRelative: number;    // size relative to zoom (0 = no change, 1 = full reduction)
@@ -390,7 +396,7 @@ export interface FisheyeSettings {
 })
 export class SettingsPanelComponent {
   // Inputs
-  initialSettings = input<CameraSettings>();
+  initialSettings = input<FisheyeSettings>();
   initialCollapsed = input<boolean>(true);
 
   // Outputs
@@ -407,6 +413,12 @@ export class SettingsPanelComponent {
   private dragOffsetY = 0;
 
   settings: FisheyeSettings = {
+    fov: 75,
+    fisheye: 0,
+    zoom: 1,
+    rotationSpeed: 1,
+    panSensitivity: 1,
+    depthOfField: 0,
     maxMagnification: 2,
     radius: 800,
     zoomRelative: 0.5
@@ -418,54 +430,68 @@ export class SettingsPanelComponent {
 
   constructor() {
     this.isCollapsed.set(this.initialCollapsed());
-      <div class="panel-content" *ngIf="!isCollapsed()">
-        <!-- Max-size of enlargement -->
-        <div class="slider-group">
-          <label>Max Enlargement</label>
-          <input
-            type="range"
-            min="1"
-            max="5"
-            step="0.1"
-            [(ngModel)]="settings.maxMagnification"
-            (input)="updateSettings()"
-            class="slider"
-          />
-          <span class="value">{{ settings.maxMagnification.toFixed(1) }}x</span>
-        </div>
+    this.loadSettingsFromUrl();
+    this.loadPanelPosition();
+  }
 
-        <!-- Radius of fisheye influence -->
-        <div class="slider-group">
-          <label>Fisheye Radius</label>
-          <input
-            type="range"
-            min="100"
-            max="2000"
-            step="10"
-            [(ngModel)]="settings.radius"
-            (input)="updateSettings()"
-            class="slider"
-          />
-          <span class="value">{{ settings.radius }} px</span>
-        </div>
+  ngAfterViewInit() {
+    document.addEventListener('mousemove', this.onMouseMove.bind(this));
+    document.addEventListener('mouseup', this.onMouseUp.bind(this));
+    document.addEventListener('touchmove', this.onTouchMove.bind(this), { passive: false });
+    document.addEventListener('touchend', this.onTouchEnd.bind(this));
+  }
 
-        <!-- Size relative to zoom level -->
-        <div class="slider-group">
-          <label>Zoom Relative (less effect on zoom in)</label>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            [(ngModel)]="settings.zoomRelative"
-            (input)="updateSettings()"
-            class="slider"
-          />
-          <span class="value">{{ (settings.zoomRelative * 100).toFixed(0) }}%</span>
-        </div>
-      </div>
+  ngOnDestroy() {
+    document.removeEventListener('mousemove', this.onMouseMove.bind(this));
+    document.removeEventListener('mouseup', this.onMouseUp.bind(this));
+    document.removeEventListener('touchmove', this.onTouchMove.bind(this));
     document.removeEventListener('touchend', this.onTouchEnd.bind(this));
     this.savePanelPosition();
+  }
+
+  onHeaderMouseDown(event: MouseEvent) {
+    this.isDragging = true;
+    this.dragOffsetX = event.clientX - this.panelX();
+    this.dragOffsetY = window.innerHeight - event.clientY - this.panelY();
+    event.preventDefault();
+  }
+
+  onHeaderTouchStart(event: TouchEvent) {
+    const touch = event.touches[0];
+    this.isDragging = true;
+    this.dragOffsetX = touch.clientX - this.panelX();
+    this.dragOffsetY = window.innerHeight - touch.clientY - this.panelY();
+    event.preventDefault();
+  }
+
+  private onMouseMove(event: MouseEvent) {
+    if (this.isDragging) {
+      this.panelX.set(event.clientX - this.dragOffsetX);
+      this.panelY.set(window.innerHeight - event.clientY - this.dragOffsetY);
+    }
+  }
+
+  private onTouchMove(event: TouchEvent) {
+    if (this.isDragging) {
+      const touch = event.touches[0];
+      this.panelX.set(touch.clientX - this.dragOffsetX);
+      this.panelY.set(window.innerHeight - touch.clientY - this.dragOffsetY);
+      event.preventDefault();
+    }
+  }
+
+  private onMouseUp() {
+    if (this.isDragging) {
+      this.isDragging = false;
+      this.savePanelPosition();
+    }
+  }
+
+  private onTouchEnd() {
+    if (this.isDragging) {
+      this.isDragging = false;
+      this.savePanelPosition();
+    }
   }
 
   /**
@@ -502,7 +528,10 @@ export class SettingsPanelComponent {
       zoom: 1,
       rotationSpeed: 1,
       panSensitivity: 1,
-      depthOfField: 0
+      depthOfField: 0,
+      maxMagnification: 2,
+      radius: 800,
+      zoomRelative: 0.5
     };
     this.updateSettings();
   }
