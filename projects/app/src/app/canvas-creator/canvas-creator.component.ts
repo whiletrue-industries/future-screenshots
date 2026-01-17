@@ -5,7 +5,7 @@ import { ApiService } from '../../api.service';
 import { PlatformService } from '../../platform.service';
 import { StateService } from '../../state.service';
 import * as fabric from 'fabric';
-import rough from 'roughjs';
+import { getStroke } from 'perfect-freehand';
 
 interface Template {
   id: string;
@@ -67,6 +67,10 @@ export class CanvasCreatorComponent implements AfterViewInit {
   private drawerTouchStartY: number | null = null;
   private drawerTouchDeltaY = 0;
   private placeholderTexts: any[] = [];
+  private templateBaseWidth = 1060;
+  private templateBaseHeight = 2000;
+  private templateScaleX = 1;
+  private templateScaleY = 1;
   
   private injector = inject(Injector);
   
@@ -745,8 +749,21 @@ export class CanvasCreatorComponent implements AfterViewInit {
     
     const canvasElement = this.canvasEl.nativeElement;
     const container = canvasElement.parentElement;
-    const containerWidth = container?.clientWidth || 360;
-    const containerHeight = container?.clientHeight || 640;
+    
+    // Wait for layout to settle before reading dimensions
+    await new Promise(resolve => setTimeout(resolve, 0));
+    
+    let containerWidth = container?.clientWidth || 0;
+    let containerHeight = container?.clientHeight || 0;
+    
+    // If container dimensions are not available, wait and try again
+    if (containerWidth === 0 || containerHeight === 0) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      containerWidth = container?.clientWidth || window.innerWidth - 40;
+      containerHeight = container?.clientHeight || window.innerHeight - 100;
+    }
+    
+    console.log('Canvas dimensions - Container:', containerWidth, 'x', containerHeight);
     
     // Fixed dimensions: 1060x2000px
     const targetWidth = 1060;
@@ -754,19 +771,29 @@ export class CanvasCreatorComponent implements AfterViewInit {
     
     // Calculate display dimensions to fit in container while maintaining aspect ratio
     const aspectRatio = targetWidth / targetHeight;
-    let displayWidth = containerWidth - 32; // padding
+    let displayWidth = Math.max(100, containerWidth - 32); // padding, min 100px
     let displayHeight = displayWidth / aspectRatio;
     
     if (displayHeight > containerHeight - 32) {
-      displayHeight = containerHeight - 32;
+      displayHeight = Math.max(100, containerHeight - 32);
       displayWidth = displayHeight * aspectRatio;
     }
+    
+    console.log('Canvas display size:', displayWidth, 'x', displayHeight);
+    
+    // Set both canvas attributes and style to ensure consistent rendering
+    canvasElement.width = displayWidth;
+    canvasElement.height = displayHeight;
+    canvasElement.style.width = `${displayWidth}px`;
+    canvasElement.style.height = `${displayHeight}px`;
+    canvasElement.style.display = 'block';
     
     const fabricCanvas = new fabric.Canvas(canvasElement, {
       width: displayWidth,
       height: displayHeight,
       backgroundColor: '#f5f0e7',
       isDrawingMode: this.currentMode() === 'draw',
+      enableRetinaScaling: false,
     });
     
     // Load template as background
@@ -779,24 +806,40 @@ export class CanvasCreatorComponent implements AfterViewInit {
         const { objects, options } = await fabric.loadSVGFromURL(template.url);
         const filteredObjects = objects.filter((obj): obj is NonNullable<typeof obj> => obj !== null);
         const obj = fabric.util.groupSVGElements(filteredObjects, options);
+        this.templateBaseWidth = obj.width || this.templateBaseWidth;
+        this.templateBaseHeight = obj.height || this.templateBaseHeight;
+        this.templateScaleX = fabricCanvas.width! / this.templateBaseWidth;
+        this.templateScaleY = fabricCanvas.height! / this.templateBaseHeight;
         obj.set({
-          scaleX: fabricCanvas.width! / obj.width!,
-          scaleY: fabricCanvas.height! / obj.height!,
+          scaleX: this.templateScaleX,
+          scaleY: this.templateScaleY,
+          left: 0,
+          top: 0,
+          originX: 'left',
+          originY: 'top',
           selectable: false,
           evented: false,
         });
-        fabricCanvas.backgroundImage = obj;
+        fabricCanvas.set('backgroundImage', obj);
         fabricCanvas.renderAll();
       } else {
         // Load PNG/JPG template
         const img = await fabric.FabricImage.fromURL(template.url);
+        this.templateBaseWidth = img.width || this.templateBaseWidth;
+        this.templateBaseHeight = img.height || this.templateBaseHeight;
+        this.templateScaleX = fabricCanvas.width! / this.templateBaseWidth;
+        this.templateScaleY = fabricCanvas.height! / this.templateBaseHeight;
         img.set({
-          scaleX: fabricCanvas.width! / img.width!,
-          scaleY: fabricCanvas.height! / img.height!,
+          scaleX: this.templateScaleX,
+          scaleY: this.templateScaleY,
+          left: 0,
+          top: 0,
+          originX: 'left',
+          originY: 'top',
           selectable: false,
           evented: false,
         });
-        fabricCanvas.backgroundImage = img;
+        fabricCanvas.set('backgroundImage', img);
         fabricCanvas.renderAll();
       }
     }
@@ -845,66 +888,154 @@ export class CanvasCreatorComponent implements AfterViewInit {
   
   setupRoughBrush(fabricCanvas: any) {
     const color = this.currentColor();
-    const component = this; // Capture component context for callbacks
+    const component = this;
     
-    // Use the standard PencilBrush and configure it with Rough.js styling
-    const brush = new fabric.PencilBrush(fabricCanvas);
-    brush.color = color;
-    brush.width = 3;
-    
-    fabricCanvas.freeDrawingBrush = brush;
-    
-    // Listen for path created event to apply rough styling
-    fabricCanvas.on('path:created', async (e: any) => {
-      const path = e.path;
-      if (!path) return;
-      
-      // Remove the smooth path
-      fabricCanvas.remove(path);
-      
-      // Get the path data
-      const pathData = path.path;
-      if (!pathData || pathData.length < 2) return;
-      
-      // Convert path to points for rough.js
-      const points: [number, number][] = [];
-      pathData.forEach((segment: any) => {
-        if (segment[0] === 'M' || segment[0] === 'L') {
-          points.push([segment[1], segment[2]]);
-        } else if (segment[0] === 'Q') {
-          points.push([segment[3], segment[4]]);
+    // Create custom brush using perfect-freehand for crisp, smooth strokes
+    const componentRef = component;
+    const BaseBrush: any = fabric.PencilBrush;
+    class PerfectFreehandBrush extends BaseBrush {
+      color = color;
+      width = 3;
+      points: number[][] = [];
+      started = false;
+
+      private _resolvePointer(pointer: any, options: any) {
+        if (pointer && typeof pointer.x === 'number' && typeof pointer.y === 'number') {
+          return pointer;
         }
-      });
-      
-      if (points.length < 2) return;
-      
-      // Create an offscreen canvas for rough.js
-      const offscreenCanvas = document.createElement('canvas');
-      offscreenCanvas.width = fabricCanvas.width;
-      offscreenCanvas.height = fabricCanvas.height;
-      const rc = rough.canvas(offscreenCanvas);
-      
-      // Draw the rough path
-      rc.linearPath(points, {
-        stroke: color,
-        strokeWidth: 3,
-        roughness: 1.2,
-        bowing: 0.5,
-      });
-      
-      // Convert to fabric image and add to canvas
-      const dataURL = offscreenCanvas.toDataURL();
-      const img = await fabric.FabricImage.fromURL(dataURL);
-      img.set({
-        left: 0,
-        top: 0,
-        selectable: false,
-        evented: false,
-      });
-      fabricCanvas.add(img);
-      component.hasContent.set(true);
-      fabricCanvas.renderAll();
-    });
+        const canvas = (this as any).canvas;
+        if (canvas && typeof canvas.getPointer === 'function' && options?.e) {
+          return canvas.getPointer(options.e, false);
+        }
+        return null;
+      }
+
+      onMouseDown(pointer: any, options: any) {
+        const resolved = this._resolvePointer(pointer, options);
+        if (!resolved) {
+          console.warn('pointer is undefined in onMouseDown');
+          return;
+        }
+        
+        const target = (this as any).canvas.findTarget(options.e, false);
+        if (target && target.type === 'textbox') {
+          // Textbox detected: switch to text mode and select (first click frame, no edit yet)
+          (this as any).canvas.isDrawingMode = false;
+          component.currentMode.set('type');
+          (this as any).canvas.setActiveObject(target);
+          (this as any).canvas.renderAll();
+          return; // Do not draw
+        }
+
+        this.started = true;
+        this.points = [[resolved.x, resolved.y, 0.5]];
+        (this as any)._render();
+      }
+
+      onMouseMove(pointer: any, options: any) {
+        if (!this.started) return;
+        const resolved = this._resolvePointer(pointer, options);
+        if (!resolved) return;
+        this.points.push([resolved.x, resolved.y, 0.5]);
+        (this as any)._render();
+      }
+
+      onMouseUp() {
+        if (!this.started) return;
+        this.started = false;
+        (this as any)._finalizeAndAddPath();
+      }
+
+      _render() {
+        const canvas = (this as any).canvas;
+        const ctx = canvas.contextTop;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (this.points.length > 1) {
+          const outlinePoints = getStroke(this.points, {
+            size: 4,
+            thinning: 0.6,
+            smoothing: 0.5,
+            streamline: 0.5,
+          });
+
+          (this as any)._drawStroke(ctx, outlinePoints);
+        }
+      }
+
+      _drawStroke(ctx: CanvasRenderingContext2D, outlinePoints: number[][]) {
+        if (outlinePoints.length < 2) return;
+
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.moveTo(outlinePoints[0][0], outlinePoints[0][1]);
+
+        for (let i = 1; i < outlinePoints.length; i++) {
+          ctx.lineTo(outlinePoints[i][0], outlinePoints[i][1]);
+        }
+
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      _finalizeAndAddPath() {
+        if (this.points.length < 2) {
+          this.points = [];
+          return;
+        }
+
+        const outlinePoints = getStroke(this.points, {
+          size: 4,
+          thinning: 0.6,
+          smoothing: 0.5,
+          streamline: 0.5,
+        });
+
+        // Convert outline to SVG path for vector output
+        if (outlinePoints.length > 2) {
+          const xs = outlinePoints.map((p) => p[0]);
+          const ys = outlinePoints.map((p) => p[1]);
+          const minX = Math.min(...xs);
+          const minY = Math.min(...ys);
+          const normalized = outlinePoints.map(([x, y]) => [x - minX, y - minY]);
+
+          const pathData = this._outlineToSvgPath(normalized);
+          const strokePath = new fabric.Path(pathData, {
+            fill: this.color,
+            strokeWidth: 0,
+            left: minX,
+            top: minY,
+            originX: 'left',
+            originY: 'top',
+            selectable: false,
+            evented: false,
+            objectCaching: false,
+          });
+
+          (this as any).canvas.add(strokePath);
+          (this as any).canvas.requestRenderAll();
+        }
+
+        componentRef.hasContent.set(true);
+        this.points = [];
+      }
+
+      _outlineToSvgPath(points: number[][]): string {
+        if (points.length < 2) return '';
+        const len = points.length;
+        const commands: string[] = [];
+        for (let i = 0; i < len; i++) {
+          const [x0, y0] = points[i];
+          const [x1, y1] = points[(i + 1) % len];
+          commands.push(`${x0},${y0} ${(x0 + x1) / 2},${(y0 + y1) / 2}`);
+        }
+        return `M ${commands[0]} Q ${commands.slice(1).join(' ')} Z`;
+      }
+    }
+
+    fabricCanvas.freeDrawingBrush = new (PerfectFreehandBrush as any)(fabricCanvas);
+    fabricCanvas.freeDrawingBrush.color = color;
+    fabricCanvas.freeDrawingBrush.width = 3;
   }
   
   addText() {
@@ -918,56 +1049,80 @@ export class CanvasCreatorComponent implements AfterViewInit {
     // Frame visible = text mode, no frame = draw mode
     const component = this;
     let mouseDownPos: { x: number; y: number } | null = null;
-    let wasAlreadySelected = false;
-    let selectionTime = 0; // Track when a textbox was selected
-    const MIN_DELAY_MS = 300; // Minimum delay between selection and edit mode
+    let mouseDownTarget: any = null;
     
-    // Track mouse down position and selection state
+    // Track mouse down position and find target manually
     fabricCanvas.on('mouse:down', (e: any) => {
-      mouseDownPos = { x: e.pointer.x, y: e.pointer.y };
-      const target = e.target;
-      const activeObject = fabricCanvas.getActiveObject();
-      // Track if the clicked textbox was already selected
-      wasAlreadySelected = (target && target.type === 'textbox' && activeObject === target);
+      const pointer = e.pointer || e.scenePoint;
+      if (!pointer) {
+        mouseDownPos = null;
+        mouseDownTarget = null;
+        return;
+      }
+      mouseDownPos = { x: pointer.x, y: pointer.y };
+      
+      // Get target from event
+      let target = e.target;
+      
+      // If clicked object is a textbox, switch to text mode immediately
+      if (target && target.type === 'textbox') {
+        fabricCanvas.isDrawingMode = false;
+        component.currentMode.set('type');
+        mouseDownTarget = target;
+      } else {
+        mouseDownTarget = null;
+      }
     });
     
-    // On mouse up, check if it was a click (not a drag) on an already-selected textbox
+    // On mouse up, handle click vs drag for textboxes
     fabricCanvas.on('mouse:up', (e: any) => {
-      const target = e.target;
-      const now = Date.now();
-      const timeSinceSelection = now - selectionTime;
+      if (!mouseDownPos) {
+        mouseDownTarget = null;
+        return;
+      }
       
-      if (target && target.type === 'textbox' && mouseDownPos && wasAlreadySelected && timeSinceSelection >= MIN_DELAY_MS) {
-        // Check if this was a click (not a drag)
-        const distance = Math.sqrt(
-          Math.pow(e.pointer.x - mouseDownPos.x, 2) + 
-          Math.pow(e.pointer.y - mouseDownPos.y, 2)
-        );
-        
-        // If it's a small movement (less than 5 pixels), treat it as a click
-        if (distance < 5 && !target.isEditing) {
-          // Enter editing mode only if the textbox was already selected
-          target.editable = true;
-          target.enterEditing();
+      const pointer = e.pointer || e.scenePoint;
+      if (!pointer) {
+        mouseDownPos = null;
+        mouseDownTarget = null;
+        return;
+      }
+      
+      // Calculate distance to distinguish click from drag
+      const distance = Math.sqrt(
+        Math.pow(pointer.x - mouseDownPos.x, 2) + 
+        Math.pow(pointer.y - mouseDownPos.y, 2)
+      );
+      
+      // If small movement, treat as click on textbox
+      if (distance < 5 && mouseDownTarget && mouseDownTarget.type === 'textbox') {
+        const activeObject = fabricCanvas.getActiveObject();
+        if (activeObject !== mouseDownTarget) {
+          // First click: select the textbox frame
+          fabricCanvas.setActiveObject(mouseDownTarget);
+          fabricCanvas.requestRenderAll();
+        } else {
+          // Second click on same textbox: enter editing
+          mouseDownTarget.editable = true;
+          mouseDownTarget.enterEditing();
           setTimeout(() => {
-            if (target.isEditing) {
-              target.selectAll();
+            if (mouseDownTarget.isEditing) {
+              mouseDownTarget.selectAll();
             }
           }, 50);
         }
       }
+      
       mouseDownPos = null;
-      wasAlreadySelected = false;
+      mouseDownTarget = null;
     });
     
     // When a textbox is selected (frame appears), switch to text mode
     fabricCanvas.on('selection:created', (e: any) => {
       const target = e.selected?.[0];
       if (target && target.type === 'textbox') {
-        selectionTime = Date.now(); // Record when this textbox was selected
         fabricCanvas.isDrawingMode = false;
         component.currentMode.set('type');
-        // First click - just show handles, don't enter editing
       }
     });
     
@@ -975,7 +1130,6 @@ export class CanvasCreatorComponent implements AfterViewInit {
     fabricCanvas.on('selection:updated', (e: any) => {
       const target = e.selected?.[0];
       if (target && target.type === 'textbox') {
-        selectionTime = Date.now(); // Record when this textbox was selected
         fabricCanvas.isDrawingMode = false;
         component.currentMode.set('type');
         // Exit editing mode if we were in it
@@ -987,7 +1141,6 @@ export class CanvasCreatorComponent implements AfterViewInit {
     
     // When selection is cleared (frame disappears), switch back to draw mode
     fabricCanvas.on('selection:cleared', () => {
-      selectionTime = 0; // Reset selection time
       fabricCanvas.isDrawingMode = true;
       component.currentMode.set('draw');
       component.setupRoughBrush(fabricCanvas);
@@ -1014,25 +1167,22 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const fabricCanvas = this.canvas();
     if (!fabricCanvas) return;
     
-    // Add sketchy circle around the selected transition option using Rough.js
-    // The transition section is at bottom: y ~1900, x positions: before=60, during=180, after=300
+    // Add circle around the selected transition option using canvas arc
     let x = 60;
     if (choice === 'during') x = 180;
     if (choice === 'after') x = 300;
     
-    // Create an offscreen canvas for rough.js circle
+    // Draw circle using canvas native arc
     const offscreenCanvas = document.createElement('canvas');
     offscreenCanvas.width = fabricCanvas.width;
     offscreenCanvas.height = fabricCanvas.height;
-    const rc = rough.canvas(offscreenCanvas);
+    const ctx = offscreenCanvas.getContext('2d');
     
-    // Draw rough circle
-    rc.circle(x, 1930, 60, {
-      stroke: this.currentColor(),
-      strokeWidth: 3,
-      roughness: 1.2,
-      fill: 'transparent',
-    });
+    ctx!.strokeStyle = this.currentColor();
+    ctx!.lineWidth = 3;
+    ctx!.beginPath();
+    ctx!.arc(x, 1930, 60, 0, Math.PI * 2);
+    ctx!.stroke();
     
     // Convert to fabric image and add to canvas
     const dataURL = offscreenCanvas.toDataURL();
@@ -1208,7 +1358,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     }
   }
 
-  private addTextboxAt(x: number, y: number, focus = false, placeholderText = 'Type here...', width?: number, fabricCanvas?: any, textAlign?: string, originY?: string) {
+  private addTextboxAt(x: number, y: number, focus = false, placeholderText = 'Type here...', width?: number, fabricCanvas?: any, textAlign?: string, originY?: string, originX?: string) {
     const canvasRef = fabricCanvas || this.canvas();
     const targetCanvas = canvasRef;
     if (!targetCanvas) return;
@@ -1222,10 +1372,13 @@ export class CanvasCreatorComponent implements AfterViewInit {
       fill: placeholderColor,
       width: width || Math.min(360, targetCanvas.getWidth() * 0.6),
       height: this.selectedHeight(),
-      editable: true,
+      editable: false,
       lineHeight: this.selectedLineHeight(),
       textAlign: (textAlign as any) || 'left',
       originY: (originY as any) || 'top',
+      originX: (originX as any) || 'left',
+      selectable: true,
+      evented: true,
       _placeholder: true,
       _placeholderText: placeholderText, // Store original placeholder
     });
@@ -1322,20 +1475,93 @@ export class CanvasCreatorComponent implements AfterViewInit {
     
     const template = this.selectedTemplate();
     if (!template) return;
+
+    // Presets were authored on a downscaled view (~320px wide) of the template.
+    // Convert authoring-space coordinates back to template-space, then map to canvas using background scale.
+    const templateWidth = this.templateBaseWidth || 1060;
+    const templateHeight = this.templateBaseHeight || 2000;
+    const authoringWidth = 320; // width used when presets were originally captured
+    const authoringHeight = authoringWidth * (templateHeight / templateWidth); // keep template aspect
+    const authorToTemplateX = templateWidth / authoringWidth;
+    const authorToTemplateY = templateHeight / authoringHeight;
+    const scaleX = this.templateScaleX || ((fabricCanvas?.getWidth?.() ?? templateWidth) / templateWidth);
+    const scaleY = this.templateScaleY || ((fabricCanvas?.getHeight?.() ?? templateHeight) / templateHeight);
+    const contentScale = 0.95; // Shrink presets by 5% relative to anchor to correct drift
+
+    // Optional per-template alignment adjustment using textbox-0 as anchor
+    let dxTemplate = 0;
+    let dyTemplate = 0;
+    const preset = this.templatePresets[template.id];
+    if (preset && preset.features && template.id === 'chat') {
+      const anchor = preset.features.find((f: any) => f.properties?.id === 'textbox-0');
+      if (anchor) {
+        // Convert anchor from authoring-space to template-space
+        const ax_t = anchor.geometry.coordinates[0] * authorToTemplateX;
+        const aw_t = (anchor.properties?.width ?? 0) * authorToTemplateX;
+        const anchorCenterX_t = ax_t + aw_t / 2;
+        // Center horizontally in template space
+        dxTemplate = (templateWidth / 2) - anchorCenterX_t;
+        // Lift slightly from the bottom for a small margin (convert authoring margin into template units)
+        const marginAuthor = 10; // ~10px at authoring scale
+        dyTemplate = -(marginAuthor * authorToTemplateY);
+      }
+    }
+
+    // Global upward adjustment: pop all presets up by 3% of template height
+    const yPopFraction = 0.045;
+    const yPopTemplate = yPopFraction * templateHeight;
     
     // Load textboxes from template preset if available
-    const preset = this.templatePresets[template.id];
     if (preset && preset.features) {
+      // Determine anchor reference in template-space after dx/dy, for centric scaling
+      let anchorRefX_t: number | null = null;
+      let anchorRefY_t: number | null = null;
+      const anchorF = preset.features.find((f: any) => f.properties?.id === 'textbox-0');
+      if (anchorF) {
+        const axAuthor = anchorF.geometry.coordinates[0];
+        const ayAuthor = anchorF.geometry.coordinates[1];
+        const ax_t = (axAuthor * authorToTemplateX) + dxTemplate;
+        const ay_t = (ayAuthor * authorToTemplateY) + dyTemplate;
+        const aw_t = (anchorF.properties?.width ?? 0) * authorToTemplateX;
+        anchorRefX_t = ax_t + aw_t / 2; // center-x as reference
+        anchorRefY_t = ay_t; // use provided y (respects originY)
+      }
+
       preset.features.forEach((feature: any) => {
         const props = feature.properties;
-        const [x, y] = feature.geometry.coordinates;
+        const [xAuthor, yAuthor] = feature.geometry.coordinates;
+        // Convert authoring-space to template-space and apply centric content scaling around anchor
+        let xTemplate = (xAuthor * authorToTemplateX) + dxTemplate;
+        let yTemplate = (yAuthor * authorToTemplateY) + dyTemplate;
+        if (anchorRefX_t !== null && anchorRefY_t !== null) {
+          const vx = xTemplate - anchorRefX_t;
+          const vy = yTemplate - anchorRefY_t;
+          xTemplate = anchorRefX_t + contentScale * vx;
+          yTemplate = anchorRefY_t + contentScale * vy;
+        }
+        // Apply global upward pop for chat
+        yTemplate -= yPopTemplate;
+        const sx = xTemplate * scaleX;
+        const sy = yTemplate * scaleY;
+        const presetWidth = props.width ? ((props.width * authorToTemplateX) * scaleX * contentScale) : undefined;
+        const presetHeight = props.height ? ((props.height * authorToTemplateY) * scaleY * contentScale) : undefined;
         
         // Set current values from preset
         this.selectedLineHeight.set(props['line-height'] || 1.16);
-        this.selectedHeight.set(props.height || 40);
+        this.selectedHeight.set(presetHeight || props.height || 40);
         
         // Create textbox with preset placeholder and width
-        const textbox = this.addTextboxAt(x, y, false, props.placeholder, props.width, fabricCanvas, props.textAlign, props.originY);
+        const textbox = this.addTextboxAt(
+          sx,
+          sy,
+          false,
+          props.placeholder,
+          presetWidth,
+          fabricCanvas,
+          props.textAlign,
+          props.originY,
+          props.originX
+        );
         if (textbox) {
           this.placeholderTexts.push(textbox);
         }
@@ -1343,8 +1569,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
     } else {
       // Fallback to default positions
       const boxes = [
-        { x: 150, y: 360 },
-        { x: 150, y: 640 },
+        { x: 150 * scaleX, y: 360 * scaleY },
+        { x: 150 * scaleX, y: 640 * scaleY },
       ];
       boxes.forEach(pos => {
         const textbox = this.addTextboxAt(pos.x, pos.y, false, 'Type here...', undefined, fabricCanvas);
