@@ -41,13 +41,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   enableSvgAutoPositioning = signal(false);
   fisheyeEnabled = signal(false);
   fisheyeSettings = signal<FisheyeSettings>({
-    fov: 75,
-    fisheye: 0,
-    zoom: 1,
-    rotationSpeed: 1,
-    panSensitivity: 1,
-    depthOfField: 0,
-    maxMagnification: 2,
+    enabled: false,
+    maxMagnification: 3,
     radius: 800,
     zoomRelative: 0.5
   });
@@ -682,24 +677,15 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.fisheyeSettings.set(settings);
     console.log('[SHOWCASE_WS] onFisheyeSettingsChange', { ...settings });
     
-    // Apply fisheye configuration (magnification, radius, distortion)
+    // Enable/disable the fisheye effect in the renderer
+    this.rendererService.enableFisheyeEffect(settings.enabled);
+    
+    // Apply fisheye configuration (magnification, radius, zoomRelative)
     this.rendererService.setFisheyeConfig({
       magnification: settings.maxMagnification,
       radius: settings.radius,
-      distortion: settings.fisheye * 0.5, // Map 0-2 to 0-1 distortion range
       zoomRelative: settings.zoomRelative
     });
-    
-    // Apply camera settings
-    this.rendererService.updateCameraFov(settings.fov);
-    this.rendererService.updateCameraZoom(settings.zoom);
-    
-    // Apply control sensitivity settings
-    this.rendererService.setRotationSpeed(settings.rotationSpeed);
-    this.rendererService.setPanSensitivity(settings.panSensitivity);
-    
-    // Apply depth of field effect
-    this.rendererService.setDepthOfField(settings.depthOfField * 100);
   }
 
   ngOnDestroy() {

@@ -1,17 +1,12 @@
-import { Component, output, input, signal, computed, HostListener, effect } from '@angular/core';
+import { Component, output, input, signal, OnDestroy, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 export interface FisheyeSettings {
-  fov: number;
-  fisheye: number;
-  zoom: number;
-  rotationSpeed: number;
-  panSensitivity: number;
-  depthOfField: number;
-  maxMagnification: number; // max-size of enlargement
-  radius: number;          // radius of fisheye influence
-  zoomRelative: number;    // size relative to zoom (0 = no change, 1 = full reduction)
+  enabled: boolean;         // enable/disable fisheye effect
+  maxMagnification: number; // how large items grow (1-10x)
+  radius: number;           // radius of effect influence (px)
+  zoomRelative: number;     // dependence on zoom (0 = independent, 1 = fully dependent)
 }
 
 @Component({
@@ -28,7 +23,7 @@ export interface FisheyeSettings {
            (touchstart)="onHeaderTouchStart($event)">
         <div class="header-left">
           <span class="drag-handle">⋮⋮</span>
-          <h3>⚙️ Settings</h3>
+          <h3>🔍 Fisheye</h3>
         </div>
         <button class="toggle-btn" (click)="isCollapsed.set(!isCollapsed())">
           {{ isCollapsed() ? '▶' : '▼' }}
@@ -36,57 +31,54 @@ export interface FisheyeSettings {
       </div>
 
       <div class="panel-content" *ngIf="!isCollapsed()">
-        <!-- FISHEYE LENS EFFECT SECTION -->
-        <div class="section-title">🔍 Fisheye Lens</div>
-        
-        <!-- Max Magnification (Size of enlargement) -->
+        <!-- Enable/Disable Toggle -->
+        <div class="toggle-group">
+          <label>
+            <input 
+              type="checkbox" 
+              [(ngModel)]="settings.enabled"
+              (change)="updateSettings()"
+              class="checkbox"
+            />
+            <span>{{ settings.enabled ? 'Enabled' : 'Disabled' }}</span>
+          </label>
+        </div>
+
+        <!-- Fisheye Effect Size (Magnification) -->
         <div class="slider-group">
-          <label>Max Magnification</label>
+          <label>Fisheye Effect</label>
           <input
             type="range"
             min="1"
-            max="5"
+            max="10"
             step="0.1"
             [(ngModel)]="settings.maxMagnification"
             (input)="updateSettings()"
             class="slider"
+            [disabled]="!settings.enabled"
           />
           <span class="value">{{ settings.maxMagnification.toFixed(1) }}×</span>
         </div>
 
-        <!-- Radius of fisheye influence -->
+        <!-- Fisheye Radius -->
         <div class="slider-group">
-          <label>Lens Radius</label>
+          <label>Fisheye Radius</label>
           <input
             type="range"
-            min="100"
-            max="2000"
+            min="50"
+            max="1000"
             step="10"
             [(ngModel)]="settings.radius"
             (input)="updateSettings()"
             class="slider"
+            [disabled]="!settings.enabled"
           />
           <span class="value">{{ settings.radius }} px</span>
         </div>
 
-        <!-- Distortion Strength (Radial displacement) -->
+        <!-- Dependence on Zoom -->
         <div class="slider-group">
-          <label>Lens Distortion</label>
-          <input
-            type="range"
-            min="0"
-            max="2"
-            step="0.1"
-            [(ngModel)]="settings.fisheye"
-            (input)="updateSettings()"
-            class="slider"
-          />
-          <span class="value">{{ (settings.fisheye * 50).toFixed(0) }}%</span>
-        </div>
-
-        <!-- Size reduction with zoom -->
-        <div class="slider-group">
-          <label>Zoom Relative</label>
+          <label>Dependence on Zoom</label>
           <input
             type="range"
             min="0"
@@ -95,112 +87,23 @@ export interface FisheyeSettings {
             [(ngModel)]="settings.zoomRelative"
             (input)="updateSettings()"
             class="slider"
+            [disabled]="!settings.enabled"
           />
           <span class="value">{{ (settings.zoomRelative * 100).toFixed(0) }}%</span>
         </div>
 
-        <!-- CAMERA SECTION -->
-        <div class="section-title">📹 Camera</div>
-        
-        <!-- FOV Slider -->
-        <div class="slider-group">
-          <label>Field of View</label>
-          <input
-            type="range"
-            min="20"
-            max="120"
-            step="1"
-            [(ngModel)]="settings.fov"
-            (input)="updateSettings()"
-            class="slider"
-          />
-          <span class="value">{{ settings.fov }}°</span>
+        <!-- Description -->
+        <div class="description">
+          <p><strong>Fisheye Effect:</strong> How much items grow under the cursor (1× = no growth, 10× = 10× larger)</p>
+          <p><strong>Radius:</strong> How far from cursor the effect reaches (px)</p>
+          <p><strong>Zoom Dependence:</strong> At 0%, effect size is independent of zoom. At 100%, effect shrinks as you zoom in.</p>
         </div>
 
-        <!-- Zoom -->
-        <div class="slider-group">
-          <label>Zoom Level</label>
-          <input
-            type="range"
-            min="0.5"
-            max="3"
-            step="0.1"
-            [(ngModel)]="settings.zoom"
-            (input)="updateSettings()"
-            class="slider"
-          />
-          <span class="value">{{ settings.zoom.toFixed(1) }}×</span>
-        </div>
-
-        <!-- Depth of Field -->
-        <div class="slider-group">
-          <label>Depth of Field</label>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            [(ngModel)]="settings.depthOfField"
-            (input)="updateSettings()"
-            class="slider"
-          />
-          <span class="value">{{ (settings.depthOfField * 100).toFixed(0) }}%</span>
-        </div>
-
-        <!-- INTERACTION SECTION -->
-        <div class="section-title">👆 Interaction</div>
-        
-        <!-- Rotation Speed -->
-        <div class="slider-group">
-          <label>Rotation Speed</label>
-          <input
-            type="range"
-            min="0.1"
-            max="2"
-            step="0.1"
-            [(ngModel)]="settings.rotationSpeed"
-            (input)="updateSettings()"
-            class="slider"
-          />
-          <span class="value">{{ settings.rotationSpeed.toFixed(1) }}×</span>
-        </div>
-
-        <!-- Pan Sensitivity -->
-        <div class="slider-group">
-          <label>Pan Sensitivity</label>
-          <input
-            type="range"
-            min="0.1"
-            max="2"
-            step="0.1"
-            [(ngModel)]="settings.panSensitivity"
-            (input)="updateSettings()"
-            class="slider"
-          />
-          <span class="value">{{ settings.panSensitivity.toFixed(1) }}×</span>
-        </div>
-
-        <!-- Action Buttons -->
+        <!-- Reset Button -->
         <div class="button-group">
-          <button class="btn btn-share" (click)="copyShareableUrl()">
-            📋 Copy Settings URL
-          </button>
-          <button class="btn btn-reset" (click)="resetToDefaults()">
+          <button class="btn btn-reset" (click)="resetToDefaults()" [disabled]="!settings.enabled">
             🔄 Reset
           </button>
-        </div>
-
-        <!-- Share URL Display -->
-        <div class="share-url" *ngIf="showShareUrl()">
-          <p class="small-text">Share this URL to lock in these settings:</p>
-          <code class="url-box">{{ shareUrl() }}</code>
-          <button class="btn btn-copy" (click)="copyToClipboard()">Copy to Clipboard</button>
-        </div>
-
-        <!-- Current Values for Manual Hardcoding -->
-        <div class="current-values">
-          <p class="small-text">Current settings (for hardcoding):</p>
-          <code>{{ currentValuesJson() }}</code>
         </div>
       </div>
     </div>
@@ -214,7 +117,7 @@ export interface FisheyeSettings {
       border: 2px solid #00ff88;
       border-radius: 8px;
       padding: 0;
-      max-width: 320px;
+      max-width: 280px;
       font-family: 'Courier New', monospace;
       z-index: 9999;
       box-shadow: 0 8px 32px rgba(0, 255, 136, 0.2);
@@ -280,6 +183,29 @@ export interface FisheyeSettings {
       overflow-y: auto;
     }
 
+    .toggle-group {
+      margin-bottom: 12px;
+      padding: 8px;
+      background: rgba(0, 255, 136, 0.05);
+      border: 1px solid rgba(0, 255, 136, 0.3);
+      border-radius: 4px;
+    }
+
+    .toggle-group label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .checkbox {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: #00ff88;
+    }
+
     .slider-group {
       display: grid;
       grid-template-columns: 1fr auto;
@@ -288,184 +214,109 @@ export interface FisheyeSettings {
       align-items: center;
     }
 
-    .section-title {
-      font-size: 13px;
-      font-weight: bold;
-      color: #00ff88;
-      text-transform: uppercase;
-      margin: 16px 0 8px 0;
-      padding-top: 8px;
-      border-top: 1px solid rgba(0, 255, 136, 0.2);
-      letter-spacing: 1px;
-    }
-
-    .section-title:first-of-type {
-      margin-top: 0;
-      border-top: none;
-      padding-top: 0;
-    }
-
     .slider-group label {
       font-size: 12px;
       font-weight: bold;
-      text-transform: uppercase;
-      grid-column: 1 / -1;
-      color: #00ff88;
     }
 
     .slider {
-      grid-column: 1;
       width: 100%;
-      height: 6px;
-      border-radius: 3px;
-      background: #333;
-      outline: none;
-      -webkit-appearance: none;
+      cursor: pointer;
+      accent-color: #00ff88;
+      opacity: 1;
+      transition: opacity 0.2s;
     }
 
-    .slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: #00ff88;
-      cursor: pointer;
-      box-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
-    }
-
-    .slider::-moz-range-thumb {
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: #00ff88;
-      cursor: pointer;
-      border: none;
-      box-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
+    .slider:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
     }
 
     .value {
       font-size: 11px;
-      color: #00ff88;
       font-weight: bold;
+      min-width: 40px;
       text-align: right;
+      color: #00ffaa;
+    }
+
+    .description {
+      background: rgba(0, 255, 136, 0.05);
+      border: 1px solid rgba(0, 255, 136, 0.2);
+      border-radius: 4px;
+      padding: 8px;
+      margin: 12px 0;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .description p {
+      margin: 4px 0;
+    }
+
+    .description strong {
+      color: #00ffaa;
     }
 
     .button-group {
       display: flex;
       gap: 8px;
-      margin: 12px 0;
-      flex-wrap: wrap;
+      margin-top: 12px;
     }
 
     .btn {
       flex: 1;
       padding: 8px 12px;
-      font-size: 11px;
-      font-weight: bold;
-      border: 1px solid #00ff88;
-      background: transparent;
-      color: #00ff88;
-      border-radius: 4px;
-      cursor: pointer;
-      font-family: 'Courier New', monospace;
-      text-transform: uppercase;
-      transition: all 0.2s;
-    }
-
-    .btn:hover {
-      background: #00ff88;
-      color: #1a1a1a;
-      box-shadow: 0 0 16px rgba(0, 255, 136, 0.4);
-    }
-
-    .btn-share {
-      min-width: fit-content;
-    }
-
-    .btn-reset {
-      min-width: fit-content;
-    }
-
-    .btn-copy {
-      width: 100%;
-      margin-top: 8px;
-    }
-
-    .share-url {
       background: rgba(0, 255, 136, 0.1);
       border: 1px solid #00ff88;
       border-radius: 4px;
-      padding: 8px;
-      margin: 12px 0;
-      font-size: 10px;
-    }
-
-    .url-box {
-      display: block;
-      background: #1a1a1a;
-      border: 1px solid #00ff88;
-      border-radius: 3px;
-      padding: 6px;
-      margin: 6px 0;
-      word-break: break-all;
-      font-size: 9px;
       color: #00ff88;
-      max-height: 80px;
-      overflow-y: auto;
-    }
-
-    .current-values {
-      background: rgba(0, 255, 136, 0.05);
-      border: 1px solid #00ff88;
-      border-radius: 4px;
-      padding: 8px;
-      margin-top: 12px;
+      font-family: 'Courier New', monospace;
       font-size: 10px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
-    .current-values code {
-      display: block;
-      background: #1a1a1a;
-      border: 1px solid #00ff88;
-      border-radius: 3px;
-      padding: 6px;
-      margin-top: 4px;
-      word-break: break-all;
-      max-height: 100px;
-      overflow-y: auto;
-      color: #00ff88;
+    .btn:hover:not(:disabled) {
+      background: rgba(0, 255, 136, 0.2);
+      color: #00ffaa;
     }
 
-    .small-text {
-      margin: 0;
-      font-size: 10px;
-      color: #00ff88;
-      opacity: 0.8;
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-reset {
+      background: rgba(255, 100, 100, 0.1);
+      border-color: #ff6464;
+      color: #ff6464;
+    }
+
+    .btn-reset:hover:not(:disabled) {
+      background: rgba(255, 100, 100, 0.2);
+      color: #ff8888;
     }
 
     /* Scrollbar styling */
-    .panel-content::-webkit-scrollbar,
-    .url-box::-webkit-scrollbar,
-    .current-values code::-webkit-scrollbar {
+    .panel-content::-webkit-scrollbar {
       width: 6px;
     }
 
-    .panel-content::-webkit-scrollbar-track,
-    .url-box::-webkit-scrollbar-track,
-    .current-values code::-webkit-scrollbar-track {
+    .panel-content::-webkit-scrollbar-track {
       background: #1a1a1a;
     }
 
-    .panel-content::-webkit-scrollbar-thumb,
-    .url-box::-webkit-scrollbar-thumb,
-    .current-values code::-webkit-scrollbar-thumb {
+    .panel-content::-webkit-scrollbar-thumb {
       background: #00ff88;
       border-radius: 3px;
     }
   `]
 })
-export class SettingsPanelComponent {
+export class SettingsPanelComponent implements AfterViewInit, OnDestroy {
   // Inputs
   initialSettings = input<FisheyeSettings>();
   initialCollapsed = input<boolean>(true);
@@ -477,27 +328,18 @@ export class SettingsPanelComponent {
   isCollapsed = signal(true);
 
   // Drag state
-  panelX = signal(window.innerWidth ? window.innerWidth - 340 : 0); // Right side, 20px from edge
-  panelY = signal(20); // Bottom position
+  panelX = signal(window.innerWidth ? window.innerWidth - 300 : 0);
+  panelY = signal(20);
   private isDragging = false;
   private dragOffsetX = 0;
   private dragOffsetY = 0;
 
   settings: FisheyeSettings = {
-    fov: 75,
-    fisheye: 0,
-    zoom: 1,
-    rotationSpeed: 1,
-    panSensitivity: 1,
-    depthOfField: 0,
-    maxMagnification: 2,
-    radius: 800,
+    enabled: false,
+    maxMagnification: 3,
+    radius: 300,
     zoomRelative: 0.5
   };
-
-  showShareUrl = computed(() => false); // Toggle this to show URL
-  shareUrl = computed(() => this.generateShareUrl());
-  currentValuesJson = computed(() => JSON.stringify(this.settings, null, 2));
 
   constructor() {
     this.isCollapsed.set(this.initialCollapsed());
@@ -565,9 +407,6 @@ export class SettingsPanelComponent {
     }
   }
 
-  /**
-   * Save panel position to localStorage
-   */
   private savePanelPosition(): void {
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem('settingsPanelX', this.panelX().toString());
@@ -575,88 +414,52 @@ export class SettingsPanelComponent {
     }
   }
 
-  /**
-   * Load panel position from localStorage
-   */
   private loadPanelPosition(): void {
     if (typeof localStorage !== 'undefined') {
       const savedX = localStorage.getItem('settingsPanelX');
       const savedY = localStorage.getItem('settingsPanelY');
-      if (savedX) this.panelX.set(parseInt(savedX, 10));
-      if (savedY) this.panelY.set(parseInt(savedY, 10));
+      if (savedX !== null) this.panelX.set(parseFloat(savedX));
+      if (savedY !== null) this.panelY.set(parseFloat(savedY));
     }
   }
 
-  updateSettings() {
-    console.log('[SETTINGS_PANEL] updateSettings', { ...this.settings });
+  updateSettings(): void {
     this.settingsChange.emit(this.settings);
   }
 
-  resetToDefaults() {
+  resetToDefaults(): void {
     this.settings = {
-      fov: 75,
-      fisheye: 0,
-      zoom: 1,
-      rotationSpeed: 1,
-      panSensitivity: 1,
-      depthOfField: 0,
-      maxMagnification: 2,
-      radius: 800,
+      enabled: false,
+      maxMagnification: 3,
+      radius: 300,
       zoomRelative: 0.5
     };
     this.updateSettings();
   }
 
+  private loadSettingsFromUrl(): void {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('fisheyeEnabled')) this.settings.enabled = params.get('fisheyeEnabled') === 'true';
+    if (params.has('maxMagnification')) this.settings.maxMagnification = parseFloat(params.get('maxMagnification')!);
+    if (params.has('radius')) this.settings.radius = parseFloat(params.get('radius')!);
+    if (params.has('zoomRelative')) this.settings.zoomRelative = parseFloat(params.get('zoomRelative')!);
+  }
+
   private generateShareUrl(): string {
-    const params = new URLSearchParams({
-      fov: this.settings.fov.toString(),
-      fisheye: this.settings.fisheye.toFixed(2),
-      zoom: this.settings.zoom.toFixed(2),
-      rotationSpeed: this.settings.rotationSpeed.toFixed(2),
-      panSensitivity: this.settings.panSensitivity.toFixed(2),
-      depthOfField: this.settings.depthOfField.toFixed(2)
-    });
-    
+    if (typeof window === 'undefined') return '';
+    const params = new URLSearchParams(window.location.search);
+    params.set('fisheyeEnabled', this.settings.enabled.toString());
+    params.set('maxMagnification', this.settings.maxMagnification.toString());
+    params.set('radius', this.settings.radius.toString());
+    params.set('zoomRelative', this.settings.zoomRelative.toString());
     return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
   }
 
-  copyShareableUrl() {
-    this.copyToClipboard();
-    alert('✅ Settings URL copied to clipboard!');
-  }
-
-  copyToClipboard() {
+  copyToClipboard(): void {
     const url = this.generateShareUrl();
     navigator.clipboard.writeText(url).then(() => {
-      console.log('📋 Settings URL copied:', url);
+      alert('Settings URL copied to clipboard!');
     });
-  }
-
-  private loadSettingsFromUrl() {
-    if (typeof window === 'undefined') return;
-
-    const params = new URLSearchParams(window.location.search);
-    
-    const fov = params.get('fov');
-    const fisheye = params.get('fisheye');
-    const zoom = params.get('zoom');
-    const rotationSpeed = params.get('rotationSpeed');
-    const panSensitivity = params.get('panSensitivity');
-    const depthOfField = params.get('depthOfField');
-
-    // Only update settings if at least one parameter is present
-    let hasParams = false;
-    if (fov) { this.settings.fov = parseFloat(fov); hasParams = true; }
-    if (fisheye) { this.settings.fisheye = parseFloat(fisheye); hasParams = true; }
-    if (zoom) { this.settings.zoom = parseFloat(zoom); hasParams = true; }
-    if (rotationSpeed) { this.settings.rotationSpeed = parseFloat(rotationSpeed); hasParams = true; }
-    if (panSensitivity) { this.settings.panSensitivity = parseFloat(panSensitivity); hasParams = true; }
-    if (depthOfField) { this.settings.depthOfField = parseFloat(depthOfField); hasParams = true; }
-
-    // Only emit settings if we loaded parameters from URL
-    // Don't emit default values that might override existing renderer state
-    if (hasParams) {
-      this.updateSettings();
-    }
   }
 }
