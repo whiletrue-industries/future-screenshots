@@ -22,6 +22,43 @@
         background-size: contain;
     }
 
+    .zoom-controls {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        z-index: 1000;
+
+        .zoom-button {
+            width: 44px;
+            height: 44px;
+            border: none;
+            background: white;
+            cursor: pointer;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            color: #666;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+            &:hover {
+                color: #333;
+                background: rgba(0, 0, 0, 0.05);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            }
+
+            .button-icon {
+                width: 24px;
+                height: 24px;
+                pointer-events: none;
+            }
+        }
+    }
+
     .controls-container {
         position: absolute;
         bottom: 0;

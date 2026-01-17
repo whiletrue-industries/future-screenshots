@@ -40,6 +40,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   enableRandomShowcase = signal(false);
   enableSvgAutoPositioning = signal(false);
   fisheyeEnabled = signal(false);
+  
+  // Check if user has admin access
+  isAdmin = computed(() => this.admin_key() !== '' && this.admin_key() !== 'ADMIN_KEY_NOT_SET');
   fisheyeSettings = signal<FisheyeSettings>({
     enabled: false,
     maxMagnification: 3,
