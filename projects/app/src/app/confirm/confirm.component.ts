@@ -14,9 +14,11 @@ import { LtrDirective } from '../ltr.directive';
   styleUrl: './confirm.component.less'
 })
 export class ConfirmComponent {
+  isTemplateFlow = false;
 
   constructor(public state: StateService, private router: Router, public api: ApiService, private route: ActivatedRoute) { 
     this.api.updateFromRoute(this.route.snapshot);
+    this.isTemplateFlow = this.route.snapshot.queryParamMap.get('template') === 'true';
     if (!this.state.currentImageUrl()) {
       this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
     }
@@ -25,7 +27,21 @@ export class ConfirmComponent {
   upload() {
     const currentImage = this.state.currentImage();
     if (currentImage) {
-      this.api.createItem({}).subscribe((res: any) => {
+      // Prepare metadata including textbox data and no-paper tag
+      const metadata: any = {};
+      
+      // Add textbox data if available
+      const textboxData = this.state.currentTextboxData();
+      if (textboxData) {
+        metadata.textbox_content = textboxData;
+      }
+      
+      // Add no-paper tag if this is from template flow
+      if (this.isTemplateFlow) {
+        metadata.tags = ['no-paper'];
+      }
+      
+      this.api.createItem(metadata).subscribe((res: any) => {
         const params = {
           'item-id': res.item_id,
           'key': res.item_key

@@ -49,11 +49,19 @@ export class CanvasCreatorComponent implements AfterViewInit {
   transitionChoice = signal<'before' | 'during' | 'after' | null>(null);
   currentTemplateIndex = signal(0); // For carousel navigation
   isCarouselAnimating = signal(false);
+  carouselDragOffset = signal<number>(0);
+  carouselDragging = signal<boolean>(false);
   carouselTransform = computed(() => {
     const index = this.currentTemplateIndex();
+    const dragOffset = this.carouselDragOffset();
     // Center item: viewport is 100vw, item is 75vw, so center offset is 12.5vw
     // Item n is at position n*75vw, so translate to 12.5vw: translateX(12.5vw - n*75vw)
-    return `translateX(calc(12.5vw - ${index * 75}vw))`;
+    const baseOffset = 12.5 - (index * 75);
+    const dragOffsetVw = (dragOffset / window.innerWidth) * 100;
+    return `translateX(calc(${baseOffset}vw + ${dragOffsetVw}vw))`;
+  });
+  carouselTransition = computed(() => {
+    return this.carouselDragging() ? 'none' : 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
   });
   drawerState = signal<'minimal' | 'default' | 'full'>('default');
   selectedFont = signal<string>('Caveat, cursive');
@@ -588,8 +596,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
     'Permanent Marker, cursive',
     'Shadows Into Light, cursive', 
     'Indie Flower, cursive',
-    'Miriam Libre, serif', // Hebrew support
-    'Readex Pro, sans-serif', // Arabic support
+    'Gadi Almog, Miriam Libre, serif', // Hebrew support
+    'Mikhak, Readex Pro, sans-serif', // Arabic support
   ];
   
   constructor(
@@ -645,15 +653,20 @@ export class CanvasCreatorComponent implements AfterViewInit {
   }
   
   previousTemplate() {
-    if (this.isCarouselAnimating()) return;
+    if (this.isCarouselAnimating() || this.carouselDragging()) return;
     const index = this.currentTemplateIndex();
     this.currentTemplateIndex.set(index > 0 ? index - 1 : this.templates.length - 1);
   }
 
   nextTemplate() {
-    if (this.isCarouselAnimating()) return;
+    if (this.isCarouselAnimating() || this.carouselDragging()) return;
     const index = this.currentTemplateIndex();
     this.currentTemplateIndex.set((index + 1) % this.templates.length);
+  }
+  
+  backToGallery() {
+    this.showTemplateGallery.set(true);
+    this.isEditorShowing.set(false);
   }
 
   cycleColor() {
@@ -693,9 +706,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
     if (!this.platform.browser()) return;
     
     const randomIndex = Math.floor(Math.random() * this.templates.length);
-    // Calculate spins to reach the random index in ~1.5 seconds
-    const totalSpins = randomIndex + Math.floor(Math.random() * 2 + 3) * this.templates.length;
-    const animationDuration = 1500; // 1.5 seconds
+    // Make animation slower, softer, and shorter - only go through templates once plus landing
+    const totalSpins = randomIndex + Math.floor(Math.random() * 1 + 1) * this.templates.length;
+    const animationDuration = 2500; // 2.5 seconds (slower)
     
     this.isCarouselAnimating.set(true);
     let currentSpin = 0;
@@ -705,8 +718,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / animationDuration, 1);
       
-      // Ease-out cubic: 1 - (1-t)^3
-      const easeOutProgress = 1 - Math.pow(1 - progress, 3);
+      // Ease-out quartic for softer deceleration: 1 - (1-t)^4
+      const easeOutProgress = 1 - Math.pow(1 - progress, 4);
       const targetSpin = Math.round(totalSpins * easeOutProgress);
       
       this.currentTemplateIndex.set(targetSpin % this.templates.length);
@@ -1010,6 +1023,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
             selectable: false,
             evented: false,
             objectCaching: false,
+            globalCompositeOperation: 'multiply',
           });
 
           (this as any).canvas.add(strokePath);
@@ -1242,6 +1256,16 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const fabricCanvas = this.canvas();
     if (!fabricCanvas) return;
 
+    // Extract textbox content before removing placeholders
+    const allTextboxes = fabricCanvas.getObjects().filter((obj: any) => obj.type === 'textbox');
+    const textboxData = allTextboxes
+      .filter((tb: any) => !(tb as any)._placeholder && tb.text && tb.text.trim() !== '')
+      .map((tb: any) => tb.text.trim())
+      .join(' | ');
+    
+    // Store textbox data in state service
+    this.state.currentTextboxData.set(textboxData || null);
+
     // Remove untouched placeholders before export
     const placeholders = this.placeholderTexts.filter(t => (t as any)._placeholder || ((t.text || '').trim() === ((t as any)._placeholderText || 'Type here...')));
     if (placeholders.length) {
@@ -1286,28 +1310,38 @@ export class CanvasCreatorComponent implements AfterViewInit {
 
   // ----- Carousel swipe handlers -----
   onCarouselTouchStart(ev: TouchEvent) {
-    if (ev.touches.length !== 1) return;
+    if (ev.touches.length !== 1 || this.isCarouselAnimating()) return;
     this.touchStartX = ev.touches[0].clientX;
     this.touchDeltaX = 0;
     this.isSwiping = true;
+    this.carouselDragging.set(true);
+    this.carouselDragOffset.set(0);
   }
 
   onCarouselTouchMove(ev: TouchEvent) {
     if (!this.isSwiping || this.touchStartX === null) return;
     this.touchDeltaX = ev.touches[0].clientX - this.touchStartX;
+    this.carouselDragOffset.set(this.touchDeltaX);
   }
 
   onCarouselTouchEnd() {
     if (!this.isSwiping) return;
-    const threshold = 50;
-    if (this.touchDeltaX > threshold) {
+    const threshold = 75; // 75px swipe distance to trigger navigation
+    const velocity = Math.abs(this.touchDeltaX);
+    
+    // Determine if we should navigate based on distance and velocity
+    if (this.touchDeltaX > threshold || (velocity > 30 && this.touchDeltaX > 0)) {
       this.previousTemplate();
-    } else if (this.touchDeltaX < -threshold) {
+    } else if (this.touchDeltaX < -threshold || (velocity > 30 && this.touchDeltaX < 0)) {
       this.nextTemplate();
     }
+    
+    // Reset drag state
     this.touchStartX = null;
     this.touchDeltaX = 0;
     this.isSwiping = false;
+    this.carouselDragging.set(false);
+    this.carouselDragOffset.set(0);
   }
 
   // ----- Drawer helpers -----
@@ -1396,7 +1430,10 @@ export class CanvasCreatorComponent implements AfterViewInit {
     text.on('changed', () => {
       const effectiveText = text.text || '';
       const isRTL = this.detectRTL(effectiveText);
-      text.set({ direction: isRTL ? 'rtl' : 'ltr' });
+      text.set({ 
+        direction: isRTL ? 'rtl' : 'ltr',
+        textAlign: isRTL ? 'right' : 'left'
+      });
       targetCanvas.requestRenderAll();
     });
     // Restore placeholder if empty
@@ -1428,6 +1465,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
     text.editable = false; // Disable editing by default
     text.lockMovementX = false;
     text.lockMovementY = false;
+    
+    // Add multiply blend mode for better appearance on templates
+    text.set({ globalCompositeOperation: 'multiply' });
     
     // Allow width resize via side handles only; corners will resize font uniformly
     text.setControlsVisibility({

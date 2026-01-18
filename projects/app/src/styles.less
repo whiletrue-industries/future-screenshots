@@ -18,6 +18,27 @@ body, html {
 /* Handwriting fonts for canvas creator */
 @import (css) url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Permanent+Marker&family=Shadows+Into+Light&family=Indie+Flower&display=swap');
 
+/* Gadi Almog - Hebrew handwriting font */
+@font-face {
+    font-family: 'Gadi Almog';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('../public/fonts/gadi-almog-regular-aaa.woff2') format('woff2'),
+         url('../public/fonts/gadi-almog-regular-aaa.woff') format('woff');
+    unicode-range: U+0307-0308, U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F;
+}
+
+/* Mikhak - Arabic/Persian handwriting font */
+@font-face {
+    font-family: 'Mikhak';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('../public/fonts/mikhak-regular.woff2') format('woff2');
+    unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC;
+}
+
 .leaflet-container {
     background: #FFFDF6 !important;
     outline: 0;
