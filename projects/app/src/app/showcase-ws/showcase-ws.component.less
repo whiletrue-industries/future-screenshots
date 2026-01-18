@@ -11,18 +11,13 @@
         height: 100%;
         cursor: default;
         
-        // Pointer cursor when hovering over items
+        // Grab cursor when hovering over items
         &.hovering {
-            cursor: pointer;
-        }
-        
-        // Grab cursor when hovering over draggable items
-        &.hovering:not(.dragging) {
             cursor: grab;
         }
         
-        // Grabbing cursor during drag
-        &.dragging {
+        // Grabbing cursor during active drag
+        &.hovering.dragging {
             cursor: grabbing;
         }
     }

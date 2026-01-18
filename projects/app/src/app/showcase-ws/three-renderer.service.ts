@@ -2421,12 +2421,10 @@ export class ThreeRendererService {
    */
   private runLodPass(): void {
     if (!this.container) return;
-    // Hysteresis thresholds (in pixels) - very low for aggressive high-res loading on hover
-    const UPGRADE_THRESHOLD = 80; // Load high-res very eagerly
-    const DOWNGRADE_THRESHOLD = 50;
+    // Hysteresis thresholds (in pixels) - upgrade immediately on any hover
+    const UPGRADE_THRESHOLD = 1; // Upgrade immediately
+    const DOWNGRADE_THRESHOLD = 0;
 
-    let upgraded = 0, downgraded = 0;
-    
     // Iterate over meshes
     for (const child of this.root.children) {
       const mesh = child as THREE.Mesh;
@@ -2443,29 +2441,19 @@ export class ThreeRendererService {
 
       if (!isHigh && photoWidthPx >= UPGRADE_THRESHOLD) {
         // Upgrade to high-res (fire-and-forget)
-        upgraded++;
-        console.log('[LOD] Upgrading mesh to high-res, width:', photoWidthPx.toFixed(0) + 'px');
         this.upgradeToHighResTexture(mesh, url)
           .then(() => {
             this.highResActive.add(mesh);
-            console.log('[LOD] High-res texture loaded');
           })
-          .catch(err => {
-            console.warn('[LOD] Failed to upgrade:', err);
-          });
+          .catch(() => {/* keep low-res */});
       } else if (isHigh && photoWidthPx <= DOWNGRADE_THRESHOLD) {
         // Downgrade to low-res (fire-and-forget)
-        downgraded++;
         this.downgradeToLowResTexture(mesh, url)
           .then(() => {
             this.highResActive.delete(mesh);
           })
           .catch(() => {/* keep current */});
       }
-    }
-    
-    if ((upgraded > 0 || downgraded > 0) && this.hoveredMesh) {
-      console.log('[LOD] Pass complete - upgraded:', upgraded, 'downgraded:', downgraded);
     }
   }
 
