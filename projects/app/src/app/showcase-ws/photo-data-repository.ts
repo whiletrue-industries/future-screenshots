@@ -205,6 +205,11 @@ export class PhotoDataRepository {
     photoData.setMesh(mesh);
     this.renderer.setMeshPhotoId(mesh, photoData.id);
 
+    // Enable hover/drag detection for ALL layouts
+    // For interactive layouts, this enables actual dragging
+    // For non-interactive layouts, this enables hover feedback (cursor changes)
+    this.setupHoverDetectionForPhoto(photoData);
+    
     // Enable dragging for interactive layouts
     if (this.layoutStrategy && isInteractiveLayout(this.layoutStrategy)) {
       this.setupInteractiveDragForPhoto(photoData);
@@ -931,6 +936,23 @@ export class PhotoDataRepository {
       photoData.setTargetPosition(position);
       
       // Note: Layout strategy drag handlers are now called directly by the renderer
+    });
+  }
+
+  /**
+   * Enable hover detection for a photo (for both interactive and non-interactive layouts)
+   * This allows cursor feedback and preview widgets
+   */
+  private setupHoverDetectionForPhoto(photoData: PhotoData): void {
+    if (!photoData.mesh || !this.renderer) {
+      return;
+    }
+
+    // Register the mesh for raycasting even if not draggable
+    // This enables cursor feedback and hover effects
+    this.renderer.enableDragForMesh(photoData.mesh, (position: { x: number; y: number; z: number }) => {
+      // No-op for non-interactive layouts - just enables hover detection
+      // The cursor feedback and preview widget are handled in the renderer
     });
   }
 
