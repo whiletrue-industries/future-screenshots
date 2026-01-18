@@ -671,6 +671,10 @@ export class ThreeRendererService {
     return this.fisheyeEnabled;
   }
 
+  isDraggingItem(): boolean {
+    return this.isDragging;
+  }
+
   setFisheyeConfig(config: { radius?: number; magnification?: number; distortion?: number; zoomRelative?: number; maxHeight?: number; viewportHeight?: number; cameraZ?: number; fov?: number }): void {
     // Pass all config parameters to fisheye service
     // Also pass current camera state for zoom-agnostic calculations
@@ -2055,9 +2059,10 @@ export class ThreeRendererService {
       }
 
       this.renderer.render(this.scene, this.camera);
-      // Run LOD checks at ~5Hz
+      // Run LOD checks more frequently for responsive high-res loading on hover
       this.lodAccumTime += dt;
-      if (this.lodAccumTime >= 0.2) {
+      const lodInterval = this.hoveredMesh ? 0.05 : 0.2; // 20Hz when hovering, 5Hz otherwise
+      if (this.lodAccumTime >= lodInterval) {
         this.lodAccumTime = 0;
         this.runLodPass();
       }
@@ -2412,9 +2417,9 @@ export class ThreeRendererService {
    */
   private runLodPass(): void {
     if (!this.container) return;
-    // Hysteresis thresholds (in pixels) - lower for earlier high-res loading on hover
-    const UPGRADE_THRESHOLD = 150; // Load high-res earlier (on hover)
-    const DOWNGRADE_THRESHOLD = 100;
+    // Hysteresis thresholds (in pixels) - very low for aggressive high-res loading on hover
+    const UPGRADE_THRESHOLD = 80; // Load high-res very eagerly
+    const DOWNGRADE_THRESHOLD = 50;
 
     // Iterate over meshes
     for (const child of this.root.children) {

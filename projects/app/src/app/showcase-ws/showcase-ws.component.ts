@@ -51,6 +51,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     maxHeight: 40
   });
 
+  // Check if currently dragging (for cursor style)
+  isDragging = computed(() => this.rendererService.isDraggingItem());
+
   // Track if fisheye is currently enabled
   // No longer needed: private currentFisheyeValue = 0;
   loadedPhotoIds = new Set<string>();
@@ -334,13 +337,24 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT
     });
 
-    // Apply fisheye settings from query parameters
-    const qp = this.activatedRoute.snapshot.queryParams;
-    if (this.fisheyeEnabled()) {
+    // Apply default fisheye settings immediately on init
+    const settings = this.fisheyeSettings();
+    if (settings.enabled) {
+      console.log('[SHOWCASE_WS] Enabling fisheye on init with settings:', settings);
       this.rendererService.enableFisheyeEffect(true);
-      
-      // Fisheye settings are already initialized in fisheyeSettings signal
-      // No additional updates needed here
+      this.rendererService.setFisheyeConfig({
+        magnification: settings.maxMagnification,
+        radius: settings.radius,
+        zoomRelative: settings.zoomRelative,
+        maxHeight: settings.maxHeight,
+        viewportHeight: window.innerHeight
+      });
+    }
+
+    // Apply fisheye settings from query parameters (override defaults)
+    const qp = this.activatedRoute.snapshot.queryParams;
+    if (qp['fisheye'] === '0' || qp['fisheye'] === 'false') {
+      this.rendererService.enableFisheyeEffect(false);
     }
     
     // Read optional fisheye configuration from query params

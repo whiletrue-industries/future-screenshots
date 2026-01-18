@@ -1,4 +1,4 @@
-<div class='container' #container></div>
+<div class='container' [class.dragging]='isDragging()' #container></div>
 <app-qrcode [small]='qrSmall()' [url]='qrUrl()'></app-qrcode>
 <div class='logo'>
 </div>
