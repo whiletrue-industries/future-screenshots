@@ -666,9 +666,14 @@ export class ThreeRendererService {
     return this.fisheyeEnabled;
   }
 
-  setFisheyeConfig(config: { radius?: number; magnification?: number; distortion?: number; zoomRelative?: number; maxHeight?: number; viewportHeight?: number }): void {
+  setFisheyeConfig(config: { radius?: number; magnification?: number; distortion?: number; zoomRelative?: number; maxHeight?: number; viewportHeight?: number; cameraZ?: number; fov?: number }): void {
     // Pass all config parameters to fisheye service
-    this.fisheyeService.setConfig(config);
+    // Also pass current camera state for zoom-agnostic calculations
+    this.fisheyeService.setConfig({
+      ...config,
+      cameraZ: config.cameraZ ?? this.targetCamZ,
+      fov: config.fov ?? this.FOV_DEG
+    });
   }
 
   getFisheyeConfig() {
@@ -742,6 +747,13 @@ export class ThreeRendererService {
     if (!this.fisheyeEnabled) {
       return;
     }
+
+    // Update camera state in fisheye config for zoom-agnostic calculations
+    this.fisheyeService.setConfig({
+      cameraZ: this.targetCamZ,
+      fov: this.FOV_DEG,
+      viewportHeight: this.container?.clientHeight ?? window.innerHeight
+    });
 
     // Get the world position of the mouse cursor
     const worldPos = this.screenToWorld(this.mouse.x, this.mouse.y, 0);

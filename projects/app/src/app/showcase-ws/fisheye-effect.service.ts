@@ -8,6 +8,8 @@ export interface FisheyeConfig {
   zoomRelative?: number;   // 0 = no change, 1 = full reduction with zoom
   maxHeight?: number;      // Maximum height of magnified items in vh (viewport height units)
   viewportHeight?: number; // Current viewport height in pixels
+  cameraZ?: number;        // Camera z-position for world-to-screen conversion
+  fov?: number;            // Camera field of view in degrees
 }
 
 /**
@@ -78,15 +80,29 @@ export class FisheyeEffectService {
     }
     let scale = 1.0 + (magnification - 1.0) * falloff;
 
-    // Apply maxHeight constraint
-    if (this.config.maxHeight !== undefined && this.config.viewportHeight !== undefined) {
+    // Apply maxHeight constraint (zoom-agnostic)
+    if (this.config.maxHeight !== undefined && 
+        this.config.viewportHeight !== undefined &&
+        this.config.cameraZ !== undefined &&
+        this.config.fov !== undefined) {
+      
       const maxHeightPx = (this.config.maxHeight / 100) * this.config.viewportHeight;
-      const unmagnitifedHeight = meshHeight;
-      const magnifiedHeight = meshHeight * scale;
-
+      
+      // Calculate world-to-screen conversion factor
+      // The visible world height at the camera plane is: 2 * tan(vFOV/2) * cameraZ
+      const vFOV = (this.config.fov * Math.PI) / 180; // Convert degrees to radians
+      const visibleWorldHeight = 2 * Math.tan(vFOV / 2) * this.config.cameraZ;
+      
+      // World units per pixel
+      const worldUnitsPerPixel = visibleWorldHeight / this.config.viewportHeight;
+      
+      // Convert meshHeight from world units to screen pixels
+      const unmagnifiedHeightPx = meshHeight / worldUnitsPerPixel;
+      const magnifiedHeightPx = unmagnifiedHeightPx * scale;
+      
       // Only constrain if the item wasn't already taller than maxHeight
-      if (unmagnitifedHeight <= maxHeightPx && magnifiedHeight > maxHeightPx) {
-        scale = maxHeightPx / meshHeight;
+      if (unmagnifiedHeightPx <= maxHeightPx && magnifiedHeightPx > maxHeightPx) {
+        scale = maxHeightPx / unmagnifiedHeightPx;
       }
     }
 
