@@ -86,45 +86,39 @@ I’m also about to ask you for **access to the camera**, and then we can get go
   }
 
   interact() {
-    this.addMessage(this.initialInteraction[0]);
-    interval(1500).pipe(
-      take(this.initialInteraction.length),
-      switchMap((i) => {
-        i += 1;
-        if (i < this.initialInteraction.length) {
-          for (let j = 0; j < i + 1; j++) {
-            this.initialInteraction[j].part = j !== i;
-          }
-          this.addMessage(this.initialInteraction[i]);
-          return from([]);
-        } else {
-          // this.showMoreButton.set(!this.api.isWorkshop());
-          this.showWhatsappButton.set(this.api.isWorkshop() && this.api.workspace()?.whatsapp_group);
-          this.showScanButton.set(true);
-          return this.inputAnswer.pipe(
-            tap((answer) => {
-              if (answer === 'more') {
-                this.addMessage(this.tellMore);
-                this.showMoreButton.set(false);
-              }
-            }),
-            filter((answer) => answer === 'yes'),
-            tap(() => {
-              this.addMessage(this.answer);
-              this.showScanButton.set(false);
-              this.showMoreButton.set(false);
-            }),
-            delay(1000),
-            tap(() => {
-              this.addMessage(this.secondInteraction);
-              this.showAgreeButton.set(true);
-            }),
-          );
+    console.log('[Prescan] interact() called, adding messages to queue...');
+    // Add all messages to queue - they'll be processed one by one
+    for (let i = 0; i < this.initialInteraction.length; i++) {
+      for (let j = 0; j < this.initialInteraction.length; j++) {
+        this.initialInteraction[j].part = j !== i;
+      }
+      this.addMessage(this.initialInteraction[i]);
+    }
+    
+    // Show buttons after a delay (all messages should be typed by then)
+    timer(3000).subscribe(() => {
+      this.showWhatsappButton.set(this.api.isWorkshop() && this.api.workspace()?.whatsapp_group);
+      this.showScanButton.set(true);
+    });
+
+    this.inputAnswer.pipe(
+      tap((answer) => {
+        if (answer === 'more') {
+          this.addMessage(this.tellMore);
+          this.showMoreButton.set(false);
         }
       }),
-      switchMap(() => {
-        return this.inputAnswer;
-      })
+      filter((answer) => answer === 'yes'),
+      tap(() => {
+        this.addMessage(this.answer);
+        this.showScanButton.set(false);
+        this.showMoreButton.set(false);
+      }),
+      delay(300),
+      tap(() => {
+        this.addMessage(this.secondInteraction);
+        this.showAgreeButton.set(true);
+      }),
     ).subscribe(() => {
       this.showAgreeButton.set(false);
       this.router.navigate(['scan'], { queryParamsHandling: 'preserve'});

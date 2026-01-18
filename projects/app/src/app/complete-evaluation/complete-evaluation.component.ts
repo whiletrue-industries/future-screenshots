@@ -1,5 +1,5 @@
 import { Component, input } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
 import { HttpClient } from '@angular/common/http';
 import { map, switchMap } from 'rxjs/operators';
@@ -18,8 +18,12 @@ import { CompletionImageComponent } from "../completion-image/completion-image.c
 export class CompleteEvaluationComponent {
 
   thinking = input<boolean>(false);
+  addAnotherRoute: string[] = ['/scan'];
 
-  constructor(public api: ApiService, private http: HttpClient) {}
+  constructor(public api: ApiService, private http: HttpClient, private route: ActivatedRoute) {
+    const fromTemplateFlow = this.route.snapshot.queryParamMap.get('template') === 'true';
+    this.addAnotherRoute = fromTemplateFlow ? ['/canvas-creator'] : ['/scan'];
+  }
 
   downloadImage() {
     const item = this.api.item();

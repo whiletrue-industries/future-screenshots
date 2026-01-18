@@ -1,93 +1,739 @@
-<h1>{{workspace()?.source}}</h1>
-<div class='creds'>
-    <div class='input'>
-        <label>Workspace ID</label>
-        <input type='text' [(ngModel)]='workspaceId' placeholder='workspaceId'>
+<div class="moderate-container">
+  <header class="topbar" role="banner">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">✦</span>
+      <h1>Content Moderation</h1>
+      @if (workspace()?.source) {
+        <span class="workspace-name">{{ workspace()?.source }}</span>
+      }
     </div>
-    <div class='input'>
-        <label>API Key</label>
-        <input type='text' [(ngModel)]='apiKey' placeholder='apiKey'>
+    <div class="actions">
+      <div class="cred-inline">
+        <input 
+          type="text" 
+          [ngModel]="workspaceId() ?? ''" 
+          (ngModelChange)="workspaceId.set($event || null)" 
+          placeholder="workspace"
+          aria-label="Workspace ID" />
+        <input 
+          type="text" 
+          [ngModel]="apiKey() ?? ''" 
+          (ngModelChange)="apiKey.set($event || null)" 
+          placeholder="api key"
+          aria-label="API key" />
+      </div>
+      <a href="/admin" class="back-link" aria-label="Back to admin">← Back</a>
     </div>
-</div>
-<div class='pager'>
-    <button [disabled]='page() === 0' (click)='page.set(page() - 1)'>Prev Page</button>
-    <div class='page-number'>Page {{ page() + 1 }} ({{ items().length }} items)</div>
-    <button [disabled]='!items().length' (click)='page.set(page() + 1)'>Next Page</button> 
-</div>
-<div class='filters'>
-    <select class='filter' [(ngModel)]='_filter'>
-        @for (f of FILTERS; track $index) {
-            <option [value]='$index'>{{ f.name }}</option>
-        }
-    </select>
-</div>
-@if (indexLink()) {
-    <div class='index-link'>
-        <a [href]='indexLink()' target='_blank'>Index creation needed</a>
+  </header>
+
+  <div class="filters-bar-row">
+    <app-filters-bar
+      [counts]="filterCounts()"
+      [totalCount]="allFetchedItems().length"
+      [filteredCount]="items().length"
+      [showViewToggle]="true"
+      [initialState]="filterState()"
+      (filtersChange)="onFiltersChange($event)"
+      (filtersCommit)="onFiltersCommit($event)"
+    ></app-filters-bar>
+    <button class="multi-select-toggle" (click)="toggleMultiSelectMode()" aria-label="Toggle multi-edit mode">
+      <span class="icon">🗂</span>
+      <span>{{ multiSelectMode() ? 'Close multi-edit' : 'Multi-edit' }}</span>
+      @if (multiSelectMode() && selectedCount() > 0) {
+        <span class="multi-select-count">{{ selectedCount() }}</span>
+      }
+    </button>
+  </div>
+
+  @if (items().length === 500 || page() > 0) {
+    <section class="pagination-section" aria-label="Pagination">
+      <button 
+        class="pagination-btn" 
+        [disabled]="page() === 0" 
+        (click)="page.set(page() - 1)"
+        aria-label="Previous page">
+        ← Previous
+      </button>
+      <span class="page-info">Page {{ page() + 1 }}</span>
+      <button 
+        class="pagination-btn" 
+        [disabled]="!items().length" 
+        (click)="page.set(page() + 1)"
+        aria-label="Next page">
+        Next →
+      </button>
+    </section>
+  }
+
+  @if (indexLink()) {
+    <div class="index-notice" role="alert">
+      <span>⚠️ Database index required</span>
+      <a [href]="indexLink()" target="_blank" class="index-link">Create index</a>
     </div>
-} @else {
-    <div class='items'>
-        @for (item of items(); track item._id) {
-            <div class='item'>
-                <img [src]='item.screenshot_url'>
-                @if (editTagline()) {
-                    <div class='tagline-edit'>
-                        <input type='text' [(ngModel)]='item.future_scenario_tagline' placeholder='Tagline'>
-                        <button class='button' (click)='setTagline(item)'>OK</button>
-                        <button class='button' (click)='editTagline.set(false)'>X</button>
+  } @else {
+    @if (viewMode() === 'grid') {
+      <div class="grid-layout">
+        @if (selectedItem()) {
+          <div class="lightbox-overlay" (click)="closeSidebar()" role="dialog" aria-modal="true" aria-labelledby="lightbox-title">
+            <div class="lightbox-container" [class.sidebar-open]="lightboxSidebarOpen()">
+              <div class="lightbox-content" (click)="$event.stopPropagation()">
+                <button class="lightbox-close-btn" (click)="closeSidebar()" aria-label="Close lightbox">×</button>
+                <button class="lightbox-sidebar-toggle-btn" (click)="toggleLightboxSidebar()" aria-label="Toggle sidebar">⋮</button>
+                
+                <button class="nav-btn nav-prev" (click)="prevItem()" [disabled]="selectedItemIndex() <= 0" aria-label="Previous item">←</button>
+                <button class="nav-btn nav-next" (click)="nextItem()" [disabled]="selectedItemIndex() >= items().length - 1" aria-label="Next item">→</button>
+
+                <div class="lightbox-actions">
+                  <button class="image-action-btn" (click)="$event.stopPropagation(); openImageReplacementModal(selectedItem()?._id!)" aria-label="Replace image from lightbox">
+                    ✎ Replace
+                  </button>
+                  <button class="image-action-btn ghost" (click)="$event.stopPropagation(); openQrModal(selectedItem()?._id!)" aria-label="Open scanner QR for this image">
+                    📱 QR
+                  </button>
+                </div>
+                
+                <div class="lightbox-main">
+                  <div class="lightbox-info-boxes">
+                    <div class="info-box info-box-screenshot-type">
+                      <label for="screenshot-type">Screenshot Type</label>
+                      <select 
+                        id="screenshot-type"
+                        [(ngModel)]="selectedItem().screenshot_type"
+                        (change)="autoSaveScreenshotType(selectedItem())"
+                        aria-label="Select screenshot type">
+                        <option [value]="null">Select type...</option>
+                        <option value="sign_in_a_demonstration">🪧 Sign</option>
+                        <option value="social_media_post">📣 Social</option>
+                        <option value="chat_conversation">💬 Chat</option>
+                        <option value="notification_alert">🔔 Alert</option>
+                        <option value="ai_agent_query">🤖 AI</option>
+                        <option value="review">⭐ Review</option>
+                        <option value="map_visualization">🗺️ Map</option>
+                        <option value="photograph">📸 Photo</option>
+                      </select>
                     </div>
-                } @else {
-                    @if (item.future_scenario_tagline) {
-                        <div class='tagline' (click)='editTagline.set(true)'>{{ item.future_scenario_tagline }}</div>
-                    } @else {
-                        <div class='tagline' (click)='editTagline.set(true)'><em>Add a tagline</em></div>
-                    }
-                }
-                <div class='status'>
-                    @if (item._private_moderation >= 0) {
-                        <div class='status-text'>{{ LEVELS[item._private_moderation] }}</div>
-                    } @else {
-                        <div class='status-text'>no moderation status</div>
-                    }
-                    <div class='status-text'>{{item.created_at?.slice(0,19)}}</div>
-                    <div class='status-text'>P&amp;P: {{item.plausibility}} / {{item.favorable_future}}</div>
-                    <div class='status-text'>content certainty: {{item.content_certainty}}</div>
-                    <div class='status-text'>transition certainty: {{item.transition_bar_certainty}}</div>
-                </div>
-                <div class='buttons'>
-                    <div class='button-row'>
-                        <button class='button' [class.primary]='item._private_moderation === 0' (click)="reject(item._id)">NO</button>    
-                        <button class='button' [class.primary]='item._private_moderation === 4' (click)="approve(item._id)">YES</button>
-                        <button class='button' [class.primary]='item._private_moderation === 5'  (click)="highlight(item._id)">LIKE</button>
+
+                    <div class="info-box info-box-content">
+                      <label for="content-input">Content</label>
+                      <textarea 
+                        id="content-input"
+                        [(ngModel)]="selectedItem().content"
+                        (change)="autoSaveContent(selectedItem())"
+                        placeholder="Enter content..."
+                        aria-label="Edit content"></textarea>
                     </div>
+
+                    <div class="info-box info-box-transition">
+                      <div class="transition-content">
+                        <div class="transition-event-input">
+                          <input 
+                            id="transition-event"
+                            type="text"
+                            [(ngModel)]="selectedItem().transition_bar_event"
+                            (change)="autoSaveTransitionBarEvent(selectedItem())"
+                            [placeholder]="!selectedItem().transition_bar_event ? 'unclear' : ''"
+                            aria-label="Edit transition event" />
+                        </div>
+
+                        <div class="radio-group-inline">
+                          @if (selectedItem().transition_bar_event && selectedItem().transition_bar_event !== 'unclear') {
+                            <label class="radio-label">
+                              <input 
+                                type="radio"
+                                name="position"
+                                value="before"
+                                [(ngModel)]="selectedItem().transition_bar_position"
+                                (change)="autoSaveTransitionBarPosition(selectedItem())"
+                                aria-label="Before" />
+                              <span>Before</span>
+                            </label>
+                            <label class="radio-label">
+                              <input 
+                                type="radio"
+                                name="position"
+                                value="during"
+                                [(ngModel)]="selectedItem().transition_bar_position"
+                                (change)="autoSaveTransitionBarPosition(selectedItem())"
+                                aria-label="During" />
+                              <span>During</span>
+                            </label>
+                            <label class="radio-label">
+                              <input 
+                                type="radio"
+                                name="position"
+                                value="after"
+                                [(ngModel)]="selectedItem().transition_bar_position"
+                                (change)="autoSaveTransitionBarPosition(selectedItem())"
+                                aria-label="After" />
+                              <span>After</span>
+                            </label>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="lightbox-image-container">
+                    <img [src]="selectedItem().screenshot_url" alt="Future scenario screenshot" id="lightbox-title" />
+                    <div 
+                      class="plausibility-scale"
+                      role="img"
+                      [attr.aria-label]="getIndicatorLabel(selectedItem())">
+                      @for (slot of Array(9); track $index; let idx = $index) {
+                        <span 
+                          class="scale-dot"
+                          [class.active]="getIndicatorSlot(selectedItem()) === idx + 1"
+                          [class.prefer]="isPreferDirection(selectedItem())"
+                          [class.prevent]="isPreventDirection(selectedItem())"
+                          [class.neutral]="isNeutralDirection(selectedItem())"
+                          [class.mostly-prefer]="isMostlyPrefer(selectedItem())"
+                          [class.mostly-prevent]="isMostlyPrevent(selectedItem())">
+                        </span>
+                      }
+                    </div>
+                  </div>
                 </div>
-                <div class='selects'>
-                    <select [(ngModel)]='item.plausibility' (change)="setPlausibility(item)">
-                        <option [value]='null'>Potential?</option>
-                        <option [value]='100'>Projected</option>
-                        <option [value]='90'>90</option>
-                        <option [value]='80'>80</option>
-                        <option [value]='75'>Probable</option>
-                        <option [value]='70'>70</option>
-                        <option [value]='60'>60</option>
-                        <option [value]='50'>Plausible</option>
-                        <option [value]='40'>40</option>
-                        <option [value]='30'>30</option>
-                        <option [value]='25'>Possible</option>
-                        <option [value]='20'>20</option>
-                        <option [value]='10'>10</option>
-                        <option [value]='0'>Preposterous</option>
-                    </select>
-                    <select [(ngModel)]='item.favorable_future' (change)="setFavorable(item)">
-                        <option [value]='null'>Favorable?</option>
-                        <option value='prefer'>Prefer</option>
-                        <option value='mostly prefer'>Mostly Prefer</option>
-                        <option value='mostly prevent'>Mostly Prevent</option>
-                        <option value='prevent'>Prevent</option>
-                        <option value='uncertain'>Uncertain</option>
-                    </select>
-                </div>
+
+                <div class="lightbox-counter">{{ selectedItemIndex() + 1 }} / {{ items().length }}</div>
+              </div>
+
+              @if (lightboxSidebarOpen()) {
+                <aside class="lightbox-sidebar" role="complementary" (click)="$event.stopPropagation()">
+                  <div class="sidebar-header">
+                    <h2>Item Details</h2>
+                    <button class="close-sidebar-btn" (click)="toggleLightboxSidebar()" aria-label="Close sidebar">×</button>
+                  </div>
+                  <div class="sidebar-content">
+                    <article class="item-card" [attr.data-status]="LEVELS[selectedItem()._private_moderation]">
+                    <div class="card-header">
+                      <button class="user-info" (click)="filterByUser(selectedItem().author_id)" [title]="getEmail(selectedItem())">
+                    @if (selectedItem().author_id && selectedItem().author_id !== 'unknown') {
+                      <span class="user-count-link">{{ getUserItemCount(selectedItem().author_id) }} items</span>
+                    } @else {
+                      <span class="user-count-link">{{ getUserItemCount('unknown') }} unattributed</span>
+                    }
+                  </button>
+                    </div>
+
+                    <div class="status-row">
+                      <label for="status-select">Status</label>
+                      <select id="status-select" [ngModel]="selectedItem()._private_moderation" (ngModelChange)="setStatusFromSidebar($event)" aria-label="Set item status">
+                        @for (option of STATUS_OPTIONS; track option.value) {
+                          <option [ngValue]="option.value">{{ option.label }}</option>
+                        }
+                      </select>
+                    </div>
+
+                    <div class="card-metadata">
+                          <div class="metadata-row">
+                        <span class="date">{{ formatDate(selectedItem().created_at) }}</span>
+                        <button 
+                          class="icon-btn star-btn" 
+                          [class.active]="selectedItem()._private_moderation === 5"
+                          (click)="highlight(selectedItem()._id)"
+                          aria-label="Highlight">
+                          {{ selectedItem()._private_moderation === 5 ? '★' : '☆' }}
+                        </button>
+                        <span class="ai-confidence" [attr.data-confidence]="getConfidenceLevel(selectedItem())">
+                          AI: {{ getAIConfidence(selectedItem()) }}%
+                        </span>
+                        <button class="icon-btn trash-btn" (click)="reject(selectedItem()._id)" aria-label="Archive">
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="card-content">
+                      <div class="tagline-section">
+                        @if (editTagline() === selectedItem()._id) {
+                          <div class="tagline-edit">
+                            <textarea 
+                              [(ngModel)]="selectedItem().future_scenario_tagline" 
+                              placeholder="Enter tagline"
+                              rows="3"
+                              aria-label="Edit tagline"></textarea>
+                            <div class="edit-actions">
+                              <button class="btn-icon btn-save" (click)="setTagline(selectedItem())" aria-label="Save">✓</button>
+                              <button class="btn-icon btn-cancel" (click)="editTagline.set(null)" aria-label="Cancel">✕</button>
+                            </div>
+                          </div>
+                        } @else {
+                          @if (selectedItem().future_scenario_tagline) {
+                            <div class="tagline" (click)="editTagline.set(selectedItem()._id)" role="button" tabindex="0">
+                              {{ selectedItem().future_scenario_tagline }}
+                            </div>
+                          } @else {
+                            <div class="tagline tagline-empty" (click)="editTagline.set(selectedItem()._id)" role="button" tabindex="0">
+                              + Add tagline
+                            </div>
+                          }
+                        }
+                      </div>
+
+                      <div class="tags-section">
+                        <div class="tags-container">
+                          @if (selectedItem().tags && selectedItem().tags.length > 0) {
+                            @for (tag of selectedItem().tags; track $index) {
+                              <span class="tag">
+                                {{ tag }}
+                                <button class="tag-remove" (click)="removeTag(selectedItem(), $index)" aria-label="Remove tag">×</button>
+                              </span>
+                            }
+                          }
+                          <div class="tag-input-wrapper">
+                            <input 
+                              #tagInput
+                              type="text" 
+                              class="tag-input" 
+                              placeholder="+ Add tag"
+                              (keydown.enter)="addTag(selectedItem(), tagInput)"
+                              aria-label="Add new tag" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="properties-selectors">
+                        <div class="property-selector">
+                          <select 
+                            [(ngModel)]="selectedItem().favorable_future" 
+                            (change)="setFavorable(selectedItem())"
+                            [class]="'desirability-select ' + getDesirabilityClass(selectedItem().favorable_future)"
+                            aria-label="Set desirability">
+                            <option [value]="null">Desirability?</option>
+                            <option value="prefer">prefer</option>
+                            <option value="mostly prefer">prefer-ish</option>
+                            <option value="uncertain">uncertain</option>
+                            <option value="mostly prevent">prevent-ish</option>
+                            <option value="prevent">prevent</option>
+                          </select>
+                        </div>
+                        <div class="property-selector">
+                          <select 
+                            [(ngModel)]="selectedItem().plausibility" 
+                            (change)="setPlausibility(selectedItem())"
+                            [class]="'plausibility-select ' + getPlausibilityClass(selectedItem().plausibility)"
+                            aria-label="Set plausibility">
+                            <option [value]="null">Plausibility?</option>
+                            <option [value]="100">Projected</option>
+                            <option [value]="75">Probable</option>
+                            <option [value]="50">Plausible</option>
+                            <option [value]="25">Possible</option>
+                            <option [value]="0">Preposterous</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div class="metadata-editor">
+                        <h3>Metadata</h3>
+                        <div class="metadata-grid">
+                          @for (entry of editableMetadata(); track entry[0]) {
+                            <label class="metadata-field">
+                              <span class="field-name">{{ entry[0] }}</span>
+                              <input 
+                                type="text" 
+                                [ngModel]="entry[1]"
+                                (ngModelChange)="updateMetadataField(entry[0], $event)"
+                                [attr.aria-label]="'Edit metadata field ' + entry[0]" />
+                            </label>
+                          }
+                        </div>
+                      </div>
+
+                      <div class="ai-regenerate">
+                        <p class="ai-regenerate-help">Regenerate AI fields from the current edits.</p>
+                        <button class="regenerate-btn" (click)="regenerateAiFieldsFromUserInput()" aria-label="Regenerate AI generated fields from current values">
+                          ♻️ Regenerate AI fields
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="card-footer pinned-footer">
+                      <button 
+                        class="publish-btn"
+                        [class.published]="selectedItem()._private_moderation >= 4"
+                        [class.archived]="selectedItem()._private_moderation === 0"
+                        (click)="selectedItem()._private_moderation === 0 ? unarchive(selectedItem()._id) : approve(selectedItem()._id)"
+                        [attr.aria-label]="selectedItem()._private_moderation === 0 ? 'Unarchive' : (selectedItem()._private_moderation >= 4 ? 'Published' : 'Publish')">
+                        @if (selectedItem()._private_moderation === 0) {
+                          <span class="btn-default">ARCHIVED 🗑️</span>
+                          <span class="btn-hover">UNARCHIVE</span>
+                        } @else if (selectedItem()._private_moderation >= 4) {
+                          PUBLISHED ✓
+                        } @else {
+                          PUBLISH
+                        }
+                      </button>
+                    </div>
+                  </article>
+                  </div>
+                </aside>
+              }
             </div>
+          </div>
         }
-    </div>    
+        <div class="thumbnails-grid" role="list">
+          @for (item of items(); track item._id) {
+            <div class="thumbnail-item" [attr.data-status]="LEVELS[item._private_moderation]" (click)="selectItem(item)" role="button" tabindex="0" [class.selected]="selectedItem()?._id === item._id" [class.select-mode]="multiSelectMode()" [class.bulk-selected]="isItemSelected(item._id)">
+              @if (multiSelectMode()) {
+                <label class="select-checkbox">
+                  <input 
+                    type="checkbox" 
+                    [checked]="isItemSelected(item._id)"
+                    (click)="$event.stopPropagation()"
+                    (change)="toggleItemSelection(item._id)"
+                    aria-label="Select item for bulk edit" />
+                </label>
+              }
+              <div class="thumbnail-image">
+                <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
+                <div 
+                  class="plausibility-scale"
+                  role="img"
+                  [attr.aria-label]="getIndicatorLabel(item)">
+                  @for (slot of Array(9); track $index; let idx = $index) {
+                    <span 
+                      class="scale-dot"
+                      [class.active]="getIndicatorSlot(item) === idx + 1"
+                      [class.prefer]="isPreferDirection(item)"
+                      [class.prevent]="isPreventDirection(item)"
+                      [class.neutral]="isNeutralDirection(item)"
+                      [class.mostly-prefer]="isMostlyPrefer(item)"
+                      [class.mostly-prevent]="isMostlyPrevent(item)">
+                    </span>
+                  }
+                </div>
+                <div class="thumbnail-actions">
+                  <button class="thumb-btn" (click)="$event.stopPropagation(); openImageReplacementModal(item._id)" aria-label="Replace image">
+                    ✎
+                  </button>
+                  <button class="thumb-btn ghost" (click)="$event.stopPropagation(); openQrModal(item._id)" aria-label="Open scanner QR for this image">
+                    QR
+                  </button>
+                </div>
+              </div>
+            </div>
+          }
+
+          @if (replacingImageItemId() && currentReplacingImageUrl() && workspaceId() && apiKey()) {
+            <app-image-replacement-modal
+              [workspaceId]="workspaceId()!"
+              [apiKey]="apiKey()!"
+              [itemId]="replacingImageItemId()!"
+              [currentImageUrl]="currentReplacingImageUrl()!"
+              (closed)="closeImageReplacementModal()"
+              (imageReplaced)="onImageReplaced(replacingImageItemId()!, $event)"
+            />
+          }
+
+          @if (showQRModal() && qrItemId() && workspaceId() && apiKey()) {
+            <app-qr-code-modal
+              [workspaceId]="workspaceId()!"
+              [apiKey]="apiKey()!"
+              [itemId]="qrItemId()!"
+              (closed)="closeQrModal()"
+            />
+          }
+        </div>
+      </div>
+    } @else {
+      <div class="items-grid" role="list">
+        @for (item of items(); track item._id) {
+          <article class="item-card" [attr.data-status]="LEVELS[item._private_moderation]" role="listitem" [class.select-mode]="multiSelectMode()" [class.bulk-selected]="isItemSelected(item._id)">
+            <div class="card-header">
+              @if (multiSelectMode()) {
+                <label class="select-checkbox">
+                  <input 
+                    type="checkbox" 
+                    [checked]="isItemSelected(item._id)"
+                    (change)="toggleItemSelection(item._id)"
+                    aria-label="Select item for bulk edit" />
+                </label>
+              }
+              <button class="user-info" (click)="filterByUser(item.author_id)" [title]="getEmail(item)">
+                @if (item.author_id && item.author_id !== 'unknown') {
+                  <span class="user-count-link">{{ getUserItemCount(item.author_id) }} items</span>
+                } @else {
+                  <span class="user-count-link">{{ getUserItemCount('unknown') }} unattributed</span>
+                }
+              </button>
+              <span class="screenshot-type" [title]="item.screenshot_type || 'screenshot'">{{ getScreenshotTypeEmoji(item.screenshot_type) }}</span>
+            </div>
+
+            <div class="screenshot-container">
+              @if (!isShowingDescription(item._id)) {
+              <div class="screenshot-image-wrapper">
+                <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
+                <div 
+                  class="plausibility-scale"
+                  role="img"
+                  [attr.aria-label]="getIndicatorLabel(item)">
+                  @for (slot of Array(9); track $index; let idx = $index) {
+                    <span 
+                      class="scale-dot"
+                      [class.active]="getIndicatorSlot(item) === idx + 1"
+                      [class.prefer]="isPreferDirection(item)"
+                      [class.prevent]="isPreventDirection(item)"
+                      [class.neutral]="isNeutralDirection(item)"
+                      [class.mostly-prefer]="isMostlyPrefer(item)"
+                      [class.mostly-prevent]="isMostlyPrevent(item)">
+                    </span>
+                  }
+                </div>
+                <div class="screenshot-actions">
+                  <button class="image-action-btn" (click)="openImageReplacementModal(item._id)" aria-label="Replace image">
+                    ✎ Replace
+                  </button>
+                  <button class="image-action-btn ghost" (click)="openQrModal(item._id)" aria-label="Open scanner QR for this image">
+                    📱 QR
+                  </button>
+                </div>
+              </div>
+              <button class="toggle-view-btn" (click)="toggleDescriptionView(item._id)" aria-label="Show description">
+                ℹ️
+              </button>
+            } @else {
+              @if (editDescription() === item._id) {
+                <div class="description-edit">
+                  <div class="field-group">
+                    <label>Content</label>
+                    <textarea 
+                      [(ngModel)]="item.content" 
+                      placeholder="Enter content"
+                      rows="4"
+                      aria-label="Edit content"></textarea>
+                  </div>
+                  <div class="field-group">
+                    <label>Description</label>
+                    <textarea 
+                      [(ngModel)]="item.future_scenario_description" 
+                      placeholder="Enter description"
+                      rows="4"
+                      aria-label="Edit description"></textarea>
+                  </div>
+                  <div class="edit-actions">
+                    <button class="btn-icon btn-save" (click)="setDescription(item)" aria-label="Save">✓</button>
+                    <button class="btn-icon btn-cancel" (click)="editDescription.set(null)" aria-label="Cancel">✕</button>
+                  </div>
+                </div>
+              } @else {
+                <div class="description-view" (click)="editDescription.set(item._id)" role="button" tabindex="0">
+                  @if (item.content || item.future_scenario_description) {
+                    @if (item.content) {
+                      <div class="field-display">
+                        <strong>Content:</strong>
+                        <p>{{ item.content }}</p>
+                      </div>
+                    }
+                    @if (item.future_scenario_description) {
+                      <div class="field-display">
+                        <strong>Description:</strong>
+                        <p>{{ item.future_scenario_description }}</p>
+                      </div>
+                    }
+                  } @else {
+                    <p class="description-empty">+ Add content and description</p>
+                  }
+                </div>
+              }
+              <button class="toggle-view-btn" (click)="toggleDescriptionView(item._id)" aria-label="Show image">
+                🖼️
+              </button>
+            }
+          </div>
+
+          <div class="card-metadata">
+            <div class="metadata-row">
+              <span class="date">{{ formatDate(item.created_at) }}</span>
+              <button 
+                class="icon-btn star-btn" 
+                [class.active]="item._private_moderation === 5"
+                (click)="highlight(item._id)"
+                aria-label="Highlight">
+                {{ item._private_moderation === 5 ? '★' : '☆' }}
+              </button>
+              <span class="ai-confidence" [attr.data-confidence]="getConfidenceLevel(item)">
+                AI: {{ getAIConfidence(item) }}%
+              </span>
+              <button class="icon-btn trash-btn" (click)="reject(item._id)" aria-label="Archive">
+                🗑️
+              </button>
+            </div>
+          </div>
+
+          <div class="card-content">
+            <div class="tagline-section">
+              @if (editTagline() === item._id) {
+                <div class="tagline-edit">
+                  <textarea 
+                    [(ngModel)]="item.future_scenario_tagline" 
+                    placeholder="Enter tagline"
+                    rows="3"
+                    aria-label="Edit tagline"></textarea>
+                  <div class="edit-actions">
+                    <button class="btn-icon btn-save" (click)="setTagline(item)" aria-label="Save">✓</button>
+                    <button class="btn-icon btn-cancel" (click)="editTagline.set(null)" aria-label="Cancel">✕</button>
+                  </div>
+                </div>
+              } @else {
+                @if (item.future_scenario_tagline) {
+                  <div class="tagline" (click)="editTagline.set(item._id)" role="button" tabindex="0">
+                    {{ item.future_scenario_tagline }}
+                  </div>
+                } @else {
+                  <div class="tagline tagline-empty" (click)="editTagline.set(item._id)" role="button" tabindex="0">
+                    + Add tagline
+                  </div>
+                }
+              }
+            </div>
+
+            <div class="tags-section">
+              <div class="tags-container">
+                @if (item.tags && item.tags.length > 0) {
+                  @for (tag of item.tags; track $index) {
+                    <span class="tag">
+                      {{ tag }}
+                      <button class="tag-remove" (click)="removeTag(item, $index)" aria-label="Remove tag">×</button>
+                    </span>
+                  }
+                }
+                <div class="tag-input-wrapper">
+                  <input 
+                    #tagInput
+                    type="text" 
+                    class="tag-input" 
+                    placeholder="+ Add tag"
+                    (keydown.enter)="addTag(item, tagInput)"
+                    aria-label="Add new tag" />
+                </div>
+              </div>
+            </div>
+
+            <div class="properties-selectors">
+              <div class="property-selector">
+                <select 
+                  [(ngModel)]="item.favorable_future" 
+                  (change)="setFavorable(item)"
+                  [class]="'desirability-select ' + getDesirabilityClass(item.favorable_future)"
+                  aria-label="Set desirability">
+                  <option [value]="null">Desirability?</option>
+                  <option value="prefer">prefer</option>
+                  <option value="mostly prefer">prefer-ish</option>
+                  <option value="uncertain">uncertain</option>
+                  <option value="mostly prevent">prevent-ish</option>
+                  <option value="prevent">prevent</option>
+                </select>
+              </div>
+              <div class="property-selector">
+                <select 
+                  [(ngModel)]="item.plausibility" 
+                  (change)="setPlausibility(item)"
+                  [class]="'plausibility-select ' + getPlausibilityClass(item.plausibility)"
+                  aria-label="Set plausibility">
+                  <option [value]="null">Plausibility?</option>
+                  <option [value]="100">Projected</option>
+                  <option [value]="75">Probable</option>
+                  <option [value]="50">Plausible</option>
+                  <option [value]="25">Possible</option>
+                  <option [value]="0">Preposterous</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <button 
+              class="publish-btn"
+              [class.published]="item._private_moderation >= 4"
+              [class.archived]="item._private_moderation === 0"
+              (click)="item._private_moderation === 0 ? unarchive(item._id) : approve(item._id)"
+              [attr.aria-label]="item._private_moderation === 0 ? 'Unarchive' : (item._private_moderation >= 4 ? 'Published' : 'Publish')">
+              @if (item._private_moderation === 0) {
+                <span class="btn-default">ARCHIVED 🗑️</span>
+                <span class="btn-hover">UNARCHIVE</span>
+              } @else if (item._private_moderation >= 4) {
+                PUBLISHED ✓
+              } @else {
+                PUBLISH
+              }
+            </button>
+          </div>
+        </article>
+      }
+    </div>
+  }
 }
+
+  @if (multiSelectMode()) {
+    <div class="bulk-bar" role="region" aria-label="Bulk edit panel">
+      <div class="bulk-summary">
+        <strong>{{ selectedCount() }}</strong> selected
+        <button class="select-all-btn" (click)="selectAll()" [disabled]="items().length === 0" aria-label="Select all items">Select all</button>
+      </div>
+      <div class="bulk-controls">
+        <label>
+          Status
+          <select [ngModel]="bulkStatus()" (ngModelChange)="bulkStatus.set($event)">
+            <option [ngValue]="null">No change</option>
+            <option [ngValue]="0">Rejected</option>
+            <option [ngValue]="1">Flagged</option>
+            <option [ngValue]="2">Pending</option>
+            <option [ngValue]="3">Not Flagged</option>
+            <option [ngValue]="4">Approved</option>
+            <option [ngValue]="5">Highlighted</option>
+          </select>
+        </label>
+        <label>
+          Author
+          <input type="text" [ngModel]="bulkAuthor()" (ngModelChange)="bulkAuthor.set($event || '')" placeholder="author id" />
+        </label>
+        <label>
+          Plausibility
+          <select [ngModel]="bulkPlausibility()" (ngModelChange)="bulkPlausibility.set(parseNumber($event))">
+            <option [ngValue]="null">No change</option>
+            <option [ngValue]="100">Projected (100)</option>
+            <option [ngValue]="75">Probable (75)</option>
+            <option [ngValue]="50">Plausible (50)</option>
+            <option [ngValue]="25">Possible (25)</option>
+            <option [ngValue]="0">Preposterous (0)</option>
+          </select>
+        </label>
+        <label>
+          Favorable future
+          <select [ngModel]="bulkFavorable()" (ngModelChange)="bulkFavorable.set($event || null)">
+            <option [ngValue]="null">No change</option>
+            <option value="prefer">prefer</option>
+            <option value="mostly prefer">mostly prefer</option>
+            <option value="uncertain">uncertain</option>
+            <option value="mostly prevent">mostly prevent</option>
+            <option value="prevent">prevent</option>
+          </select>
+        </label>
+        <label>
+          Type
+          <select [ngModel]="bulkType()" (ngModelChange)="bulkType.set($event || null)">
+            <option [ngValue]="null">No change</option>
+            <option value="sign_in_a_demonstration">Sign</option>
+            <option value="social_media_post">Social</option>
+            <option value="chat_conversation">Chat</option>
+            <option value="notification_alert">Alert</option>
+            <option value="ai_agent_query">AI</option>
+            <option value="review">Review</option>
+            <option value="map_visualization">Map</option>
+            <option value="photograph">Photo</option>
+          </select>
+        </label>
+      </div>
+      <div class="bulk-actions">
+        <button class="bulk-btn" (click)="applyBulkChanges()" [disabled]="bulkSaving() || selectedCount() === 0">Apply to selected</button>
+        <button class="bulk-btn ghost" (click)="clearBulkSelection()" [disabled]="bulkSaving()">Clear selection</button>
+        <button class="bulk-btn ghost" (click)="toggleMultiSelectMode()" [disabled]="bulkSaving()">Exit</button>
+      </div>
+      @if (bulkError()) {
+        <div class="bulk-error">{{ bulkError() }}</div>
+      }
+      @if (bulkSaving()) {
+        <div class="bulk-progress">Applying changes...</div>
+      }
+    </div>
+  }

@@ -25,6 +25,8 @@ export interface Workspace {
     admin: string;
     collaborate: string;
   };
+  item_count?: number;
+  reviewed_count?: number;
 }
 
 export interface CreateOrUpdateWorkspaceRequest {

@@ -1,0 +1,72 @@
+<div class="modal-overlay" (click)="close()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Replace Image</h2>
+      <button class="close-button" (click)="close()" aria-label="Close dialog">×</button>
+    </div>
+    
+    @if (!showComparison()) {
+      <div class="modal-body">
+        <h3>Select Existing Image</h3>
+        <p>Choose an image from another item in this workspace:</p>
+        @if (workspaceItems().length === 0 && !loading()) {
+          <p class="no-items">No other items with images found in this workspace.</p>
+        } @else {
+          <div class="replacement-layout">
+            <div class="current-image-section">
+              <h4>Current Image</h4>
+              <div class="current-image-container">
+                <img [src]="currentImageUrl()" alt="Current image to be replaced">
+                @if (currentItem()?.future_scenario_tagline) {
+                  <div class="current-image-label">{{ currentItem()?.future_scenario_tagline }}</div>
+                }
+              </div>
+            </div>
+            <div class="replacement-options-section">
+              <h4>Choose Replacement</h4>
+              <div class="items-grid">
+                @for (item of workspaceItems(); track item._id) {
+                  <div 
+                    class="item-thumbnail" 
+                    [class.selected]="selectedItemId() === item._id"
+                    (click)="selectExistingImage(item._id)"
+                  >
+                    <img [src]="item.screenshot_url" [alt]="item.future_scenario_tagline || 'Item image'">
+                    @if (item.future_scenario_tagline) {
+                      <div class="item-label">{{ item.future_scenario_tagline }}</div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        }
+        <div class="buttons">
+          <button class="button" (click)="scanAgain()" [disabled]="loading()">
+            Scan New Image
+          </button>
+          <button 
+            class="button primary" 
+            (click)="confirmExistingImage()"
+            [disabled]="!selectedItemId() || loading()"
+          >
+            @if (loading()) {
+              Replacing...
+            } @else {
+              Compare Images
+            }
+          </button>
+        </div>
+      </div>
+    } @else {
+      <div class="modal-body comparison-modal">
+        <app-image-comparison
+          [currentImage]="currentImageUrl()"
+          [newImage]="pendingNewImage()!"
+          (approved)="onExistingComparisonApproved()"
+          (cancelled)="onComparisonCancelled()"
+        />
+      </div>
+    }
+  </div>
+</div>

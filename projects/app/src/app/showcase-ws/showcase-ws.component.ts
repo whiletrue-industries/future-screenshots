@@ -4,6 +4,7 @@ import { PlatformService } from '../../platform.service';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
 import { QrcodeComponent } from "./qrcode/qrcode.component";
+import { SettingsPanelComponent, FisheyeSettings } from './settings-panel.component';
 import { PhotoData, PhotoAnimationState, PhotoMetadata } from './photo-data';
 import { ThreeRendererService } from './three-renderer.service';
 import { LayoutStrategy } from './layout-strategy.interface';
@@ -19,7 +20,7 @@ import e from 'express';
 
 @Component({
   selector: 'app-showcase-ws',
-  imports: [QrcodeComponent],
+  imports: [QrcodeComponent, SettingsPanelComponent],
   templateUrl: './showcase-ws.component.html',
   styleUrl: './showcase-ws.component.less'
 })
@@ -38,6 +39,30 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   currentLayout = signal<'grid' | 'tsne' | 'svg' | 'circle-packing'>('circle-packing');
   enableRandomShowcase = signal(false);
   enableSvgAutoPositioning = signal(false);
+  fisheyeEnabled = signal(false);
+  currentZoomLevel = signal(1.0); // Track current zoom level for UI display
+  
+  // Check if user has admin access
+  isAdmin = computed(() => this.admin_key() !== '' && this.admin_key() !== 'ADMIN_KEY_NOT_SET');
+  fisheyeSettings = signal<FisheyeSettings>({
+    enabled: true,
+    maxMagnification: 10.0,
+    radius: 700,
+    maxHeight: 40
+  });
+
+  // Check if currently dragging (for cursor style)
+  isDragging = computed(() => this.rendererService.isDraggingItem());
+  
+  // Check if hovering over an item (for cursor style) - directly use the signal
+  isHoveringItem = computed(() => {
+    const hovering = this.rendererService.isHoveringItem()();
+    console.log('[SHOWCASE_WS_CURSOR] isHoveringItem computed changed to:', hovering);
+    return hovering;
+  });
+
+  // Track if fisheye is currently enabled
+  // No longer needed: private currentFisheyeValue = 0;
   loadedPhotoIds = new Set<string>();
   private layoutChangeInProgress = false;
   qrUrl = computed(() => 
@@ -159,6 +184,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     if (layoutParam && ['grid','tsne','svg','circle-packing'].includes(layoutParam)) {
       this.currentLayout.set(layoutParam as any);
     }
+    
+    // Check for fisheye parameters
+    if (qp['fisheye'] === '1' || qp['fisheye'] === 'true') {
+      this.fisheyeEnabled.set(true);
+    }
+    
     apiService.updateFromRoute(this.activatedRoute.snapshot);
     apiService.api_key.set(this.admin_key());
   }
@@ -169,6 +200,28 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   toggleRandomShowcase() {
     this.enableRandomShowcase.set(!this.enableRandomShowcase());
     this.photoRepository.setRandomShowcaseEnabled(this.enableRandomShowcase());
+  }
+
+  /**
+   * Toggle fisheye lens effect
+   */
+  toggleFisheyeEffect() {
+    const willBeEnabled = !this.fisheyeEnabled();
+    console.log('[SHOWCASE_WS] Toggling fisheye to:', willBeEnabled);
+    this.fisheyeEnabled.set(willBeEnabled);
+    this.rendererService.enableFisheyeEffect(willBeEnabled);
+    
+    // When enabling, immediately apply current settings
+    if (willBeEnabled) {
+      const settings = this.fisheyeSettings();
+      console.log('[SHOWCASE_WS] Applying fisheye settings on toggle:', settings);
+      this.rendererService.setFisheyeConfig({
+        magnification: settings.maxMagnification,
+        radius: settings.radius,
+        maxHeight: settings.maxHeight,
+        viewportHeight: window.innerHeight
+      });
+    }
   }
 
   /**
@@ -290,6 +343,45 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT
     });
 
+    // Apply default fisheye settings immediately on init
+    const settings = this.fisheyeSettings();
+    if (settings.enabled) {
+      console.log('[SHOWCASE_WS] Enabling fisheye on init with settings:', settings);
+      this.rendererService.enableFisheyeEffect(true);
+      this.rendererService.setFisheyeConfig({
+        magnification: settings.maxMagnification,
+        radius: settings.radius,
+        maxHeight: settings.maxHeight,
+        viewportHeight: window.innerHeight
+      });
+    }
+
+    // Apply fisheye settings from query parameters (override defaults)
+    const qp = this.activatedRoute.snapshot.queryParams;
+    if (qp['fisheye'] === '0' || qp['fisheye'] === 'false') {
+      this.rendererService.enableFisheyeEffect(false);
+    }
+    
+    // Read optional fisheye configuration from query params
+    if (qp['fisheye_radius']) {
+      const radius = parseFloat(qp['fisheye_radius']);
+      if (!isNaN(radius)) {
+        this.rendererService.setFisheyeConfig({ radius });
+      }
+    }
+    if (qp['fisheye_magnification']) {
+      const magnification = parseFloat(qp['fisheye_magnification']);
+      if (!isNaN(magnification)) {
+        this.rendererService.setFisheyeConfig({ magnification });
+      }
+    }
+    if (qp['fisheye_distortion']) {
+      const distortion = parseFloat(qp['fisheye_distortion']);
+      if (!isNaN(distortion)) {
+        this.rendererService.setFisheyeConfig({ distortion });
+      }
+    }
+
     // Initialize PhotoDataRepository with default grid strategy first
     const defaultGridStrategy = new GridLayoutStrategy({
       photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
@@ -342,6 +434,13 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
       });
     
+    // Poll zoom level every 500ms for UI display (non-critical update)
+    interval(500)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.currentZoomLevel.set(this.rendererService.getCurrentZoomLevel());
+      });
+    
     // Start initial polling after component is ready
     if (this.platform.browser()) {
       timer(ANIMATION_CONSTANTS.INITIAL_POLLING_DELAY).subscribe(() => {
@@ -390,8 +489,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(tsneStrategy);
       
-
-      
     } catch (error) {
       console.error('Error switching to TSNE layout:', error);
     } finally {
@@ -432,8 +529,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(gridStrategy);
-      
-
       
     } catch (error) {
       console.error('Error switching to Grid layout:', error);
@@ -518,6 +613,23 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Switch the layout using PhotoDataRepository (this will initialize the strategy)
       await this.photoRepository.setLayoutStrategy(svgStrategy);
       
+      // Get all photos and their final positions to calculate optimal zoom
+      const allPhotos = this.photoRepository.getAllPhotos();
+      const photoPositions = await svgStrategy.calculateAllPositions(allPhotos);
+      
+      // After a short delay to allow positions to update in renderer, fit camera to the calculated bounds
+      // Use unclamped zoom to fit all images on SVG (not barred by former layout)
+      setTimeout(async () => {
+        // Filter out null positions and extract x/y coordinates
+        const validPositions = photoPositions
+          .filter(pos => pos !== null)
+          .map(pos => ({ x: pos.x, y: pos.y }));
+        
+        if (validPositions.length > 0) {
+          await this.rendererService.fitCameraToBounds(validPositions);
+        }
+      }, 200);
+      
       // Pass layout strategy reference to renderer for debug visualization
       this.rendererService.setLayoutStrategyReference(svgStrategy);
       
@@ -573,8 +685,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(circlePackingStrategy);
       
-
-      
     } catch (error) {
       console.error('Error switching to Circle Packing layout:', error);
     } finally {
@@ -601,19 +711,38 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Zoom in at the cursor position (or center if unavailable)
+   * Zoom in at the viewport center
    */
   zoomIn(): void {
-    this.rendererService.zoomAtCursor(0.65);
+    this.rendererService.zoomAtCenter(0.65);
   }
 
   /**
-   * Zoom out at the cursor position (or center if unavailable)
+   * Zoom out at the viewport center
    */
   zoomOut(): void {
-    this.rendererService.zoomAtCursor(1.5);
+    this.rendererService.zoomAtCenter(1.5);
   }
 
+  /**
+   * Handle camera settings changes from the settings panel
+   * Applies all slider adjustments to the renderer
+   */
+  onSettingsChange(settings: FisheyeSettings): void {
+    this.fisheyeSettings.set(settings);
+    console.log('[SHOWCASE_WS] onFisheyeSettingsChange', { ...settings });
+    
+    // Enable/disable the fisheye effect in the renderer
+    this.rendererService.enableFisheyeEffect(settings.enabled);
+    
+    // Apply fisheye configuration (magnification, radius, maxHeight)
+    this.rendererService.setFisheyeConfig({
+      magnification: settings.maxMagnification,
+      radius: settings.radius,
+      maxHeight: settings.maxHeight,
+      viewportHeight: window.innerHeight
+    });
+  }
 
   ngOnDestroy() {
     this.destroy$.next();

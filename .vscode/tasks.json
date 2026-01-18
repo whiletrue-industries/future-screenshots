@@ -37,6 +37,43 @@
           }
         }
       }
+    },
+    {
+      "label": "start-verbose-poll",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "run",
+        "start",
+        "--",
+        "--verbose",
+        "--poll=2000"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": false,
+      "problemMatcher": []
+    },
+    {
+      "label": "start-lowmem-nohmr",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "run",
+        "start",
+        "--",
+        "--no-hmr",
+        "--poll=2000"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "NODE_OPTIONS": "--max-old-space-size=2048"
+        }
+      },
+      "isBackground": false,
+      "problemMatcher": []
     }
   ]
 }
