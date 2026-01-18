@@ -190,13 +190,15 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
     const startX = -totalWidth / 2;
     const worldX = groupPosition.x + startX + (photoIndex * overlapSpacing);
     
-    // Arc based on evaluation rotation magnitude
+    // Arc based on evaluation rotation magnitude - fan curve composition
+    // Items at extremes (high |rotation|) curve down, center items (low |rotation|) stay higher
     const evaluationRotationRad = evaluationRotationDeg * Math.PI / 180;
-    const arcHeight = -Math.abs(evaluationRotationRad) * 200; // center higher, edges lower
+    const normalizedRotation = Math.abs(evaluationRotationDeg) / 32; // 0 at center, 1 at edges
+    const arcHeight = -normalizedRotation * normalizedRotation * 200; // quadratic curve: edges dip more
     const worldY = groupPosition.y + arcHeight;
     
-    // Render order: rightmost (more negative) on top, accumulate right→left
-    const renderOrder = Math.round((32 - evaluationRotationDeg) * 1.5625); // map -32..32 -> 100..0
+    // Render order: leftmost (more positive) on top, accumulate left→right
+    const renderOrder = Math.round((evaluationRotationDeg + 32) * 1.5625); // map -32..32 -> 0..100
     
     return {
       x: worldX,

@@ -397,73 +397,14 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     }
     
     const positions: (LayoutPosition | null)[] = [];
-
-    // Group photos (same logic as circle packing)
-    const grouped = this.groupPhotosByGroupId(photos);
-    const groupSlices = this.calculateGroupSlices(grouped);
-
-    // Create fan layout per group, anchored at slice center
-    for (const [groupId, groupPhotos] of grouped.entries()) {
-      // Skip preserved positions already set for these photos
-      const activePhotos = groupPhotos.filter(p => !this.photoPositions.has(p.id));
-      if (activePhotos.length === 0) continue;
-
-      // Sort by evaluation score (positive = left, negative = right)
-      activePhotos.sort((a, b) => this.calculateEvaluationScore(b) - this.calculateEvaluationScore(a));
-
-      const groupSize = activePhotos.length;
-      const slice = groupSlices.get(groupId);
-      const angle = slice ? (slice.startAngle + slice.endAngle) / 2 : 0;
-      const radius = this.options.circleRadius;
-      const anchorX = this.options.centerX + Math.cos(angle) * radius;
-      const anchorY = this.options.centerY + Math.sin(angle) * radius;
-
-      // Fan parameters match circle-packing
-      const minRotation = 8;
-      const maxRotation = 32;
-      const sizeForMaxRotation = 10;
-      const sizeFactor = Math.min(groupSize / sizeForMaxRotation, 1.0);
-      const rotationRange = minRotation + (maxRotation - minRotation) * sizeFactor;
-
-      const cardWidth = this.PHOTO_WIDTH;
-      const overlapSpacing = cardWidth * 0.65;
-      const totalWidth = (groupSize - 1) * overlapSpacing;
-      const startX = -totalWidth / 2;
-
-      activePhotos.forEach((photo, index) => {
-        const evalRotDeg = this.calculateEvaluationRotationDeg(photo);
-        const evalRotRad = evalRotDeg * Math.PI / 180;
-
-        const worldX = anchorX + startX + index * overlapSpacing;
-        const arcHeight = -Math.abs(evalRotRad) * 200;
-        const worldY = anchorY + arcHeight;
-
-        // Render order: right (negative) on top
-        const renderOrder = Math.round((32 - evalRotDeg) * 1.5625);
-
-        const pos: LayoutPosition = {
-          x: worldX,
-          y: worldY,
-          metadata: {
-            layoutType: 'svg-fan',
-            groupId,
-            groupSlice: slice,
-            photoIndex: index,
-            groupSize,
-            renderOrder,
-            rotationDeg: evalRotDeg,
-            rotationRange
-          }
-        };
-
-        this.photoPositions.set(photo.id, pos);
-        photo.setProperty('svgLayoutPosition', pos);
-        positions.push(pos);
-      });
+    
+    // Process each photo to get its position
+    for (const photo of photos) {
+      const position = await this.getPositionForPhoto(photo, photos, enableAutoPositioning);
+      positions.push(position);
     }
-
-    // Preserve order with nulls for any rejected/missing handled earlier
-    return positions.length ? positions : photos.map(() => null);
+    
+    return positions;
   }
 
   private generateRandomCircularPosition(): LayoutPosition {
