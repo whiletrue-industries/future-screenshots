@@ -127,10 +127,6 @@ export class ThreeRendererService {
   
   // Hover state signal for cursor feedback
   private hoveredItemSignal = signal(false);
-  
-  // Debug timing for zoom state logging
-  private fisheyeLastDebugTime = 0;
-  private fisheyeLastZoomDebugTime = 0;
 
   // Settings Panel Controls
   private rotationSpeedMultiplier = 1.0;
@@ -764,7 +760,6 @@ export class ThreeRendererService {
   }
 
   // Fisheye Effect Helper Methods
-  private fisheyeLastLoggedState = { enabled: false, meshCount: 0, dragging: false };
   
   private applyFisheyeEffect(): void {
     
@@ -801,48 +796,19 @@ export class ThreeRendererService {
       
       // If items already exceed max-height at current zoom, mark for disable
       shouldDisableForZoom = typicalItemHeightPx > maxHeightPx;
-      
-      // Log zoom state on changes (throttled)
-      if (!this.fisheyeLastZoomDebugTime || Date.now() - this.fisheyeLastZoomDebugTime > 500) {
-        console.log('[FISHEYE_ZOOM_STATE] zoom:', this.targetCamZ.toFixed(0), 'typicalItemHeightPx:', typicalItemHeightPx.toFixed(0), 'maxHeightPx:', maxHeightPx.toFixed(0), 'shouldDisableForZoom:', shouldDisableForZoom);
-        this.fisheyeLastZoomDebugTime = Date.now();
-      }
     }
     
     // Apply zoom-based enable/disable logic BEFORE early return
     // This allows re-enabling when zooming back out
     if (shouldDisableForZoom && this.fisheyeEnabled) {
-      console.log('[FISHEYE_ZOOM] Disabling due to zoom - items exceed max-height');
       this.fisheyeEnabled = false;
     } else if (!shouldDisableForZoom && !this.fisheyeEnabled && this.fisheyeEnabledSignal) {
-      console.log('[FISHEYE_ZOOM] Re-enabling after zoom - items now within max-height');
       this.fisheyeEnabled = true;
-    } else if (!shouldDisableForZoom && !this.fisheyeEnabled) {
-      // DEBUG: Log why re-enable didn't happen (throttled)
-      if (!this.fisheyeLastDebugTime || Date.now() - this.fisheyeLastDebugTime > 1000) {
-        console.log('[FISHEYE_ZOOM_DEBUG] Not re-enabling: shouldDisableForZoom:', shouldDisableForZoom, 
-                    'fisheyeEnabled:', this.fisheyeEnabled, 'fisheyeEnabledSignal:', this.fisheyeEnabledSignal);
-        this.fisheyeLastDebugTime = Date.now();
-      }
     }
     
     // Exit early if disabled
     if (!this.fisheyeEnabled) {
-      if (shouldDisableForZoom) {
-        console.log('[FISHEYE_ZOOM] Skipping effect - disabled due to zoom');
-      }
       return;
-    }
-
-    // Log only on state changes
-    const currentMeshCount = this.root.children.length;
-    if (!this.fisheyeLastLoggedState.enabled || 
-        this.fisheyeLastLoggedState.meshCount !== currentMeshCount ||
-        this.fisheyeLastLoggedState.dragging !== this.isDragging) {
-      console.log('[FISHEYE] Active - meshes:', currentMeshCount, 'dragging:', this.isDragging, 'zoom:', this.targetCamZ.toFixed(0));
-      this.fisheyeLastLoggedState.enabled = true;
-      this.fisheyeLastLoggedState.meshCount = currentMeshCount;
-      this.fisheyeLastLoggedState.dragging = this.isDragging;
     }
 
     // Get the world position of the mouse cursor
@@ -1070,9 +1036,7 @@ export class ThreeRendererService {
    * Enable drag functionality for a mesh with callback
    */
   enableDragForMesh(mesh: THREE.Mesh, callback: (position: { x: number; y: number; z: number }) => void) {
-    console.log('[DRAG] Registering drag for mesh:', mesh.name, 'dragCallbacks.size before:', this.dragCallbacks.size);
     this.dragCallbacks.set(mesh, callback);
-    console.log('[DRAG] dragCallbacks.size after:', this.dragCallbacks.size);
   }
 
   /**
@@ -1763,24 +1727,12 @@ export class ThreeRendererService {
       this.raycaster.setFromCamera(this.mouse, this.camera);
       const intersects = this.raycaster.intersectObjects(this.root.children, false);
       
-      // DEBUG: Log raycaster results every frame
-      if (intersects.length > 0) {
-        console.log('[CURSOR_DEBUG] Raycaster found', intersects.length, 'intersections, dragCallbacks.size:', this.dragCallbacks.size);
-        console.log('[CURSOR_DEBUG] First intersect object type:', intersects[0].object.type, 'name:', intersects[0].object.name);
-        if (this.dragCallbacks.has(intersects[0].object as THREE.Mesh)) {
-          console.log('[CURSOR_DEBUG] Object IS in dragCallbacks');
-        } else {
-          console.log('[CURSOR_DEBUG] Object NOT in dragCallbacks');
-        }
-      }
-      
       if (intersects.length > 0 && this.dragCallbacks.has(intersects[0].object as THREE.Mesh)) {
         const mesh = intersects[0].object as THREE.Mesh;
         
         // Show preview widget on hover
         if (this.hoveredMesh !== mesh) {
           this.hoveredMesh = mesh;
-          console.log('[CURSOR] Hovering over item, setting signal to true');
           this.hoveredItemSignal.set(true);
           this.showPreviewWidget(mesh);
         }
@@ -1788,7 +1740,6 @@ export class ThreeRendererService {
         // Hide preview widget when not hovering
         if (this.hoveredMesh) {
           this.hoveredMesh = null;
-          console.log('[CURSOR] No longer hovering, setting signal to false');
           this.hoveredItemSignal.set(false);
           this.hidePreviewWidget();
         }
