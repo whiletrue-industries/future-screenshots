@@ -769,6 +769,8 @@ export class ThreeRendererService {
     // Disable fisheye immediately
     if (this.fisheyeEnabled) {
       this.fisheyeEnabled = false;
+      // Reset all affected meshes to their original non-fisheye scale/position
+      this.resetAllFisheyeEffects();
     }
 
     // Clear any existing timer
