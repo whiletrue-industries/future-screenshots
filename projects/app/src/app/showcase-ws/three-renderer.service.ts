@@ -758,6 +758,20 @@ export class ThreeRendererService {
       viewportHeight: viewportHeight
     });
 
+    // Debug: Log once per frame to understand state
+    if (this.root.children.length > 0) {
+      const debugConfig = this.fisheyeService.getConfig();
+      console.debug('[FISHEYE] Applied config:', {
+        radius: debugConfig.radius,
+        magnification: debugConfig.magnification,
+        maxHeight: debugConfig.maxHeight,
+        cameraZ: debugConfig.cameraZ,
+        fov: debugConfig.fov,
+        viewportHeight: debugConfig.viewportHeight,
+        meshCount: this.root.children.length
+      });
+    }
+
     // Get the world position of the mouse cursor
     const worldPos = this.screenToWorld(this.mouse.x, this.mouse.y, 0);
     this.fisheyeFocusPoint.set(worldPos.x, worldPos.y, 0);

@@ -197,12 +197,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   toggleFisheyeEffect() {
     const willBeEnabled = !this.fisheyeEnabled();
+    console.log('[SHOWCASE_WS] Toggling fisheye to:', willBeEnabled);
     this.fisheyeEnabled.set(willBeEnabled);
     this.rendererService.enableFisheyeEffect(willBeEnabled);
     
     // When enabling, immediately apply current settings
     if (willBeEnabled) {
       const settings = this.fisheyeSettings();
+      console.log('[SHOWCASE_WS] Applying fisheye settings on toggle:', settings);
       this.rendererService.setFisheyeConfig({
         magnification: settings.maxMagnification,
         radius: settings.radius,
