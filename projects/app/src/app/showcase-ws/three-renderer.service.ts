@@ -655,7 +655,9 @@ export class ThreeRendererService {
 
   // Fisheye Effect API
   enableFisheyeEffect(enabled: boolean): void {
+    console.log('[RENDERER] enableFisheyeEffect called with:', enabled);
     this.fisheyeEnabled = enabled;
+    console.log('[RENDERER] fisheyeEnabled is now:', this.fisheyeEnabled);
     if (!enabled) {
       // Reset all affected meshes to their original state
       this.resetAllFisheyeEffects();
@@ -744,6 +746,8 @@ export class ThreeRendererService {
 
   // Fisheye Effect Helper Methods
   private applyFisheyeEffect(): void {
+    console.debug('[FISHEYE] applyFisheyeEffect called, fisheyeEnabled:', this.fisheyeEnabled);
+    
     if (!this.fisheyeEnabled) {
       return;
     }
@@ -759,6 +763,7 @@ export class ThreeRendererService {
     });
 
     // Debug: Log once per frame to understand state
+    console.debug('[FISHEYE] Config applied, root.children.length:', this.root.children.length);
     if (this.root.children.length > 0) {
       const debugConfig = this.fisheyeService.getConfig();
       console.debug('[FISHEYE] Applied config:', {
