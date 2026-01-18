@@ -42,6 +42,27 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
   }
 
   /**
+   * Calculate evaluation score for sorting within clusters
+   * Higher score = more left in fan (+rotation)
+   * Lower score = more right in fan (-rotation)
+   */
+  private calculateEvaluationScore(photo: PhotoData): number {
+    const favorable = photo.metadata['favorable_future'] as boolean | undefined;
+    const plausibility = photo.metadata['plausibility'] as number | undefined;
+    
+    // Default values if metadata is missing
+    const isFavorable = favorable === true;
+    const plaus = plausibility !== undefined ? plausibility : 0.5;
+    
+    // Score formula: -(favorable ? +1 : -1) * (1 - plausibility) [REVERSED]
+    // prevent + preposterous (false, 0): -(-1) * 1 = +1 (highest, leftmost)
+    // prevent + plausible (false, 1): -(-1) * 0 = 0
+    // preferred + plausible (true, 1): -(+1) * 0 = 0
+    // preferred + preposterous (true, 0): -(+1) * 1 = -1 (lowest, rightmost)
+    return -(isFavorable ? 1 : -1) * (1 - plaus);
+  }
+
+  /**
    * Gets the configuration for this layout strategy
    */
   getConfiguration(): LayoutConfiguration {
@@ -134,17 +155,49 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
       return null;
     }
     
-    // Calculate photo position within the group circle
-    const photoPositions = this.packPhotosInGroup(groupPhotos);
-    const relativePos = photoPositions[photoIndex];
+    // Arrange photos in fan/bow layout like playing cards held in hand
+    const groupSize = groupPhotos.length;
     
-    if (!relativePos) {
-      return null;
+    // Calculate fan parameters
+    const minRotation = 8; // degrees for small clusters
+    const maxRotation = 32; // degrees for large clusters
+    const sizeForMaxRotation = 10;
+    const sizeFactor = Math.min(groupSize / sizeForMaxRotation, 1.0);
+    const rotationRange = minRotation + (maxRotation - minRotation) * sizeFactor;
+    
+    // Calculate rotation for this photo's position in cluster
+    let clusterRotationDeg = 0;
+    if (groupSize > 1) {
+      // Spread from +rotationRange to -rotationRange (reversed fan direction)
+      const normalizedPos = photoIndex / (groupSize - 1); // 0 to 1
+      clusterRotationDeg = -((normalizedPos - 0.5) * 2 * rotationRange);
     }
     
-    // Convert relative position to world position
-    const worldX = groupPosition.x + relativePos.x;
-    const worldY = groupPosition.y + relativePos.y;
+    // Horizontal spacing with overlap (items spaced out more)
+    const cardWidth = this.photoWidth;
+    const overlapSpacing = cardWidth * 0.65; // 35% overlap
+    const totalWidth = (groupSize - 1) * overlapSpacing;
+    const startX = -totalWidth / 2;
+    const worldX = groupPosition.x + startX + (photoIndex * overlapSpacing);
+    
+    // Vertical offset to create inverted bow/arc shape
+    // Items at center (smaller rotation) are raised higher
+    // Items at edges (larger rotation) are lower
+    const clusterRotationRad = clusterRotationDeg * Math.PI / 180;
+    const arcHeight = -Math.abs(clusterRotationRad) * 200; // Negative to invert: higher at center, lower at edges
+    const worldY = groupPosition.y + arcHeight;
+    
+    // Calculate render order: more plausible AND preferred photos render on top
+    const plausibility = photo.metadata['plausibility'] as number | undefined;
+    const favorable = photo.metadata['favorable_future'] as boolean | undefined;
+    const plaus = plausibility !== undefined ? plausibility : 0.5;
+    const isFavorable = favorable === true;
+    // Formula: plausibility (0-10) + favorable bonus (0 or 5)
+    // Preferred plausible: 10 + 5 = 15
+    // Prevent plausible: 10 + 0 = 10
+    // Preferred preposterous: 0 + 5 = 5
+    // Prevent preposterous: 0 + 0 = 0
+    const renderOrder = Math.round(plaus * 10) + (isFavorable ? 5 : 0);
     
     return {
       x: worldX,
@@ -154,7 +207,9 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
         groupSize: groupPhotos.length,
         photoIndex,
         groupPosition: { x: groupPosition.x, y: groupPosition.y, radius: groupPosition.radius },
-        circlePackKey: `circle-pack-${groupId}-${photoIndex}` // Use our own key instead of gridKey
+        circlePackKey: `circle-pack-${groupId}-${photoIndex}`, // Use our own key instead of gridKey
+        clusterRotation: clusterRotationDeg, // Fan rotation in degrees
+        renderOrder: renderOrder // Preferred on top of prevent
       }
     };
   }
@@ -224,6 +279,17 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
       }
       
       this.photoGroups.get(groupId)!.push(photo);
+    }
+    
+    // Sort photos within each group by evaluation score
+    // Left (+rotation): preferred + preposterous (high score)
+    // Right (-rotation): prevent + preposterous (low score)
+    for (const [groupId, groupPhotos] of this.photoGroups.entries()) {
+      groupPhotos.sort((a, b) => {
+        const scoreA = this.calculateEvaluationScore(a);
+        const scoreB = this.calculateEvaluationScore(b);
+        return scoreB - scoreA; // Descending order (highest score = leftmost)
+      });
     }
     
     this.recalculateLayout();

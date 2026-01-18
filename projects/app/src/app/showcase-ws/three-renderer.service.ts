@@ -184,8 +184,9 @@ export class ThreeRendererService {
     const pos = photoData.currentPosition;
     mesh.position.set(pos.x, pos.y, pos.z);
     
-    // Set renderOrder to ensure photos are always rendered on top of background
-    mesh.renderOrder = 0;
+    // Set renderOrder from metadata (preferred photos on top of prevent photos)
+    const metadataRenderOrder = photoData.metadata['renderOrder'] as number | undefined;
+    mesh.renderOrder = metadataRenderOrder !== undefined ? metadataRenderOrder : 0;
     
     // Apply rotation based on metadata
     const rotation = this.calculatePhotoRotation(photoData);
@@ -204,6 +205,10 @@ export class ThreeRendererService {
 
     const pos = photoData.currentPosition;
     photoData.mesh.position.set(pos.x, pos.y, pos.z);
+    
+    // Update renderOrder from metadata (preferred photos on top of prevent photos)
+    const metadataRenderOrder = photoData.metadata['renderOrder'] as number | undefined;
+    photoData.mesh.renderOrder = metadataRenderOrder !== undefined ? metadataRenderOrder : 0;
     
     // Update rotation based on current metadata
     const rotation = this.calculatePhotoRotation(photoData);
@@ -511,10 +516,19 @@ export class ThreeRendererService {
    */
   private calculatePhotoRotation(photoData: PhotoData): number {
     const metadata = photoData.metadata;
+    
+    // Check for cluster rotation (from circle-packing layout)
+    const clusterRotation = metadata['clusterRotation'] as number | undefined;
+    if (clusterRotation !== undefined) {
+      // Use cluster rotation (convert from degrees to radians)
+      console.log('[ROTATION] Using cluster rotation for photo:', photoData.id, '- rotation:', clusterRotation, '°');
+      return THREE.MathUtils.degToRad(clusterRotation);
+    }
+    
     const plausibility = metadata['plausibility'];
     const favorableFuture = metadata['favorable_future'];
     
-    // If either value is missing, don't rotate
+    // If either value is missing, use stable random rotation
     if (plausibility === undefined || plausibility === null || !favorableFuture) {
       console.warn('[ROTATION] Missing data for photo:', photoData.id, '- plausibility:', plausibility, 'favorable_future:', favorableFuture);
       return this.getStableRandomRotation(photoData.id);
@@ -548,12 +562,46 @@ export class ThreeRendererService {
     }
     
     const finalRotation = isFavor ? rotationMagnitude : -rotationMagnitude;
+
+    return finalRotation;
+  }
+
+  /**
+   * Calculate evaluation rotation (based on plausibility/favorable_future, ignoring cluster rotation)
+   * Used when fisheye is active to override cluster rotation
+   */
+  private calculateEvaluationRotation(photoData: PhotoData): number {
+    const metadata = photoData.metadata;
+    const plausibility = metadata['plausibility'];
+    const favorableFuture = metadata['favorable_future'];
     
-    // Add natural-looking random offset (-1°, 0°, or +1°) for visual variety
-    const randomOffset = this.getStableRandomRotation(photoData.id);
-    const totalRotation = finalRotation + randomOffset;
+    // If either value is missing, use stable random rotation
+    if (plausibility === undefined || plausibility === null || !favorableFuture) {
+      return this.getStableRandomRotation(photoData.id);
+    }
     
-    return totalRotation;
+    // Normalize plausibility to 0-1 range (0=preposterous, 100=projected)
+    const normalizedPlausibility = plausibility / 100;
+    
+    // Maximum rotation at extremes (32 degrees in radians)
+    const maxRotationDeg = 32;
+    const maxRotationRad = THREE.MathUtils.degToRad(maxRotationDeg);
+    
+    // Calculate base rotation based on plausibility
+    const rotationMagnitude = (1 - normalizedPlausibility) * maxRotationRad;
+    
+    // Apply direction based on favorable_future
+    const favorableFutureLower = favorableFuture.toLowerCase().trim();
+    const isFavor = favorableFutureLower === 'favor' || favorableFutureLower === 'favorable' || 
+                    favorableFutureLower === 'prefer' || favorableFutureLower === 'preferred';
+    const isPrevent = favorableFutureLower === 'prevent' || favorableFutureLower === 'prevented' || 
+                      favorableFutureLower === 'unfavorable';
+    
+    if (!isFavor && !isPrevent) {
+      return this.getStableRandomRotation(photoData.id);
+    }
+    
+    return isFavor ? rotationMagnitude : -rotationMagnitude;
   }
 
   /**
@@ -856,7 +904,15 @@ export class ThreeRendererService {
         if (previouslyAffected.has(mesh)) {
           mesh.scale.set(1, 1, 1);
           mesh.position.copy(logicalPosition);
-          mesh.renderOrder = 0;
+          
+          // Reset renderOrder to metadata-based value
+          if (photoData) {
+            const metadataRenderOrder = photoData.metadata['renderOrder'] as number | undefined;
+            mesh.renderOrder = metadataRenderOrder !== undefined ? metadataRenderOrder : 0;
+          } else {
+            mesh.renderOrder = 0;
+          }
+          
           if (mesh.material && 'opacity' in mesh.material) {
             (mesh.material as any).opacity = 1;
           }
@@ -879,6 +935,18 @@ export class ThreeRendererService {
       if (effect) {
         // Mesh is within fisheye radius - apply effect
         this.fisheyeAffectedMeshes.add(mesh);
+
+        // Override cluster rotation with evaluation rotation when in fisheye
+        // Store original rotation if not already stored
+        if (!mesh.userData['originalRotation']) {
+          mesh.userData['originalRotation'] = mesh.rotation.z;
+        }
+        
+        // Calculate evaluation rotation for fisheye override
+        if (photoData) {
+          const evaluationRotation = this.calculateEvaluationRotation(photoData);
+          mesh.rotation.z = evaluationRotation;
+        }
 
         // Apply scale (magnification)
         let targetScale = effect.scale;
@@ -945,7 +1013,21 @@ export class ThreeRendererService {
         if (previouslyAffected.has(mesh)) {
           mesh.scale.set(1, 1, 1);
           mesh.position.copy(logicalPosition);
-          mesh.renderOrder = 0;
+          
+          // Reset renderOrder to metadata-based value
+          if (photoData) {
+            const metadataRenderOrder = photoData.metadata['renderOrder'] as number | undefined;
+            mesh.renderOrder = metadataRenderOrder !== undefined ? metadataRenderOrder : 0;
+          } else {
+            mesh.renderOrder = 0;
+          }
+          
+          // Restore original rotation (cluster rotation)
+          if (mesh.userData['originalRotation'] !== undefined) {
+            mesh.rotation.z = mesh.userData['originalRotation'];
+            mesh.userData['originalRotation'] = undefined;
+          }
+          
           // Remove shadow
           if (mesh.userData['shadowMesh']) {
             this.scene.remove(mesh.userData['shadowMesh']);
@@ -976,6 +1058,12 @@ export class ThreeRendererService {
       // Reset scale and render order
       mesh.scale.set(1, 1, 1);
       mesh.renderOrder = 0;
+      
+      // Restore original rotation (cluster rotation)
+      if (mesh.userData['originalRotation'] !== undefined) {
+        mesh.rotation.z = mesh.userData['originalRotation'];
+        mesh.userData['originalRotation'] = undefined;
+      }
     });
     this.fisheyeAffectedMeshes.clear();
   }

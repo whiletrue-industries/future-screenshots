@@ -47,7 +47,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   fisheyeSettings = signal<FisheyeSettings>({
     enabled: true,
     maxMagnification: 10.0,
-    radius: 600,
+    radius: 700,
     maxHeight: 40
   });
 

@@ -106,7 +106,8 @@ export class FisheyeEffectService {
 
     // Calculate render order (z-index)
     // Items closer to focus point should render on top
-    const renderOrder = Math.floor(falloff * 1000);
+    // Add 1000 offset to ensure fisheye items always render above base layer
+    const renderOrder = Math.floor(falloff * 1000) + 1000;
 
     return { scale, positionOffset, renderOrder };
   }

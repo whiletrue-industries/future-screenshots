@@ -370,7 +370,7 @@ export class SettingsPanelComponent implements AfterViewInit, OnDestroy, OnInit 
   settings: FisheyeSettings = {
     enabled: true,
     maxMagnification: 10,
-    radius: 600,
+    radius: 700,
     maxHeight: 40
   };
 
@@ -471,7 +471,7 @@ export class SettingsPanelComponent implements AfterViewInit, OnDestroy, OnInit 
     this.settings = {
       enabled: true,
       maxMagnification: 10,
-      radius: 600,
+      radius: 700,
       maxHeight: 40
     };
     this.updateSettings();
