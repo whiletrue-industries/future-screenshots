@@ -199,6 +199,18 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     const willBeEnabled = !this.fisheyeEnabled();
     this.fisheyeEnabled.set(willBeEnabled);
     this.rendererService.enableFisheyeEffect(willBeEnabled);
+    
+    // When enabling, immediately apply current settings
+    if (willBeEnabled) {
+      const settings = this.fisheyeSettings();
+      this.rendererService.setFisheyeConfig({
+        magnification: settings.maxMagnification,
+        radius: settings.radius,
+        zoomRelative: settings.zoomRelative,
+        maxHeight: settings.maxHeight,
+        viewportHeight: window.innerHeight
+      });
+    }
   }
 
   /**
