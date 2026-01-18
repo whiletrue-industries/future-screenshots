@@ -127,6 +127,10 @@ export class ThreeRendererService {
   
   // Hover state signal for cursor feedback
   private hoveredItemSignal = signal(false);
+  
+  // Debug timing for zoom state logging
+  private fisheyeLastDebugTime = 0;
+  private fisheyeLastZoomDebugTime = 0;
 
   // Settings Panel Controls
   private rotationSpeedMultiplier = 1.0;
@@ -801,6 +805,12 @@ export class ThreeRendererService {
       
       // If items already exceed max-height at current zoom, mark for disable
       shouldDisableForZoom = typicalItemHeightPx > maxHeightPx;
+      
+      // Log zoom state on changes (throttled)
+      if (!this.fisheyeLastZoomDebugTime || Date.now() - this.fisheyeLastZoomDebugTime > 500) {
+        console.log('[FISHEYE_ZOOM_STATE] zoom:', this.targetCamZ.toFixed(0), 'typicalItemHeightPx:', typicalItemHeightPx.toFixed(0), 'maxHeightPx:', maxHeightPx.toFixed(0), 'shouldDisableForZoom:', shouldDisableForZoom);
+        this.fisheyeLastZoomDebugTime = Date.now();
+      }
     }
     
     // Apply zoom-based enable/disable logic
@@ -811,9 +821,12 @@ export class ThreeRendererService {
       console.log('[FISHEYE_ZOOM] Re-enabling after zoom - items now within max-height');
       this.fisheyeEnabled = true;
     } else if (!shouldDisableForZoom && !this.fisheyeEnabled) {
-      // DEBUG: Log why re-enable didn't happen
-      console.log('[FISHEYE_ZOOM_DEBUG] Not re-enabling: shouldDisableForZoom:', shouldDisableForZoom, 
-                  'fisheyeEnabled:', this.fisheyeEnabled, 'fisheyeEnabledSignal:', this.fisheyeEnabledSignal);
+      // DEBUG: Log why re-enable didn't happen (throttled)
+      if (!this.fisheyeLastDebugTime || Date.now() - this.fisheyeLastDebugTime > 1000) {
+        console.log('[FISHEYE_ZOOM_DEBUG] Not re-enabling: shouldDisableForZoom:', shouldDisableForZoom, 
+                    'fisheyeEnabled:', this.fisheyeEnabled, 'fisheyeEnabledSignal:', this.fisheyeEnabledSignal);
+        this.fisheyeLastDebugTime = Date.now();
+      }
     }
     
     // Exit early if disabled
