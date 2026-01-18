@@ -633,7 +633,22 @@ export class CanvasCreatorComponent implements AfterViewInit {
     if (!this.platform.browser()) {
       return;
     }
-    // Start carousel spin animation
+    // If a specific template was requested (re-edit flow), open it
+    const requestedId = this.route.snapshot.queryParamMap.get('template_id');
+    if (requestedId) {
+      const idx = this.templates.findIndex(t => t.id === requestedId);
+      if (idx >= 0) {
+        this.currentTemplateIndex.set(idx);
+        // Open editor directly with the requested template
+        this.useCurrentTemplate();
+        // After canvas initializes, restore state if available
+        setTimeout(() => {
+          this.restoreCanvasState();
+        }, 500);
+        return;
+      }
+    }
+    // Otherwise start carousel spin animation
     this.spinCarouselToRandomTemplate();
   }
   
@@ -782,6 +797,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
     
     let containerWidth = container?.clientWidth || 0;
     let containerHeight = container?.clientHeight || 0;
+    // Subtract control bar height if present to avoid overlap
+    const controlBarEl = container?.parentElement?.querySelector('.control-bar') as HTMLElement | null;
+    const controlBarH = controlBarEl ? (controlBarEl.getBoundingClientRect().height || 0) : 0;
     
     // If container dimensions are not available, wait and try again
     if (containerWidth === 0 || containerHeight === 0) {
@@ -802,7 +820,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     let displayHeight = displayWidth / aspectRatio;
     
     if (displayHeight > containerHeight - 32) {
-      displayHeight = Math.max(100, containerHeight - 32);
+      displayHeight = Math.max(100, containerHeight - 32 - controlBarH);
       displayWidth = displayHeight * aspectRatio;
     }
     
@@ -1133,9 +1151,10 @@ export class CanvasCreatorComponent implements AfterViewInit {
           // Second click on same textbox: enter editing
           mouseDownTarget.editable = true;
           mouseDownTarget.enterEditing();
+          const targetRef = mouseDownTarget;
           setTimeout(() => {
-            if (mouseDownTarget.isEditing) {
-              mouseDownTarget.selectAll();
+            if (targetRef && targetRef.isEditing) {
+              targetRef.selectAll();
             }
           }, 50);
         }
@@ -1235,6 +1254,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
       top: 0,
       selectable: false,
       evented: false,
+      globalCompositeOperation: 'multiply',
     });
     fabricCanvas.add(img);
     fabricCanvas.renderAll();
@@ -1295,6 +1315,10 @@ export class CanvasCreatorComponent implements AfterViewInit {
     // Store textbox data in state service
     this.state.currentTextboxData.set(textboxData || null);
 
+    // Save canvas state as JSON before removing placeholders (for re-edit)
+    const canvasJSON = JSON.stringify(fabricCanvas.toJSON(['globalCompositeOperation', 'paintFirst', '_placeholder', '_placeholderText']));
+    this.state.currentCanvasState.set(canvasJSON);
+
     // Remove untouched placeholders before export
     const placeholders = this.placeholderTexts.filter(t => (t as any)._placeholder || ((t.text || '').trim() === ((t as any)._placeholderText || 'Type here...')));
     if (placeholders.length) {
@@ -1324,7 +1348,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const jpegBlob = new Blob([blob], { type: 'image/jpeg' });
     
     this.state.setImage(jpegBlob);
-    this.router.navigate(['/confirm'], { queryParamsHandling: 'merge', queryParams: { template: 'true' } });
+    const sel = this.selectedTemplate();
+    this.router.navigate(['/confirm'], { queryParamsHandling: 'merge', queryParams: { template: 'true', template_id: sel?.id } });
   }
   
   undo() {
@@ -1359,17 +1384,19 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const velocity = Math.abs(this.touchDeltaX);
     
     // Determine if we should navigate based on distance and velocity
+    // Reset drag state before triggering navigation so guards don't block
+    this.isSwiping = false;
+    this.carouselDragging.set(false);
+
     if (this.touchDeltaX > threshold || (velocity > 30 && this.touchDeltaX > 0)) {
       this.previousTemplate();
     } else if (this.touchDeltaX < -threshold || (velocity > 30 && this.touchDeltaX < 0)) {
       this.nextTemplate();
     }
-    
-    // Reset drag state
+
+    // Final cleanup
     this.touchStartX = null;
     this.touchDeltaX = 0;
-    this.isSwiping = false;
-    this.carouselDragging.set(false);
     this.carouselDragOffset.set(0);
   }
 
@@ -1486,9 +1513,22 @@ export class CanvasCreatorComponent implements AfterViewInit {
     text.on('changed', () => {
       const effectiveText = text.text || '';
       const isRTL = this.detectRTL(effectiveText);
+      // Determine which RTL font to use based on character set
+      let rtlFont = this.selectedFont();
+      if (isRTL) {
+        // Check if Hebrew or Arabic
+        const hasHebrew = /[\u0590-\u05FF]/.test(effectiveText);
+        const hasArabic = /[\u0600-\u06FF]/.test(effectiveText);
+        if (hasHebrew) {
+          rtlFont = 'Gadi Almog, Miriam Libre, serif';
+        } else if (hasArabic) {
+          rtlFont = 'Mikhak, Readex Pro, sans-serif';
+        }
+      }
       text.set({ 
         direction: isRTL ? 'rtl' : 'ltr',
-        textAlign: isRTL ? 'right' : 'left'
+        textAlign: isRTL ? 'right' : 'left',
+        fontFamily: rtlFont
       });
       targetCanvas.requestRenderAll();
     });
@@ -1523,7 +1563,10 @@ export class CanvasCreatorComponent implements AfterViewInit {
     text.lockMovementY = false;
     
     // Add multiply blend mode for better appearance on templates
-    text.set({ globalCompositeOperation: 'multiply' });
+    text.set({ 
+      globalCompositeOperation: 'multiply',
+      paintFirst: 'fill' // Ensure fill is painted with multiply blend
+    });
     
     // Allow width resize via side handles only; corners will resize font uniformly
     text.setControlsVisibility({
@@ -1751,6 +1794,71 @@ export class CanvasCreatorComponent implements AfterViewInit {
       t.set({ visible: true });
     });
     this.canvas()?.requestRenderAll();
+  }
+
+  private restoreCanvasState() {
+    const savedState = this.state.currentCanvasState();
+    if (!savedState) return;
+    
+    const fabricCanvas = this.canvas();
+    if (!fabricCanvas) return;
+
+    try {
+      const stateObj = JSON.parse(savedState);
+      // Clear current objects (keep background)
+      const existingObjects = fabricCanvas.getObjects();
+      existingObjects.forEach((obj: any) => fabricCanvas.remove(obj));
+      
+      // Load saved state
+      fabricCanvas.loadFromJSON(stateObj, () => {
+        // After loading, reconfigure textboxes
+        const textboxes = fabricCanvas.getObjects().filter((obj: any) => obj.type === 'textbox');
+        textboxes.forEach((tb: any) => {
+          this.configureTextbox(tb);
+          // Re-attach event handlers
+          tb.on('editing:entered', () => {
+            if ((tb as any)._placeholder) {
+              tb.set({ fill: this.currentColor(), _placeholder: false });
+              tb.selectAll();
+              fabricCanvas.requestRenderAll();
+            }
+          });
+          tb.on('changed', () => {
+            const effectiveText = tb.text || '';
+            const isRTL = this.detectRTL(effectiveText);
+            let rtlFont = this.selectedFont();
+            if (isRTL) {
+              const hasHebrew = /[\u0590-\u05FF]/.test(effectiveText);
+              const hasArabic = /[\u0600-\u06FF]/.test(effectiveText);
+              if (hasHebrew) {
+                rtlFont = 'Gadi Almog, Miriam Libre, serif';
+              } else if (hasArabic) {
+                rtlFont = 'Mikhak, Readex Pro, sans-serif';
+              }
+            }
+            tb.set({ 
+              direction: isRTL ? 'rtl' : 'ltr',
+              textAlign: isRTL ? 'right' : 'left',
+              fontFamily: rtlFont
+            });
+            fabricCanvas.requestRenderAll();
+          });
+          tb.on('editing:exited', () => {
+            const content = tb.text || '';
+            if (content.trim() === '') {
+              const originalPlaceholder = (tb as any)._placeholderText || 'Type here...';
+              tb.set({ text: originalPlaceholder, fill: '#9aa0a6', _placeholder: true });
+            }
+          });
+        });
+        this.placeholderTexts = textboxes;
+        this.hasContent.set(fabricCanvas.getObjects().length > 0);
+        fabricCanvas.requestRenderAll();
+        console.log('Canvas state restored successfully');
+      });
+    } catch (error) {
+      console.error('Failed to restore canvas state:', error);
+    }
   }
 
   private exportTextboxesAsGeoJSON() {

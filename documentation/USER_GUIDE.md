@@ -5,6 +5,8 @@ This guide provides instructions for using the Future Screenshots platform, incl
 ## Table of Contents
 
 - [Getting Started](#getting-started)
+- [Language Toggle](#language-toggle)
+- [Template Editor](#template-editor)
 - [Navigating Showcase Views](#navigating-showcase-views)
 - [Understanding Layouts](#understanding-layouts)
 - [Tips and Tricks](#tips-and-tricks)
@@ -16,6 +18,20 @@ Future Screenshots (Chronomaps) is a participatory mapping platform that allows 
 1. **Scanner** - Capture images with your camera
 2. **Discuss** - Chat with AI about your vision
 3. **Showcase** - View all contributions in immersive 3D visualizations
+
+## Language Toggle
+
+The language menu reflects the active workspace's supported languages (e.g., English, Nederlands, עברית, العربية). Switching language keeps you on the same page and preserves your URL parameters (such as `workspace` and `api_key`). Only the locale segment in the URL changes (for example from `/` to `/he/`).
+
+## Template Editor
+
+The Canvas Creator lets you compose a screenshot using templates:
+- Swipe or tap arrows to browse templates; dragging snaps to the next/previous item.
+- The active template is centered; tap to enter the editor.
+- The canvas auto-resizes to fit the visible area and avoids being covered by the bottom controls.
+- Drawing and text layers use multiply blending for natural results.
+- When typing Hebrew or Arabic, appropriate fallback fonts are applied automatically.
+- After confirming, the re-edit button returns you to the same template via a preserved `template_id` in the URL.
 
 ## Navigating Showcase Views
 

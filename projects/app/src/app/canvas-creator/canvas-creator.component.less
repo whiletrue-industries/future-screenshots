@@ -98,8 +98,8 @@
       width: 40px;
       height: 40px;
       border-radius: 50%;
-      background: rgba(255, 255, 255, 0.1);
-      border: 2px solid rgba(255, 255, 255, 0.3);
+      background: transparent;
+      border: none;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -113,15 +113,9 @@
         height: 24px;
       }
 
-      &:hover {
-        background: rgba(255, 255, 255, 0.2);
-        border-color: rgba(255, 255, 255, 0.5);
-        transform: scale(1.05);
-      }
-
-      &:active {
-        transform: scale(0.95);
-      }
+      &:hover { transform: scale(1.05); }
+      &:active { transform: scale(0.95); }
+      &:focus { outline: none; }
     }
 
     .spacer {
@@ -146,8 +140,8 @@
       height: 75vh;
       display: flex;
       align-items: center;
-      justify-content: flex-start;
-      overflow: visible;
+      justify-content: center;
+      overflow: hidden;
       flex: 1;
     }
 
@@ -394,6 +388,8 @@
       align-items: center;
       justify-content: center;
       padding: 16px;
+      /* ensure canvas bottom isn't obscured by control bar */
+      padding-bottom: 120px;
 
       canvas {
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
