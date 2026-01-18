@@ -124,7 +124,6 @@ export class ThreeRendererService {
   private fisheyeAffectedMeshes = new Set<THREE.Mesh>();
   private fisheyeFocusPoint = new THREE.Vector3();
   private meshOriginalStates = new Map<THREE.Mesh, { position: THREE.Vector3; scale: THREE.Vector3; renderOrder: number }>();
-  private fisheyeZoomDisableTimer: number | null = null; // Timer for zoom-based disable/re-enable
   
   // Hover state signal for cursor feedback
   private hoveredItemSignal = signal(false);
@@ -763,28 +762,30 @@ export class ThreeRendererService {
   // Fisheye Effect Helper Methods
   
   /**
-   * Disable fisheye immediately on zoom and re-enable after 100ms of zoom inactivity
+   * Disable fisheye immediately on zoom and re-enable once zoom completes
    */
   private disableFisheyeForZoom(): void {
+    // Clear any existing timer
+    if (this.fisheyeZoomDisableTimer !== null) {
+      clearTimeout(this.fisheyeZoomDisableTimer);
+      this.fisheyeZoomDisableTimer = null;
+    }
+
     // Disable fisheye immediately
     if (this.fisheyeEnabled) {
       this.fisheyeEnabled = false;
       // Reset all affected meshes to their original non-fisheye scale/position
       this.resetAllFisheyeEffects();
     }
+  }
 
-    // Clear any existing timer
-    if (this.fisheyeZoomDisableTimer !== null) {
-      clearTimeout(this.fisheyeZoomDisableTimer);
+  /**
+   * Re-enable fisheye after zoom action completes
+   */
+  private reEnableFisheyeAfterZoom(): void {
+    if (this.fisheyeEnabledSignal) {
+      this.fisheyeEnabled = true;
     }
-
-    // Set new timer to re-enable after 100ms of inactivity
-    this.fisheyeZoomDisableTimer = window.setTimeout(() => {
-      if (this.fisheyeEnabledSignal) {
-        this.fisheyeEnabled = true;
-      }
-      this.fisheyeZoomDisableTimer = null;
-    }, 100);
   }
   
   private applyFisheyeEffect(): void {
@@ -1825,7 +1826,7 @@ export class ThreeRendererService {
       this.autoFitEnabled = false;
     }
 
-    // Disable fisheye immediately on zoom, re-enable after 100ms of inactivity
+    // Disable fisheye immediately on zoom
     this.disableFisheyeForZoom();
 
     // Detect trackpad vs mouse wheel using deltaMode
@@ -1841,6 +1842,9 @@ export class ThreeRendererService {
 
     // Zoom at the cursor position
     this.zoomAtPoint(zoomFactor, event.clientX, event.clientY);
+
+    // Re-enable fisheye now that zoom is complete
+    this.reEnableFisheyeAfterZoom();
   }
 
   private onDoubleClick(event: MouseEvent): void {
@@ -1853,7 +1857,7 @@ export class ThreeRendererService {
       this.autoFitEnabled = false;
     }
 
-    // Disable fisheye immediately on zoom, re-enable after 100ms of inactivity
+    // Disable fisheye immediately on zoom
     this.disableFisheyeForZoom();
 
     // Shift+double-click zooms out, normal double-click zooms in
@@ -1861,6 +1865,9 @@ export class ThreeRendererService {
 
     // Zoom at the cursor position with smooth animation
     this.animatedZoomAtPoint(zoomFactor, event.clientX, event.clientY, 0.4);
+
+    // Re-enable fisheye now that zoom animation is queued
+    this.reEnableFisheyeAfterZoom();
   }
 
   private onKeyDown(event: KeyboardEvent): void {
