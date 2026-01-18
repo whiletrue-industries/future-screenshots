@@ -72,7 +72,7 @@ export class ThreeRendererService {
   // SVG Background
   private svgBackgroundPlane?: THREE.Mesh;
   private svgBackgroundTexture?: THREE.Texture;
-  private svgBackgroundOptions?: { enabled: boolean; svgElement?: SVGSVGElement; scale?: number; offsetX?: number; offsetY?: number; radius?: number; };
+  private svgBackgroundOptions?: { enabled: boolean; svgElement?: SVGSVGElement; scale?: number; offsetX?: number; offsetY?: number; radius?: number; desiredOpacity?: number; };
 
   // Drag and Drop
   private raycaster = new THREE.Raycaster();
@@ -194,6 +194,8 @@ export class ThreeRendererService {
     
     this.root.add(mesh);
     photoData.setMesh(mesh);
+    // Track PhotoData for hover/fisheye so positions stay current after layout changes
+    this.meshToPhotoData.set(mesh, photoData);
     // Track URL for LOD decisions
     this.meshToUrl.set(mesh, photoData.url);
     
@@ -226,6 +228,12 @@ export class ThreeRendererService {
     if (photoData.mesh.material instanceof THREE.Material) {
       photoData.mesh.material.dispose();
     }
+    this.meshToPhotoData.delete(photoData.mesh);
+    this.meshToUrl.delete(photoData.mesh);
+    this.meshToPhotoId.delete(photoData.mesh);
+    this.dragCallbacks.delete(photoData.mesh);
+    this.highResActive.delete(photoData.mesh);
+    this.fisheyeAffectedMeshes.delete(photoData.mesh);
     
     photoData.setMesh(null);
   }
@@ -1071,7 +1079,7 @@ export class ThreeRendererService {
   /**
    * Enable or update SVG background
    */
-  setSvgBackground(svgElement: SVGSVGElement, options?: { scale?: number; offsetX?: number; offsetY?: number; radius?: number; }): void {
+  setSvgBackground(svgElement: SVGSVGElement, options?: { scale?: number; offsetX?: number; offsetY?: number; radius?: number; desiredOpacity?: number; }): void {
     // Remove existing background if present
     if (this.svgBackgroundPlane) {
       this.scene.remove(this.svgBackgroundPlane);
@@ -1099,13 +1107,14 @@ export class ThreeRendererService {
       scale: options?.scale ?? 1,
       offsetX: options?.offsetX ?? 0,
       offsetY: options?.offsetY ?? 0,
-      radius: options?.radius
-    };
+      radius: options?.radius,
+      desiredOpacity: options?.desiredOpacity ?? 1
+    } as any;
     
     // Create DOM container for SVG hotspot detection
     this.createSvgDomContainer(svgElement);
     
-    this.setupSvgBackground(this.svgBackgroundOptions);
+    this.setupSvgBackground(this.svgBackgroundOptions!);
   }
 
   /**
@@ -1191,6 +1200,21 @@ export class ThreeRendererService {
     
     this.svgContainer.appendChild(svgClone);
     this.container.appendChild(this.svgContainer);
+  }
+
+  private animateMaterialOpacity(material: THREE.Material, targetOpacity: number, durationMs = 600): void {
+    const startOpacity = (material as any).opacity ?? 1;
+    const start = performance.now();
+    const animate = (now: number) => {
+      const t = Math.min(1, (now - start) / durationMs);
+      const eased = t * (2 - t); // easeOutQuad
+      (material as any).opacity = startOpacity + (targetOpacity - startOpacity) * eased;
+      material.needsUpdate = true;
+      if (t < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+    requestAnimationFrame(animate);
   }
 
   /**
@@ -2374,10 +2398,13 @@ export class ThreeRendererService {
       const backgroundRadius = svgOptions.radius || 20000;
       const geometry = new THREE.PlaneGeometry(backgroundRadius * 2, backgroundRadius * 2);
       
+      // Use desired opacity if set (defaults to 1.0), otherwise use 1.0
+      const desiredOpacity = (svgOptions as any).desiredOpacity ?? 1.0;
+      
       const material = new THREE.MeshBasicMaterial({
         map: this.svgBackgroundTexture,
         transparent: true,
-        opacity: 0.8, // Make background more visible
+        opacity: 0,
         depthWrite: false // Transparent background shouldn't write to depth buffer
       });
       
@@ -2397,6 +2424,8 @@ export class ThreeRendererService {
       
       // Add to scene
       this.scene.add(this.svgBackgroundPlane);
+      // Fade in to preserve original SVG element opacities while bringing the plane into view
+      this.animateMaterialOpacity(material, desiredOpacity, 650);
     };
     
     img.onerror = (error) => {
@@ -2621,6 +2650,28 @@ export class ThreeRendererService {
     return this.runTween(this.makeTween(0.5, (progress) => {
       this.targetCamZ = THREE.MathUtils.lerp(startCamZ, targetCamZ, progress);
     }));
+  }
+
+  /**
+   * Fit camera to positions while also including an SVG background radius footprint.
+   */
+  fitCameraToBoundsIncludingSvg(
+    positions: Array<{ x: number; y: number; z?: number }>,
+    svgRadius: number
+  ): Promise<void> {
+    if (!positions.length && !svgRadius) {
+      return Promise.resolve();
+    }
+
+    const merged = [...positions];
+    if (svgRadius > 0) {
+      merged.push({ x: svgRadius, y: svgRadius });
+      merged.push({ x: -svgRadius, y: -svgRadius });
+      merged.push({ x: svgRadius, y: -svgRadius });
+      merged.push({ x: -svgRadius, y: svgRadius });
+    }
+
+    return this.fitCameraToBounds(merged);
   }
 
   /**

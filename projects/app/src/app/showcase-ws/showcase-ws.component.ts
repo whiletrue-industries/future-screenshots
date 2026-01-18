@@ -11,6 +11,7 @@ import { LayoutStrategy } from './layout-strategy.interface';
 import { GridLayoutStrategy } from './grid-layout-strategy';
 import { TsneLayoutStrategy } from './tsne-layout-strategy';
 import { SvgBackgroundLayoutStrategy } from './svg-background-layout-strategy';
+import { SvgSideLayoutStrategy } from './svg-side-layout-strategy';
 import { CirclePackingLayoutStrategy } from './circle-packing-layout-strategy';
 import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
@@ -90,7 +91,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         // Process photos sequentially and then refresh layout
         const photoPromises = items.map(async (item) => {
           const id = item._id;
-          const url = item.screenshot_url;
+          const placeholderUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y21DLsAAAAASUVORK5CYII=';
+          const url = item.screenshot_url || placeholderUrl;
+          if (!item.screenshot_url) {
+            console.warn('[SHOWCASE_WS] Missing screenshot_url for item', id, 'using placeholder image');
+          }
           // Generate transition_bar_position if not provided by API
           const transitionBarPosition = item.transition_bar_position || this.getDefaultTransitionBarPosition(item);
           const metadata: PhotoMetadata = {
@@ -134,7 +139,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           // Process new photos immediately - they'll be added to the showcase queue
           const photoPromises = newItems.map(async (item) => {
             const id = item._id;
-            const url = item.screenshot_url;
+            const placeholderUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y21DLsAAAAASUVORK5CYII=';
+            const url = item.screenshot_url || placeholderUrl;
+            if (!item.screenshot_url) {
+              console.warn('[SHOWCASE_WS] Missing screenshot_url for item', id, 'using placeholder image');
+            }
             // Generate transition_bar_position if not provided by API
             const transitionBarPosition = item.transition_bar_position || this.getDefaultTransitionBarPosition(item);
             const metadata: PhotoMetadata = {
@@ -555,13 +564,18 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       const svgPath = svgParam || '/showcase-bg.svg';
 
       // Create SVG background layout strategy (without callback since three-renderer handles it)
+      const svgCircleRadius = 20000;
+
       const svgStrategy = new SvgBackgroundLayoutStrategy({
         svgPath,
         centerX: 0,
         centerY: 0,
-        circleRadius: 20000,
+        circleRadius: svgCircleRadius,
         radiusVariation: 2000
       });
+
+      // Ensure SVG is loaded and parsed before using its element for the background
+      await svgStrategy.initialize();
       
       // Set up hotspot drop callback on three-renderer service with access to circleRadius
       const circleRadius = 20000; // Use same value as SVG strategy
@@ -610,43 +624,44 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         });
       });
       
-      // Switch the layout using PhotoDataRepository (this will initialize the strategy)
-      await this.photoRepository.setLayoutStrategy(svgStrategy);
+      // STEP 3: Use side layout strategy for SVG view to position items on left and right
+      const svgSideStrategy = new SvgSideLayoutStrategy({
+        photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
+        photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
+        svgRadius: svgCircleRadius
+      });
       
-      // Get all photos and their final positions to calculate optimal zoom
-      const allPhotos = this.photoRepository.getAllPhotos();
-      const photoPositions = await svgStrategy.calculateAllPositions(allPhotos);
-      
-      // After a short delay to allow positions to update in renderer, fit camera to the calculated bounds
-      // Use unclamped zoom to fit all images on SVG (not barred by former layout)
-      setTimeout(async () => {
-        // Filter out null positions and extract x/y coordinates
-        const validPositions = photoPositions
-          .filter(pos => pos !== null)
-          .map(pos => ({ x: pos.x, y: pos.y }));
-        
-        if (validPositions.length > 0) {
-          await this.rendererService.fitCameraToBounds(validPositions);
-        }
-      }, 200);
-      
-      // Pass layout strategy reference to renderer for debug visualization
-      this.rendererService.setLayoutStrategyReference(svgStrategy);
-      
-      // Set up SVG background in Three.js renderer
+      // Set up SVG background first (fade-in), then reposition clusters
       const svgElement = svgStrategy.getSvgElement();
-
       if (svgElement) {
-
         this.rendererService.setSvgBackground(svgElement, {
           scale: 1,
           offsetX: 0,
           offsetY: 0,
-          radius: 20000 // Use the same radius as the layout strategy
+          radius: svgCircleRadius,
+          desiredOpacity: 1
         });
       } else {
         console.warn('❌ SVG element is null, cannot set background');
       }
+
+      // Switch to side layout (maintains fan arrangement on sides)
+      await this.photoRepository.setLayoutStrategy(svgSideStrategy);
+
+      // Get all photos and their final positions to calculate optimal zoom
+      const allPhotos = this.photoRepository.getAllPhotos();
+      const photoPositions = await svgSideStrategy.calculateAllPositions(allPhotos);
+
+      // After a short delay to allow positions to update in renderer, fit camera to include SVG footprint
+      setTimeout(async () => {
+        const validPositions = photoPositions
+          .filter(pos => pos !== null)
+          .map(pos => ({ x: pos.x, y: pos.y }));
+        await this.rendererService.fitCameraToBoundsIncludingSvg(validPositions, svgCircleRadius);
+      }, 200);
+      
+      // Pass layout strategy reference to renderer for debug visualization
+      this.rendererService.setLayoutStrategyReference(svgSideStrategy);
       
     } catch (error) {
       console.error('Error switching to SVG layout:', error);
