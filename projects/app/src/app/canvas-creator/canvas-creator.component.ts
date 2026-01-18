@@ -1562,11 +1562,15 @@ export class CanvasCreatorComponent implements AfterViewInit {
     text.lockMovementX = false;
     text.lockMovementY = false;
     
-    // Add multiply blend mode for better appearance on templates
-    text.set({ 
-      globalCompositeOperation: 'multiply',
-      paintFirst: 'fill' // Ensure fill is painted with multiply blend
-    });
+    // Add multiply blend mode for text by overriding render
+    text.set({ globalCompositeOperation: 'multiply' });
+    const originalRender = text.render;
+    text.render = function(ctx: any) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'multiply';
+      originalRender.call(this, ctx);
+      ctx.restore();
+    };
     
     // Allow width resize via side handles only; corners will resize font uniformly
     text.setControlsVisibility({
@@ -1809,52 +1813,69 @@ export class CanvasCreatorComponent implements AfterViewInit {
       const existingObjects = fabricCanvas.getObjects();
       existingObjects.forEach((obj: any) => fabricCanvas.remove(obj));
       
-      // Load saved state
+      // Load saved state with full async completion
       fabricCanvas.loadFromJSON(stateObj, () => {
-        // After loading, reconfigure textboxes
-        const textboxes = fabricCanvas.getObjects().filter((obj: any) => obj.type === 'textbox');
-        textboxes.forEach((tb: any) => {
-          this.configureTextbox(tb);
-          // Re-attach event handlers
-          tb.on('editing:entered', () => {
-            if ((tb as any)._placeholder) {
-              tb.set({ fill: this.currentColor(), _placeholder: false });
-              tb.selectAll();
-              fabricCanvas.requestRenderAll();
+        // Wait for all assets to load
+        setTimeout(() => {
+          // After loading, reconfigure textboxes and reattach handlers
+          const allObjects = fabricCanvas.getObjects();
+          const textboxes: any[] = [];
+          
+          allObjects.forEach((obj: any) => {
+            if (obj.type === 'textbox') {
+              textboxes.push(obj);
+              this.configureTextbox(obj);
+              
+              // Clear placeholder state that was saved (don't restore it)
+              obj._placeholder = false;
+              
+              // Re-attach event handlers
+              obj.on('editing:entered', () => {
+                if ((obj as any)._placeholder) {
+                  obj.set({ fill: this.currentColor(), _placeholder: false });
+                  obj.selectAll();
+                  fabricCanvas.requestRenderAll();
+                }
+              });
+              obj.on('changed', () => {
+                const effectiveText = obj.text || '';
+                const isRTL = this.detectRTL(effectiveText);
+                let rtlFont = this.selectedFont();
+                if (isRTL) {
+                  const hasHebrew = /[\u0590-\u05FF]/.test(effectiveText);
+                  const hasArabic = /[\u0600-\u06FF]/.test(effectiveText);
+                  if (hasHebrew) {
+                    rtlFont = 'Gadi Almog, Miriam Libre, serif';
+                  } else if (hasArabic) {
+                    rtlFont = 'Mikhak, Readex Pro, sans-serif';
+                  }
+                }
+                obj.set({ 
+                  direction: isRTL ? 'rtl' : 'ltr',
+                  textAlign: isRTL ? 'right' : 'left',
+                  fontFamily: rtlFont
+                });
+                fabricCanvas.requestRenderAll();
+              });
+              obj.on('editing:exited', () => {
+                const content = obj.text || '';
+                if (content.trim() === '') {
+                  const originalPlaceholder = (obj as any)._placeholderText || 'Type here...';
+                  obj.set({ text: originalPlaceholder, fill: '#9aa0a6', _placeholder: true });
+                }
+              });
             }
           });
-          tb.on('changed', () => {
-            const effectiveText = tb.text || '';
-            const isRTL = this.detectRTL(effectiveText);
-            let rtlFont = this.selectedFont();
-            if (isRTL) {
-              const hasHebrew = /[\u0590-\u05FF]/.test(effectiveText);
-              const hasArabic = /[\u0600-\u06FF]/.test(effectiveText);
-              if (hasHebrew) {
-                rtlFont = 'Gadi Almog, Miriam Libre, serif';
-              } else if (hasArabic) {
-                rtlFont = 'Mikhak, Readex Pro, sans-serif';
-              }
-            }
-            tb.set({ 
-              direction: isRTL ? 'rtl' : 'ltr',
-              textAlign: isRTL ? 'right' : 'left',
-              fontFamily: rtlFont
-            });
-            fabricCanvas.requestRenderAll();
-          });
-          tb.on('editing:exited', () => {
-            const content = tb.text || '';
-            if (content.trim() === '') {
-              const originalPlaceholder = (tb as any)._placeholderText || 'Type here...';
-              tb.set({ text: originalPlaceholder, fill: '#9aa0a6', _placeholder: true });
-            }
-          });
-        });
-        this.placeholderTexts = textboxes;
-        this.hasContent.set(fabricCanvas.getObjects().length > 0);
-        fabricCanvas.requestRenderAll();
-        console.log('Canvas state restored successfully');
+          
+          this.placeholderTexts = textboxes;
+          // Count only non-placeholder objects for hasContent
+          const contentObjects = allObjects.filter((obj: any) => 
+            obj.type !== 'textbox' || (!(obj as any)._placeholder && obj.text && obj.text.trim() !== '')
+          );
+          this.hasContent.set(contentObjects.length > 0);
+          fabricCanvas.renderAll();
+          console.log('Canvas state restored successfully with', textboxes.length, 'textboxes');
+        }, 100);
       });
     } catch (error) {
       console.error('Failed to restore canvas state:', error);
