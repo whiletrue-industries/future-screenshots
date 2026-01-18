@@ -124,6 +124,7 @@ export class ThreeRendererService {
   private fisheyeAffectedMeshes = new Set<THREE.Mesh>();
   private fisheyeFocusPoint = new THREE.Vector3();
   private meshOriginalStates = new Map<THREE.Mesh, { position: THREE.Vector3; scale: THREE.Vector3; renderOrder: number }>();
+  private fisheyeZoomDisableTimer: number | null = null; // Timer for zoom-based disable/re-enable
   
   // Hover state signal for cursor feedback
   private hoveredItemSignal = signal(false);
@@ -760,6 +761,29 @@ export class ThreeRendererService {
   }
 
   // Fisheye Effect Helper Methods
+  
+  /**
+   * Disable fisheye immediately on zoom and re-enable after 100ms of zoom inactivity
+   */
+  private disableFisheyeForZoom(): void {
+    // Disable fisheye immediately
+    if (this.fisheyeEnabled) {
+      this.fisheyeEnabled = false;
+    }
+
+    // Clear any existing timer
+    if (this.fisheyeZoomDisableTimer !== null) {
+      clearTimeout(this.fisheyeZoomDisableTimer);
+    }
+
+    // Set new timer to re-enable after 100ms of inactivity
+    this.fisheyeZoomDisableTimer = window.setTimeout(() => {
+      if (this.fisheyeEnabledSignal) {
+        this.fisheyeEnabled = true;
+      }
+      this.fisheyeZoomDisableTimer = null;
+    }, 100);
+  }
   
   private applyFisheyeEffect(): void {
     
@@ -1514,9 +1538,6 @@ export class ThreeRendererService {
     this.meshToPhotoId.clear();
     this.isDragging = false;
     this.draggedMesh = null;
-    if (this.renderer?.domElement) {
-      this.renderer.domElement.style.cursor = 'default';
-    }
   }
 
   private setupDragAndDrop(): void {
@@ -1786,11 +1807,9 @@ export class ThreeRendererService {
       console.log('[CURSOR] Drop event, setting hover signal to false');
       this.hoveredItemSignal.set(false);
       this.currentMatchedHotspot = null; // Clear matched hotspot
-      this.renderer.domElement.style.cursor = 'default';
     } else if (this.isPanning) {
       // Stop panning
       this.isPanning = false;
-      this.renderer.domElement.style.cursor = 'default';
     }
   }
 
@@ -1803,6 +1822,9 @@ export class ThreeRendererService {
     if (this.autoFitEnabled) {
       this.autoFitEnabled = false;
     }
+
+    // Disable fisheye immediately on zoom, re-enable after 100ms of inactivity
+    this.disableFisheyeForZoom();
 
     // Detect trackpad vs mouse wheel using deltaMode
     // deltaMode 0 = pixels (trackpad), 1 = lines (mouse wheel), 2 = pages
@@ -1828,6 +1850,9 @@ export class ThreeRendererService {
     if (this.autoFitEnabled) {
       this.autoFitEnabled = false;
     }
+
+    // Disable fisheye immediately on zoom, re-enable after 100ms of inactivity
+    this.disableFisheyeForZoom();
 
     // Shift+double-click zooms out, normal double-click zooms in
     const zoomFactor = event.shiftKey ? 1.6 : 0.6;
