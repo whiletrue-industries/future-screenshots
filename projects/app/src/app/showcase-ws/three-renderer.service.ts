@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Injectable } from '@angular/core';
-import { signal } from '@angular/core';
+import { signal, Signal } from '@angular/core';
 import { PhotoData, PhotoAnimationState } from './photo-data';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { FisheyeEffectService } from './fisheye-effect.service';
@@ -679,8 +679,8 @@ export class ThreeRendererService {
     return this.isDragging;
   }
 
-  isHoveringItem(): boolean {
-    return this.hoveredItemSignal();
+  isHoveringItem(): Signal<boolean> {
+    return this.hoveredItemSignal;
   }
 
   setFisheyeConfig(config: { radius?: number; magnification?: number; distortion?: number; zoomRelative?: number; maxHeight?: number; viewportHeight?: number; cameraZ?: number; fov?: number }): void {
