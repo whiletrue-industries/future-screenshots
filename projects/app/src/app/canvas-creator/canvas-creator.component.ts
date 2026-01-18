@@ -16,7 +16,7 @@ interface Template {
 
 @Component({
   selector: 'app-canvas-creator',
-  imports: [],
+  imports: [RouterLink],
   templateUrl: './canvas-creator.component.html',
   styleUrl: './canvas-creator.component.less'
 })
@@ -67,6 +67,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
   selectedFont = signal<string>('Caveat, cursive');
   selectedLineHeight = signal<number>(1.16);
   selectedHeight = signal<number>(40);
+  activeTextboxAlignment = signal<'left' | 'center' | 'right'>('left');
+  showAlignmentToggle = signal(false);
   drawerDragOffset = signal<number>(0);
   drawerDragging = signal<boolean>(false);
   private touchStartX: number | null = null;
@@ -1137,6 +1139,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
       if (target && target.type === 'textbox') {
         fabricCanvas.isDrawingMode = false;
         component.currentMode.set('type');
+        component.activeTextboxAlignment.set(target.textAlign || 'left');
+        component.showAlignmentToggle.set(false); // Show toggle when textbox is selected but not editing
       }
     });
     
@@ -1146,6 +1150,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
       if (target && target.type === 'textbox') {
         fabricCanvas.isDrawingMode = false;
         component.currentMode.set('type');
+        component.activeTextboxAlignment.set(target.textAlign || 'left');
+        component.showAlignmentToggle.set(false); // Show toggle when textbox is selected but not editing
         // Exit editing mode if we were in it
         if (target.isEditing) {
           target.exitEditing();
@@ -1158,14 +1164,25 @@ export class CanvasCreatorComponent implements AfterViewInit {
       fabricCanvas.isDrawingMode = true;
       component.currentMode.set('draw');
       component.setupRoughBrush(fabricCanvas);
+      component.showAlignmentToggle.set(false);
       fabricCanvas.renderAll();
     });
     
-    // When text editing exits, disable editable again
+    // When text editing exits, disable editable again and hide alignment toggle
     fabricCanvas.on('text:editing:exited', (e: any) => {
       const target = e.target;
       if (target && target.type === 'textbox') {
         target.editable = false;
+        component.showAlignmentToggle.set(false);
+      }
+    });
+    
+    // When text editing enters, show alignment toggle
+    fabricCanvas.on('text:editing:entered', (e: any) => {
+      const target = e.target;
+      if (target && target.type === 'textbox') {
+        component.activeTextboxAlignment.set(target.textAlign || 'left');
+        component.showAlignmentToggle.set(true);
       }
     });
   }
@@ -1366,6 +1383,33 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const active = fabricCanvas.getActiveObject();
     if (active && active.type === 'textbox') {
       active.set('fontFamily', font);
+      fabricCanvas.requestRenderAll();
+    }
+  }
+  
+  toggleAlignment() {
+    const fabricCanvas = this.canvas();
+    if (!fabricCanvas) return;
+    const active = fabricCanvas.getActiveObject();
+    if (active && active.type === 'textbox') {
+      const currentAlign = active.textAlign || 'left';
+      // Toggle between left, center, and right
+      let newAlign: 'left' | 'center' | 'right' = 'left';
+      if (currentAlign === 'left') {
+        newAlign = 'center';
+      } else if (currentAlign === 'center') {
+        newAlign = 'right';
+      } else {
+        newAlign = 'left';
+      }
+      
+      // If aligning right, also set RTL
+      const isRTL = newAlign === 'right';
+      active.set({ 
+        textAlign: newAlign,
+        direction: isRTL ? 'rtl' : 'ltr'
+      });
+      this.activeTextboxAlignment.set(newAlign);
       fabricCanvas.requestRenderAll();
     }
   }
