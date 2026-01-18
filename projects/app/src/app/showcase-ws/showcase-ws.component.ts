@@ -66,6 +66,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   // No longer needed: private currentFisheyeValue = 0;
   loadedPhotoIds = new Set<string>();
   private layoutChangeInProgress = false;
+  private svgBackgroundStrategy: SvgBackgroundLayoutStrategy | null = null;
+  private svgSideStrategy: SvgSideLayoutStrategy | null = null;
+  private readonly svgCircleRadius = 20000;
   qrUrl = computed(() => 
     `https://mapfutur.es/${this.lang()}prescan?workspace=${this.workspace()}&api_key=${this.api_key()}&ws=true`
   );
@@ -236,7 +239,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   /**
    * Toggle SVG auto-positioning based on metadata
    */
-  toggleSvgAutoPositioning() {
+  async toggleSvgAutoPositioning() {
+    if (this.layoutChangeInProgress) {
+      console.warn('[TOGGLE] Layout change in progress, ignoring auto-position toggle');
+      return;
+    }
+
     const wasEnabled = this.enableSvgAutoPositioning();
     const willBeEnabled = !wasEnabled;
     
@@ -246,32 +254,52 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.enableSvgAutoPositioning.set(willBeEnabled);
     this.photoRepository.setSvgAutoPositioningEnabled(willBeEnabled);
     
-    // Show/hide debug visualization immediately (before layout refresh)
-    if (willBeEnabled) {
-      console.log('[TOGGLE] Auto-positioning enabled, showing debug visualization NOW');
-      this.showSvgHotspotDebugVisualization();
-    } else {
-      console.log('[TOGGLE] Auto-positioning disabled, hiding debug visualization');
-      // Hide the debug overlay
-      const strategy = this.photoRepository.getLayoutStrategy();
-      if (strategy && (strategy as any).removeDebugOverlay) {
-        (strategy as any).removeDebugOverlay();
-      }
-    }
-    
     if (this.currentLayout() === 'svg') {
-      console.log('[TOGGLE] On SVG layout, refreshing layout...');
-      this.photoRepository.refreshLayout();
-      
-      // Show visualization again after layout refresh
-      setTimeout(() => {
-        if (willBeEnabled) {
-          console.log('[TOGGLE] Refreshing debug visualization after layout');
-          this.showSvgHotspotDebugVisualization();
-        }
-      }, 500);
+      this.layoutChangeInProgress = true;
+      try {
+        await this.applySvgLayoutMode(willBeEnabled);
+      } finally {
+        this.layoutChangeInProgress = false;
+      }
     } else {
       console.log('[TOGGLE] Not on SVG layout, skipping visualization');
+    }
+  }
+
+  private async applySvgLayoutMode(enableAutoPositioning: boolean): Promise<void> {
+    const backgroundStrategy = this.svgBackgroundStrategy;
+    const sideStrategy = this.svgSideStrategy;
+
+    if (!backgroundStrategy || !sideStrategy) {
+      console.warn('[SVG] Strategies not initialized; run switchToSvgLayout first');
+      return;
+    }
+
+    // Switch strategies based on requested mode
+    const strategy = enableAutoPositioning ? backgroundStrategy : sideStrategy;
+
+    // Clear any lingering debug overlay when leaving auto-positioning mode
+    if (!enableAutoPositioning) {
+      const removeDebugOverlay = (backgroundStrategy as any).removeDebugOverlay;
+      if (typeof removeDebugOverlay === 'function') {
+        removeDebugOverlay.call(backgroundStrategy);
+      }
+    }
+
+    await this.photoRepository.setLayoutStrategy(strategy);
+    this.rendererService.setLayoutStrategyReference(strategy);
+
+    if (enableAutoPositioning) {
+      this.showSvgHotspotDebugVisualization();
+    }
+
+    // Fit camera to include both SVG footprint and photo positions
+    const positions = this.photoRepository.getAllPhotos()
+      .map((photo) => ({ x: photo.targetPosition.x, y: photo.targetPosition.y }))
+      .filter((pos) => Number.isFinite(pos.x) && Number.isFinite(pos.y));
+
+    if (positions.length > 0) {
+      await this.rendererService.fitCameraToBoundsIncludingSvg(positions, this.svgCircleRadius);
     }
   }
 
@@ -564,21 +592,25 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       const svgPath = svgParam || '/showcase-bg.svg';
 
       // Create SVG background layout strategy (without callback since three-renderer handles it)
-      const svgCircleRadius = 20000;
-
-      const svgStrategy = new SvgBackgroundLayoutStrategy({
+      this.svgBackgroundStrategy = new SvgBackgroundLayoutStrategy({
         svgPath,
         centerX: 0,
         centerY: 0,
-        circleRadius: svgCircleRadius,
+        circleRadius: this.svgCircleRadius,
         radiusVariation: 2000
       });
 
       // Ensure SVG is loaded and parsed before using its element for the background
-      await svgStrategy.initialize();
+      await this.svgBackgroundStrategy.initialize();
+      
+      // Create the side/fan layout for non-auto mode
+      this.svgSideStrategy = new SvgSideLayoutStrategy({
+        photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
+        photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
+        svgRadius: this.svgCircleRadius
+      });
       
       // Set up hotspot drop callback on three-renderer service with access to circleRadius
-      const circleRadius = 20000; // Use same value as SVG strategy
       this.rendererService.setHotspotDropCallback(async (photoId: string, hotspotData: { [key: string]: string | number }, position: { x: number, y: number, z: number }) => {
         return new Promise<void>((resolve, reject) => {
           try {
@@ -586,8 +618,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             
             if (photo) {              
               // Calculate normalized coordinates [-1, 1] based on circleRadius
-              const layout_x = Math.max(-1, Math.min(1, position.x / circleRadius));
-              const layout_y = Math.max(-1, Math.min(1, position.y / circleRadius));
+              const layout_x = Math.max(-1, Math.min(1, position.x / this.svgCircleRadius));
+              const layout_y = Math.max(-1, Math.min(1, position.y / this.svgCircleRadius));
               
               // Add normalized coordinates to hotspot data
               const dataWithCoords = {
@@ -624,44 +656,25 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         });
       });
       
-      // STEP 3: Use side layout strategy for SVG view to position items on left and right
-      const svgSideStrategy = new SvgSideLayoutStrategy({
-        photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
-        photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
-        svgRadius: svgCircleRadius
-      });
-      
-      // Set up SVG background first (fade-in), then reposition clusters
-      const svgElement = svgStrategy.getSvgElement();
+      // Set up SVG background first (fade-in), then apply chosen layout mode
+      const svgElement = this.svgBackgroundStrategy.getSvgElement();
       if (svgElement) {
         this.rendererService.setSvgBackground(svgElement, {
           scale: 1,
           offsetX: 0,
           offsetY: 0,
-          radius: svgCircleRadius,
+          radius: this.svgCircleRadius,
           desiredOpacity: 1
         });
       } else {
         console.warn('❌ SVG element is null, cannot set background');
       }
 
-      // Switch to side layout (maintains fan arrangement on sides)
-      await this.photoRepository.setLayoutStrategy(svgSideStrategy);
+      // Persist auto-positioning preference to repository before applying layout
+      this.photoRepository.setSvgAutoPositioningEnabled(this.enableSvgAutoPositioning());
 
-      // Get all photos and their final positions to calculate optimal zoom
-      const allPhotos = this.photoRepository.getAllPhotos();
-      const photoPositions = await svgSideStrategy.calculateAllPositions(allPhotos);
-
-      // After a short delay to allow positions to update in renderer, fit camera to include SVG footprint
-      setTimeout(async () => {
-        const validPositions = photoPositions
-          .filter(pos => pos !== null)
-          .map(pos => ({ x: pos.x, y: pos.y }));
-        await this.rendererService.fitCameraToBoundsIncludingSvg(validPositions, svgCircleRadius);
-      }, 200);
-      
-      // Pass layout strategy reference to renderer for debug visualization
-      this.rendererService.setLayoutStrategyReference(svgSideStrategy);
+      // Apply layout mode based on current toggle (auto hotspot placement vs fan clustering)
+      await this.applySvgLayoutMode(this.enableSvgAutoPositioning());
       
     } catch (error) {
       console.error('Error switching to SVG layout:', error);

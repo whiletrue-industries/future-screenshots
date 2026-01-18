@@ -329,8 +329,13 @@ export class PhotoDataRepository {
       newStrategy.addPhoto(photo);
     }
 
-    // Calculate new positions for all photos
-    const newPositions = await newStrategy.calculateAllPositions(currentPhotos);
+    // Calculate new positions for all photos (pass auto-positioning flag for SVG background)
+    let newPositions: Array<LayoutPosition | null> = [];
+    if (newStrategy.getConfiguration().name === 'svg-background' && 'calculateAllPositions' in newStrategy) {
+      newPositions = await (newStrategy as any).calculateAllPositions(currentPhotos, this.enableSvgAutoPositioning);
+    } else {
+      newPositions = await (newStrategy as any).calculateAllPositions(currentPhotos);
+    }
 
     // Update layout strategy
     this.layoutStrategy = newStrategy;
