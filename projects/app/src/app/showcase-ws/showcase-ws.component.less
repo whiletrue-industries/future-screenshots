@@ -9,12 +9,19 @@
     .container {
         width: 100%;
         height: 100%;
+        cursor: default;
         
-        // Cursor styles for hover and drag interactions
-        &:hover {
+        // Pointer cursor when hovering over items
+        &.hovering {
             cursor: pointer;
         }
         
+        // Grab cursor when hovering over draggable items
+        &.hovering:not(.dragging) {
+            cursor: grab;
+        }
+        
+        // Grabbing cursor during drag
         &.dragging {
             cursor: grabbing;
         }
