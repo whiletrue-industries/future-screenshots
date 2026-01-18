@@ -47,19 +47,22 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
    * Lower score = more right in fan (-rotation)
    */
   private calculateEvaluationScore(photo: PhotoData): number {
-    const favorable = photo.metadata['favorable_future'] as boolean | undefined;
     const plausibility = photo.metadata['plausibility'] as number | undefined;
-    
-    // Default values if metadata is missing
-    const isFavorable = favorable === true;
-    const plaus = plausibility !== undefined ? plausibility : 0.5;
-    
-    // Score formula: -(favorable ? +1 : -1) * (1 - plausibility) [REVERSED]
-    // prevent + preposterous (false, 0): -(-1) * 1 = +1 (highest, leftmost)
-    // prevent + plausible (false, 1): -(-1) * 0 = 0
-    // preferred + plausible (true, 1): -(+1) * 0 = 0
-    // preferred + preposterous (true, 0): -(+1) * 1 = -1 (lowest, rightmost)
-    return -(isFavorable ? 1 : -1) * (1 - plaus);
+    const favorableFuture = photo.metadata['_svgZoneFavorableFuture'] as string | undefined
+      || photo.metadata['favorable_future'] as string | undefined;
+
+    if (plausibility === undefined || favorableFuture === undefined) {
+      return 0; // keep stable when missing data
+    }
+
+    const normalizedPlaus = plausibility / 100;
+    const favorableLower = favorableFuture.toLowerCase().trim();
+    const isFavor = favorableLower === 'favor' || favorableLower === 'favorable' ||
+                    favorableLower === 'prefer' || favorableLower === 'preferred';
+
+    // Match rotation formula: rotation = (1 - plaus) * direction
+    const rotationMagnitude = 1 - normalizedPlaus;
+    return isFavor ? rotationMagnitude : -rotationMagnitude;
   }
 
   /**
@@ -165,43 +168,35 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
     const sizeFactor = Math.min(groupSize / sizeForMaxRotation, 1.0);
     const rotationRange = minRotation + (maxRotation - minRotation) * sizeFactor;
     
-    // Calculate rotation for this photo's position in cluster
-    let clusterRotationDeg = 0;
-    if (groupSize > 1) {
-      // Spread from +rotationRange to -rotationRange (reversed fan direction)
-      const normalizedPos = photoIndex / (groupSize - 1); // 0 to 1
-      clusterRotationDeg = -((normalizedPos - 0.5) * 2 * rotationRange);
+    // Evaluate rotation purely from plausibility + favorable_future
+    const plausibility = photo.metadata['plausibility'] as number | undefined;
+    const favorableFuture = photo.metadata['_svgZoneFavorableFuture'] as string | undefined
+      || photo.metadata['favorable_future'] as string | undefined;
+
+    let evaluationRotationDeg = 0;
+    if (plausibility !== undefined && favorableFuture) {
+      const normalizedPlaus = plausibility / 100;
+      const magnitude = (1 - normalizedPlaus) * 32; // degrees
+      const favorableLower = favorableFuture.toLowerCase().trim();
+      const isFavor = favorableLower === 'favor' || favorableLower === 'favorable' ||
+                      favorableLower === 'prefer' || favorableLower === 'preferred';
+      evaluationRotationDeg = isFavor ? magnitude : -magnitude;
     }
     
-    // Horizontal spacing with overlap (items spaced out more)
+    // Fan spread uses sorted index: left = positive, right = negative
     const cardWidth = this.photoWidth;
     const overlapSpacing = cardWidth * 0.65; // 35% overlap
     const totalWidth = (groupSize - 1) * overlapSpacing;
     const startX = -totalWidth / 2;
     const worldX = groupPosition.x + startX + (photoIndex * overlapSpacing);
     
-    // Vertical offset to create inverted bow/arc shape
-    // Items at center (smaller rotation) are raised higher
-    // Items at edges (larger rotation) are lower
-    const clusterRotationRad = clusterRotationDeg * Math.PI / 180;
-    const arcHeight = -Math.abs(clusterRotationRad) * 200; // Negative to invert: higher at center, lower at edges
+    // Arc based on evaluation rotation magnitude
+    const evaluationRotationRad = evaluationRotationDeg * Math.PI / 180;
+    const arcHeight = -Math.abs(evaluationRotationRad) * 200; // center higher, edges lower
     const worldY = groupPosition.y + arcHeight;
     
-    // Calculate render order: items on the right side render on top
-    // Position-based: photoIndex increases left-to-right, so higher index = right side = higher renderOrder
-    const positionOrder = Math.round((photoIndex / Math.max(groupSize - 1, 1)) * 100); // 0-100
-    
-    // Add plausibility and favorable bonus as secondary ordering
-    const plausibility = photo.metadata['plausibility'] as number | undefined;
-    const favorable = photo.metadata['favorable_future'] as boolean | undefined;
-    const plaus = plausibility !== undefined ? plausibility : 0.5;
-    const isFavorable = favorable === true;
-    const secondaryOrder = Math.round(plaus * 10) + (isFavorable ? 5 : 0); // 0-15
-    
-    // Formula: position order is primary (0-100), secondary order is bonus
-    // Items on right: higher photoIndex → higher renderOrder
-    // Among same position: prefer plausible and preferred
-    const renderOrder = positionOrder + secondaryOrder;
+    // Render order: rightmost (more negative) on top, accumulate right→left
+    const renderOrder = Math.round((32 - evaluationRotationDeg) * 1.5625); // map -32..32 -> 100..0
     
     return {
       x: worldX,
@@ -212,7 +207,6 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
         photoIndex,
         groupPosition: { x: groupPosition.x, y: groupPosition.y, radius: groupPosition.radius },
         circlePackKey: `circle-pack-${groupId}-${photoIndex}`, // Use our own key instead of gridKey
-        clusterRotation: clusterRotationDeg, // Fan rotation in degrees
         renderOrder: renderOrder // Preferred on top of prevent
       }
     };
@@ -233,6 +227,15 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
       }
       
       this.photoGroups.get(groupId)!.push(photo);
+    }
+
+    // Sort photos within each group by evaluation score BEFORE layout calculation
+    for (const groupPhotos of this.photoGroups.values()) {
+      groupPhotos.sort((a, b) => {
+        const scoreA = this.calculateEvaluationScore(a);
+        const scoreB = this.calculateEvaluationScore(b);
+        return scoreB - scoreA; // Descending: highest score (most positive rotation) = leftmost
+      });
     }
     
     // Recalculate layout once with all photos

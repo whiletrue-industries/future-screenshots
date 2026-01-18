@@ -525,16 +525,8 @@ export class ThreeRendererService {
   private calculatePhotoRotation(photoData: PhotoData): number {
     const metadata = photoData.metadata;
     
-    // Check for cluster rotation (from circle-packing layout)
-    const clusterRotation = metadata['clusterRotation'] as number | undefined;
-    if (clusterRotation !== undefined) {
-      // Use cluster rotation (convert from degrees to radians)
-      console.log('[ROTATION] Using cluster rotation for photo:', photoData.id, '- rotation:', clusterRotation, '°');
-      return THREE.MathUtils.degToRad(clusterRotation);
-    }
-    
     const plausibility = metadata['plausibility'];
-    const favorableFuture = metadata['favorable_future'];
+    const favorableFuture = metadata['_svgZoneFavorableFuture'] as string | undefined || metadata['favorable_future'];
     
     // If either value is missing, use stable random rotation
     if (plausibility === undefined || plausibility === null || !favorableFuture) {
@@ -581,7 +573,7 @@ export class ThreeRendererService {
   private calculateEvaluationRotation(photoData: PhotoData): number {
     const metadata = photoData.metadata;
     const plausibility = metadata['plausibility'];
-    const favorableFuture = metadata['favorable_future'];
+    const favorableFuture = metadata['_svgZoneFavorableFuture'] as string | undefined || metadata['favorable_future'];
     
     // If either value is missing, use stable random rotation
     if (plausibility === undefined || plausibility === null || !favorableFuture) {
