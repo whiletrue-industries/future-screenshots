@@ -1,13 +1,12 @@
-import { Component, output, input, signal, OnDestroy, AfterViewInit } from '@angular/core';
+import { Component, output, input, signal, OnDestroy, AfterViewInit, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 export interface FisheyeSettings {
   enabled: boolean;         // enable/disable fisheye effect
-  maxMagnification: number; // how large items grow (1-10x)
+  maxMagnification: number; // how large items grow (1-10x) - fallback if maxHeight not working
   radius: number;           // radius of effect influence (px)
-  zoomRelative: number;     // dependence on zoom (0 = independent, 1 = fully dependent)
-  maxHeight: number;        // max height of magnified items in vh (viewport height units)
+  maxHeight: number;        // max height of magnified items in vh (viewport height units) - zoom-independent
 }
 
 @Component({
@@ -32,6 +31,12 @@ export interface FisheyeSettings {
       </div>
 
       <div class="panel-content" *ngIf="!isCollapsed()">
+        <!-- Zoom Level Display -->
+        <div class="zoom-level-display">
+          <span class="zoom-label">Zoom:</span>
+          <span class="zoom-value">{{ (zoomLevel() * 100).toFixed(0) }}%</span>
+        </div>
+
         <!-- Enable/Disable Toggle -->
         <div class="toggle-group">
           <label>
@@ -75,22 +80,6 @@ export interface FisheyeSettings {
             [disabled]="!settings.enabled"
           />
           <span class="value">{{ settings.radius }} px</span>
-        </div>
-
-        <!-- Dependence on Zoom -->
-        <div class="slider-group">
-          <label>Dependence on Zoom</label>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            [(ngModel)]="settings.zoomRelative"
-            (input)="updateSettings()"
-            class="slider"
-            [disabled]="!settings.enabled"
-          />
-          <span class="value">{{ (settings.zoomRelative * 100).toFixed(0) }}%</span>
         </div>
 
         <!-- Max Magnified Height -->
@@ -199,6 +188,31 @@ export interface FisheyeSettings {
       padding: 12px;
       max-height: 600px;
       overflow-y: auto;
+    }
+
+    .zoom-level-display {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding: 8px;
+      background: rgba(0, 255, 136, 0.1);
+      border: 1px solid rgba(0, 255, 136, 0.3);
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .zoom-label {
+      color: #00ff88;
+      text-transform: uppercase;
+    }
+
+    .zoom-value {
+      color: #00ffaa;
+      min-width: 40px;
+      text-align: right;
+      font-family: monospace;
     }
 
     .toggle-group {
@@ -334,10 +348,11 @@ export interface FisheyeSettings {
     }
   `]
 })
-export class SettingsPanelComponent implements AfterViewInit, OnDestroy {
+export class SettingsPanelComponent implements AfterViewInit, OnDestroy, OnInit {
   // Inputs
   initialSettings = input<FisheyeSettings>();
   initialCollapsed = input<boolean>(true);
+  zoomLevel = input<number>(1.0); // Current zoom level from renderer
 
   // Outputs
   settingsChange = output<FisheyeSettings>();
@@ -353,17 +368,23 @@ export class SettingsPanelComponent implements AfterViewInit, OnDestroy {
   private dragOffsetY = 0;
 
   settings: FisheyeSettings = {
-    enabled: false,
-    maxMagnification: 3,
-    radius: 300,
-    zoomRelative: 0.5,
-    maxHeight: 30
+    enabled: true,
+    maxMagnification: 10,
+    radius: 600,
+    maxHeight: 40
   };
 
   constructor() {
     this.isCollapsed.set(this.initialCollapsed());
-    this.loadSettingsFromUrl();
     this.loadPanelPosition();
+  }
+
+  ngOnInit() {
+    const incoming = this.initialSettings();
+    if (incoming) {
+      this.settings = { ...incoming };
+    }
+    this.loadSettingsFromUrl();
   }
 
   ngAfterViewInit() {
@@ -448,11 +469,10 @@ export class SettingsPanelComponent implements AfterViewInit, OnDestroy {
 
   resetToDefaults(): void {
     this.settings = {
-      enabled: false,
-      maxMagnification: 3,
-      radius: 300,
-      zoomRelative: 0.5,
-      maxHeight: 30
+      enabled: true,
+      maxMagnification: 10,
+      radius: 600,
+      maxHeight: 40
     };
     this.updateSettings();
   }
@@ -463,7 +483,6 @@ export class SettingsPanelComponent implements AfterViewInit, OnDestroy {
     if (params.has('fisheyeEnabled')) this.settings.enabled = params.get('fisheyeEnabled') === 'true';
     if (params.has('maxMagnification')) this.settings.maxMagnification = parseFloat(params.get('maxMagnification')!);
     if (params.has('radius')) this.settings.radius = parseFloat(params.get('radius')!);
-    if (params.has('zoomRelative')) this.settings.zoomRelative = parseFloat(params.get('zoomRelative')!);
   }
 
   private generateShareUrl(): string {
@@ -472,7 +491,6 @@ export class SettingsPanelComponent implements AfterViewInit, OnDestroy {
     params.set('fisheyeEnabled', this.settings.enabled.toString());
     params.set('maxMagnification', this.settings.maxMagnification.toString());
     params.set('radius', this.settings.radius.toString());
-    params.set('zoomRelative', this.settings.zoomRelative.toString());
     return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
   }
 

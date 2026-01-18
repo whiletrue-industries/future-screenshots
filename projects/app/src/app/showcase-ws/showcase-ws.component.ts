@@ -40,6 +40,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   enableRandomShowcase = signal(false);
   enableSvgAutoPositioning = signal(false);
   fisheyeEnabled = signal(false);
+  currentZoomLevel = signal(1.0); // Track current zoom level for UI display
   
   // Check if user has admin access
   isAdmin = computed(() => this.admin_key() !== '' && this.admin_key() !== 'ADMIN_KEY_NOT_SET');
@@ -47,7 +48,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     enabled: true,
     maxMagnification: 10.0,
     radius: 600,
-    zoomRelative: 1.0,
     maxHeight: 40
   });
 
@@ -218,7 +218,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       this.rendererService.setFisheyeConfig({
         magnification: settings.maxMagnification,
         radius: settings.radius,
-        zoomRelative: settings.zoomRelative,
         maxHeight: settings.maxHeight,
         viewportHeight: window.innerHeight
       });
@@ -352,7 +351,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       this.rendererService.setFisheyeConfig({
         magnification: settings.maxMagnification,
         radius: settings.radius,
-        zoomRelative: settings.zoomRelative,
         maxHeight: settings.maxHeight,
         viewportHeight: window.innerHeight
       });
@@ -436,6 +434,13 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
       });
     
+    // Poll zoom level every 500ms for UI display (non-critical update)
+    interval(500)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.currentZoomLevel.set(this.rendererService.getCurrentZoomLevel());
+      });
+    
     // Start initial polling after component is ready
     if (this.platform.browser()) {
       timer(ANIMATION_CONSTANTS.INITIAL_POLLING_DELAY).subscribe(() => {
@@ -484,8 +489,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(tsneStrategy);
       
-
-      
     } catch (error) {
       console.error('Error switching to TSNE layout:', error);
     } finally {
@@ -526,8 +529,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(gridStrategy);
-      
-
       
     } catch (error) {
       console.error('Error switching to Grid layout:', error);
@@ -612,6 +613,23 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Switch the layout using PhotoDataRepository (this will initialize the strategy)
       await this.photoRepository.setLayoutStrategy(svgStrategy);
       
+      // Get all photos and their final positions to calculate optimal zoom
+      const allPhotos = this.photoRepository.getAllPhotos();
+      const photoPositions = await svgStrategy.calculateAllPositions(allPhotos);
+      
+      // After a short delay to allow positions to update in renderer, fit camera to the calculated bounds
+      // Use unclamped zoom to fit all images on SVG (not barred by former layout)
+      setTimeout(async () => {
+        // Filter out null positions and extract x/y coordinates
+        const validPositions = photoPositions
+          .filter(pos => pos !== null)
+          .map(pos => ({ x: pos.x, y: pos.y }));
+        
+        if (validPositions.length > 0) {
+          await this.rendererService.fitCameraToBounds(validPositions);
+        }
+      }, 200);
+      
       // Pass layout strategy reference to renderer for debug visualization
       this.rendererService.setLayoutStrategyReference(svgStrategy);
       
@@ -667,8 +685,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(circlePackingStrategy);
       
-
-      
     } catch (error) {
       console.error('Error switching to Circle Packing layout:', error);
     } finally {
@@ -719,11 +735,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     // Enable/disable the fisheye effect in the renderer
     this.rendererService.enableFisheyeEffect(settings.enabled);
     
-    // Apply fisheye configuration (magnification, radius, zoomRelative, maxHeight)
+    // Apply fisheye configuration (magnification, radius, maxHeight)
     this.rendererService.setFisheyeConfig({
       magnification: settings.maxMagnification,
       radius: settings.radius,
-      zoomRelative: settings.zoomRelative,
       maxHeight: settings.maxHeight,
       viewportHeight: window.innerHeight
     });

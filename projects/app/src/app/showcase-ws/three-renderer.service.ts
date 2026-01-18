@@ -116,6 +116,7 @@ export class ThreeRendererService {
   private meshToUrl = new Map<THREE.Mesh, string>();
   private highResActive = new Set<THREE.Mesh>();
   private lodAccumTime = 0;
+  private maxExtentZoomLevel = 1.0; // Track the furthest extent (largest view) - used as baseline for fisheye zoom calculations
 
   // Fisheye Effect
   private fisheyeService: FisheyeEffectService;
@@ -787,46 +788,13 @@ export class ThreeRendererService {
     // Get viewport dimensions
     const viewportHeight = this.container?.clientHeight ?? window.innerHeight;
 
-    // Update camera state in fisheye config for zoom-agnostic calculations
+    // Update camera state in fisheye config for accurate world-to-screen conversions
     this.fisheyeService.setConfig({
       cameraZ: this.targetCamZ,
       fov: this.FOV_DEG,
       viewportHeight: viewportHeight
     });
 
-    // Check if zoom exceeds max-height: if items are already larger than max height at current zoom,
-    // temporarily disable fisheye effect (they already fill the screen enough)
-    const zoomCheckConfig = this.fisheyeService.getConfig();
-    let shouldDisableForZoom = false;
-    if (zoomCheckConfig.maxHeight && zoomCheckConfig.viewportHeight) {
-      const maxHeightPx = (zoomCheckConfig.maxHeight / 100) * viewportHeight;
-      const vFOV = (this.FOV_DEG * Math.PI) / 180;
-      const visibleHeightWorldUnits = 2 * Math.tan(vFOV / 2) * this.targetCamZ;
-      const pixelsPerWorldUnit = viewportHeight / visibleHeightWorldUnits;
-      
-      // Estimate typical item height - use bounds if available, otherwise use photo height
-      let typicalItemHeightWorld = this.PHOTO_H;
-      if (this.bounds.maxY !== -Infinity && this.bounds.minY !== +Infinity) {
-        // Account for composition bounds with margin
-        const boundsHeight = this.bounds.maxY - this.bounds.minY;
-        const margin = Math.max(Math.abs(this.bounds.minX), Math.abs(this.bounds.maxX)) * 0.2; // ~20% margin
-        typicalItemHeightWorld = boundsHeight / Math.max(1, this.root.children.length) + margin;
-      }
-      
-      const typicalItemHeightPx = typicalItemHeightWorld * pixelsPerWorldUnit;
-      
-      // If items already exceed max-height at current zoom, mark for disable
-      shouldDisableForZoom = typicalItemHeightPx > maxHeightPx;
-    }
-    
-    // Apply zoom-based enable/disable logic BEFORE early return
-    // This allows re-enabling when zooming back out
-    if (shouldDisableForZoom && this.fisheyeEnabled) {
-      this.fisheyeEnabled = false;
-    } else if (!shouldDisableForZoom && !this.fisheyeEnabled && this.fisheyeEnabledSignal) {
-      this.fisheyeEnabled = true;
-    }
-    
     // Exit early if disabled
     if (!this.fisheyeEnabled) {
       return;
@@ -904,7 +872,6 @@ export class ThreeRendererService {
       const effect = this.fisheyeService.calculateEffect(
         logicalPosition, 
         this.fisheyeFocusPoint,
-        this.camera.zoom,
         meshHeight,
         viewportHeight
       );
@@ -2492,6 +2459,80 @@ export class ThreeRendererService {
       (this.camera as any).updateProjectionMatrix();
       console.log(`📹 Camera FOV updated to ${fov}°`);
     }
+  }
+
+  /**
+   * Get current zoom level as a multiplier (e.g., 1.0 = 100% zoom, 2.0 = 200% zoom)
+   */
+  getCurrentZoomLevel(): number {
+    // Zoom is inversely related to camera Z position
+    // Lower Z = more zoomed in, higher Z = more zoomed out
+    // Return zoom as a ratio: maxExtentZoomLevel / currentZoom
+    // maxExtentZoomLevel is set to the furthest extent (largest view composition)
+    const maxExtentCamZ = (1200 / this.maxExtentZoomLevel);
+    return maxExtentCamZ / this.targetCamZ;
+  }
+
+  /**
+   * Fit camera to view specific bounds (used for SVG layout with calculated positions)
+   * Calculates camera position to show all positions with padding, allowing unlimited zoom out
+   */
+  fitCameraToBounds(positions: Array<{ x: number; y: number; z?: number }>): Promise<void> {
+    if (positions.length === 0) return Promise.resolve();
+
+    // Calculate bounds from positions
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+
+    for (const pos of positions) {
+      minX = Math.min(minX, pos.x);
+      maxX = Math.max(maxX, pos.x);
+      minY = Math.min(minY, pos.y);
+      maxY = Math.max(maxY, pos.y);
+    }
+
+    // Add padding (10% of bounds)
+    const padX = (maxX - minX) * 0.1 || 500;
+    const padY = (maxY - minY) * 0.1 || 500;
+
+    minX -= padX;
+    maxX += padX;
+    minY -= padY;
+    maxY += padY;
+
+    // Update bounds
+    this.bounds = {
+      minX,
+      maxX,
+      minY,
+      maxY
+    };
+
+    // Calculate camera Z to fit these bounds (no clamping to minCamZ/maxCamZ)
+    const targetCamZ = this.computeFitZWithMargin(
+      this.bounds,
+      THREE.MathUtils.degToRad(this.camera.fov),
+      this.container!.clientWidth / this.container!.clientHeight,
+      this.CAM_MARGIN
+    );
+
+    // Update max extent zoom level if this view is larger than previous
+    // This becomes the baseline for fisheye zoom calculations
+    const baselineZ = 1200;
+    const zoomLevelAtThisExtent = baselineZ / targetCamZ;
+    if (zoomLevelAtThisExtent < this.maxExtentZoomLevel) {
+      this.maxExtentZoomLevel = zoomLevelAtThisExtent;
+    }
+
+    // Animate to this target Z without clamping
+    const startCamZ = this.targetCamZ;
+    if (Math.abs(targetCamZ - startCamZ) < 0.01) {
+      return Promise.resolve(); // Already at target
+    }
+
+    return this.runTween(this.makeTween(0.5, (progress) => {
+      this.targetCamZ = THREE.MathUtils.lerp(startCamZ, targetCamZ, progress);
+    }));
   }
 
   /**

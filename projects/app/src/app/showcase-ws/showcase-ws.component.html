@@ -149,7 +149,7 @@
 <!-- Settings Panel (only visible when fisheye is enabled) -->
 @if (fisheyeEnabled()) {
   <app-settings-panel 
-    [initialSettings]="fisheyeSettings()"
+    [initialSettings]="fisheyeSettings()" [zoomLevel]="currentZoomLevel()"
     (settingsChange)="onSettingsChange($event)">
   </app-settings-panel>
 }
