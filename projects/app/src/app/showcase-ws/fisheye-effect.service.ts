@@ -50,7 +50,8 @@ export class FisheyeEffectService {
     meshPosition: THREE.Vector3,
     focusPoint: THREE.Vector3,
     cameraZoom: number = 1,
-    meshHeight: number = 1000  // Default to standard photo height
+    meshHeight: number = 1000,  // Height in world units
+    screenHeightPx: number = 1080  // Viewport height in pixels (for 30vh calculation)
   ): { scale: number; positionOffset: THREE.Vector2; renderOrder: number } | null {
     // Calculate distance from focus point (in XY plane)
     const dx = meshPosition.x - focusPoint.x;
@@ -81,28 +82,29 @@ export class FisheyeEffectService {
     let scale = 1.0 + (magnification - 1.0) * falloff;
 
     // Apply maxHeight constraint (zoom-agnostic)
-    if (this.config.maxHeight !== undefined && 
-        this.config.viewportHeight !== undefined &&
-        this.config.cameraZ !== undefined &&
-        this.config.fov !== undefined) {
+    // Calculate the target screen height: 30vh
+    if (this.config.maxHeight !== undefined) {
+      const maxHeightVh = this.config.maxHeight / 100; // Convert vh to decimal (e.g., 30vh = 0.3)
+      const maxHeightPx = maxHeightVh * screenHeightPx;
       
-      const maxHeightPx = (this.config.maxHeight / 100) * this.config.viewportHeight;
-      
-      // Calculate world-to-screen conversion factor
-      // The visible world height at the camera plane is: 2 * tan(vFOV/2) * cameraZ
-      const vFOV = (this.config.fov * Math.PI) / 180; // Convert degrees to radians
-      const visibleWorldHeight = 2 * Math.tan(vFOV / 2) * this.config.cameraZ;
-      
-      // World units per pixel
-      const worldUnitsPerPixel = visibleWorldHeight / this.config.viewportHeight;
-      
-      // Convert meshHeight from world units to screen pixels
-      const unmagnifiedHeightPx = meshHeight / worldUnitsPerPixel;
-      const magnifiedHeightPx = unmagnifiedHeightPx * scale;
-      
-      // Only constrain if the item wasn't already taller than maxHeight
-      if (unmagnifiedHeightPx <= maxHeightPx && magnifiedHeightPx > maxHeightPx) {
-        scale = maxHeightPx / unmagnifiedHeightPx;
+      // Calculate current screen height after magnification
+      // We need to convert world units to screen pixels
+      if (this.config.cameraZ !== undefined && this.config.fov !== undefined) {
+        // Height visible on screen in world units = 2 * tan(FOV/2) * cameraZ
+        const vFOV = (this.config.fov * Math.PI) / 180;
+        const visibleHeightWorldUnits = 2 * Math.tan(vFOV / 2) * this.config.cameraZ;
+        
+        // Conversion: world units to screen pixels
+        const pixelsPerWorldUnit = screenHeightPx / visibleHeightWorldUnits;
+        
+        // Original height in pixels
+        const originalHeightPx = meshHeight * pixelsPerWorldUnit;
+        const magnifiedHeightPx = originalHeightPx * scale;
+        
+        // If magnified height exceeds maxHeight, constrain it
+        if (magnifiedHeightPx > maxHeightPx) {
+          scale = maxHeightPx / originalHeightPx;
+        }
       }
     }
 

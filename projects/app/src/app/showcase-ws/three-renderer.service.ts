@@ -748,11 +748,14 @@ export class ThreeRendererService {
       return;
     }
 
+    // Get viewport dimensions
+    const viewportHeight = this.container?.clientHeight ?? window.innerHeight;
+
     // Update camera state in fisheye config for zoom-agnostic calculations
     this.fisheyeService.setConfig({
       cameraZ: this.targetCamZ,
       fov: this.FOV_DEG,
-      viewportHeight: this.container?.clientHeight ?? window.innerHeight
+      viewportHeight: viewportHeight
     });
 
     // Get the world position of the mouse cursor
@@ -812,7 +815,14 @@ export class ThreeRendererService {
           mesh.scale.set(1, 1, 1);
           mesh.position.copy(logicalPosition);
           mesh.renderOrder = 0;
-          (mesh.material as any).opacity = 1;
+          if (mesh.material && 'opacity' in mesh.material) {
+            (mesh.material as any).opacity = 1;
+          }
+          // Remove shadow if dragging
+          if (this.draggedMesh === mesh && mesh.userData['shadowMesh']) {
+            this.scene.remove(mesh.userData['shadowMesh']);
+            mesh.userData['shadowMesh'] = null;
+          }
         }
         return;
       }
@@ -821,7 +831,8 @@ export class ThreeRendererService {
         logicalPosition, 
         this.fisheyeFocusPoint,
         this.camera.zoom,
-        meshHeight
+        meshHeight,
+        viewportHeight
       );
 
       if (effect) {
@@ -834,14 +845,43 @@ export class ThreeRendererService {
         // If dragging, scale back to 1.0 and add drop shadow
         if (this.isDragging && this.draggedMesh === mesh) {
           targetScale = 1.0;
-          // Apply drop shadow effect through material opacity modulation
-          if (mesh.material && 'opacity' in mesh.material) {
-            (mesh.material as any).opacity = 0.8;
+          
+          // Add or update drop shadow
+          if (!mesh.userData['shadowMesh']) {
+            // Create a shadow mesh
+            const shadowGeometry = new THREE.PlaneGeometry(1, 1);
+            const shadowMaterial = new THREE.MeshBasicMaterial({
+              color: 0x000000,
+              transparent: true,
+              opacity: 0.3,
+              depthWrite: false
+            });
+            const shadowMesh = new THREE.Mesh(shadowGeometry, shadowMaterial);
+            shadowMesh.scale.set(mesh.scale.x, mesh.scale.y, 1);
+            shadowMesh.position.set(
+              mesh.position.x + 20,
+              mesh.position.y - 30,
+              mesh.position.z - 1
+            );
+            shadowMesh.renderOrder = effect.renderOrder - 1;
+            this.scene.add(shadowMesh);
+            mesh.userData['shadowMesh'] = shadowMesh;
+          } else {
+            // Update shadow position and scale
+            const shadowMesh = mesh.userData['shadowMesh'] as THREE.Mesh;
+            shadowMesh.position.set(
+              logicalPosition.x + effect.positionOffset.x + 20,
+              logicalPosition.y + effect.positionOffset.y - 30,
+              logicalPosition.z - 1
+            );
+            shadowMesh.scale.set(targetScale, targetScale, 1);
+            shadowMesh.renderOrder = effect.renderOrder - 1;
           }
         } else {
-          // Reset opacity if not dragging
-          if (mesh.material && 'opacity' in mesh.material) {
-            (mesh.material as any).opacity = 1.0;
+          // Not dragging - remove shadow if it exists
+          if (mesh.userData['shadowMesh']) {
+            this.scene.remove(mesh.userData['shadowMesh']);
+            mesh.userData['shadowMesh'] = null;
           }
         }
 
@@ -862,7 +902,11 @@ export class ThreeRendererService {
           mesh.scale.set(1, 1, 1);
           mesh.position.copy(logicalPosition);
           mesh.renderOrder = 0;
-          (mesh.material as any).opacity = 1;
+          // Remove shadow
+          if (mesh.userData['shadowMesh']) {
+            this.scene.remove(mesh.userData['shadowMesh']);
+            mesh.userData['shadowMesh'] = null;
+          }
         }
       }
     });
