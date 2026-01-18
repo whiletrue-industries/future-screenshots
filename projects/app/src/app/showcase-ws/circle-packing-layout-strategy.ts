@@ -197,8 +197,11 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
     const arcHeight = -normalizedRotation * normalizedRotation * 200; // quadratic curve: edges dip more
     const worldY = groupPosition.y + arcHeight;
     
-    // Render order: leftmost (more positive) on top, accumulate left→right
-    const renderOrder = Math.round((evaluationRotationDeg + 32) * 1.5625); // map -32..32 -> 0..100
+    // Render order: rightmost on top (like hand of cards), accumulate right→left
+    // Rightmost cards overlap leftmost cards
+    const baseRenderOrder = (32 - evaluationRotationDeg) * 1.5625; // map -32..32 -> 100..0 (reversed)
+    const tiebreaker = photoIndex * 0.01; // rightmost (high index) gets highest tiebreaker
+    const renderOrder = Math.round((baseRenderOrder + tiebreaker) * 10) / 10; // preserve 1 decimal
     
     return {
       x: worldX,

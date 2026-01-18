@@ -492,6 +492,7 @@ export class ThreeRendererService {
     }
   }
 
+
   /**
    * Zoom camera by a factor at a specific screen point
    * Simple and direct: anchor to cursor position
@@ -2600,9 +2601,9 @@ export class ThreeRendererService {
       maxY = Math.max(maxY, pos.y);
     }
 
-    // Add padding (10% of bounds)
-    const padX = (maxX - minX) * 0.1 || 500;
-    const padY = (maxY - minY) * 0.1 || 500;
+    // Add minimal padding (5% of bounds) with small floor
+    const padX = Math.max((maxX - minX) * 0.05, 200);
+    const padY = Math.max((maxY - minY) * 0.05, 200);
 
     minX -= padX;
     maxX += padX;
@@ -2616,6 +2617,10 @@ export class ThreeRendererService {
       minY,
       maxY
     };
+
+    // Center camera on these bounds
+    this.targetCamX = (minX + maxX) * 0.5;
+    this.targetCamY = (minY + maxY) * 0.5;
 
     // Calculate camera Z to fit these bounds (no clamping to minCamZ/maxCamZ)
     const targetCamZ = this.computeFitZWithMargin(
@@ -2649,7 +2654,9 @@ export class ThreeRendererService {
    */
   fitCameraToBoundsIncludingSvg(
     positions: Array<{ x: number; y: number; z?: number }>,
-    svgRadius: number
+    svgRadius: number,
+    svgOffsetX = 0,
+    svgOffsetY = 0
   ): Promise<void> {
     if (!positions.length && !svgRadius) {
       return Promise.resolve();
@@ -2657,10 +2664,10 @@ export class ThreeRendererService {
 
     const merged = [...positions];
     if (svgRadius > 0) {
-      merged.push({ x: svgRadius, y: svgRadius });
-      merged.push({ x: -svgRadius, y: -svgRadius });
-      merged.push({ x: svgRadius, y: -svgRadius });
-      merged.push({ x: -svgRadius, y: svgRadius });
+      merged.push({ x: svgOffsetX + svgRadius, y: svgOffsetY + svgRadius });
+      merged.push({ x: svgOffsetX - svgRadius, y: svgOffsetY - svgRadius });
+      merged.push({ x: svgOffsetX + svgRadius, y: svgOffsetY - svgRadius });
+      merged.push({ x: svgOffsetX - svgRadius, y: svgOffsetY + svgRadius });
     }
 
     return this.fitCameraToBounds(merged);

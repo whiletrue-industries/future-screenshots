@@ -276,7 +276,16 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     }
 
     // Switch strategies based on requested mode
-    const strategy = enableAutoPositioning ? backgroundStrategy : sideStrategy;
+    const strategy = enableAutoPositioning
+      ? backgroundStrategy
+      : new CirclePackingLayoutStrategy({
+          photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
+          photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
+          spacingX: PHOTO_CONSTANTS.SPACING_X,
+          spacingY: PHOTO_CONSTANTS.SPACING_Y,
+          groupBuffer: 1500,
+          photoBuffer: 0
+        });
 
     // Clear any lingering debug overlay when leaving auto-positioning mode
     if (!enableAutoPositioning) {
@@ -293,14 +302,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       this.showSvgHotspotDebugVisualization();
     }
 
-    // Fit camera to include both SVG footprint and photo positions
-    const positions = this.photoRepository.getAllPhotos()
-      .map((photo) => ({ x: photo.targetPosition.x, y: photo.targetPosition.y }))
-      .filter((pos) => Number.isFinite(pos.x) && Number.isFinite(pos.y));
-
-    if (positions.length > 0) {
-      await this.rendererService.fitCameraToBoundsIncludingSvg(positions, this.svgCircleRadius);
-    }
+    // Don't refit camera here - it causes unwanted zoom-out
+    // Camera was already fitted in switchToSvgLayout()
   }
 
   /**
@@ -584,98 +587,68 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     
     this.layoutChangeInProgress = true;
     try {
-      // Update UI immediately for responsive feedback
+      // UI mode indicator only; we keep existing item positions (circle packing)
       this.currentLayout.set('svg');
       
       // Read optional `svg` query param to override background path
       const svgParam = this.activatedRoute.snapshot.queryParams['svg'];
       const svgPath = svgParam || '/showcase-bg.svg';
 
-      // Create SVG background layout strategy (without callback since three-renderer handles it)
+      const svgOffsetX = -this.svgCircleRadius * 1.6; // further left to avoid overlap
+      const svgOffsetY = 0;
+
+      // Load SVG once for background plane
       this.svgBackgroundStrategy = new SvgBackgroundLayoutStrategy({
         svgPath,
         centerX: 0,
         centerY: 0,
         circleRadius: this.svgCircleRadius,
-        radiusVariation: 2000
+        radiusVariation: 0, // no layout variation needed; positions unchanged
+        svgOffsetX,
+        svgOffsetY
       });
 
-      // Ensure SVG is loaded and parsed before using its element for the background
       await this.svgBackgroundStrategy.initialize();
-      
-      // Create the side/fan layout for non-auto mode
+
+      // Needed when auto-positioning is enabled
       this.svgSideStrategy = new SvgSideLayoutStrategy({
         photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
         photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
         svgRadius: this.svgCircleRadius
       });
-      
-      // Set up hotspot drop callback on three-renderer service with access to circleRadius
-      this.rendererService.setHotspotDropCallback(async (photoId: string, hotspotData: { [key: string]: string | number }, position: { x: number, y: number, z: number }) => {
-        return new Promise<void>((resolve, reject) => {
-          try {
-            const photo = this.photoRepository.getPhoto(photoId);
-            
-            if (photo) {              
-              // Calculate normalized coordinates [-1, 1] based on circleRadius
-              const layout_x = Math.max(-1, Math.min(1, position.x / this.svgCircleRadius));
-              const layout_y = Math.max(-1, Math.min(1, position.y / this.svgCircleRadius));
-              
-              // Add normalized coordinates to hotspot data
-              const dataWithCoords = {
-                ...hotspotData,
-                layout_x,
-                layout_y
-              };
-              
-              console.log('🚀 SHOWCASE: Calling updateItem API', {
-                hotspotData: dataWithCoords,
-                photoId,
-                normalizedPosition: { layout_x, layout_y },
-                originalPosition: position
-              });
-              
-              this.apiService.updateProperties(dataWithCoords, photoId).subscribe({
-                next: (result) => {
-                  console.log('Successfully updated item with hotspot data:', result);
-                  resolve();
-                },
-                error: (error) => {
-                  console.error('Failed to update item with hotspot data:', error);
-                  reject(error);
-                }
-              });
-            } else {
-              console.warn('Photo not found for hotspot drop:', photoId);
-              resolve();
-            }
-          } catch (error) {
-            console.error('Error processing hotspot drop:', error);
-            reject(error);
-          }
-        });
-      });
-      
-      // Set up SVG background first (fade-in), then apply chosen layout mode
       const svgElement = this.svgBackgroundStrategy.getSvgElement();
       if (svgElement) {
+        // Place SVG to the left of clusters; keep items untouched
         this.rendererService.setSvgBackground(svgElement, {
           scale: 1,
-          offsetX: 0,
+          offsetX: svgOffsetX,
           offsetY: 0,
           radius: this.svgCircleRadius,
           desiredOpacity: 1
         });
+
+        // Fit camera to include SVG plane on the left and clusters centered at 0
+        const svgMinX = svgOffsetX - this.svgCircleRadius;
+        const svgMaxX = svgOffsetX + this.svgCircleRadius;
+        const clusterMinX = -this.svgCircleRadius;
+        const clusterMaxX = this.svgCircleRadius;
+        const minX = Math.min(svgMinX, clusterMinX);
+        const maxX = Math.max(svgMaxX, clusterMaxX);
+        const minY = -this.svgCircleRadius;
+        const maxY = this.svgCircleRadius;
+        this.rendererService.fitCameraToBounds([
+          { x: minX, y: minY },
+          { x: maxX, y: maxY }
+        ]);
       } else {
         console.warn('❌ SVG element is null, cannot set background');
       }
-
-      // Persist auto-positioning preference to repository before applying layout
-      this.photoRepository.setSvgAutoPositioningEnabled(this.enableSvgAutoPositioning());
-
-      // Apply layout mode based on current toggle (auto hotspot placement vs fan clustering)
-      await this.applySvgLayoutMode(this.enableSvgAutoPositioning());
       
+      // Apply auto-positioning only if enabled; otherwise keep circle packing positions intact
+      this.photoRepository.setSvgAutoPositioningEnabled(this.enableSvgAutoPositioning());
+      if (this.enableSvgAutoPositioning()) {
+        await this.applySvgLayoutMode(true);
+      }
     } catch (error) {
       console.error('Error switching to SVG layout:', error);
     } finally {

@@ -24,6 +24,8 @@ export interface SvgLayoutOptions {
   circleRadius?: number;
   radiusVariation?: number;
   useProportionalLayout?: boolean;
+  svgOffsetX?: number;
+  svgOffsetY?: number;
   onHotspotDrop?: (photoId: string, hotspotData: { [key: string]: string | number }) => Promise<void>;
 }
 
@@ -61,6 +63,8 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     circleRadius: 20000,
     radiusVariation: 4000,
     useProportionalLayout: true,
+    svgOffsetX: 0,
+    svgOffsetY: 0,
     onHotspotDrop: async () => {}
   };
 
@@ -326,8 +330,9 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     if (enableAutoPositioning) {
       const autoPosition = this.getAutoPositionFromMetadata(photoData);
       if (autoPosition) {
-        const x = autoPosition.auto_x * this.options.circleRadius;
-        const y = autoPosition.auto_y * this.options.circleRadius;
+        // Apply SVG offset to match the rendered SVG position
+        const x = autoPosition.auto_x * this.options.circleRadius + this.options.svgOffsetX;
+        const y = autoPosition.auto_y * this.options.circleRadius + this.options.svgOffsetY;
         
         const autoPositionData: LayoutPosition = {
           x,
@@ -336,7 +341,9 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
             layoutType: 'auto-positioned',
             auto_x: autoPosition.auto_x,
             auto_y: autoPosition.auto_y,
-            circleRadius: this.options.circleRadius
+            circleRadius: this.options.circleRadius,
+            svgOffsetX: this.options.svgOffsetX,
+            svgOffsetY: this.options.svgOffsetY
           }
         };
         
@@ -344,6 +351,10 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         photoData.setProperty('svgLayoutPosition', autoPositionData);
         return autoPositionData;
       }
+      
+      // If auto-positioning is enabled but this photo doesn't match any hotspot,
+      // return null to preserve its existing position (from circle-packing clusters)
+      return null;
     }
     
     // Priority 3: Check if photo has a saved SVG layout position from previous session
@@ -539,6 +550,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       return groupSlices;
     }
     
+    
     // Sort groups by size (descending) for consistent ordering
     const sortedGroups = Array.from(photoGroups.entries())
       .sort(([groupIdA, photosA], [groupIdB, photosB]) => {
@@ -550,11 +562,13 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         return groupIdA.localeCompare(groupIdB);
       });
     
+    // Keep original circular distribution - view transition will reveal SVG
     let currentAngle = 0;
     const fullCircle = 2 * Math.PI;
     
     for (const [groupId, photos] of sortedGroups) {
       const groupSize = photos.length;
+      const proportion = groupSize / totalPhotos;
       const proportionalAngle = (groupSize / totalPhotos) * fullCircle;
       const endAngle = currentAngle + proportionalAngle;
       
