@@ -664,7 +664,7 @@ export class ThreeRendererService {
     console.log('[RENDERER] enableFisheyeEffect called with:', enabled);
     this.fisheyeEnabled = enabled;
     this.fisheyeEnabledSignal = enabled; // Track original request
-    console.log('[RENDERER] fisheyeEnabled is now:', this.fisheyeEnabled);
+    console.log('[RENDERER] fisheyeEnabled is now:', this.fisheyeEnabled, 'fisheyeEnabledSignal:', this.fisheyeEnabledSignal);
     if (!enabled) {
       // Reset all affected meshes to their original state
       this.resetAllFisheyeEffects();
@@ -810,6 +810,10 @@ export class ThreeRendererService {
     } else if (!shouldDisableForZoom && !this.fisheyeEnabled && this.fisheyeEnabledSignal) {
       console.log('[FISHEYE_ZOOM] Re-enabling after zoom - items now within max-height');
       this.fisheyeEnabled = true;
+    } else if (!shouldDisableForZoom && !this.fisheyeEnabled) {
+      // DEBUG: Log why re-enable didn't happen
+      console.log('[FISHEYE_ZOOM_DEBUG] Not re-enabling: shouldDisableForZoom:', shouldDisableForZoom, 
+                  'fisheyeEnabled:', this.fisheyeEnabled, 'fisheyeEnabledSignal:', this.fisheyeEnabledSignal);
     }
     
     // Exit early if disabled
@@ -1056,7 +1060,9 @@ export class ThreeRendererService {
    * Enable drag functionality for a mesh with callback
    */
   enableDragForMesh(mesh: THREE.Mesh, callback: (position: { x: number; y: number; z: number }) => void) {
+    console.log('[DRAG] Registering drag for mesh:', mesh.name, 'dragCallbacks.size before:', this.dragCallbacks.size);
     this.dragCallbacks.set(mesh, callback);
+    console.log('[DRAG] dragCallbacks.size after:', this.dragCallbacks.size);
   }
 
   /**
@@ -1746,6 +1752,17 @@ export class ThreeRendererService {
       // Check for hover effects
       this.raycaster.setFromCamera(this.mouse, this.camera);
       const intersects = this.raycaster.intersectObjects(this.root.children, false);
+      
+      // DEBUG: Log raycaster results every frame
+      if (intersects.length > 0) {
+        console.log('[CURSOR_DEBUG] Raycaster found', intersects.length, 'intersections, dragCallbacks.size:', this.dragCallbacks.size);
+        console.log('[CURSOR_DEBUG] First intersect object type:', intersects[0].object.type, 'name:', intersects[0].object.name);
+        if (this.dragCallbacks.has(intersects[0].object as THREE.Mesh)) {
+          console.log('[CURSOR_DEBUG] Object IS in dragCallbacks');
+        } else {
+          console.log('[CURSOR_DEBUG] Object NOT in dragCallbacks');
+        }
+      }
       
       if (intersects.length > 0 && this.dragCallbacks.has(intersects[0].object as THREE.Mesh)) {
         const mesh = intersects[0].object as THREE.Mesh;
