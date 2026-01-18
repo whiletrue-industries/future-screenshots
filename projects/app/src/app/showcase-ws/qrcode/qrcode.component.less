@@ -26,13 +26,14 @@
             bottom: 20px;
             left: 20px;
             transform: none;
-            pointer-events: auto;
-            cursor: pointer;
+            pointer-events: none;
             
             .qrcode {
                 transform: scale(2);
                 transition: transform 0.3s ease;
                 transform-origin: bottom left;
+                pointer-events: auto;
+                cursor: pointer;
             
                 &:hover {
                     transform: scale(.4) !important;
