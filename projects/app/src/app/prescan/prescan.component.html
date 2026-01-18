@@ -23,7 +23,9 @@
         }
         @if (showScanButton()) {
             <div class='button primary' (click)='inputAnswer.next("yes")' i18n>Yes, Let’s scan!</div>
-            <div class='button' [routerLink]='["/canvas-creator"]' queryParamsHandling="merge" i18n>I have no paper</div>
+            @if (api.showNoPaperOption()) {
+              <div class='button' [routerLink]="['/canvas-creator']" queryParamsHandling="merge" i18n>I have no paper</div>
+            }
 
         }
         @if (showMoreButton()) {

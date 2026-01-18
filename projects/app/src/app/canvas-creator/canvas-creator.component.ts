@@ -614,6 +614,18 @@ export class CanvasCreatorComponent implements AfterViewInit {
     this.api.updateFromRoute(this.route.snapshot);
     // Select random color on init
     this.currentColor.set(this.markerColors[Math.floor(Math.random() * this.markerColors.length)]);
+    
+    // Set default font based on user's language
+    const userLocale = this.api.locale;
+    if (userLocale === 'he') {
+      // Hebrew - use Gadi Almog font
+      this.selectedFont.set('Gadi Almog, Miriam Libre, serif');
+    } else if (userLocale === 'ar') {
+      // Arabic - use Mikhak font
+      this.selectedFont.set('Mikhak, Readex Pro, sans-serif');
+    }
+    // Otherwise keep default (Caveat)
+    
     this.preloadFonts();
   }
   

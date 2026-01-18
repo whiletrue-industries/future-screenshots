@@ -45,6 +45,12 @@ export class ApiService {
     return false;
   });
 
+  showNoPaperOption = computed(() => {
+    const workspace = this.workspace();
+    // Check if workspace has enable_no_paper setting, default to true if not set
+    return workspace?.enable_no_paper !== false;
+  });
+
   constructor(private http: HttpClient, private zone: NgZone, @Inject(LOCALE_ID) public locale_: string) {
     this.locale = locale_.split('-')[0]; // Use the first part of the locale, e.g., 'nl' from 'nl-NL'
     this.uploadImageInProgress.next(false);
