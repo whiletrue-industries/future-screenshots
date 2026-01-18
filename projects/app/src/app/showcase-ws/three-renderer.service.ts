@@ -805,13 +805,18 @@ export class ThreeRendererService {
     
     // Apply zoom-based enable/disable logic
     if (shouldDisableForZoom && this.fisheyeEnabled) {
+      console.log('[FISHEYE_ZOOM] Disabling due to zoom - items exceed max-height');
       this.fisheyeEnabled = false;
     } else if (!shouldDisableForZoom && !this.fisheyeEnabled && this.fisheyeEnabledSignal) {
+      console.log('[FISHEYE_ZOOM] Re-enabling after zoom - items now within max-height');
       this.fisheyeEnabled = true;
     }
     
     // Exit early if disabled
     if (!this.fisheyeEnabled) {
+      if (shouldDisableForZoom) {
+        console.log('[FISHEYE_ZOOM] Skipping effect - disabled due to zoom');
+      }
       return;
     }
 
@@ -1748,6 +1753,7 @@ export class ThreeRendererService {
         // Show preview widget on hover
         if (this.hoveredMesh !== mesh) {
           this.hoveredMesh = mesh;
+          console.log('[CURSOR] Hovering over item, setting signal to true');
           this.hoveredItemSignal.set(true);
           this.showPreviewWidget(mesh);
         }
@@ -1755,6 +1761,7 @@ export class ThreeRendererService {
         // Hide preview widget when not hovering
         if (this.hoveredMesh) {
           this.hoveredMesh = null;
+          console.log('[CURSOR] No longer hovering, setting signal to false');
           this.hoveredItemSignal.set(false);
           this.hidePreviewWidget();
         }
@@ -1798,6 +1805,7 @@ export class ThreeRendererService {
       
       this.draggedMesh = null;
       this.hoveredMesh = null; // Clear hovered mesh on drop
+      console.log('[CURSOR] Drop event, setting hover signal to false');
       this.hoveredItemSignal.set(false);
       this.currentMatchedHotspot = null; // Clear matched hotspot
       this.renderer.domElement.style.cursor = 'default';
@@ -1961,6 +1969,7 @@ export class ThreeRendererService {
     this.isDragging = false;
     this.draggedMesh = null;
     this.hoveredMesh = null;
+    console.log('[CURSOR] Pointer left canvas, setting hover signal to false');
     this.hoveredItemSignal.set(false);
     this.currentMatchedHotspot = null;
 

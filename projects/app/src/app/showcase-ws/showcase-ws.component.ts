@@ -55,7 +55,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   isDragging = computed(() => this.rendererService.isDraggingItem());
   
   // Check if hovering over an item (for cursor style) - directly use the signal
-  isHoveringItem = computed(() => this.rendererService.isHoveringItem()());
+  isHoveringItem = computed(() => {
+    const hovering = this.rendererService.isHoveringItem()();
+    console.log('[SHOWCASE_WS_CURSOR] isHoveringItem computed changed to:', hovering);
+    return hovering;
+  });
 
   // Track if fisheye is currently enabled
   // No longer needed: private currentFisheyeValue = 0;
