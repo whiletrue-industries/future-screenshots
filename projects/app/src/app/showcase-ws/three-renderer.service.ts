@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Injectable } from '@angular/core';
+import { signal } from '@angular/core';
 import { PhotoData, PhotoAnimationState } from './photo-data';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { FisheyeEffectService } from './fisheye-effect.service';
@@ -123,6 +124,9 @@ export class ThreeRendererService {
   private fisheyeAffectedMeshes = new Set<THREE.Mesh>();
   private fisheyeFocusPoint = new THREE.Vector3();
   private meshOriginalStates = new Map<THREE.Mesh, { position: THREE.Vector3; scale: THREE.Vector3; renderOrder: number }>();
+  
+  // Hover state signal for cursor feedback
+  private hoveredItemSignal = signal(false);
 
   // Settings Panel Controls
   private rotationSpeedMultiplier = 1.0;
@@ -676,7 +680,7 @@ export class ThreeRendererService {
   }
 
   isHoveringItem(): boolean {
-    return this.hoveredMesh !== null;
+    return this.hoveredItemSignal();
   }
 
   setFisheyeConfig(config: { radius?: number; magnification?: number; distortion?: number; zoomRelative?: number; maxHeight?: number; viewportHeight?: number; cameraZ?: number; fov?: number }): void {
@@ -775,8 +779,9 @@ export class ThreeRendererService {
     });
 
     // Check if zoom exceeds max-height: if items are already larger than max height at current zoom,
-    // disable fisheye effect (they already fill the screen enough)
+    // temporarily disable fisheye effect (they already fill the screen enough)
     const zoomCheckConfig = this.fisheyeService.getConfig();
+    let shouldDisableForZoom = false;
     if (zoomCheckConfig.maxHeight && zoomCheckConfig.viewportHeight) {
       const maxHeightPx = (zoomCheckConfig.maxHeight / 100) * viewportHeight;
       const vFOV = (this.FOV_DEG * Math.PI) / 180;
@@ -794,19 +799,20 @@ export class ThreeRendererService {
       
       const typicalItemHeightPx = typicalItemHeightWorld * pixelsPerWorldUnit;
       
-      // If items already exceed max-height at current zoom, disable fisheye
-      if (typicalItemHeightPx > maxHeightPx) {
-        if (this.fisheyeEnabled) {
-          console.log('[FISHEYE] Zoom exceeds max-height, disabling effect');
-          this.fisheyeEnabled = false;
-        }
-        return;
-      } else {
-        // Re-enable if zoom returns to reasonable level
-        if (!this.fisheyeEnabled && this.fisheyeEnabledSignal) {
-          this.fisheyeEnabled = true;
-        }
-      }
+      // If items already exceed max-height at current zoom, mark for disable
+      shouldDisableForZoom = typicalItemHeightPx > maxHeightPx;
+    }
+    
+    // Apply zoom-based enable/disable logic
+    if (shouldDisableForZoom && this.fisheyeEnabled) {
+      this.fisheyeEnabled = false;
+    } else if (!shouldDisableForZoom && !this.fisheyeEnabled && this.fisheyeEnabledSignal) {
+      this.fisheyeEnabled = true;
+    }
+    
+    // Exit early if disabled
+    if (!this.fisheyeEnabled) {
+      return;
     }
 
     // Log only on state changes
@@ -1738,19 +1744,18 @@ export class ThreeRendererService {
       
       if (intersects.length > 0 && this.dragCallbacks.has(intersects[0].object as THREE.Mesh)) {
         const mesh = intersects[0].object as THREE.Mesh;
-        this.renderer.domElement.style.cursor = 'grab';
         
         // Show preview widget on hover
         if (this.hoveredMesh !== mesh) {
           this.hoveredMesh = mesh;
+          this.hoveredItemSignal.set(true);
           this.showPreviewWidget(mesh);
         }
       } else {
-        this.renderer.domElement.style.cursor = 'default';
-        
         // Hide preview widget when not hovering
         if (this.hoveredMesh) {
           this.hoveredMesh = null;
+          this.hoveredItemSignal.set(false);
           this.hidePreviewWidget();
         }
       }
@@ -1793,6 +1798,7 @@ export class ThreeRendererService {
       
       this.draggedMesh = null;
       this.hoveredMesh = null; // Clear hovered mesh on drop
+      this.hoveredItemSignal.set(false);
       this.currentMatchedHotspot = null; // Clear matched hotspot
       this.renderer.domElement.style.cursor = 'default';
     } else if (this.isPanning) {
@@ -1955,6 +1961,7 @@ export class ThreeRendererService {
     this.isDragging = false;
     this.draggedMesh = null;
     this.hoveredMesh = null;
+    this.hoveredItemSignal.set(false);
     this.currentMatchedHotspot = null;
 
     // Dispose Three.js objects
