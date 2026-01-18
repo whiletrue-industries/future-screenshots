@@ -187,17 +187,21 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
     const arcHeight = -Math.abs(clusterRotationRad) * 200; // Negative to invert: higher at center, lower at edges
     const worldY = groupPosition.y + arcHeight;
     
-    // Calculate render order: more plausible AND preferred photos render on top
+    // Calculate render order: items on the right side render on top
+    // Position-based: photoIndex increases left-to-right, so higher index = right side = higher renderOrder
+    const positionOrder = Math.round((photoIndex / Math.max(groupSize - 1, 1)) * 100); // 0-100
+    
+    // Add plausibility and favorable bonus as secondary ordering
     const plausibility = photo.metadata['plausibility'] as number | undefined;
     const favorable = photo.metadata['favorable_future'] as boolean | undefined;
     const plaus = plausibility !== undefined ? plausibility : 0.5;
     const isFavorable = favorable === true;
-    // Formula: plausibility (0-10) + favorable bonus (0 or 5)
-    // Preferred plausible: 10 + 5 = 15
-    // Prevent plausible: 10 + 0 = 10
-    // Preferred preposterous: 0 + 5 = 5
-    // Prevent preposterous: 0 + 0 = 0
-    const renderOrder = Math.round(plaus * 10) + (isFavorable ? 5 : 0);
+    const secondaryOrder = Math.round(plaus * 10) + (isFavorable ? 5 : 0); // 0-15
+    
+    // Formula: position order is primary (0-100), secondary order is bonus
+    // Items on right: higher photoIndex → higher renderOrder
+    // Among same position: prefer plausible and preferred
+    const renderOrder = positionOrder + secondaryOrder;
     
     return {
       x: worldX,
