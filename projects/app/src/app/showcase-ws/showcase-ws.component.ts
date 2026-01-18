@@ -47,7 +47,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     enabled: false,
     maxMagnification: 3,
     radius: 800,
-    zoomRelative: 0.5
+    zoomRelative: 0.5,
+    maxHeight: 30
   });
 
   // Track if fisheye is currently enabled
@@ -683,11 +684,13 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     // Enable/disable the fisheye effect in the renderer
     this.rendererService.enableFisheyeEffect(settings.enabled);
     
-    // Apply fisheye configuration (magnification, radius, zoomRelative)
+    // Apply fisheye configuration (magnification, radius, zoomRelative, maxHeight)
     this.rendererService.setFisheyeConfig({
       magnification: settings.maxMagnification,
       radius: settings.radius,
-      zoomRelative: settings.zoomRelative
+      zoomRelative: settings.zoomRelative,
+      maxHeight: settings.maxHeight,
+      viewportHeight: window.innerHeight
     });
   }
 

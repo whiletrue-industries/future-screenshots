@@ -7,6 +7,7 @@ export interface FisheyeSettings {
   maxMagnification: number; // how large items grow (1-10x)
   radius: number;           // radius of effect influence (px)
   zoomRelative: number;     // dependence on zoom (0 = independent, 1 = fully dependent)
+  maxHeight: number;        // max height of magnified items in vh (viewport height units)
 }
 
 @Component({
@@ -92,11 +93,28 @@ export interface FisheyeSettings {
           <span class="value">{{ (settings.zoomRelative * 100).toFixed(0) }}%</span>
         </div>
 
+        <!-- Max Magnified Height -->
+        <div class="slider-group">
+          <label>Max Magnified Height</label>
+          <input
+            type="range"
+            min="10"
+            max="100"
+            step="5"
+            [(ngModel)]="settings.maxHeight"
+            (input)="updateSettings()"
+            class="slider"
+            [disabled]="!settings.enabled"
+          />
+          <span class="value">{{ settings.maxHeight }} vh</span>
+        </div>
+
         <!-- Description -->
         <div class="description">
           <p><strong>Fisheye Effect:</strong> How much items grow under the cursor (1× = no growth, 10× = 10× larger)</p>
           <p><strong>Radius:</strong> How far from cursor the effect reaches (px)</p>
           <p><strong>Zoom Dependence:</strong> At 0%, effect size is independent of zoom. At 100%, effect shrinks as you zoom in.</p>
+          <p><strong>Max Height:</strong> Magnified items won't exceed this height (unless zoom already makes them larger)</p>
         </div>
 
         <!-- Reset Button -->
@@ -338,7 +356,8 @@ export class SettingsPanelComponent implements AfterViewInit, OnDestroy {
     enabled: false,
     maxMagnification: 3,
     radius: 300,
-    zoomRelative: 0.5
+    zoomRelative: 0.5,
+    maxHeight: 30
   };
 
   constructor() {
@@ -432,7 +451,8 @@ export class SettingsPanelComponent implements AfterViewInit, OnDestroy {
       enabled: false,
       maxMagnification: 3,
       radius: 300,
-      zoomRelative: 0.5
+      zoomRelative: 0.5,
+      maxHeight: 30
     };
     this.updateSettings();
   }

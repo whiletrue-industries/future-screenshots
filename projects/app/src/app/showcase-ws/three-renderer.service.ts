@@ -666,7 +666,7 @@ export class ThreeRendererService {
     return this.fisheyeEnabled;
   }
 
-  setFisheyeConfig(config: { radius?: number; magnification?: number; distortion?: number; zoomRelative?: number }): void {
+  setFisheyeConfig(config: { radius?: number; magnification?: number; distortion?: number; zoomRelative?: number; maxHeight?: number; viewportHeight?: number }): void {
     // Pass all config parameters to fisheye service
     this.fisheyeService.setConfig(config);
   }
@@ -762,6 +762,7 @@ export class ThreeRendererService {
       // Get the logical position from PhotoData (if available)
       const photoData = this.meshToPhotoData.get(mesh);
       let logicalPosition: THREE.Vector3;
+      let meshHeight = this.PHOTO_H; // Default to standard photo height
       
       if (photoData && photoData.currentPosition) {
         // Use PhotoData's current position as the logical position
@@ -770,6 +771,10 @@ export class ThreeRendererService {
           photoData.currentPosition.y,
           photoData.currentPosition.z
         );
+        // Use PhotoData's dimensions if available
+        if (photoData.height) {
+          meshHeight = photoData.height;
+        }
       } else {
         // Fallback to mesh's current position if no PhotoData
         // Store original state if not already stored
@@ -795,18 +800,39 @@ export class ThreeRendererService {
           mesh.scale.set(1, 1, 1);
           mesh.position.copy(logicalPosition);
           mesh.renderOrder = 0;
+          (mesh.material as any).opacity = 1;
         }
         return;
       }
 
-      const effect = this.fisheyeService.calculateEffect(logicalPosition, this.fisheyeFocusPoint);
+      const effect = this.fisheyeService.calculateEffect(
+        logicalPosition, 
+        this.fisheyeFocusPoint,
+        this.camera.zoom,
+        meshHeight
+      );
 
       if (effect) {
         // Mesh is within fisheye radius - apply effect
         this.fisheyeAffectedMeshes.add(mesh);
 
         // Apply scale (magnification)
-        const targetScale = effect.scale;
+        let targetScale = effect.scale;
+        
+        // If dragging, scale back to 1.0 and add drop shadow
+        if (this.isDragging && this.draggedMesh === mesh) {
+          targetScale = 1.0;
+          // Apply drop shadow effect through material opacity modulation
+          if (mesh.material && 'opacity' in mesh.material) {
+            (mesh.material as any).opacity = 0.8;
+          }
+        } else {
+          // Reset opacity if not dragging
+          if (mesh.material && 'opacity' in mesh.material) {
+            (mesh.material as any).opacity = 1.0;
+          }
+        }
+
         mesh.scale.set(targetScale, targetScale, 1);
 
         // Apply position offset (radial displacement from logical position)
@@ -824,6 +850,7 @@ export class ThreeRendererService {
           mesh.scale.set(1, 1, 1);
           mesh.position.copy(logicalPosition);
           mesh.renderOrder = 0;
+          (mesh.material as any).opacity = 1;
         }
       }
     });

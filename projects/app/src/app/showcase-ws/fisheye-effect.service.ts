@@ -6,6 +6,8 @@ export interface FisheyeConfig {
   magnification: number;   // Maximum magnification strength (1.0 = no magnification)
   distortion: number;      // Position distortion strength (0 = no distortion)
   zoomRelative?: number;   // 0 = no change, 1 = full reduction with zoom
+  maxHeight?: number;      // Maximum height of magnified items in vh (viewport height units)
+  viewportHeight?: number; // Current viewport height in pixels
 }
 
 /**
@@ -45,7 +47,8 @@ export class FisheyeEffectService {
   calculateEffect(
     meshPosition: THREE.Vector3,
     focusPoint: THREE.Vector3,
-    cameraZoom: number = 1
+    cameraZoom: number = 1,
+    meshHeight: number = 1000  // Default to standard photo height
   ): { scale: number; positionOffset: THREE.Vector2; renderOrder: number } | null {
     // Calculate distance from focus point (in XY plane)
     const dx = meshPosition.x - focusPoint.x;
@@ -73,7 +76,19 @@ export class FisheyeEffectService {
       magnification = 1.0 + (this.config.magnification - 1.0) * (1 - this.config.zoomRelative * (cameraZoom - 1));
       if (magnification < 1.0) magnification = 1.0;
     }
-    const scale = 1.0 + (magnification - 1.0) * falloff;
+    let scale = 1.0 + (magnification - 1.0) * falloff;
+
+    // Apply maxHeight constraint
+    if (this.config.maxHeight !== undefined && this.config.viewportHeight !== undefined) {
+      const maxHeightPx = (this.config.maxHeight / 100) * this.config.viewportHeight;
+      const unmagnitifedHeight = meshHeight;
+      const magnifiedHeight = meshHeight * scale;
+
+      // Only constrain if the item wasn't already taller than maxHeight
+      if (unmagnitifedHeight <= maxHeightPx && magnifiedHeight > maxHeightPx) {
+        scale = maxHeightPx / meshHeight;
+      }
+    }
 
     // Calculate position distortion (push items away from center)
     // This creates the "lens" effect by moving items radially
