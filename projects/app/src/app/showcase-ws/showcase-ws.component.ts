@@ -44,11 +44,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   // Check if user has admin access
   isAdmin = computed(() => this.admin_key() !== '' && this.admin_key() !== 'ADMIN_KEY_NOT_SET');
   fisheyeSettings = signal<FisheyeSettings>({
-    enabled: false,
-    maxMagnification: 3,
-    radius: 800,
-    zoomRelative: 0.5,
-    maxHeight: 30
+    enabled: true,
+    maxMagnification: 10.0,
+    radius: 600,
+    zoomRelative: 1.0,
+    maxHeight: 40
   });
 
   // Track if fisheye is currently enabled

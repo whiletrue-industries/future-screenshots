@@ -43,6 +43,7 @@ export class ThreeRendererService {
   private readonly CAM_DAMP: number;
   private readonly ANISO: number;
   private readonly BG: number;
+  private readonly FISHEYE_SCALE_DAMPING = 5; // Lower = slower/smoother animation
 
   // Three.js objects
   private container: HTMLElement | null = null;
@@ -118,6 +119,7 @@ export class ThreeRendererService {
   // Fisheye Effect
   private fisheyeService: FisheyeEffectService;
   private fisheyeEnabled = false;
+  private fisheyeEnabledSignal = false; // Track original request to re-enable on zoom change
   private fisheyeAffectedMeshes = new Set<THREE.Mesh>();
   private fisheyeFocusPoint = new THREE.Vector3();
   private meshOriginalStates = new Map<THREE.Mesh, { position: THREE.Vector3; scale: THREE.Vector3; renderOrder: number }>();
@@ -657,6 +659,7 @@ export class ThreeRendererService {
   enableFisheyeEffect(enabled: boolean): void {
     console.log('[RENDERER] enableFisheyeEffect called with:', enabled);
     this.fisheyeEnabled = enabled;
+    this.fisheyeEnabledSignal = enabled; // Track original request
     console.log('[RENDERER] fisheyeEnabled is now:', this.fisheyeEnabled);
     if (!enabled) {
       // Reset all affected meshes to their original state
@@ -745,8 +748,9 @@ export class ThreeRendererService {
   }
 
   // Fisheye Effect Helper Methods
+  private fisheyeLastLoggedState = { enabled: false, meshCount: 0, dragging: false };
+  
   private applyFisheyeEffect(): void {
-    console.debug('[FISHEYE] applyFisheyeEffect called, fisheyeEnabled:', this.fisheyeEnabled);
     
     if (!this.fisheyeEnabled) {
       return;
@@ -762,19 +766,50 @@ export class ThreeRendererService {
       viewportHeight: viewportHeight
     });
 
-    // Debug: Log once per frame to understand state
-    console.debug('[FISHEYE] Config applied, root.children.length:', this.root.children.length);
-    if (this.root.children.length > 0) {
-      const debugConfig = this.fisheyeService.getConfig();
-      console.debug('[FISHEYE] Applied config:', {
-        radius: debugConfig.radius,
-        magnification: debugConfig.magnification,
-        maxHeight: debugConfig.maxHeight,
-        cameraZ: debugConfig.cameraZ,
-        fov: debugConfig.fov,
-        viewportHeight: debugConfig.viewportHeight,
-        meshCount: this.root.children.length
-      });
+    // Check if zoom exceeds max-height: if items are already larger than max height at current zoom,
+    // disable fisheye effect (they already fill the screen enough)
+    const zoomCheckConfig = this.fisheyeService.getConfig();
+    if (zoomCheckConfig.maxHeight && zoomCheckConfig.viewportHeight) {
+      const maxHeightPx = (zoomCheckConfig.maxHeight / 100) * viewportHeight;
+      const vFOV = (this.FOV_DEG * Math.PI) / 180;
+      const visibleHeightWorldUnits = 2 * Math.tan(vFOV / 2) * this.targetCamZ;
+      const pixelsPerWorldUnit = viewportHeight / visibleHeightWorldUnits;
+      
+      // Estimate typical item height - use bounds if available, otherwise use photo height
+      let typicalItemHeightWorld = this.PHOTO_H;
+      if (this.bounds.maxY !== -Infinity && this.bounds.minY !== +Infinity) {
+        // Account for composition bounds with margin
+        const boundsHeight = this.bounds.maxY - this.bounds.minY;
+        const margin = Math.max(Math.abs(this.bounds.minX), Math.abs(this.bounds.maxX)) * 0.2; // ~20% margin
+        typicalItemHeightWorld = boundsHeight / Math.max(1, this.root.children.length) + margin;
+      }
+      
+      const typicalItemHeightPx = typicalItemHeightWorld * pixelsPerWorldUnit;
+      
+      // If items already exceed max-height at current zoom, disable fisheye
+      if (typicalItemHeightPx > maxHeightPx) {
+        if (this.fisheyeEnabled) {
+          console.log('[FISHEYE] Zoom exceeds max-height, disabling effect');
+          this.fisheyeEnabled = false;
+        }
+        return;
+      } else {
+        // Re-enable if zoom returns to reasonable level
+        if (!this.fisheyeEnabled && this.fisheyeEnabledSignal) {
+          this.fisheyeEnabled = true;
+        }
+      }
+    }
+
+    // Log only on state changes
+    const currentMeshCount = this.root.children.length;
+    if (!this.fisheyeLastLoggedState.enabled || 
+        this.fisheyeLastLoggedState.meshCount !== currentMeshCount ||
+        this.fisheyeLastLoggedState.dragging !== this.isDragging) {
+      console.log('[FISHEYE] Active - meshes:', currentMeshCount, 'dragging:', this.isDragging, 'zoom:', this.targetCamZ.toFixed(0));
+      this.fisheyeLastLoggedState.enabled = true;
+      this.fisheyeLastLoggedState.meshCount = currentMeshCount;
+      this.fisheyeLastLoggedState.dragging = this.isDragging;
     }
 
     // Get the world position of the mouse cursor
@@ -904,7 +939,10 @@ export class ThreeRendererService {
           }
         }
 
-        mesh.scale.set(targetScale, targetScale, 1);
+        // Apply scale with damping for smooth animation
+        const currentScale = mesh.scale.x;
+        const dampedScale = this.damp(currentScale, targetScale, this.FISHEYE_SCALE_DAMPING, 0.016); // 0.016s ≈ 60fps frame
+        mesh.scale.set(dampedScale, dampedScale, 1);
 
         // Apply position offset (radial displacement from logical position)
         mesh.position.set(
@@ -2374,9 +2412,9 @@ export class ThreeRendererService {
    */
   private runLodPass(): void {
     if (!this.container) return;
-    // Hysteresis thresholds (in pixels) - lower for earlier high-res loading
-    const UPGRADE_THRESHOLD = 240;
-    const DOWNGRADE_THRESHOLD = 160;
+    // Hysteresis thresholds (in pixels) - lower for earlier high-res loading on hover
+    const UPGRADE_THRESHOLD = 150; // Load high-res earlier (on hover)
+    const DOWNGRADE_THRESHOLD = 100;
 
     // Iterate over meshes
     for (const child of this.root.children) {
