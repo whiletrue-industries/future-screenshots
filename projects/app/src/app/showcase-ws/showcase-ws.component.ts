@@ -695,17 +695,17 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Zoom in at the cursor position (or center if unavailable)
+   * Zoom in at the viewport center
    */
   zoomIn(): void {
-    this.rendererService.zoomAtCursor(0.65);
+    this.rendererService.zoomAtCenter(0.65);
   }
 
   /**
-   * Zoom out at the cursor position (or center if unavailable)
+   * Zoom out at the viewport center
    */
   zoomOut(): void {
-    this.rendererService.zoomAtCursor(1.5);
+    this.rendererService.zoomAtCenter(1.5);
   }
 
   /**

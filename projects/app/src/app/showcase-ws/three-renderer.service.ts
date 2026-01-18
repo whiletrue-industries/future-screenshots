@@ -765,12 +765,6 @@ export class ThreeRendererService {
    * Disable fisheye immediately on zoom and re-enable once zoom completes
    */
   private disableFisheyeForZoom(): void {
-    // Clear any existing timer
-    if (this.fisheyeZoomDisableTimer !== null) {
-      clearTimeout(this.fisheyeZoomDisableTimer);
-      this.fisheyeZoomDisableTimer = null;
-    }
-
     // Disable fisheye immediately
     if (this.fisheyeEnabled) {
       this.fisheyeEnabled = false;
@@ -1837,8 +1831,9 @@ export class ThreeRendererService {
     const baseDelta = event.deltaY;
     const adjustedDelta = isTrackpad ? baseDelta * 0.01 : baseDelta;
     
-    // Calculate zoom factor based on adjusted delta
-    const zoomFactor = adjustedDelta > 0 ? 1.05 : 0.95;
+    // Calculate zoom factor based on adjusted delta (150% larger step than before)
+    const zoomStep = 1.125; // 12.5% step vs previous 5%
+    const zoomFactor = adjustedDelta > 0 ? zoomStep : 1 / zoomStep;
 
     // Zoom at the cursor position
     this.zoomAtPoint(zoomFactor, event.clientX, event.clientY);
@@ -1847,7 +1842,7 @@ export class ThreeRendererService {
     this.reEnableFisheyeAfterZoom();
   }
 
-  private onDoubleClick(event: MouseEvent): void {
+  private async onDoubleClick(event: MouseEvent): Promise<void> {
     if (!this.userControlEnabled) return;
 
     event.preventDefault();
@@ -1860,11 +1855,11 @@ export class ThreeRendererService {
     // Disable fisheye immediately on zoom
     this.disableFisheyeForZoom();
 
-    // Shift+double-click zooms out, normal double-click zooms in
-    const zoomFactor = event.shiftKey ? 1.6 : 0.6;
+    // Shift+double-click zooms out, normal double-click zooms in (faster step)
+    const zoomFactor = event.shiftKey ? 2.2 : 0.45;
 
     // Zoom at the cursor position with smooth animation
-    this.animatedZoomAtPoint(zoomFactor, event.clientX, event.clientY, 0.4);
+    await this.animatedZoomAtPoint(zoomFactor, event.clientX, event.clientY, 0.4);
 
     // Re-enable fisheye now that zoom animation is queued
     this.reEnableFisheyeAfterZoom();
@@ -2394,23 +2389,26 @@ export class ThreeRendererService {
   }
 
   /**
-   * Zoom using the last known cursor position (fallback to center) with smooth animation
+   * Zoom at the viewport center with smooth animation (used by UI buttons)
    */
-  zoomAtCursor(factor: number): void {
-    if (!this.container) return;
+  zoomAtCenter(factor: number): Promise<void> {
+    if (!this.container) return Promise.resolve();
     if (this.autoFitEnabled) this.autoFitEnabled = false;
+    this.disableFisheyeForZoom();
     const rect = this.container.getBoundingClientRect();
-    const cx = this.lastClientX ?? (rect.left + rect.width / 2);
-    const cy = this.lastClientY ?? (rect.top + rect.height / 2);
-    this.animatedZoomAtPoint(factor, cx, cy, 0.3);
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    return this.animatedZoomAtPoint(factor, cx, cy, 0.3).then(() => {
+      this.reEnableFisheyeAfterZoom();
+    });
   }
 
   /**
    * Zoom at a point with smooth animation
    * Maintains cursor position as exact anchor throughout animation
    */
-  private animatedZoomAtPoint(factor: number, screenX: number, screenY: number, durationSec: number): void {
-    if (!this.userControlEnabled || this.autoFitEnabled) return;
+  private animatedZoomAtPoint(factor: number, screenX: number, screenY: number, durationSec: number): Promise<void> {
+    if (!this.userControlEnabled || this.autoFitEnabled) return Promise.resolve();
 
     const startZ = this.targetCamZ;
     const startCamX = this.targetCamX;
@@ -2437,7 +2435,7 @@ export class ThreeRendererService {
     const targetCamY = startCamY + (beforeZoom.y - afterZoom.y);
 
     // Animate smoothly
-    this.runTween(this.makeTween(durationSec, (progress) => {
+    return this.runTween(this.makeTween(durationSec, (progress) => {
       this.targetCamZ = THREE.MathUtils.lerp(startZ, targetZ, progress);
       this.targetCamX = THREE.MathUtils.lerp(startCamX, targetCamX, progress);
       this.targetCamY = THREE.MathUtils.lerp(startCamY, targetCamY, progress);
