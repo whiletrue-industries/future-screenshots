@@ -768,10 +768,6 @@ export class ThreeRendererService {
   
   private applyFisheyeEffect(): void {
     
-    if (!this.fisheyeEnabled) {
-      return;
-    }
-
     // Get viewport dimensions
     const viewportHeight = this.container?.clientHeight ?? window.innerHeight;
 
@@ -813,7 +809,8 @@ export class ThreeRendererService {
       }
     }
     
-    // Apply zoom-based enable/disable logic
+    // Apply zoom-based enable/disable logic BEFORE early return
+    // This allows re-enabling when zooming back out
     if (shouldDisableForZoom && this.fisheyeEnabled) {
       console.log('[FISHEYE_ZOOM] Disabling due to zoom - items exceed max-height');
       this.fisheyeEnabled = false;
