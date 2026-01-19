@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, computed, ElementRef, signal, ViewChild, inject, OnDestroy, ChangeDetectorRef } from '@angular/core';
-import { catchError, distinctUntilChanged, filter, forkJoin, from, interval, map, Observable, of, Subject, timer, takeUntil } from 'rxjs';
+import { catchError, distinctUntilChanged, filter, forkJoin, from, interval, Observable, of, Subject, timer, takeUntil } from 'rxjs';
 import { PlatformService } from '../../platform.service';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
@@ -482,26 +482,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     if (this.api_key()) {
       httpOptions.headers = { 'Authorization': this.api_key()! };
     }
-    const url = `https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${this.workspace()}/items?page_size=10000`;
-    console.log('[SHOWCASE_WS_API] Fetching items from:', url, 'with auth:', !!httpOptions.headers);
-    return this.http.get<any>(url, httpOptions).pipe(
+    return this.http.get<any[]>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${this.workspace()}/items?page_size=10000`, httpOptions).pipe(
       catchError((error) => {
-        console.error('[SHOWCASE_WS_API] Error loading items:', error);
+        console.error('Error loading items:', error);
         return of([]);
-      }),
-      map((response: any) => {
-        // Handle both flat array responses and nested responses
-        console.log('[SHOWCASE_WS_API] Response type:', Array.isArray(response) ? 'array' : 'object', 'Keys:', Object.keys(response || {}).slice(0, 5));
-        const items = Array.isArray(response) ? response : (response?.items || []);
-        // If items have nested metadata, flatten them
-        return items.map((item: any) => {
-          if (item.metadata && !item.screenshot_url) {
-            // Flatten metadata to top level
-            console.log('[SHOWCASE_WS_API] Flattening nested metadata for item:', item.id);
-            return { ...item.metadata, _id: item.id || item._id };
-          }
-          return item;
-        });
       })
     );
   }
