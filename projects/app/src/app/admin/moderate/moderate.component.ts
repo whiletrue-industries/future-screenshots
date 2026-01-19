@@ -3,6 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { AdminApiService } from '../../../admin-api.service';
 import { FormsModule } from '@angular/forms';
 import { FilterHelpers, FiltersBarComponent, FiltersBarState, FilterCounts } from '../../shared/filters-bar/filters-bar.component';
+import { ItemFilterService } from '../../shared/filters-bar/item-filter.service';
 import { firstValueFrom } from 'rxjs';
 import { ImageReplacementModalComponent } from '../image-replacement-modal/image-replacement-modal.component';
 import { QrCodeModalComponent } from '../qr-code-modal/qr-code-modal.component';
@@ -76,9 +77,6 @@ export class ModerateComponent {
   selectedItem = signal<any | null>(null);
   lightboxSidebarOpen = signal<boolean>(true);
   selectedItemIndex = signal<number>(-1);
-   statusDropdownOpen = signal<boolean>(false);
-  preferenceDropdownOpen = signal<boolean>(false);
-  potentialDropdownOpen = signal<boolean>(false);
 
   // Multi-edit state
   multiSelectMode = signal<boolean>(false);
@@ -155,6 +153,8 @@ export class ModerateComponent {
     const excluded = new Set(['_id']);
     return Object.entries(item).filter(([key, value]) => !excluded.has(key) && ['string', 'number', 'boolean'].includes(typeof value));
   });
+
+  private filterService = inject(ItemFilterService);
 
   constructor(private route: ActivatedRoute, private api: AdminApiService) {
     // Read filters from hash synchronously first (before effects run)
@@ -353,76 +353,19 @@ export class ModerateComponent {
   }
 
   applyFiltersAndSort(): void {
-    
-    let filtered = [...this.allFetchedItems()];
-    
-    // Status filter using FilterHelpers
-    if (this.filterStatus().length > 0) {
-      const beforeCount = filtered.length;
-      filtered = filtered.filter(item => FilterHelpers.matchesStatusFilter(item, this.filterStatus()));
-    }
-    
-    // Author filter
-    if (this.filterAuthor() !== 'all') {
-      const beforeCount = filtered.length;
-      if (this.filterAuthor() === 'unattributed') {
-        filtered = filtered.filter(item => !item.author_id || item.author_id === 'unknown');
-      } else {
-        filtered = filtered.filter(item => item.author_id === this.filterAuthor());
-      }
-    }
-    
-    // Preference filter
-    if (this.filterPreference().length > 0 && this.filterPreference().length < this.preferenceOptions.length) {
-      const beforeCount = filtered.length;
-      filtered = filtered.filter(item => {
-        const value = item.favorable_future;
-        if (this.filterPreference().includes('none')) {
-          // Include items with undefined/null/empty values when 'none' is selected
-          if (!value || value === '' || value === 'none') {
-            return true;
-          }
-        }
-        return this.filterPreference().includes(value);
-      });
-    }
-    
-    // Potential filter
-    if (this.filterPotential().length > 0 && this.filterPotential().length < this.potentialOptions.length) {
-      const beforeCount = filtered.length;
-      filtered = filtered.filter(item => {
-        const value = item.plausibility;
-        if (this.filterPotential().includes('none')) {
-          // Include items with undefined/null/empty values when 'none' is selected
-          if (value === undefined || value === null || value === '' || value === 'none') {
-            return true;
-          }
-        }
-        return this.filterPotential().includes(String(value));
-      });
-    }
-    
-    // Type filter
-    if (this.filterType() !== 'all') {
-      const beforeCount = filtered.length;
-      filtered = filtered.filter(item => item.screenshot_type === this.filterType());
-    }
-    
-    // Language filter
-    // Search filter
-    if (this.searchText()) {
-      const beforeCount = filtered.length;
-      const searchLower = this.searchText().toLowerCase();
-      filtered = filtered.filter(item => {
-        const tagline = (item.future_scenario_tagline || '').toLowerCase();
-        const description = (item.future_scenario_description || '').toLowerCase();
-        const content = (item.content || '').toLowerCase();
-        return tagline.includes(searchLower) || description.includes(searchLower) || content.includes(searchLower);
-      });
-    }
+    // Apply filters using the service
+    const filtered = this.filterService.applyFilters(
+      this.allFetchedItems(),
+      this.filterState()
+    );
     
     // Calculate counts from ALL fetched items (not filtered)
-    this.calculateFilterCounts(this.allFetchedItems());
+    const counts = this.filterService.calculateFilterCounts(this.allFetchedItems());
+    this.statusCounts.set(counts.status);
+    this.authorCounts.set(counts.author);
+    this.preferenceCounts.set(counts.preference);
+    this.potentialCounts.set(counts.potential);
+    this.typeCounts.set(counts.type);
     
     // Update user item counts from all fetched items
     const allItems = this.allFetchedItems();
@@ -433,66 +376,11 @@ export class ModerateComponent {
     });
     this.userItemCounts.set(userCounts);
     
-    // Sort and set items
-    const sorted = this.sortItems(filtered);
+    // Sort and set items using the service
+    const sorted = this.filterService.sortItems(filtered, this.orderBy(), this.userItemCounts());
     this.items.set(sorted);
   }
   
-  buildFilterQuery(): string {
-    const filters: string[] = [];
-    
-    // Status filter
-    if (this.filterStatus().length > 0) {
-      const statusMap: any = {
-        'new': '2',
-        'flagged': '1',
-        'approved': '4',
-        'rejected': '0',
-        'highlighted': '5'
-      };
-      const values = this.filterStatus().map(status => statusMap[status]).filter(v => v !== undefined);
-      if (values.length > 0) {
-        if (values.length === 1) {
-          filters.push(`metadata._private_moderation == ${values[0]}`);
-        } else {
-          const conditions = values.map(v => `metadata._private_moderation == ${v}`).join(' OR ');
-          filters.push(`(${conditions})`);
-        }
-      }
-    }
-    
-    // Author filter
-    if (this.filterAuthor() !== 'all') {
-      if (this.filterAuthor() === 'unattributed') {
-        filters.push('NOT metadata.author_id');
-      } else {
-        filters.push(`metadata.author_id == "${this.filterAuthor()}"`);
-      }
-    }
-    
-    // Preference filter
-    if (this.filterPreference().length > 0 && this.filterPreference().length < this.preferenceOptions.length) {
-      filters.push(`metadata.favorable_future IN [${this.filterPreference().map(p => `"${p}"`).join(', ')}]`);
-    }
-    
-    // Potential filter
-    if (this.filterPotential().length > 0 && this.filterPotential().length < this.potentialOptions.length) {
-      filters.push(`metadata.plausibility IN [${this.filterPotential().map(p => parseInt(p)).join(', ')}]`);
-    }
-    
-    // Type filter
-    if (this.filterType() !== 'all') {
-      filters.push(`metadata.screenshot_type == "${this.filterType()}"`);
-    }
-    
-    // Search filter (searches all text fields)
-    if (this.searchText()) {
-      const searchTerm = this.searchText();
-      filters.push(`(metadata.future_scenario_tagline CONTAINS "${searchTerm}" OR metadata.future_scenario_description CONTAINS "${searchTerm}" OR metadata.content CONTAINS "${searchTerm}")`);
-    }
-    
-    return filters.length > 0 ? filters.join(' AND ') : '';
-  }
   
   updateHashParams(): void {
     const params = new URLSearchParams();
@@ -524,89 +412,7 @@ export class ModerateComponent {
     }
   }
   
-  toggleStatusDropdown(): void {
-    const next = !this.statusDropdownOpen();
-    this.statusDropdownOpen.set(next);
-    if (next) {
-      this.preferenceDropdownOpen.set(false);
-      this.potentialDropdownOpen.set(false);
-    }
-  }
 
-    toggleStatusFilter(status: string): void {
-      const current = this.filterStatus();
-      if (current.includes(status)) {
-        this.filterStatus.set(current.filter(s => s !== status));
-      } else {
-        this.filterStatus.set([...current, status]);
-      }
-      this.updateHashParams();
-      this.applyFiltersAndSort();
-    }
-
-    isStatusSelected(status: string): boolean {
-      return this.filterStatus().includes(status);
-    }
-
-    getSelectedStatusCount(): number {
-      return this.filterStatus().length;
-    }
-
-    togglePreferenceDropdown(): void {
-      const next = !this.preferenceDropdownOpen();
-      this.preferenceDropdownOpen.set(next);
-      if (next) {
-        this.statusDropdownOpen.set(false);
-        this.potentialDropdownOpen.set(false);
-      }
-    }
-
-    togglePreferenceFilter(value: string): void {
-      const current = this.filterPreference();
-      if (current.includes(value)) {
-        this.filterPreference.set(current.filter(v => v !== value));
-      } else {
-        this.filterPreference.set([...current, value]);
-      }
-      this.updateHashParams();
-      this.applyFiltersAndSort();
-    }
-
-    isPreferenceSelected(value: string): boolean {
-      return this.filterPreference().includes(value);
-    }
-
-    getSelectedPreferenceCount(): number {
-      return this.filterPreference().length;
-    }
-
-    togglePotentialDropdown(): void {
-      const next = !this.potentialDropdownOpen();
-      this.potentialDropdownOpen.set(next);
-      if (next) {
-        this.statusDropdownOpen.set(false);
-        this.preferenceDropdownOpen.set(false);
-      }
-    }
-
-    togglePotentialFilter(value: string): void {
-      const current = this.filterPotential();
-      if (current.includes(value)) {
-        this.filterPotential.set(current.filter(v => v !== value));
-      } else {
-        this.filterPotential.set([...current, value]);
-      }
-      this.updateHashParams();
-      this.applyFiltersAndSort();
-    }
-
-    isPotentialSelected(value: string): boolean {
-      return this.filterPotential().includes(value);
-    }
-
-    getSelectedPotentialCount(): number {
-      return this.filterPotential().length;
-    }
 
   clearAllFilters(): void {
     this.filterStatus.set(FilterHelpers.DEFAULT_STATUSES);
@@ -619,104 +425,7 @@ export class ModerateComponent {
     this.allFetchedItems.set([]);
   }
   
-  calculateFilterCounts(data: any[]): void {
-    const status = new Map<string, number>();
-    const author = new Map<string, number>();
-    const preference = new Map<string, number>();
-    const potential = new Map<string, number>();
-    const type = new Map<string, number>();
-    
-    data.forEach((item: any) => {
-      // Status counts using FilterHelpers
-      const statusKey = FilterHelpers.getStatusKey(item);
-      status.set(statusKey, (status.get(statusKey) || 0) + 1);
-      
-      // Author counts
-      const authorId = item.author_id || 'unknown';
-      author.set(authorId, (author.get(authorId) || 0) + 1);
-      
-      // Preference counts
-      if (item.favorable_future) {
-        preference.set(item.favorable_future, (preference.get(item.favorable_future) || 0) + 1);
-      }
-      
-      // Potential counts
-      if (item.plausibility !== null && item.plausibility !== undefined) {
-        const key = String(item.plausibility);
-        potential.set(key, (potential.get(key) || 0) + 1);
-      }
-      
-      // Type counts
-      if (item.screenshot_type) {
-        type.set(item.screenshot_type, (type.get(item.screenshot_type) || 0) + 1);
-      }
-      
-      // Language counts
-    });
-    
-    this.statusCounts.set(status);
-    this.authorCounts.set(author);
-    this.preferenceCounts.set(preference);
-    this.potentialCounts.set(potential);
-    this.typeCounts.set(type);
-  }
   
-  sortItems(items: any[]): any[] {
-    const orderBy = this.orderBy();
-    const sorted = [...items];
-    
-    switch (orderBy) {
-      case 'date':
-        return sorted.sort((a, b) => {
-          const dateA = new Date(a.created_at || 0).getTime();
-          const dateB = new Date(b.created_at || 0).getTime();
-          return dateB - dateA; // Newest first
-        });
-      
-      case 'status':
-        return sorted.sort((a, b) => {
-          return (b._private_moderation || 0) - (a._private_moderation || 0);
-        });
-      
-      case 'author':
-        return sorted.sort((a, b) => {
-          const authorA = a.author_id || 'unknown';
-          const authorB = b.author_id || 'unknown';
-          
-          // Keep unknown at the end
-          if (authorA === 'unknown' && authorB !== 'unknown') return 1;
-          if (authorA !== 'unknown' && authorB === 'unknown') return -1;
-          
-          // Sort by item count (descending)
-          const countA = this.getUserItemCount(authorA);
-          const countB = this.getUserItemCount(authorB);
-          return countB - countA;
-        });
-      
-      case 'confidence':
-        return sorted.sort((a, b) => {
-          return this.getAIConfidence(b) - this.getAIConfidence(a);
-        });
-      
-      case 'type':
-        return sorted.sort((a, b) => {
-          const typeA = a.screenshot_type || '';
-          const typeB = b.screenshot_type || '';
-          return typeA.localeCompare(typeB);
-        });
-      
-      case 'preference':
-        return sorted.sort((a, b) => {
-          const prefOrder = ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'];
-          const prefA = a.favorable_future || 'uncertain';
-          const prefB = b.favorable_future || 'uncertain';
-          return prefOrder.indexOf(prefA) - prefOrder.indexOf(prefB);
-        });
-      
-      default:
-        return sorted;
-    }
-  }
   
   getAuthorsSortedByCount(): string[] {
     const counts = this.authorCounts();
