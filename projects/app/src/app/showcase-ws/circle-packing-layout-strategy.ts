@@ -51,7 +51,7 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
     const favorableFuture = photo.metadata['_svgZoneFavorableFuture'] as string | undefined
       || photo.metadata['favorable_future'] as string | undefined;
 
-    if (plausibility === undefined || favorableFuture === undefined) {
+    if (!plausibility || !favorableFuture ) {
       return 0; // keep stable when missing data
     }
 
