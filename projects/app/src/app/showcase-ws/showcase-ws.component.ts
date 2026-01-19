@@ -95,7 +95,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         // Process photos sequentially and then refresh layout
         const photoPromises = items.map(async (item) => {
           const id = item._id;
-          const placeholderUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y21DLsAAAAASUVORK5CYII=';
+          // Create a proper placeholder image (100x100 gray canvas) instead of 1x1 pixel
+          const placeholderUrl = this.createPlaceholderImage();
           const url = item.screenshot_url || placeholderUrl;
           if (!item.screenshot_url) {
             console.warn('[SHOWCASE_WS] Missing screenshot_url for item', id, 'using placeholder image');
@@ -423,6 +424,47 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           console.error('Error fetching workspace data:', error);
         }
       });
+  }
+
+  /**
+   * Create a proper placeholder image for items missing screenshot_url
+   * Returns a data URL with a 200x300 gray canvas image (matches typical photo dimensions)
+   */
+  private createPlaceholderImage(): string {
+    // Fallback for server-side rendering or when document is not available
+    if (!this.platform.browser()) {
+      // Return a minimal valid PNG data URL (light gray 1x1 pixel - but larger than before)
+      return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2U1ZTdlYiIvPjwvc3ZnPg==';
+    }
+    
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 200;
+      canvas.height = 300;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        // Light gray background
+        ctx.fillStyle = '#e5e7eb';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Add a subtle border
+        ctx.strokeStyle = '#d1d5db';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, canvas.width, canvas.height);
+        
+        // Add loading indicator text
+        ctx.fillStyle = '#9ca3af';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Loading...', canvas.width / 2, canvas.height / 2);
+      }
+      return canvas.toDataURL('image/png');
+    } catch (error) {
+      console.error('Error creating placeholder image:', error);
+      // Fallback SVG if canvas fails
+      return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2U1ZTdlYiIvPjwvc3ZnPg==';
+    }
   }
 
   getItems(): Observable<any[]> {
