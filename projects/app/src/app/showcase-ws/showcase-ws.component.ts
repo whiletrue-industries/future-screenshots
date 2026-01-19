@@ -760,6 +760,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           desiredOpacity: 1
         });
 
+        // Set layout strategy reference for debug visualization
+        this.rendererService.setLayoutStrategyReference(this.svgBackgroundStrategy);
+
         // Fit camera to include SVG plane on the left and clusters centered at 0
         const svgMinX = svgOffsetX - this.svgCircleRadius;
         const svgMaxX = svgOffsetX + this.svgCircleRadius;

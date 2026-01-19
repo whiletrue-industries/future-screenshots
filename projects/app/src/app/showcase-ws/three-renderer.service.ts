@@ -555,9 +555,16 @@ export class ThreeRendererService {
     // "favor" -> positive rotation, "prevent" -> negative rotation
     const favorableFutureLower = favorableFuture.toLowerCase().trim();
     const isFavor = favorableFutureLower === 'favor' || favorableFutureLower === 'favorable' || 
-                    favorableFutureLower === 'prefer' || favorableFutureLower === 'preferred';
+                    favorableFutureLower === 'prefer' || favorableFutureLower === 'preferred' ||
+                    favorableFutureLower === 'mostly prefer';
     const isPrevent = favorableFutureLower === 'prevent' || favorableFutureLower === 'prevented' || 
                       favorableFutureLower === 'unfavorable';
+    const isUncertain = favorableFutureLower === 'uncertain' || favorableFutureLower === 'unsure';
+    
+    if (isUncertain) {
+      // Uncertain items should have no rotation (neutral)
+      return 0;
+    }
     
     if (!isFavor && !isPrevent) {
       // Unknown favorable_future value, don't rotate
@@ -1623,24 +1630,34 @@ export class ThreeRendererService {
   }
 
   /**
-   * Check if a position is outside the visible canvas bounds
+   * Check if a position is outside the SVG area (for drag out detection)
    */
   private isPositionOutOfCanvas(position: THREE.Vector3): boolean {
-    if (!this.container) return false;
+    // In SVG mode, check if position is outside SVG bounds
+    if (!this.svgBackgroundOptions?.radius) return false;
     
-    // Project world position to screen coordinates
-    const screenPosition = position.clone();
-    screenPosition.project(this.camera);
+    const svgOffsetX = this.svgBackgroundOptions.offsetX ?? 0;
+    const svgOffsetY = this.svgBackgroundOptions.offsetY ?? 0;
+    const radius = this.svgBackgroundOptions.radius;
     
-    // Convert to canvas coordinates
-    const rect = this.container.getBoundingClientRect();
-    const canvasX = (screenPosition.x * 0.5 + 0.5) * rect.width;
-    const canvasY = (screenPosition.y * -0.5 + 0.5) * rect.height;
+    // Check if position is outside the SVG circle bounds
+    const relX = position.x - svgOffsetX;
+    const relY = position.y - svgOffsetY;
+    const distance = Math.sqrt(relX * relX + relY * relY);
     
-    // Check if outside canvas bounds (with small margin for edge cases)
-    const margin = 50; // pixels
-    return canvasX < -margin || canvasX > rect.width + margin || 
-           canvasY < -margin || canvasY > rect.height + margin;
+    // Consider it "out of canvas" if it's outside the SVG radius
+    const isOutside = distance > radius;
+    
+    console.log('[DRAG-OUT-CHECK]', {
+      position: { x: position.x, y: position.y },
+      svgOffset: { x: svgOffsetX, y: svgOffsetY },
+      relativePos: { x: relX, y: relY },
+      distance,
+      radius,
+      isOutside
+    });
+    
+    return isOutside;
   }
 
   /**
