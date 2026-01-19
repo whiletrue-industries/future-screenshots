@@ -4,7 +4,7 @@ import { PlatformService } from '../../platform.service';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
 import { QrcodeComponent } from "./qrcode/qrcode.component";
-import { SettingsPanelComponent, FisheyeSettings } from './settings-panel.component';
+import { FisheyeSettings } from './settings-panel.component';
 import { PhotoData, PhotoAnimationState, PhotoMetadata } from './photo-data';
 import { ThreeRendererService } from './three-renderer.service';
 import { LayoutStrategy } from './layout-strategy.interface';
@@ -21,7 +21,7 @@ import e from 'express';
 
 @Component({
   selector: 'app-showcase-ws',
-  imports: [QrcodeComponent, SettingsPanelComponent],
+  imports: [QrcodeComponent],
   templateUrl: './showcase-ws.component.html',
   styleUrl: './showcase-ws.component.less'
 })
@@ -34,12 +34,13 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   lastCreatedAt = '0';
   qrSmall = signal(false);
   workspace = signal('');
+  workspaceTitle = signal('');
   api_key = signal('');
   admin_key = signal('');
   lang = signal('');
   currentLayout = signal<'grid' | 'tsne' | 'svg' | 'circle-packing'>('circle-packing');
   enableRandomShowcase = signal(false);
-  enableSvgAutoPositioning = signal(false);
+  enableSvgAutoPositioning = signal(true);
   fisheyeEnabled = signal(false);
   currentZoomLevel = signal(1.0); // Track current zoom level for UI display
   
@@ -192,6 +193,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.api_key.set(qp['api_key'] || 'API_KEY_NOT_SET');
     this.admin_key.set(qp['admin_key'] || 'ADMIN_KEY_NOT_SET');
     this.lang.set(qp['lang'] ? qp['lang'] + '/' : '');
+    
+    // Fetch workspace data to get title
+    if (this.workspace() !== 'WORKSPACE_NOT_SET') {
+      this.fetchWorkspaceData();
+    }
+    
     const layoutParam = qp['layout'];
     if (layoutParam && ['grid','tsne','svg','circle-packing'].includes(layoutParam)) {
       this.currentLayout.set(layoutParam as any);
@@ -355,6 +362,71 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     // Distribute evenly across the three positions
     const index = Math.abs(hash) % 3;
     return positions[index];
+  }
+
+  /**
+   * Recalculate layout for all photos in a specific cluster (by author_id)
+   * This triggers the circle-packing strategy to reposition photos based on their current evaluation
+   */
+  private async recalculateClusterLayout(authorId: string): Promise<void> {
+    if (!authorId) return;
+    
+    console.log('[CLUSTER-RECALC] Recalculating layout for cluster:', authorId);
+    
+    // Get all photos in this cluster
+    const allPhotos = this.photoRepository.getAllPhotos();
+    const clusterPhotos = allPhotos.filter(photo => photo.metadata['author_id'] === authorId);
+    
+    if (clusterPhotos.length === 0) {
+      console.log('[CLUSTER-RECALC] No photos found in cluster:', authorId);
+      return;
+    }
+    
+    // Get the current layout strategy
+    const strategy = this.photoRepository.getLayoutStrategy();
+    if (!strategy) {
+      console.warn('[CLUSTER-RECALC] No layout strategy available');
+      return;
+    }
+    
+    // Recalculate positions for all photos in this cluster
+    // The circle-packing strategy will use the updated evaluation data
+    for (const photo of clusterPhotos) {
+      const newPosition = await strategy.getPositionForPhoto(photo, allPhotos);
+      if (newPosition) {
+        photo.setTargetPosition({ x: newPosition.x, y: newPosition.y, z: 0 });
+      }
+    }
+    
+    console.log('[CLUSTER-RECALC] Recalculated positions for', clusterPhotos.length, 'photos in cluster:', authorId);
+  }
+
+  /**
+   * Fetch workspace data to get the title
+   */
+  private fetchWorkspaceData(): void {
+    const workspaceId = this.workspace();
+    const apiKey = this.api_key() || this.admin_key();
+    
+    if (!workspaceId || workspaceId === 'WORKSPACE_NOT_SET' || !apiKey || apiKey === 'API_KEY_NOT_SET') {
+      return;
+    }
+    
+    const httpOptions = {
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    };
+    
+    this.http.get<any>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/workspace/${workspaceId}`, httpOptions)
+      .subscribe({
+        next: (workspace) => {
+          if (workspace && workspace.title) {
+            this.workspaceTitle.set(workspace.title);
+          }
+        },
+        error: (error) => {
+          console.error('Error fetching workspace data:', error);
+        }
+      });
   }
 
   getItems(): Observable<any[]> {
@@ -610,6 +682,67 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
       await this.svgBackgroundStrategy.initialize();
 
+      // Register hotspot drop callback to update photo metadata and recalculate layout
+      this.rendererService.setHotspotDropCallback(async (photoId: string, hotspotData: { [key: string]: string | number }, position: { x: number, y: number, z: number }) => {
+        console.log('[HOTSPOT-DROP] Photo', photoId, 'dropped, hotspotData:', hotspotData);
+        
+        // Get the photo from repository
+        const photo = this.photoRepository.getPhotoById(photoId);
+        if (!photo) {
+          console.warn('[HOTSPOT-DROP] Photo not found:', photoId);
+          return;
+        }
+
+        // Store the old author_id to know which cluster to recalculate
+        const oldAuthorId = photo.metadata['author_id'] as string;
+        
+        // Check if this is a "drag out of bounds" event (empty hotspotData)
+        const isDraggedOut = Object.keys(hotspotData).length === 0;
+        
+        if (isDraggedOut) {
+          // Clear evaluation metadata when dragged out of bounds
+          console.log('[HOTSPOT-DROP] Photo dragged out of bounds, clearing evaluation metadata');
+          photo.updateMetadata({
+            plausibility: undefined,
+            favorable_future: undefined,
+            _svgZoneFavorableFuture: undefined
+          });
+        } else {
+          // Update photo metadata with hotspot zone data
+          photo.updateMetadata(hotspotData);
+          console.log('[HOTSPOT-DROP] Updated metadata for photo', photoId, 'new metadata:', photo.metadata);
+        }
+        
+        // Save metadata to API
+        try {
+          const workspace = this.workspace();
+          const adminKey = this.admin_key();
+          
+          if (workspace && adminKey && workspace !== 'WORKSPACE_NOT_SET' && adminKey !== 'ADMIN_KEY_NOT_SET') {
+            // For dragged out items, send deletion of evaluation fields
+            const metadataToSave: { [key: string]: string | number | null } = isDraggedOut ? {
+              plausibility: null,
+              favorable_future: null,
+              _svgZoneFavorableFuture: null
+            } : hotspotData;
+            
+            await this.apiService.updateItemMetadata(workspace, adminKey, photoId, metadataToSave);
+            console.log('[HOTSPOT-DROP] Saved metadata to API for photo', photoId);
+          }
+        } catch (error) {
+          console.error('[HOTSPOT-DROP] Error saving metadata to API:', error);
+        }
+        
+        // Recalculate layout for affected cluster(s)
+        await this.recalculateClusterLayout(oldAuthorId);
+        
+        // If author_id changed, also recalculate the new cluster
+        const newAuthorId = photo.metadata['author_id'] as string;
+        if (newAuthorId && newAuthorId !== oldAuthorId) {
+          await this.recalculateClusterLayout(newAuthorId);
+        }
+      });
+
       // Needed when auto-positioning is enabled
       this.svgSideStrategy = new SvgSideLayoutStrategy({
         photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
@@ -697,10 +830,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Calculate transform for layout selection indicator
    */
   getLayoutIndicatorTransform(): string {
-    const layoutIndex = this.currentLayout() === 'grid' ? 0 : 
-                       this.currentLayout() === 'tsne' ? 1 :
-                       this.currentLayout() === 'svg' ? 2 : 3;
-    const translateX = layoutIndex * 48; // 44px width + 4px gap
+    const layoutIndex = this.currentLayout() === 'svg' ? 0 : 1; // Map=0, Clusters=1
+    const translateX = layoutIndex * 108; // Button width (100px) + gap (8px)
     return `translateX(${translateX}px)`;
   }
 

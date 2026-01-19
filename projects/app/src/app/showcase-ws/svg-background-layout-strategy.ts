@@ -713,8 +713,14 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     const metadata = photoData.metadata;
     const plausibilityRaw = metadata['plausibility'];
     const favorableFuture = this.normalizeFavorableFuture(metadata['favorable_future']);
-    const transitionBarPosition = this.normalizeTransitionBar(metadata['transition_bar_position']);
+    let transitionBarPosition = this.normalizeTransitionBar(metadata['transition_bar_position']);
     const plausibility = this.normalizePlausibility(plausibilityRaw);
+    
+    // Default to 'during' if transition_bar_position is missing
+    if (!transitionBarPosition && plausibility !== null && favorableFuture) {
+      transitionBarPosition = 'during';
+      console.log('[AUTO-POSITION] No transition_bar_position for photo', photoData.id, ', defaulting to "during"');
+    }
     
     // Return null if metadata is missing
     if (plausibility === null || !favorableFuture || !transitionBarPosition) {

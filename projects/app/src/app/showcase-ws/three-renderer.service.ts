@@ -99,6 +99,9 @@ export class ThreeRendererService {
   private previewHotspotInfo: HTMLElement | null = null;
   private hoveredMesh: THREE.Mesh | null = null;
   private currentMatchedHotspot: { [key: string]: string | number } | null = null;
+  
+  // Store fisheye state before dragging
+  private wasFisheyeEnabled = false;
 
   // Camera Controls (Zoom & Pan)
   private userControlEnabled = true;
@@ -867,6 +870,10 @@ export class ThreeRendererService {
 
       // Get the logical position from PhotoData (if available)
       const photoData = this.meshToPhotoData.get(mesh);
+      
+      // Skip hidden items (animationState === 'hidden')
+      if (photoData && photoData.animationState === 'hidden') return;
+      
       let logicalPosition: THREE.Vector3;
       let meshHeight = this.PHOTO_H; // Default to standard photo height
       
@@ -1318,7 +1325,7 @@ export class ThreeRendererService {
   }
 
   /**
-   * Update preview widget with hotspot info
+   * Update preview widget with hotspot info and apply rotation preview
    */
   private updatePreviewWidgetHotspot(hotspotData: { [key: string]: string | number } | null): void {
     if (!this.previewHotspotInfo) return;
@@ -1327,8 +1334,28 @@ export class ThreeRendererService {
       const displayText = this.formatHotspotDisplay(hotspotData);
       this.previewHotspotInfo.innerHTML = displayText;
       this.previewHotspotInfo.style.display = 'block';
+      
+      // Apply rotation preview to dragged mesh based on hotspot zone
+      if (this.draggedMesh) {
+        const photoData = this.meshToPhotoData.get(this.draggedMesh);
+        if (photoData) {
+          // Store original rotation if not already stored
+          if (this.draggedMesh.userData['previewOriginalRotation'] === undefined) {
+            this.draggedMesh.userData['previewOriginalRotation'] = this.draggedMesh.rotation.z;
+          }
+          
+          // Calculate new rotation based on hotspot zone
+          const newRotation = this.calculatePreviewRotation(photoData, hotspotData);
+          this.draggedMesh.rotation.z = newRotation;
+        }
+      }
     } else {
       this.previewHotspotInfo.style.display = 'none';
+      
+      // Restore original rotation when not hovering any hotspot
+      if (this.draggedMesh && this.draggedMesh.userData['previewOriginalRotation'] !== undefined) {
+        this.draggedMesh.rotation.z = this.draggedMesh.userData['previewOriginalRotation'];
+      }
     }
 
     this.currentMatchedHotspot = hotspotData;
@@ -1389,6 +1416,27 @@ export class ThreeRendererService {
       // No hotspot, just hide normally
       this.hidePreviewWidget();
     }
+  }
+
+  /**
+   * Calculate preview rotation when hovering over a hotspot zone
+   */
+  private calculatePreviewRotation(photoData: PhotoData, hotspotData: { [key: string]: string | number }): number {
+    const plausibility = photoData.metadata['plausibility'] as number | undefined;
+    const favorableFuture = hotspotData['favorable_future'] as string | undefined;
+    
+    if (plausibility === undefined || !favorableFuture) {
+      return this.draggedMesh?.userData['previewOriginalRotation'] || 0;
+    }
+    
+    const normalizedPlaus = plausibility / 100;
+    const magnitude = (1 - normalizedPlaus) * 32;
+    const favorableLower = favorableFuture.toLowerCase().trim();
+    const isFavor = favorableLower === 'favor' || favorableLower === 'favorable'
+      || favorableLower === 'prefer' || favorableLower === 'preferred';
+    
+    const degrees = isFavor ? magnitude : -magnitude;
+    return THREE.MathUtils.degToRad(degrees);
   }
 
   /**
@@ -1575,6 +1623,27 @@ export class ThreeRendererService {
   }
 
   /**
+   * Check if a position is outside the visible canvas bounds
+   */
+  private isPositionOutOfCanvas(position: THREE.Vector3): boolean {
+    if (!this.container) return false;
+    
+    // Project world position to screen coordinates
+    const screenPosition = position.clone();
+    screenPosition.project(this.camera);
+    
+    // Convert to canvas coordinates
+    const rect = this.container.getBoundingClientRect();
+    const canvasX = (screenPosition.x * 0.5 + 0.5) * rect.width;
+    const canvasY = (screenPosition.y * -0.5 + 0.5) * rect.height;
+    
+    // Check if outside canvas bounds (with small margin for edge cases)
+    const margin = 50; // pixels
+    return canvasX < -margin || canvasX > rect.width + margin || 
+           canvasY < -margin || canvasY > rect.height + margin;
+  }
+
+  /**
    * Check for hotspot collision when a photo is dropped
    * Uses the core findHotspotAtMeshPosition method
    */
@@ -1727,6 +1796,14 @@ export class ThreeRendererService {
         this.isDragging = true;
         this.draggedMesh = intersectedMesh;
         
+        // Store fisheye state and temporarily disable while dragging
+        this.wasFisheyeEnabled = this.fisheyeEnabled;
+        if (this.fisheyeEnabled) {
+          this.fisheyeEnabled = false;
+          // Reset any fisheye effects
+          this.resetAllFisheyeEffects();
+        }
+        
         // Set up drag plane parallel to camera
         const cameraDirection = new THREE.Vector3();
         this.camera.getWorldDirection(cameraDirection);
@@ -1843,6 +1920,12 @@ export class ThreeRendererService {
   private onMouseUp(): void {
     if (this.isDragging && this.draggedMesh) {
       const draggedMesh = this.draggedMesh; // Store reference before clearing
+      
+      // Clear preview rotation data
+      if (draggedMesh.userData['previewOriginalRotation'] !== undefined) {
+        delete draggedMesh.userData['previewOriginalRotation'];
+      }
+      
       this.isDragging = false;
       
       // Animate preview widget drop with current matched hotspot
@@ -1867,7 +1950,38 @@ export class ThreeRendererService {
       if (this.isInteractiveLayout()) {
         const photoId = this.findPhotoIdForMesh(draggedMesh);
         if (photoId) {
-          this.checkHotspotCollision(draggedMesh, photoId);
+          // Check if item is outside canvas bounds
+          const isOutOfBounds = this.isPositionOutOfCanvas(draggedMesh.position);
+          
+          if (isOutOfBounds) {
+            // Item dragged out of canvas - remove evaluation metadata
+            const photoData = this.meshToPhotoData.get(draggedMesh);
+            if (photoData) {
+              console.log('[DRAG-OUT] Photo', photoId, 'dragged out of canvas, clearing evaluation metadata');
+              
+              // Update photo metadata locally to clear evaluation fields
+              photoData.updateMetadata({
+                plausibility: undefined,
+                favorable_future: undefined,
+                _svgZoneFavorableFuture: undefined
+              });
+              
+              // Update rotation to 0°
+              draggedMesh.rotation.z = 0;
+              
+              // Trigger async callback to save to API (fire and forget)
+              if (this.onHotspotDropCallback) {
+                const position = { x: draggedMesh.position.x, y: draggedMesh.position.y, z: draggedMesh.position.z };
+                // Use empty object for cleared metadata (callback will handle undefined values)
+                this.onHotspotDropCallback(photoId, {}, position).catch(error => {
+                  console.error('[DRAG-OUT] Error saving cleared metadata:', error);
+                });
+              }
+            }
+          } else {
+            // Check for hotspot collision only if within bounds
+            this.checkHotspotCollision(draggedMesh, photoId);
+          }
         }
       }
       
@@ -1876,6 +1990,11 @@ export class ThreeRendererService {
       console.log('[CURSOR] Drop event, setting hover signal to false');
       this.hoveredItemSignal.set(false);
       this.currentMatchedHotspot = null; // Clear matched hotspot
+      
+      // Re-enable fisheye if it was enabled before dragging
+      if (this.wasFisheyeEnabled) {
+        this.fisheyeEnabled = true;
+      }
     } else if (this.isPanning) {
       // Stop panning
       this.isPanning = false;

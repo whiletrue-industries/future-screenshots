@@ -293,6 +293,13 @@ export class PhotoDataRepository {
   }
 
   /**
+   * Get a photo by its ID
+   */
+  getPhotoById(photoId: string): PhotoData | undefined {
+    return this.photos.get(photoId);
+  }
+
+  /**
    * Get the current layout strategy
    */
   getLayoutStrategy(): LayoutStrategy | null {
