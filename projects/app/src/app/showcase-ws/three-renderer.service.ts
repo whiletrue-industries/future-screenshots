@@ -2760,7 +2760,10 @@ export class ThreeRendererService {
   private async loadFullResolutionImage(url: string): Promise<THREE.Texture> {
     return new Promise<THREE.Texture>((resolve, reject) => {
       const img = new Image();
-      img.crossOrigin = 'anonymous'; // Enable CORS
+      // Only set CORS for remote URLs (not for data URLs which don't support CORS)
+      if (!url.startsWith('data:')) {
+        img.crossOrigin = 'anonymous';
+      }
       
       img.onload = () => {
         try {
@@ -2792,7 +2795,10 @@ export class ThreeRendererService {
     
     return new Promise<THREE.Texture>((resolve, reject) => {
       const img = new Image();
-      img.crossOrigin = 'anonymous'; // Enable CORS
+      // Only set CORS for remote URLs (not for data URLs which don't support CORS)
+      if (!url.startsWith('data:')) {
+        img.crossOrigin = 'anonymous';
+      }
       
       img.onload = () => {
         try {
