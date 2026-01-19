@@ -1223,6 +1223,20 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const rtlPattern = /[\u0590-\u05FF\u0600-\u06FF]/;
     return rtlPattern.test(text);
   }
+
+  /**
+   * Calculate font size scale factor for Hebrew and Arabic fonts to match English x-height.
+   * Hebrew (Gadi Almog) and Arabic (Mikhak) fonts need to be scaled down to match
+   * the x-height and line spacing of the English Caveat font.
+   */
+  private getFontSizeScale(fontFamily: string): number {
+    if (fontFamily.includes('Gadi Almog')) {
+      return 0.80; // Scale Hebrew down by 20% to match x-height
+    } else if (fontFamily.includes('Mikhak')) {
+      return 0.78; // Scale Arabic down by 22% to match x-height
+    }
+    return 1.0; // No scaling for English fonts
+  }
   
   async selectTransition(choice: 'before' | 'during' | 'after') {
     this.transitionChoice.set(choice);
@@ -1513,6 +1527,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
     text.on('changed', () => {
       const effectiveText = text.text || '';
       const isRTL = this.detectRTL(effectiveText);
+      const prevFont = text.fontFamily || this.selectedFont();
+      
       // Determine which RTL font to use based on character set
       let rtlFont = this.selectedFont();
       if (isRTL) {
@@ -1525,10 +1541,22 @@ export class CanvasCreatorComponent implements AfterViewInit {
           rtlFont = 'Mikhak, Readex Pro, sans-serif';
         }
       }
+      
+      // Only adjust font size if the font family is actually changing
+      let adjustedFontSize = text.fontSize;
+      if (prevFont !== rtlFont) {
+        // Get scale factors for old and new fonts
+        const prevScale = this.getFontSizeScale(prevFont);
+        const newScale = this.getFontSizeScale(rtlFont);
+        // Adjust font size to maintain consistent visual size
+        adjustedFontSize = (text.fontSize / prevScale) * newScale;
+      }
+      
       text.set({ 
         direction: isRTL ? 'rtl' : 'ltr',
         textAlign: isRTL ? 'right' : 'left',
-        fontFamily: rtlFont
+        fontFamily: rtlFont,
+        fontSize: adjustedFontSize
       });
       targetCanvas.requestRenderAll();
     });
@@ -1840,6 +1868,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
               obj.on('changed', () => {
                 const effectiveText = obj.text || '';
                 const isRTL = this.detectRTL(effectiveText);
+                const prevFont = obj.fontFamily || this.selectedFont();
+                
                 let rtlFont = this.selectedFont();
                 if (isRTL) {
                   const hasHebrew = /[\u0590-\u05FF]/.test(effectiveText);
@@ -1850,10 +1880,22 @@ export class CanvasCreatorComponent implements AfterViewInit {
                     rtlFont = 'Mikhak, Readex Pro, sans-serif';
                   }
                 }
+                
+                // Only adjust font size if the font family is actually changing
+                let adjustedFontSize = obj.fontSize;
+                if (prevFont !== rtlFont) {
+                  // Get scale factors for old and new fonts
+                  const prevScale = this.getFontSizeScale(prevFont);
+                  const newScale = this.getFontSizeScale(rtlFont);
+                  // Adjust font size to maintain consistent visual size
+                  adjustedFontSize = (obj.fontSize / prevScale) * newScale;
+                }
+                
                 obj.set({ 
                   direction: isRTL ? 'rtl' : 'ltr',
                   textAlign: isRTL ? 'right' : 'left',
-                  fontFamily: rtlFont
+                  fontFamily: rtlFont,
+                  fontSize: adjustedFontSize
                 });
                 fabricCanvas.requestRenderAll();
               });
