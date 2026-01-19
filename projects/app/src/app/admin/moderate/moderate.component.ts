@@ -26,12 +26,9 @@ export type Filter = {
   templateUrl: './moderate.component.html',
   styleUrl: './moderate.component.less'
 })
-export class ModerateComponent implements OnDestroy {
+export class ModerateComponent {
 
   Array = Array; // Make Array available in template
-
-  private platform = inject(PlatformService);
-  private documentClickListener?: (event: MouseEvent) => void;
 
   FILTERS = [
     {name: 'highlighted', filter:'metadata._private_moderation == 5'},
@@ -133,13 +130,6 @@ export class ModerateComponent implements OnDestroy {
   });
   showQRModal = signal<boolean>(false);
   qrItemId = signal<string | null>(null);
-
-    private onDocumentClick(event: MouseEvent): void {
-      const target = event.target as HTMLElement;
-      if (target && !target.closest('.custom-multiselect')) {
-        this.statusDropdownOpen.set(false);
-      }
-    }
 
   LEVELS = [
     'banned',
@@ -317,14 +307,6 @@ export class ModerateComponent implements OnDestroy {
       
       this.updateHashParams();
       this.applyFiltersAndSort();
-    });
-
-    // Set up document click listener only in browser
-    afterNextRender(() => {
-      this.platform.browser(() => {
-        this.documentClickListener = this.onDocumentClick.bind(this);
-        document.addEventListener('click', this.documentClickListener);
-      });
     });
   }
 
@@ -1249,11 +1231,11 @@ export class ModerateComponent implements OnDestroy {
   }
 
   selectedCount(): number {
-    return this.selectedIds().size;
+    return this.selectedIds()?.size || 0;
   }
 
   getSingleSelectedId(): string | null {
-    if (this.selectedIds().size !== 1) return null;
+    if (this.selectedIds()?.size !== 1) return null;
     return Array.from(this.selectedIds())[0] ?? null;
   }
 
@@ -1427,14 +1409,5 @@ export class ModerateComponent implements OnDestroy {
   closeQrModal(): void {
     this.showQRModal.set(false);
     this.qrItemId.set(null);
-  }
-
-  ngOnDestroy(): void {
-    // Clean up document click listener
-    if (this.documentClickListener) {
-      this.platform.browser(() => {
-        document.removeEventListener('click', this.documentClickListener!);
-      });
-    }
   }
 }

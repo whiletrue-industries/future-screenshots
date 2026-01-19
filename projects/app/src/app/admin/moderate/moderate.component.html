@@ -36,6 +36,7 @@
       (filtersChange)="onFiltersChange($event)"
       (filtersCommit)="onFiltersCommit($event)"
     ></app-filters-bar>
+    
     <button class="multi-select-toggle" (click)="toggleMultiSelectMode()" aria-label="Toggle multi-edit mode">
       <span class="icon">🗂</span>
       <span>{{ multiSelectMode() ? 'Close multi-edit' : 'Multi-edit' }}</span>
@@ -45,7 +46,7 @@
     </button>
   </div>
 
-  @if (items().length === 500 || page() > 0) {
+  @if (items().length >= 500 || page() > 0) {
     <section class="pagination-section" aria-label="Pagination">
       <button 
         class="pagination-btn" 

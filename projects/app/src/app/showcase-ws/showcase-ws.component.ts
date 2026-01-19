@@ -328,11 +328,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       
       const showDebugMethod = (strategy as any).showAllHotspotsDebug;
       if (typeof showDebugMethod === 'function') {
-        console.log('[HOTSPOT-VIZ] Calling showAllHotspotsDebug()...');
         showDebugMethod.call(strategy);
-        console.log('[HOTSPOT-VIZ] Successfully called showAllHotspotsDebug()');
-      } else {
-        console.warn('[HOTSPOT-VIZ] showAllHotspotsDebug is not a function:', typeof showDebugMethod);
       }
     } catch (error) {
       console.error('[HOTSPOT-VIZ] Error showing visualization:', error);

@@ -1,6 +1,8 @@
-import { Component, input, output, signal, effect, inject, afterNextRender, OnDestroy } from '@angular/core';
+import { Component, input, output, signal, effect, OnDestroy, AfterViewInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PlatformService } from '../../../platform.service';
+import { CommonModule } from '@angular/common';
+import { BrowserModule } from '@angular/platform-browser';
 
 export interface FiltersBarState {
   status: string[];
@@ -181,11 +183,11 @@ export class FilterHelpers {
 
 @Component({
   selector: 'app-filters-bar',
-  imports: [FormsModule],
+  imports: [BrowserModule, CommonModule, FormsModule],
   templateUrl: './filters-bar.component.html',
   styleUrl: './filters-bar.component.less'
 })
-export class FiltersBarComponent implements OnDestroy {
+export class FiltersBarComponent implements AfterViewInit, OnDestroy {
   // Inputs
   counts = input<FilterCounts>({
     status: new Map(),
@@ -249,17 +251,9 @@ export class FiltersBarComponent implements OnDestroy {
   private changeEffectTriggered = false;
   private debounceTimer: any = null;
   private readonly DEBOUNCE_DELAY = 300; // 300ms debounce for view updates
-  private platform = inject(PlatformService);
   private documentClickListener?: (event: MouseEvent) => void;
 
-  constructor() {
-    // Set up document click listener only in browser
-    afterNextRender(() => {
-      this.platform.browser(() => {
-        this.documentClickListener = this.onDocumentClick.bind(this);
-        document.addEventListener('click', this.documentClickListener);
-      });
-    });
+  constructor(private platform: PlatformService) {
     // Set initial state from parent if provided
     effect(() => {
       const state = this.initialState();
@@ -316,6 +310,14 @@ export class FiltersBarComponent implements OnDestroy {
     });
   }
   
+  ngAfterViewInit(): void {
+    // Set up document click listener only in browser
+    this.platform.browser(() => {
+      this.documentClickListener = this.onDocumentClick.bind(this);
+      document.addEventListener('click', this.documentClickListener);
+    });
+  }
+
   private onDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
     if (target && !target.closest('.custom-multiselect')) {
@@ -405,7 +407,7 @@ export class FiltersBarComponent implements OnDestroy {
   }
   
   getSelectedStatusCount(): number {
-    return this.filterStatus().length;
+    return this.filterStatus()?.length || 0;
   }
   
   /**
