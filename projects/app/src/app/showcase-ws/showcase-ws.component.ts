@@ -416,7 +416,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       headers: { 'Authorization': `Bearer ${apiKey}` }
     };
     
-    this.http.get<any>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/workspace/${workspaceId}`, httpOptions)
+    this.http.get<any>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${workspaceId}`, httpOptions)
       .subscribe({
         next: (workspace) => {
           if (workspace && workspace.title) {
