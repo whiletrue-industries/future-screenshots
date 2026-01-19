@@ -35,6 +35,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   qrSmall = signal(false);
   workspace = signal('');
   workspaceTitle = signal('');
+  workspaceError = signal(false);
   api_key = signal('');
   admin_key = signal('');
   lang = signal('');
@@ -196,7 +197,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     
     // Fetch workspace data to get title
     if (this.workspace() !== 'WORKSPACE_NOT_SET') {
+      this.workspaceTitle.set('Loading workspace...');
       this.fetchWorkspaceData();
+    } else {
+      this.workspaceTitle.set('No workspace selected');
     }
     
     const layoutParam = qp['layout'];
@@ -420,11 +424,22 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       .subscribe({
         next: (workspace) => {
           if (workspace && workspace.title) {
+            console.log('[WORKSPACE] Loaded workspace title:', workspace.title);
             this.workspaceTitle.set(workspace.title);
+            this.workspaceError.set(false);
           }
         },
         error: (error) => {
-          console.error('Error fetching workspace data:', error);
+          console.log('[WORKSPACE] Error occurred, setting error state');
+          this.workspaceError.set(true);
+          // Surface a user-friendly title when the workspace is missing, keep quiet otherwise
+          if (error?.status === 404) {
+            this.workspaceTitle.set('⚠️ Workspace not found');
+            console.warn('[WORKSPACE] Workspace not found for id', workspaceId);
+          } else {
+            this.workspaceTitle.set('⚠️ Error loading workspace');
+            console.error('Error fetching workspace data:', error);
+          }
         }
       });
   }

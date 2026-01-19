@@ -5,7 +5,7 @@
 
 <!-- Workspace Title -->
 @if (workspaceTitle()) {
-<div class='workspace-title'>
+<div class='workspace-title' [class.error]='workspaceError()'>
   {{ workspaceTitle() }}
 </div>
 }

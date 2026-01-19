@@ -34,6 +34,7 @@
     }
 
     .workspace-title {
+        .font-sans;
         position: absolute;
         top: 20px;
         left: 50%;
@@ -41,17 +42,26 @@
         font-size: 24px;
         font-weight: 600;
         color: rgba(0, 0, 0, 0.8);
-        background: rgba(255, 255, 255, 0.9);
+        background: rgba(255, 255, 255, 0.95);
         padding: 12px 32px;
         border-radius: 12px;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-        z-index: 100;
-        backdrop-filter: blur(8px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+        backdrop-filter: blur(10px);
         max-width: 600px;
         text-align: center;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        transition: all 0.3s ease;
+        pointer-events: none;
+
+        &.error {
+            background: rgba(255, 243, 224, 0.95);
+            color: rgba(180, 83, 9, 0.9);
+            border: 2px solid rgba(251, 146, 60, 0.3);
+            box-shadow: 0 4px 20px rgba(251, 146, 60, 0.25);
+        }
     }
 
     .layout-toggle-centered {
