@@ -16,7 +16,7 @@ interface Template {
 
 @Component({
   selector: 'app-canvas-creator',
-  imports: [],
+  imports: [RouterLink],
   templateUrl: './canvas-creator.component.html',
   styleUrl: './canvas-creator.component.less'
 })
@@ -49,16 +49,26 @@ export class CanvasCreatorComponent implements AfterViewInit {
   transitionChoice = signal<'before' | 'during' | 'after' | null>(null);
   currentTemplateIndex = signal(0); // For carousel navigation
   isCarouselAnimating = signal(false);
+  carouselDragOffset = signal<number>(0);
+  carouselDragging = signal<boolean>(false);
   carouselTransform = computed(() => {
     const index = this.currentTemplateIndex();
+    const dragOffset = this.carouselDragOffset();
     // Center item: viewport is 100vw, item is 75vw, so center offset is 12.5vw
     // Item n is at position n*75vw, so translate to 12.5vw: translateX(12.5vw - n*75vw)
-    return `translateX(calc(12.5vw - ${index * 75}vw))`;
+    const baseOffset = 12.5 - (index * 75);
+    const dragOffsetVw = (dragOffset / window.innerWidth) * 100;
+    return `translateX(calc(${baseOffset}vw + ${dragOffsetVw}vw))`;
+  });
+  carouselTransition = computed(() => {
+    return this.carouselDragging() ? 'none' : 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
   });
   drawerState = signal<'minimal' | 'default' | 'full'>('default');
   selectedFont = signal<string>('Caveat, cursive');
   selectedLineHeight = signal<number>(1.16);
   selectedHeight = signal<number>(40);
+  activeTextboxAlignment = signal<'left' | 'center' | 'right'>('left');
+  showAlignmentToggle = signal(false);
   drawerDragOffset = signal<number>(0);
   drawerDragging = signal<boolean>(false);
   private touchStartX: number | null = null;
@@ -588,8 +598,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
     'Permanent Marker, cursive',
     'Shadows Into Light, cursive', 
     'Indie Flower, cursive',
-    'Miriam Libre, serif', // Hebrew support
-    'Readex Pro, sans-serif', // Arabic support
+    'Gadi Almog, Miriam Libre, serif', // Hebrew support
+    'Mikhak, Readex Pro, sans-serif', // Arabic support
   ];
   
   constructor(
@@ -604,6 +614,18 @@ export class CanvasCreatorComponent implements AfterViewInit {
     this.api.updateFromRoute(this.route.snapshot);
     // Select random color on init
     this.currentColor.set(this.markerColors[Math.floor(Math.random() * this.markerColors.length)]);
+    
+    // Set default font based on user's language
+    const userLocale = this.api.locale;
+    if (userLocale === 'he') {
+      // Hebrew - use Gadi Almog font
+      this.selectedFont.set('Gadi Almog, Miriam Libre, serif');
+    } else if (userLocale === 'ar') {
+      // Arabic - use Mikhak font
+      this.selectedFont.set('Mikhak, Readex Pro, sans-serif');
+    }
+    // Otherwise keep default (Caveat)
+    
     this.preloadFonts();
   }
   
@@ -611,7 +633,22 @@ export class CanvasCreatorComponent implements AfterViewInit {
     if (!this.platform.browser()) {
       return;
     }
-    // Start carousel spin animation
+    // If a specific template was requested (re-edit flow), open it
+    const requestedId = this.route.snapshot.queryParamMap.get('template_id');
+    if (requestedId) {
+      const idx = this.templates.findIndex(t => t.id === requestedId);
+      if (idx >= 0) {
+        this.currentTemplateIndex.set(idx);
+        // Open editor directly with the requested template
+        this.useCurrentTemplate();
+        // After canvas initializes, restore state if available
+        setTimeout(() => {
+          this.restoreCanvasState();
+        }, 500);
+        return;
+      }
+    }
+    // Otherwise start carousel spin animation
     this.spinCarouselToRandomTemplate();
   }
   
@@ -645,15 +682,20 @@ export class CanvasCreatorComponent implements AfterViewInit {
   }
   
   previousTemplate() {
-    if (this.isCarouselAnimating()) return;
+    if (this.isCarouselAnimating() || this.carouselDragging()) return;
     const index = this.currentTemplateIndex();
     this.currentTemplateIndex.set(index > 0 ? index - 1 : this.templates.length - 1);
   }
 
   nextTemplate() {
-    if (this.isCarouselAnimating()) return;
+    if (this.isCarouselAnimating() || this.carouselDragging()) return;
     const index = this.currentTemplateIndex();
     this.currentTemplateIndex.set((index + 1) % this.templates.length);
+  }
+  
+  backToGallery() {
+    this.showTemplateGallery.set(true);
+    this.isEditorShowing.set(false);
   }
 
   cycleColor() {
@@ -693,9 +735,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
     if (!this.platform.browser()) return;
     
     const randomIndex = Math.floor(Math.random() * this.templates.length);
-    // Calculate spins to reach the random index in ~1.5 seconds
-    const totalSpins = randomIndex + Math.floor(Math.random() * 2 + 3) * this.templates.length;
-    const animationDuration = 1500; // 1.5 seconds
+    // Make animation slower, softer, and shorter - only go through templates once plus landing
+    const totalSpins = randomIndex + Math.floor(Math.random() * 1 + 1) * this.templates.length;
+    const animationDuration = 2500; // 2.5 seconds (slower)
     
     this.isCarouselAnimating.set(true);
     let currentSpin = 0;
@@ -705,8 +747,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / animationDuration, 1);
       
-      // Ease-out cubic: 1 - (1-t)^3
-      const easeOutProgress = 1 - Math.pow(1 - progress, 3);
+      // Ease-out quartic for softer deceleration: 1 - (1-t)^4
+      const easeOutProgress = 1 - Math.pow(1 - progress, 4);
       const targetSpin = Math.round(totalSpins * easeOutProgress);
       
       this.currentTemplateIndex.set(targetSpin % this.templates.length);
@@ -755,6 +797,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
     
     let containerWidth = container?.clientWidth || 0;
     let containerHeight = container?.clientHeight || 0;
+    // Subtract control bar height if present to avoid overlap
+    const controlBarEl = container?.parentElement?.querySelector('.control-bar') as HTMLElement | null;
+    const controlBarH = controlBarEl ? (controlBarEl.getBoundingClientRect().height || 0) : 0;
     
     // If container dimensions are not available, wait and try again
     if (containerWidth === 0 || containerHeight === 0) {
@@ -775,7 +820,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     let displayHeight = displayWidth / aspectRatio;
     
     if (displayHeight > containerHeight - 32) {
-      displayHeight = Math.max(100, containerHeight - 32);
+      displayHeight = Math.max(100, containerHeight - 32 - controlBarH);
       displayWidth = displayHeight * aspectRatio;
     }
     
@@ -1010,6 +1055,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
             selectable: false,
             evented: false,
             objectCaching: false,
+            globalCompositeOperation: 'multiply',
           });
 
           (this as any).canvas.add(strokePath);
@@ -1105,9 +1151,10 @@ export class CanvasCreatorComponent implements AfterViewInit {
           // Second click on same textbox: enter editing
           mouseDownTarget.editable = true;
           mouseDownTarget.enterEditing();
+          const targetRef = mouseDownTarget;
           setTimeout(() => {
-            if (mouseDownTarget.isEditing) {
-              mouseDownTarget.selectAll();
+            if (targetRef && targetRef.isEditing) {
+              targetRef.selectAll();
             }
           }, 50);
         }
@@ -1123,6 +1170,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
       if (target && target.type === 'textbox') {
         fabricCanvas.isDrawingMode = false;
         component.currentMode.set('type');
+        component.activeTextboxAlignment.set(target.textAlign || 'left');
+        component.showAlignmentToggle.set(false); // Show toggle when textbox is selected but not editing
       }
     });
     
@@ -1132,6 +1181,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
       if (target && target.type === 'textbox') {
         fabricCanvas.isDrawingMode = false;
         component.currentMode.set('type');
+        component.activeTextboxAlignment.set(target.textAlign || 'left');
+        component.showAlignmentToggle.set(false); // Show toggle when textbox is selected but not editing
         // Exit editing mode if we were in it
         if (target.isEditing) {
           target.exitEditing();
@@ -1144,14 +1195,25 @@ export class CanvasCreatorComponent implements AfterViewInit {
       fabricCanvas.isDrawingMode = true;
       component.currentMode.set('draw');
       component.setupRoughBrush(fabricCanvas);
+      component.showAlignmentToggle.set(false);
       fabricCanvas.renderAll();
     });
     
-    // When text editing exits, disable editable again
+    // When text editing exits, disable editable again and hide alignment toggle
     fabricCanvas.on('text:editing:exited', (e: any) => {
       const target = e.target;
       if (target && target.type === 'textbox') {
         target.editable = false;
+        component.showAlignmentToggle.set(false);
+      }
+    });
+    
+    // When text editing enters, show alignment toggle
+    fabricCanvas.on('text:editing:entered', (e: any) => {
+      const target = e.target;
+      if (target && target.type === 'textbox') {
+        component.activeTextboxAlignment.set(target.textAlign || 'left');
+        component.showAlignmentToggle.set(true);
       }
     });
   }
@@ -1192,6 +1254,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
       top: 0,
       selectable: false,
       evented: false,
+      globalCompositeOperation: 'multiply',
     });
     fabricCanvas.add(img);
     fabricCanvas.renderAll();
@@ -1242,6 +1305,20 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const fabricCanvas = this.canvas();
     if (!fabricCanvas) return;
 
+    // Extract textbox content before removing placeholders
+    const allTextboxes = fabricCanvas.getObjects().filter((obj: any) => obj.type === 'textbox');
+    const textboxData = allTextboxes
+      .filter((tb: any) => !(tb as any)._placeholder && tb.text && tb.text.trim() !== '')
+      .map((tb: any) => tb.text.trim())
+      .join(' | ');
+    
+    // Store textbox data in state service
+    this.state.currentTextboxData.set(textboxData || null);
+
+    // Save canvas state as JSON before removing placeholders (for re-edit)
+    const canvasJSON = JSON.stringify(fabricCanvas.toJSON(['globalCompositeOperation', 'paintFirst', '_placeholder', '_placeholderText']));
+    this.state.currentCanvasState.set(canvasJSON);
+
     // Remove untouched placeholders before export
     const placeholders = this.placeholderTexts.filter(t => (t as any)._placeholder || ((t.text || '').trim() === ((t as any)._placeholderText || 'Type here...')));
     if (placeholders.length) {
@@ -1271,7 +1348,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const jpegBlob = new Blob([blob], { type: 'image/jpeg' });
     
     this.state.setImage(jpegBlob);
-    this.router.navigate(['/confirm'], { queryParamsHandling: 'merge', queryParams: { template: 'true' } });
+    const sel = this.selectedTemplate();
+    this.router.navigate(['/confirm'], { queryParamsHandling: 'merge', queryParams: { template: 'true', template_id: sel?.id } });
   }
   
   undo() {
@@ -1286,28 +1364,40 @@ export class CanvasCreatorComponent implements AfterViewInit {
 
   // ----- Carousel swipe handlers -----
   onCarouselTouchStart(ev: TouchEvent) {
-    if (ev.touches.length !== 1) return;
+    if (ev.touches.length !== 1 || this.isCarouselAnimating()) return;
     this.touchStartX = ev.touches[0].clientX;
     this.touchDeltaX = 0;
     this.isSwiping = true;
+    this.carouselDragging.set(true);
+    this.carouselDragOffset.set(0);
   }
 
   onCarouselTouchMove(ev: TouchEvent) {
     if (!this.isSwiping || this.touchStartX === null) return;
     this.touchDeltaX = ev.touches[0].clientX - this.touchStartX;
+    this.carouselDragOffset.set(this.touchDeltaX);
   }
 
   onCarouselTouchEnd() {
     if (!this.isSwiping) return;
-    const threshold = 50;
-    if (this.touchDeltaX > threshold) {
+    const threshold = 75; // 75px swipe distance to trigger navigation
+    const velocity = Math.abs(this.touchDeltaX);
+    
+    // Determine if we should navigate based on distance and velocity
+    // Reset drag state before triggering navigation so guards don't block
+    this.isSwiping = false;
+    this.carouselDragging.set(false);
+
+    if (this.touchDeltaX > threshold || (velocity > 30 && this.touchDeltaX > 0)) {
       this.previousTemplate();
-    } else if (this.touchDeltaX < -threshold) {
+    } else if (this.touchDeltaX < -threshold || (velocity > 30 && this.touchDeltaX < 0)) {
       this.nextTemplate();
     }
+
+    // Final cleanup
     this.touchStartX = null;
     this.touchDeltaX = 0;
-    this.isSwiping = false;
+    this.carouselDragOffset.set(0);
   }
 
   // ----- Drawer helpers -----
@@ -1332,6 +1422,33 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const active = fabricCanvas.getActiveObject();
     if (active && active.type === 'textbox') {
       active.set('fontFamily', font);
+      fabricCanvas.requestRenderAll();
+    }
+  }
+  
+  toggleAlignment() {
+    const fabricCanvas = this.canvas();
+    if (!fabricCanvas) return;
+    const active = fabricCanvas.getActiveObject();
+    if (active && active.type === 'textbox') {
+      const currentAlign = active.textAlign || 'left';
+      // Toggle between left, center, and right
+      let newAlign: 'left' | 'center' | 'right' = 'left';
+      if (currentAlign === 'left') {
+        newAlign = 'center';
+      } else if (currentAlign === 'center') {
+        newAlign = 'right';
+      } else {
+        newAlign = 'left';
+      }
+      
+      // If aligning right, also set RTL
+      const isRTL = newAlign === 'right';
+      active.set({ 
+        textAlign: newAlign,
+        direction: isRTL ? 'rtl' : 'ltr'
+      });
+      this.activeTextboxAlignment.set(newAlign);
       fabricCanvas.requestRenderAll();
     }
   }
@@ -1396,7 +1513,23 @@ export class CanvasCreatorComponent implements AfterViewInit {
     text.on('changed', () => {
       const effectiveText = text.text || '';
       const isRTL = this.detectRTL(effectiveText);
-      text.set({ direction: isRTL ? 'rtl' : 'ltr' });
+      // Determine which RTL font to use based on character set
+      let rtlFont = this.selectedFont();
+      if (isRTL) {
+        // Check if Hebrew or Arabic
+        const hasHebrew = /[\u0590-\u05FF]/.test(effectiveText);
+        const hasArabic = /[\u0600-\u06FF]/.test(effectiveText);
+        if (hasHebrew) {
+          rtlFont = 'Gadi Almog, Miriam Libre, serif';
+        } else if (hasArabic) {
+          rtlFont = 'Mikhak, Readex Pro, sans-serif';
+        }
+      }
+      text.set({ 
+        direction: isRTL ? 'rtl' : 'ltr',
+        textAlign: isRTL ? 'right' : 'left',
+        fontFamily: rtlFont
+      });
       targetCanvas.requestRenderAll();
     });
     // Restore placeholder if empty
@@ -1428,6 +1561,16 @@ export class CanvasCreatorComponent implements AfterViewInit {
     text.editable = false; // Disable editing by default
     text.lockMovementX = false;
     text.lockMovementY = false;
+    
+    // Add multiply blend mode for text by overriding render
+    text.set({ globalCompositeOperation: 'multiply' });
+    const originalRender = text.render;
+    text.render = function(ctx: any) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'multiply';
+      originalRender.call(this, ctx);
+      ctx.restore();
+    };
     
     // Allow width resize via side handles only; corners will resize font uniformly
     text.setControlsVisibility({
@@ -1655,6 +1798,88 @@ export class CanvasCreatorComponent implements AfterViewInit {
       t.set({ visible: true });
     });
     this.canvas()?.requestRenderAll();
+  }
+
+  private restoreCanvasState() {
+    const savedState = this.state.currentCanvasState();
+    if (!savedState) return;
+    
+    const fabricCanvas = this.canvas();
+    if (!fabricCanvas) return;
+
+    try {
+      const stateObj = JSON.parse(savedState);
+      // Clear current objects (keep background)
+      const existingObjects = fabricCanvas.getObjects();
+      existingObjects.forEach((obj: any) => fabricCanvas.remove(obj));
+      
+      // Load saved state with full async completion
+      fabricCanvas.loadFromJSON(stateObj, () => {
+        // Wait for all assets to load
+        setTimeout(() => {
+          // After loading, reconfigure textboxes and reattach handlers
+          const allObjects = fabricCanvas.getObjects();
+          const textboxes: any[] = [];
+          
+          allObjects.forEach((obj: any) => {
+            if (obj.type === 'textbox') {
+              textboxes.push(obj);
+              this.configureTextbox(obj);
+              
+              // Clear placeholder state that was saved (don't restore it)
+              obj._placeholder = false;
+              
+              // Re-attach event handlers
+              obj.on('editing:entered', () => {
+                if ((obj as any)._placeholder) {
+                  obj.set({ fill: this.currentColor(), _placeholder: false });
+                  obj.selectAll();
+                  fabricCanvas.requestRenderAll();
+                }
+              });
+              obj.on('changed', () => {
+                const effectiveText = obj.text || '';
+                const isRTL = this.detectRTL(effectiveText);
+                let rtlFont = this.selectedFont();
+                if (isRTL) {
+                  const hasHebrew = /[\u0590-\u05FF]/.test(effectiveText);
+                  const hasArabic = /[\u0600-\u06FF]/.test(effectiveText);
+                  if (hasHebrew) {
+                    rtlFont = 'Gadi Almog, Miriam Libre, serif';
+                  } else if (hasArabic) {
+                    rtlFont = 'Mikhak, Readex Pro, sans-serif';
+                  }
+                }
+                obj.set({ 
+                  direction: isRTL ? 'rtl' : 'ltr',
+                  textAlign: isRTL ? 'right' : 'left',
+                  fontFamily: rtlFont
+                });
+                fabricCanvas.requestRenderAll();
+              });
+              obj.on('editing:exited', () => {
+                const content = obj.text || '';
+                if (content.trim() === '') {
+                  const originalPlaceholder = (obj as any)._placeholderText || 'Type here...';
+                  obj.set({ text: originalPlaceholder, fill: '#9aa0a6', _placeholder: true });
+                }
+              });
+            }
+          });
+          
+          this.placeholderTexts = textboxes;
+          // Count only non-placeholder objects for hasContent
+          const contentObjects = allObjects.filter((obj: any) => 
+            obj.type !== 'textbox' || (!(obj as any)._placeholder && obj.text && obj.text.trim() !== '')
+          );
+          this.hasContent.set(contentObjects.length > 0);
+          fabricCanvas.renderAll();
+          console.log('Canvas state restored successfully with', textboxes.length, 'textboxes');
+        }, 100);
+      });
+    } catch (error) {
+      console.error('Failed to restore canvas state:', error);
+    }
   }
 
   private exportTextboxesAsGeoJSON() {
