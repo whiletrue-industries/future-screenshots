@@ -24,22 +24,36 @@ export interface SvgLayoutOptions {
   circleRadius?: number;
   radiusVariation?: number;
   useProportionalLayout?: boolean;
+  svgOffsetX?: number;
+  svgOffsetY?: number;
   onHotspotDrop?: (photoId: string, hotspotData: { [key: string]: string | number }) => Promise<void>;
 }
 
 export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements InteractiveLayoutStrategy {
   private svgElement: SVGSVGElement | null = null;
+  private svgContainer: HTMLDivElement | null = null; // Keep reference to hidden container
   private hotspots: SvgHotspot[] = [];
   private photoPositions = new Map<string, LayoutPosition>();
   private draggedPhoto: PhotoData | null = null;
   private isDragging = false;
-  private hotspotPhotoCount = new Map<string, number>(); // Track how many photos are in each hotspot
-  private photoHotspotMap = new Map<string, SvgHotspot>(); // Track which hotspot each photo is matched to
-  private debugOverlay: SVGSVGElement | HTMLDivElement | null = null; // Debug visualization overlay
-  private photoSizes = new Map<string, { width: number; height: number }>(); // Track photo dimensions
-  private readonly MAX_OVERLAP_PERCENT = 10; // Maximum 10% overlap allowed
-  private readonly PHOTO_WIDTH = 120; // Default photo width in pixels
-  private readonly PHOTO_HEIGHT = 120; // Default photo height in pixels
+  private hotspotPhotoCount = new Map<string, number>();
+  private photoHotspotMap = new Map<string, SvgHotspot>();
+  private debugOverlay: SVGSVGElement | HTMLDivElement | null = null;
+  private photoSizes = new Map<string, { width: number; height: number }>();
+  private batchPositionedPhotos = new Map<string, Array<{ svgX: number; svgY: number }>>();
+  private readonly MAX_OVERLAP_PERCENT = 10;
+  private readonly PHOTO_WIDTH = 120;
+  private readonly PHOTO_HEIGHT = 120;
+  private hotspotSlots = new Map<string, Array<{ svgX: number; svgY: number }>>();
+  private slotLogEnabled = ((): boolean => {
+    try {
+      if (typeof window === 'undefined') return false;
+      const params = new URLSearchParams(window.location.search);
+      return params.get('slotlog') === '1';
+    } catch {
+      return false;
+    }
+  })();
 
   // Configuration
   private options: Required<SvgLayoutOptions> = {
@@ -49,6 +63,8 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     circleRadius: 20000,
     radiusVariation: 4000,
     useProportionalLayout: true,
+    svgOffsetX: 0,
+    svgOffsetY: 0,
     onHotspotDrop: async () => {}
   };
 
@@ -57,6 +73,35 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     if (options) {
       this.options = { ...this.options, ...options };
     }
+  }
+
+  /**
+   * Calculate evaluation rotation in degrees (plausibility + favorable_future)
+   * Positive = prefer, Negative = prevent. Max magnitude = 32°.
+   */
+  private calculateEvaluationRotationDeg(photo: PhotoData): number {
+    const plausibility = photo.metadata['plausibility'] as number | undefined;
+    const favorableFuture = photo.metadata['_svgZoneFavorableFuture'] as string | undefined
+      || photo.metadata['favorable_future'] as string | undefined;
+
+    if (plausibility === undefined || favorableFuture === undefined) {
+      return 0;
+    }
+
+    const normalizedPlaus = plausibility / 100;
+    const magnitude = (1 - normalizedPlaus) * 32;
+    const favorableLower = favorableFuture.toLowerCase().trim();
+    const isFavor = favorableLower === 'favor' || favorableLower === 'favorable'
+      || favorableLower === 'prefer' || favorableLower === 'preferred';
+
+    return isFavor ? magnitude : -magnitude;
+  }
+
+  /**
+   * Score used for ordering within fans; mirrors rotation sign/magnitude.
+   */
+  private calculateEvaluationScore(photo: PhotoData): number {
+    return this.calculateEvaluationRotationDeg(photo) / 32; // normalized -1..1
   }
 
   getConfiguration(): LayoutConfiguration {
@@ -93,6 +138,11 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
 
   override async dispose(): Promise<void> {
     await super.dispose();
+    // Remove SVG container from DOM
+    if (this.svgContainer && this.svgContainer.parentNode) {
+      this.svgContainer.parentNode.removeChild(this.svgContainer);
+    }
+    this.svgContainer = null;
     this.svgElement = null;
     this.hotspots = [];
     this.photoPositions.clear();
@@ -148,14 +198,18 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
 
     this.hotspots = [];
     
-    // Temporarily attach SVG to DOM so getBBox() works correctly
-    // (getBBox returns 0x0 for detached elements)
-    const tempContainer = document.createElement('div');
-    tempContainer.style.position = 'absolute';
-    tempContainer.style.visibility = 'hidden';
-    tempContainer.style.pointerEvents = 'none';
-    tempContainer.appendChild(this.svgElement);
-    document.body.appendChild(tempContainer);
+    // Attach SVG to DOM permanently (but hidden) so isPointInFill() works correctly
+    // getBBox and isPointInFill return 0/false for detached elements
+    if (!this.svgContainer) {
+      this.svgContainer = document.createElement('div');
+      this.svgContainer.style.position = 'absolute';
+      this.svgContainer.style.visibility = 'hidden';
+      this.svgContainer.style.pointerEvents = 'none';
+      this.svgContainer.style.top = '-9999px';
+      this.svgContainer.style.left = '-9999px';
+      document.body.appendChild(this.svgContainer);
+    }
+    this.svgContainer.appendChild(this.svgElement);
     
     try {
       // Find all groups with IDs starting with 's-' (metadata groups)
@@ -192,9 +246,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         // Calculate bounding box for the specific path element
         const bbox = pathElement.getBBox();
         
-        // DEBUG: Log which element and metadata we're using for hotspot matching
-        console.log(`[HOTSPOT-EXTRACT] Group: ${groupId}, favorable_future=${groupMetadata.favorable_future}, path=${pathElement.id}, bbox=(${bbox.x.toFixed(1)},${bbox.y.toFixed(1)})`);
-        
         // CRITICAL: Log bbox at creation time to catch zero-size issues early
         if (bbox.width === 0 || bbox.height === 0) {
           console.error(`[SVG-HOTSPOT] ZERO-SIZE bbox at initialization for ${groupId}:`, {
@@ -220,14 +271,12 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
           element: pathElement
         };
         
-        console.log(`[SVG-HOTSPOT] ${groupId} -> bounds: (${bbox.x.toFixed(1)}, ${bbox.y.toFixed(1)}, ${bbox.width.toFixed(1)}x${bbox.height.toFixed(1)})`);
-        
         this.hotspots.push(hotspot);
       });
-    } finally {
-      // Remove temporary container
-      document.body.removeChild(tempContainer);
+    } catch (error) {
+      console.error('[HOTSPOT-EXTRACT] Error extracting hotspots:', error);
     }
+    // SVG remains in DOM for hit testing
   }
 
   async getPositionForPhoto(photoData: PhotoData, existingPhotos: PhotoData[], enableAutoPositioning: boolean = false): Promise<LayoutPosition | null> {
@@ -271,24 +320,19 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       return restoredPosition;
     }
     
-    // Priority 2: Check for rejected status - place in packed circle on bottom left
+    // Priority 2: Check for rejected status - hide rejected photos by returning null
     const moderation = photoData.metadata['_private_moderation'] as number | undefined;
     if (moderation === 0) { // Rejected
-      const rejectedPosition = this.getPositionForRejectedPhoto(photoData, existingPhotos);
-      if (rejectedPosition) {
-        this.photoPositions.set(photoData.id, rejectedPosition);
-        photoData.setProperty('svgLayoutPosition', rejectedPosition);
-        console.log(`[REJECTED] Photo ${photoData.id} placed in rejected area at (${rejectedPosition.x.toFixed(1)}, ${rejectedPosition.y.toFixed(1)})`);
-        return rejectedPosition;
-      }
+      return null;
     }
     
     // Priority 3: If auto-positioning is enabled, try to get position from metadata-hotspot matching
     if (enableAutoPositioning) {
       const autoPosition = this.getAutoPositionFromMetadata(photoData);
       if (autoPosition) {
-        const x = autoPosition.auto_x * this.options.circleRadius;
-        const y = autoPosition.auto_y * this.options.circleRadius;
+        // Apply SVG offset to match the rendered SVG position
+        const x = autoPosition.auto_x * this.options.circleRadius + this.options.svgOffsetX;
+        const y = autoPosition.auto_y * this.options.circleRadius + this.options.svgOffsetY;
         
         const autoPositionData: LayoutPosition = {
           x,
@@ -297,7 +341,9 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
             layoutType: 'auto-positioned',
             auto_x: autoPosition.auto_x,
             auto_y: autoPosition.auto_y,
-            circleRadius: this.options.circleRadius
+            circleRadius: this.options.circleRadius,
+            svgOffsetX: this.options.svgOffsetX,
+            svgOffsetY: this.options.svgOffsetY
           }
         };
         
@@ -305,6 +351,10 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         photoData.setProperty('svgLayoutPosition', autoPositionData);
         return autoPositionData;
       }
+      
+      // If auto-positioning is enabled but this photo doesn't match any hotspot,
+      // return null to preserve its existing position (from circle-packing clusters)
+      return null;
     }
     
     // Priority 3: Check if photo has a saved SVG layout position from previous session
@@ -339,6 +389,9 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     // Reset hotspot photo count for fresh distribution
     this.hotspotPhotoCount.clear();
     
+    // Clear batch position tracker at the start of each layout calculation
+    this.batchPositionedPhotos.clear();
+    
     // Clear existing positions EXCEPT for dragged/free positions that should be preserved
     const preservedPositions = new Map<string, LayoutPosition>();
     for (const [photoId, position] of this.photoPositions.entries()) {
@@ -356,6 +409,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     
     const positions: (LayoutPosition | null)[] = [];
     
+    // Process each photo to get its position
     for (const photo of photos) {
       const position = await this.getPositionForPhoto(photo, photos, enableAutoPositioning);
       positions.push(position);
@@ -496,6 +550,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       return groupSlices;
     }
     
+    
     // Sort groups by size (descending) for consistent ordering
     const sortedGroups = Array.from(photoGroups.entries())
       .sort(([groupIdA, photosA], [groupIdB, photosB]) => {
@@ -507,11 +562,13 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         return groupIdA.localeCompare(groupIdB);
       });
     
+    // Keep original circular distribution - view transition will reveal SVG
     let currentAngle = 0;
     const fullCircle = 2 * Math.PI;
     
     for (const [groupId, photos] of sortedGroups) {
       const groupSize = photos.length;
+      const proportion = groupSize / totalPhotos;
       const proportionalAngle = (groupSize / totalPhotos) * fullCircle;
       const endAngle = currentAngle + proportionalAngle;
       
@@ -654,17 +711,21 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
    */
   getAutoPositionFromMetadata(photoData: PhotoData): { auto_x: number; auto_y: number } | null {
     const metadata = photoData.metadata;
-    const plausibility = metadata['plausibility'];
-    const favorableFuture = metadata['favorable_future'];
-    const transitionBarPosition = metadata['transition_bar_position'];
+    const plausibilityRaw = metadata['plausibility'];
+    const favorableFuture = this.normalizeFavorableFuture(metadata['favorable_future']);
+    let transitionBarPosition = this.normalizeTransitionBar(metadata['transition_bar_position']);
+    const plausibility = this.normalizePlausibility(plausibilityRaw);
     
-    // Return null if metadata is missing
-    if (plausibility === undefined || !favorableFuture || !transitionBarPosition) {
-      console.log(`[AUTO-POS] Photo ${photoData.id}: missing metadata - plausibility=${plausibility}, favorable_future=${favorableFuture}, transition_bar_position=${transitionBarPosition}`);
-      return null;
+    // Default to 'during' if transition_bar_position is missing
+    if (!transitionBarPosition && plausibility !== null && favorableFuture) {
+      transitionBarPosition = 'during';
+      console.log('[AUTO-POSITION] No transition_bar_position for photo', photoData.id, ', defaulting to "during"');
     }
     
-    console.log(`[AUTO-POS] Matching photo ${photoData.id}: plausibility=${plausibility}, favorable_future=${favorableFuture}, transition_bar_position=${transitionBarPosition}`);
+    // Return null if metadata is missing
+    if (plausibility === null || !favorableFuture || !transitionBarPosition) {
+      return null;
+    }
     
     // Find matching hotspot by comparing metadata from parent group ID
     for (const hotspot of this.hotspots) {
@@ -679,21 +740,28 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       if (!groupMetadata) {
         continue;
       }
+
+      const groupFavorable = this.normalizeFavorableFuture(groupMetadata.favorable_future);
+      const groupTransition = this.normalizeTransitionBar(groupMetadata.transition_bar_position);
+      const groupPlausibility = this.normalizePlausibility(groupMetadata.plausibility);
+      if (groupPlausibility === null) {
+        continue;
+      }
       
       // Check if this hotspot matches the photo's metadata (all three fields must match)
-      if (groupMetadata.plausibility === plausibility && 
-          groupMetadata.favorable_future === favorableFuture &&
-          groupMetadata.transition_bar_position === transitionBarPosition) {
-        
-        console.log(`[AUTO-POS] MATCH FOUND for photo ${photoData.id} (favorable_future=${favorableFuture}) in hotspot ${parentGroupId}`);
+        if (groupPlausibility === plausibility &&
+          groupFavorable === favorableFuture &&
+          groupTransition === transitionBarPosition) {
         
         // Store the hotspot association BEFORE calculating position
         // This ensures overlap detection can see all previously placed photos in this hotspot
         this.photoHotspotMap.set(photoData.id, hotspot);
         
         // Get how many photos are already in this hotspot
-        const photoIndex = this.hotspotPhotoCount.get(parentGroupId) || 0;
-        this.hotspotPhotoCount.set(parentGroupId, photoIndex + 1);
+        const elementId = (hotspot.element as SVGElement)?.id || 'path';
+        const hotspotKey = `${parentGroupId}:${groupTransition}:${elementId}`;
+        const photoIndex = this.hotspotPhotoCount.get(hotspotKey) || 0;
+        this.hotspotPhotoCount.set(hotspotKey, photoIndex + 1);
         
         // Calculate distributed position within hotspot bounds
         // (now with access to complete photoHotspotMap)
@@ -703,7 +771,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       }
     }
     
-    console.log(`[AUTO-POS] NO MATCH for photo ${photoData.id} - no hotspot found with plausibility=${plausibility}, favorable_future=${favorableFuture}, transition_bar_position=${transitionBarPosition}`);
     return null;
   }
 
@@ -720,198 +787,188 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       return { auto_x: 0, auto_y: 0 };
     }
     
-    // Generate candidate positions in a grid pattern
-    const padding = Math.min(hotspot.bounds.width, hotspot.bounds.height) * 0.05; // Smaller padding (5%)
-    const usableWidth = hotspot.bounds.width - (2 * padding);
-    const usableHeight = hotspot.bounds.height - (2 * padding);
-    
-    console.log(`[DIST-DEBUG] Hotspot ${hotspot.parentGroupId}: bounds=(${hotspot.bounds.x.toFixed(1)},${hotspot.bounds.y.toFixed(1)}) size=(${hotspot.bounds.width.toFixed(1)}x${hotspot.bounds.height.toFixed(1)}), padding=${padding.toFixed(1)}, usable=(${usableWidth.toFixed(1)}x${usableHeight.toFixed(1)})`);
-    
-    // Try to find a position that overlaps with the path
-    // We'll generate positions in a spiral pattern and test each one
-    const candidates: { svgX: number; svgY: number; distance: number }[] = [];
-    
-    // Sample points within the bounding box
-    const samplesPerRow = 8; // More samples for better coverage
-    const samplesPerCol = 8;
-    
-    for (let row = 0; row < samplesPerCol; row++) {
-      for (let col = 0; col < samplesPerRow; col++) {
-        const xRatio = (col + 0.5) / samplesPerRow;
-        const yRatio = (row + 0.5) / samplesPerCol;
-        
-        const svgX = hotspot.bounds.x + padding + usableWidth * xRatio;
-        const svgY = hotspot.bounds.y + padding + usableHeight * yRatio;
-        
-        // Check if this point is inside the path (use pre-calculated bounds to avoid DOM issues)
-        const isInPath = this.isPointInPathWithBounds(hotspot.bounds, svgX, svgY);
-        if (row === 0 && col === 0) {
-          console.log(`[DIST-DEBUG] Testing sample (0,0): svg=(${svgX.toFixed(1)},${svgY.toFixed(1)}), isInPath=${isInPath}`);
-        }
-        
-        if (isInPath) {
-          // Calculate distance from center (prefer central positions)
-          const centerX = hotspot.bounds.x + hotspot.bounds.width / 2;
-          const centerY = hotspot.bounds.y + hotspot.bounds.height / 2;
-          const distance = Math.sqrt(Math.pow(svgX - centerX, 2) + Math.pow(svgY - centerY, 2));
-          
-          candidates.push({ svgX, svgY, distance });
-        }
-      }
-    }
-    
-    console.log(`[DIST-DEBUG] Generated ${candidates.length} valid candidates out of ${samplesPerRow * samplesPerCol} samples for hotspot ${hotspot.parentGroupId}`);
-    
-    if (candidates.length === 0) {
-      console.warn(`[AUTO-POS] No valid positions found in path for ${hotspot.parentGroupId}, using center`);
+    // Get precomputed slots for this hotspot (grid/hex clipped to path)
+    const slots = this.getSlotsForHotspot(hotspot, viewBox);
+
+    if (slots.length === 0) {
+      console.warn(`[AUTO-POS] No valid positions found in path for ${hotspot.parentGroupId} (bounds=${hotspot.bounds.width.toFixed(1)}x${hotspot.bounds.height.toFixed(1)}), using center`);
       // Fallback to center of bounding box
       const svgX = hotspot.bounds.x + hotspot.bounds.width / 2;
       const svgY = hotspot.bounds.y + hotspot.bounds.height / 2;
       const normalizedX = (svgX - viewBox.width / 2) / (viewBox.width / 2);
       // Invert Y axis: SVG has Y increasing downward, but 3D world has Y increasing upward
       const normalizedY = -((svgY - viewBox.height / 2) / (viewBox.height / 2));
-      console.log(`[DIST-DEBUG] Fallback to center: normalized=(${normalizedX.toFixed(3)}, ${normalizedY.toFixed(3)})`);
+      // console.log(`[DIST-DEBUG] Fallback to center: normalized=(${normalizedX.toFixed(3)}, ${normalizedY.toFixed(3)})`);
       return { auto_x: normalizedX, auto_y: normalizedY };
     }
+    // Use all slots without header filtering
+    const useCandidates = slots;
     
-    // Calculate minimum distance to existing photos for each candidate
-    for (const candidate of candidates) {
-      const normalizedX = (candidate.svgX - viewBox.width / 2) / (viewBox.width / 2);
-      const normalizedY = (candidate.svgY - viewBox.height / 2) / (viewBox.height / 2);
-      const minDist = this.getMinDistanceToExistingPhotos(normalizedX, normalizedY, hotspot);
-      (candidate as any).minDistanceToExisting = minDist;
+    // Check if this position was already used in this batch (track per unique path segment)
+    const elementIdForKey = (hotspot.element as SVGElement)?.id || 'path';
+    const hotspotKey = `${hotspot.parentGroupId}:${hotspot.transitionBarPosition}:${elementIdForKey}`;
+    if (!this.batchPositionedPhotos.has(hotspotKey)) {
+      this.batchPositionedPhotos.set(hotspotKey, []);
     }
-    
-    // Sort candidates by maximum distance to existing photos (prefer positions far from others)
-    candidates.sort((a, b) => (b as any).minDistanceToExisting - (a as any).minDistanceToExisting);
-    console.log(`[DIST-DEBUG] Sorted candidates by spacing. Top 5 candidates for ${hotspot.parentGroupId}:`);
-    for (let i = 0; i < Math.min(5, candidates.length); i++) {
-      console.log(`  [${i}] svg=(${candidates[i].svgX.toFixed(1)},${candidates[i].svgY.toFixed(1)}) minDist=${((candidates[i] as any).minDistanceToExisting).toFixed(1)}px`);
-    }
-    
-    // Filter out candidates that overlap with header elements
-    const filteredCandidates = candidates.filter(candidate => {
-      return !this.overlapsHeaderElement(candidate.svgX, candidate.svgY, viewBox);
-    });
-    
-    const useCandidates = filteredCandidates.length > 0 ? filteredCandidates : candidates;
-    console.log(`[DIST-DEBUG] Filtered ${candidates.length} -> ${filteredCandidates.length} candidates (removed header overlaps)`);
-    
-    // Find best position that minimizes overlap
-    let selectedCandidate = useCandidates[photoIndex % useCandidates.length];
-    let minOverlap = 100;
-    let bestSpacing = -1;
-    console.log(`[DIST-DEBUG] Starting evaluation loop for photo index ${photoIndex} (will check up to ${Math.min(useCandidates.length, 15)} candidates)`);
-    
-    // Evaluate first 15 candidates (increased from 10) to find best spacing
-    const evalCandidates = useCandidates.slice(0, Math.min(useCandidates.length, 15));
-    
-    for (let i = 0; i < evalCandidates.length; i++) {
-      const candidate = evalCandidates[i];
-      const normalizedX = (candidate.svgX - viewBox.width / 2) / (viewBox.width / 2);
-      const normalizedY = (candidate.svgY - viewBox.height / 2) / (viewBox.height / 2);
-      
-      const overlapPercent = this.calculateOverlapWithExistingPhotos(
-        normalizedX,
-        normalizedY,
-        hotspot
+    const usedPositions = this.batchPositionedPhotos.get(hotspotKey)!;
+
+    const POSITION_THRESHOLD = 12; // Consider positions within 12px as "same position" (adjusted for 20px grid)
+    const isUsedPosition = (candidate: { svgX: number; svgY: number }) => {
+      return usedPositions.some((pos: { svgX: number; svgY: number }) => {
+        const dist = Math.sqrt(
+          Math.pow(candidate.svgX - pos.svgX, 2) +
+          Math.pow(candidate.svgY - pos.svgY, 2)
+        );
+        return dist < POSITION_THRESHOLD;
+      });
+    };
+
+    let bestPlacement = {
+      normalizedX: 0,
+      normalizedY: 0,
+      overlap: Number.POSITIVE_INFINITY,
+      displacement: Number.POSITIVE_INFINITY,
+      spacing: -1,
+      svgX: 0,
+      svgY: 0,
+    };
+
+    // Evaluate all candidates in the predetermined slot order; pick first non-overlapping or minimally nudged
+    for (let i = 0; i < useCandidates.length; i++) {
+      const candidate = useCandidates[i];
+      if (isUsedPosition(candidate)) {
+        continue;
+      }
+
+      const baseNormalizedX = (candidate.svgX - viewBox.width / 2) / (viewBox.width / 2);
+      // Invert Y: SVG has Y increasing downward, 3D world has Y increasing upward
+      const baseNormalizedY = -((candidate.svgY - viewBox.height / 2) / (viewBox.height / 2));
+
+      // When slotlog=1, skip overlap resolution for cleaner testing
+      if (this.slotLogEnabled) {
+        bestPlacement = {
+          normalizedX: baseNormalizedX,
+          normalizedY: baseNormalizedY,
+          overlap: 0,
+          displacement: 0,
+          spacing: 0,
+          svgX: candidate.svgX,
+          svgY: candidate.svgY,
+        };
+        break;
+      }
+
+      const resolved = this.resolveOverlapByNudging(
+        baseNormalizedX,
+        baseNormalizedY,
+        hotspot,
+        viewBox
       );
-      
-      const spacing = (candidate as any).minDistanceToExisting;
-      
-      if (i < 3) {
-        console.log(`[DIST-DEBUG] Candidate ${i}: normalized=(${normalizedX.toFixed(3)},${normalizedY.toFixed(3)}), overlap=${overlapPercent.toFixed(1)}%, spacing=${spacing.toFixed(1)}px`);
-      }
-      
-      // Prefer candidates with acceptable overlap and maximum spacing
-      if (overlapPercent <= this.MAX_OVERLAP_PERCENT) {
-        if (spacing > bestSpacing) {
-          bestSpacing = spacing;
-          minOverlap = overlapPercent;
-          selectedCandidate = candidate;
-          console.log(`[DIST-DEBUG] New best candidate ${i}: spacing=${spacing.toFixed(1)}px, overlap=${overlapPercent.toFixed(1)}%`);
+
+      const spacing = this.getMinDistanceToExistingPhotos(resolved.normalizedX, resolved.normalizedY, hotspot);
+      const svgCoords = this.normalizedToSvg(resolved.normalizedX, resolved.normalizedY, viewBox);
+
+      const isBetter =
+        resolved.overlap < bestPlacement.overlap ||
+        (resolved.overlap === bestPlacement.overlap && resolved.displacement < bestPlacement.displacement) ||
+        (resolved.overlap === bestPlacement.overlap && resolved.displacement === bestPlacement.displacement && spacing > bestPlacement.spacing);
+
+      if (isBetter) {
+        bestPlacement = {
+          normalizedX: resolved.normalizedX,
+          normalizedY: resolved.normalizedY,
+          overlap: resolved.overlap,
+          displacement: resolved.displacement,
+          spacing,
+          svgX: svgCoords.svgX,
+          svgY: svgCoords.svgY,
+        };
+        // If we completely eliminated overlap with a tiny displacement, take it immediately
+        if (bestPlacement.overlap === 0 && bestPlacement.displacement <= Math.max(2, Math.min(viewBox.width, viewBox.height) * 0.01)) {
+          break;
         }
-      } else if (overlapPercent < minOverlap && bestSpacing < 0) {
-        // Only use high-overlap candidates if we haven't found any acceptable ones
-        minOverlap = overlapPercent;
-        selectedCandidate = candidate;
       }
     }
-    
-    // Transform SVG coordinates to normalized [-1, 1] space
-    const normalizedX = (selectedCandidate.svgX - viewBox.width / 2) / (viewBox.width / 2);
-    // Invert Y axis: SVG has Y increasing downward, but 3D world has Y increasing upward
-    const normalizedY = -((selectedCandidate.svgY - viewBox.height / 2) / (viewBox.height / 2));
-    
-    console.log(`[AUTO-POS] Photo index=${photoIndex} in hotspot ${hotspot.parentGroupId}: FINAL position svg=(${selectedCandidate.svgX.toFixed(1)},${selectedCandidate.svgY.toFixed(1)}), normalized=(${normalizedX.toFixed(3)},${normalizedY.toFixed(3)}), minOverlap=${minOverlap.toFixed(1)}%`);
-    
-    return { auto_x: normalizedX, auto_y: normalizedY };
+
+    // If all candidates were used or loop didn't find any, use round-robin to distribute overflow
+    if (!isFinite(bestPlacement.overlap)) {
+      // Use modulo to cycle through slots when capacity is exceeded
+      const slotIndex = usedPositions.length % useCandidates.length;
+      const bestCandidate = useCandidates[slotIndex];
+      
+      if (this.slotLogEnabled) {
+        console.log(`[OVERFLOW] Hotspot capacity exceeded, using round-robin slot ${slotIndex}/${useCandidates.length}`);
+      }
+      
+      const baseNormalizedX = (bestCandidate.svgX - viewBox.width / 2) / (viewBox.width / 2);
+      const baseNormalizedY = -((bestCandidate.svgY - viewBox.height / 2) / (viewBox.height / 2));
+      
+      // When slotlog=1, skip overlap resolution for consistency
+      if (this.slotLogEnabled) {
+        bestPlacement = {
+          normalizedX: baseNormalizedX,
+          normalizedY: baseNormalizedY,
+          overlap: 100, // Mark as overlapping since we're reusing a slot
+          displacement: 0,
+          spacing: 0,
+          svgX: bestCandidate.svgX,
+          svgY: bestCandidate.svgY,
+        };
+      } else {
+        const resolved = this.resolveOverlapByNudging(baseNormalizedX, baseNormalizedY, hotspot, viewBox);
+        const svgCoords = this.normalizedToSvg(resolved.normalizedX, resolved.normalizedY, viewBox);
+        bestPlacement = {
+          normalizedX: resolved.normalizedX,
+          normalizedY: resolved.normalizedY,
+          overlap: resolved.overlap,
+          displacement: resolved.displacement,
+          spacing: this.getMinDistanceToExistingPhotos(resolved.normalizedX, resolved.normalizedY, hotspot),
+          svgX: svgCoords.svgX,
+          svgY: svgCoords.svgY,
+        };
+      }
+    }
+
+    // Record this position as used
+    usedPositions.push({ svgX: bestPlacement.svgX, svgY: bestPlacement.svgY });
+
+    return { auto_x: bestPlacement.normalizedX, auto_y: bestPlacement.normalizedY };
   }
   
-  /**
-   * Check if a point is inside an SVG path's bounding box
-   * Uses bounding box for efficiency since we're distributing multiple photos
-   * and the padding already handles boundary issues
-   */
-  private isPointInPath(pathElement: SVGElement, x: number, y: number): boolean {
-    if (!pathElement) {
-      console.log('[PATH-CHECK] No path element provided');
-      return false;
-    }
-    
-    try {
-      // CRITICAL: Check if element is still in DOM
-      const isConnected = document.contains(pathElement);
-      
-      // Get the bounding box of the path element
-      const bbox = (pathElement as SVGGraphicsElement).getBBox();
-      
-      // CRITICAL: Validate bbox is not zero (indicates element issues)
-      if (bbox.width === 0 || bbox.height === 0) {
-        console.warn(`[PATH-CHECK] ZERO-SIZE bbox detected:`, {
-          elementId: pathElement.id,
-          elementTag: pathElement.tagName,
-          bbox: { x: bbox.x, y: bbox.y, width: bbox.width, height: bbox.height },
-          inDOM: isConnected,
-          parentId: pathElement.parentElement?.id
-        });
-        return false;
-      }
-      
-      // Simple bounding box check: is the point within the bounds?
-      const isInside = x >= bbox.x && x <= (bbox.x + bbox.width) &&
-                       y >= bbox.y && y <= (bbox.y + bbox.height);
-      
-      if (!isInside && x < 450 && y < 300) {
-        // Log first few failures to debug
-        console.log(`[PATH-CHECK] Point (${x.toFixed(1)},${y.toFixed(1)}) OUTSIDE bbox (${bbox.x.toFixed(1)},${bbox.y.toFixed(1)},${bbox.width.toFixed(1)}x${bbox.height.toFixed(1)})`);
-      }
-      
-      return isInside;
-    } catch (e) {
-      console.error('[PATH-CHECK] Error checking point in path:', e);
-      // If anything fails, return false to be safe
-      return false;
-    }
-  }
-
   /**
    * Check if a point is inside a hotspot using pre-calculated bounds.
    * This avoids DOM access issues since elements may be detached after initialization.
    */
-  private isPointInPathWithBounds(bounds: { x: number; y: number; width: number; height: number }, x: number, y: number): boolean {
+  private isPointInHotspot(hotspot: SvgHotspot, x: number, y: number): boolean {
     try {
-      // Validate bounds
+      const bounds = hotspot.bounds;
       if (!bounds || bounds.width === 0 || bounds.height === 0) {
-        console.warn(`[PATH-CHECK] Invalid bounds:`, bounds);
+        if (this.slotLogEnabled) {
+          console.warn(`[PATH-CHECK] Invalid bounds:`, bounds);
+        }
         return false;
       }
-      
-      // Simple bounding box check: is the point within the bounds?
-      const isInside = x >= bounds.x && x <= (bounds.x + bounds.width) &&
-                       y >= bounds.y && y <= (bounds.y + bounds.height);
-      
-      return isInside;
+
+      // Fast reject with bounding box
+      const bboxHit = x >= bounds.x && x <= (bounds.x + bounds.width) &&
+                      y >= bounds.y && y <= (bounds.y + bounds.height);
+      if (!bboxHit) {
+        return false;
+      }
+
+      // If we have a path geometry, use precise fill check
+      const element = hotspot.element as SVGGeometryElement | null;
+      if (element && typeof (element as any).isPointInFill === 'function') {
+        const pt = (element.ownerSVGElement || this.svgElement)?.createSVGPoint();
+        if (pt) {
+          pt.x = x;
+          pt.y = y;
+          return element.isPointInFill(pt);
+        }
+      }
+
+      // Fallback: accept bounding box hit
+      return true;
     } catch (e) {
       console.error('[PATH-CHECK] Error checking point with bounds:', e);
       return false;
@@ -1011,6 +1068,59 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     return minDistance;
   }
   
+  private getPhotoSizeInSvg(viewBox: { width: number; height: number }): { w: number; h: number } {
+    const w = (this.PHOTO_WIDTH / this.options.circleRadius) * (viewBox.width / 2);
+    const h = (this.PHOTO_HEIGHT / this.options.circleRadius) * (viewBox.height / 2);
+    return { w, h };
+  }
+
+  private seededShuffle<T>(arr: T[], seed: number): T[] {
+    // LCG-based deterministic shuffle (Fisher-Yates)
+    let s = seed >>> 0;
+    const rand = () => {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      return s / 0x100000000;
+    };
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  private getSlotsForHotspot(hotspot: SvgHotspot, viewBox: { x: number; y: number; width: number; height: number }): Array<{ svgX: number; svgY: number }> {
+    const elementId = (hotspot.element as SVGElement)?.id || 'path';
+    const key = `${hotspot.parentGroupId}:${hotspot.transitionBarPosition}:${elementId}`;
+    const cached = this.hotspotSlots.get(key);
+    if (cached && cached.length > 0) {
+      return cached;
+    }
+
+    const padding = Math.min(hotspot.bounds.width, hotspot.bounds.height) * 0.02;
+    // Use fixed SVG pixel spacing instead of world-coordinate-based photo size
+    const stepX = 15; // 15 SVG pixels for maximum density (eliminate all stacking)
+    const stepY = 15;
+    
+    const slots: Array<{ svgX: number; svgY: number }> = [];
+    let rowIndex = 0;
+    for (let y = hotspot.bounds.y + padding; y <= hotspot.bounds.y + hotspot.bounds.height - padding; y += stepY) {
+      const offsetX = (rowIndex % 2 === 1) ? stepX * 0.5 : 0; // hex-like staggering
+      for (let x = hotspot.bounds.x + padding + offsetX; x <= hotspot.bounds.x + hotspot.bounds.width - padding; x += stepX) {
+        if (this.isPointInHotspot(hotspot, x, y)) {
+          slots.push({ svgX: x, svgY: y });
+        }
+      }
+      rowIndex++;
+    }
+
+    // Deterministic spread ordering
+    const seed = Math.abs(this.hashCode(key));
+    const ordered = this.seededShuffle(slots, seed);
+    this.hotspotSlots.set(key, ordered);
+    return ordered;
+  }
+  
   /**
    * Check if a photo at a position would overlap with any header element (IDs starting with "header")
    * or any elements within header elements
@@ -1045,7 +1155,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         try {
           // Check the header element itself
           const bbox = headerElement.getBBox();
-          const buffer = 30; // Increased buffer to avoid placing photos too close
+          const buffer = 15; // Buffer to avoid placing photos too close to headers
           
           // Check if photo bounds overlap with header element bounds (with buffer)
           const overlaps = !(
@@ -1089,6 +1199,81 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     }
     
     return false;
+  }
+
+  private normalizedToSvg(
+    normalizedX: number,
+    normalizedY: number,
+    viewBox: { width: number; height: number }
+  ): { svgX: number; svgY: number } {
+    const svgX = viewBox.width / 2 + normalizedX * (viewBox.width / 2);
+    const svgY = viewBox.height / 2 - normalizedY * (viewBox.height / 2);
+    return { svgX, svgY };
+  }
+
+  private resolveOverlapByNudging(
+    normalizedX: number,
+    normalizedY: number,
+    hotspot: SvgHotspot,
+    viewBox: { width: number; height: number; x?: number; y?: number }
+  ): { normalizedX: number; normalizedY: number; overlap: number; displacement: number } {
+    const initialOverlap = this.calculateOverlapWithExistingPhotos(normalizedX, normalizedY, hotspot);
+    if (initialOverlap === 0) {
+      return { normalizedX, normalizedY, overlap: 0, displacement: 0 };
+    }
+
+    const startSvg = this.normalizedToSvg(normalizedX, normalizedY, viewBox);
+    const step = Math.max(Math.min(viewBox.width, viewBox.height) * 0.01, 2);
+    const maxRadius = Math.min(viewBox.width, viewBox.height) * 0.2;
+
+    let best = {
+      normalizedX,
+      normalizedY,
+      overlap: initialOverlap,
+      displacement: 0,
+    };
+
+    for (let radius = step; radius <= maxRadius; radius += step) {
+      const directions = 16;
+      for (let i = 0; i < directions; i++) {
+        const angle = (i / directions) * 2 * Math.PI;
+        const candidateSvgX = startSvg.svgX + Math.cos(angle) * radius;
+        const candidateSvgY = startSvg.svgY + Math.sin(angle) * radius;
+
+        if (!this.isPointInHotspot(hotspot, candidateSvgX, candidateSvgY)) {
+          continue;
+        }
+
+        if (this.overlapsHeaderElement(candidateSvgX, candidateSvgY, viewBox as any)) {
+          continue;
+        }
+
+        const candidateNormalizedX = (candidateSvgX - viewBox.width / 2) / (viewBox.width / 2);
+        const candidateNormalizedY = -((candidateSvgY - viewBox.height / 2) / (viewBox.height / 2));
+        const overlap = this.calculateOverlapWithExistingPhotos(candidateNormalizedX, candidateNormalizedY, hotspot);
+
+        if (overlap === 0) {
+          return {
+            normalizedX: candidateNormalizedX,
+            normalizedY: candidateNormalizedY,
+            overlap: 0,
+            displacement: radius,
+          };
+        }
+
+        const isBetter = overlap < best.overlap || (overlap === best.overlap && radius < best.displacement);
+        if (isBetter) {
+          best = {
+            normalizedX: candidateNormalizedX,
+            normalizedY: candidateNormalizedY,
+            overlap,
+            displacement: radius,
+          };
+        }
+      }
+    }
+
+    return best;
   }
   
   /**
@@ -1160,7 +1345,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   ): number {
     const existingPhotosInHotspot: Array<{ x: number; y: number; width: number; height: number }> = [];
     
-    // Collect all photos already in this hotspot
+    // Collect all photos already in this hotspot from repository
     for (const [photoId, position] of this.photoPositions.entries()) {
       if (this.photoHotspotMap.get(photoId) === hotspot) {
         const photoSize = this.photoSizes.get(photoId) || {
@@ -1178,11 +1363,11 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     }
     
     if (existingPhotosInHotspot.length === 0) {
-      console.log(`[OVERLAP-DEBUG] No existing photos in hotspot, overlap=0%`);
+      // console.log(`[OVERLAP-DEBUG] No existing photos in hotspot, overlap=0%`);
       return 0; // No overlap if no existing photos
     }
     
-    console.log(`[OVERLAP-DEBUG] Checking ${existingPhotosInHotspot.length} existing photos in hotspot for candidate at (${normalizedX.toFixed(3)},${normalizedY.toFixed(3)})`);
+    // console.log(`[OVERLAP-DEBUG] Checking ${existingPhotosInHotspot.length} existing photos in hotspot for candidate at (${normalizedX.toFixed(3)},${normalizedY.toFixed(3)})`);
     
     // Get dimensions of photo to be placed
     const newPhotoSize = {
@@ -1206,14 +1391,14 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         existing.height
       );
       
-      if (i === 0) {
-        console.log(`[OVERLAP-DEBUG] Existing photo ${i}: pos=(${existing.x.toFixed(1)},${existing.y.toFixed(1)}) size=(${existing.width},${existing.height}), overlap=${overlapPercent.toFixed(1)}%`);
-      }
+      // if (i === 0) {
+      //   console.log(`[OVERLAP-DEBUG] Existing photo ${i}: pos=(${existing.x.toFixed(1)},${existing.y.toFixed(1)}) size=(${existing.width},${existing.height}), overlap=${overlapPercent.toFixed(1)}%`);
+      // }
       
       maxOverlapPercent = Math.max(maxOverlapPercent, overlapPercent);
     }
     
-    console.log(`[OVERLAP-DEBUG] Max overlap for this candidate: ${maxOverlapPercent.toFixed(1)}%`);
+    // console.log(`[OVERLAP-DEBUG] Max overlap for this candidate: ${maxOverlapPercent.toFixed(1)}%`);
     return maxOverlapPercent;
   }
 
@@ -1249,7 +1434,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     
     // No overlap if rectangles don't intersect
     if (intersectRight <= intersectLeft || intersectBottom <= intersectTop) {
-      console.log('[RECT-MATH] No intersection: right<=left or bottom<=top');
+      // console.log('[RECT-MATH] No intersection: right<=left or bottom<=top');
       return 0;
     }
     
@@ -1261,10 +1446,10 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     // Calculate percentage relative to new photo area
     const newArea = newWidth * newHeight;
     const overlapPercent = (overlapArea / newArea) * 100;
-    console.log('[RECT-MATH] New rect:', {newLeft, newTop, newRight, newBottom, newWidth, newHeight, newArea}, 
-                'Existing rect:', {existingLeft, existingTop, existingRight, existingBottom, existingWidth, existingHeight},
-                'Intersection:', {intersectLeft, intersectTop, intersectRight, intersectBottom, overlapWidth, overlapHeight, overlapArea},
-                'Result:', overlapPercent);
+    // console.log('[RECT-MATH] New rect:', {newLeft, newTop, newRight, newBottom, newWidth, newHeight, newArea}, 
+    //             'Existing rect:', {existingLeft, existingTop, existingRight, existingBottom, existingWidth, existingHeight},
+    //             'Intersection:', {intersectLeft, intersectTop, intersectRight, intersectBottom, overlapWidth, overlapHeight, overlapArea},
+    //             'Result:', overlapPercent);
     return overlapPercent;
   }
 
@@ -1301,6 +1486,42 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     }
     
     return null;
+  }
+
+  private normalizeFavorableFuture(value: string | undefined): string {
+    if (!value) return '';
+    const v = value.toLowerCase().trim();
+    if (v.includes('prevent')) return 'prevent';
+    if (v.includes('prefer')) return 'prefer';
+    if (v.includes('uncertain')) return 'uncertain';
+    return v;
+  }
+
+  private normalizeTransitionBar(value: string | undefined): string {
+    if (!value) return '';
+    const v = value.toLowerCase().trim();
+    if (v.startsWith('bef')) return 'before';
+    if (v.startsWith('dur')) return 'during';
+    if (v.startsWith('aft') || v.startsWith('acher')) return 'after';
+    if (v.includes('unclear')) return 'unclear';
+    return v;
+  }
+
+  private normalizePlausibility(value: unknown): number | null {
+    if (value === undefined || value === null) return null;
+    const num = typeof value === 'number' ? value : parseFloat(String(value));
+    if (Number.isNaN(num)) return null;
+    const buckets = [0, 25, 50, 75, 100];
+    let closest = buckets[0];
+    let bestDelta = Math.abs(num - buckets[0]);
+    for (let i = 1; i < buckets.length; i++) {
+      const delta = Math.abs(num - buckets[i]);
+      if (delta < bestDelta) {
+        bestDelta = delta;
+        closest = buckets[i];
+      }
+    }
+    return closest;
   }
 
   /**
@@ -1365,106 +1586,17 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     this.photoPositions.set(photoId, hotspotDropPosition);
   }
 
-  /**
-   * Show all hotspot boundaries for debugging (call when auto-positioning is enabled)
-   */
-  showAllHotspotsDebug(): void {
-    console.log('[DEBUG] Showing all hotspots, count:', this.hotspots.length);
-    this.removeDebugOverlay();
-    this.createDebugOverlayForAllHotspots();
-  }
-
-  private createDebugOverlayForAllHotspots(): void {
-    if (this.hotspots.length === 0) {
-      console.warn('[DEBUG] No hotspots to display');
-      return;
-    }
-
-    // Create an HTML container div to hold our debug boxes
-    const container = document.createElement('div');
-    container.style.position = 'fixed';
-    container.style.top = '0';
-    container.style.left = '0';
-    container.style.width = '100%';
-    container.style.height = '100%';
-    container.style.pointerEvents = 'none';
-    container.style.zIndex = '9999';
-    container.id = 'svg-hotspot-debug-overlay';
-
-    // Get the SVG element's position and size on screen
-    if (!this.svgElement) {
-      console.warn('[DEBUG] SVG element not found');
-      return;
-    }
-
-    const svgRect = this.svgElement.getBoundingClientRect();
-    const viewBox = this.getSvgViewBox();
-    
-    if (!viewBox) {
-      console.warn('[DEBUG] Could not get SVG viewBox');
-      return;
-    }
-
-    console.log('[DEBUG] SVG on screen:', { 
-      top: svgRect.top, 
-      left: svgRect.left, 
-      width: svgRect.width, 
-      height: svgRect.height,
-      viewBox: viewBox
-    });
-
-    // Draw each hotspot as an HTML div (easier to position and style)
-    this.hotspots.forEach((hotspot, index) => {
-      // Calculate the position and size in screen coordinates
-      const x = svgRect.left + (hotspot.bounds.x / viewBox.width) * svgRect.width;
-      const y = svgRect.top + (hotspot.bounds.y / viewBox.height) * svgRect.height;
-      const w = (hotspot.bounds.width / viewBox.width) * svgRect.width;
-      const h = (hotspot.bounds.height / viewBox.height) * svgRect.height;
-
-      // Create the rectangle div
-      const rect = document.createElement('div');
-      rect.style.position = 'fixed';
-      rect.style.left = x + 'px';
-      rect.style.top = y + 'px';
-      rect.style.width = w + 'px';
-      rect.style.height = h + 'px';
-      rect.style.border = `2px solid hsl(${(index * 60) % 360}, 100%, 50%)`;
-      rect.style.backgroundColor = `rgba(${index % 2 === 0 ? 255 : 0}, ${index % 3 === 0 ? 255 : 0}, ${index % 4 === 0 ? 255 : 0}, 0.05)`;
-      rect.style.boxSizing = 'border-box';
-      rect.style.pointerEvents = 'none';
-      rect.style.zIndex = '9999';
-
-      // Create the label
-      const label = document.createElement('div');
-      label.style.position = 'absolute';
-      label.style.top = '2px';
-      label.style.left = '2px';
-      label.style.color = '#ffffff';
-      label.style.backgroundColor = `hsl(${(index * 60) % 360}, 100%, 40%)`;
-      label.style.padding = '2px 4px';
-      label.style.fontSize = '10px';
-      label.style.fontWeight = 'bold';
-      label.style.borderRadius = '2px';
-      label.textContent = hotspot.parentGroupId.substring(2); // Remove 's-' prefix
-      label.style.maxWidth = '90%';
-      label.style.overflow = 'hidden';
-      label.style.textOverflow = 'ellipsis';
-      label.style.whiteSpace = 'nowrap';
-
-      rect.appendChild(label);
-      container.appendChild(rect);
-    });
-
-    document.body.appendChild(container);
-    this.debugOverlay = container;
-    
-    console.log(`[DEBUG] Created debug overlay with ${this.hotspots.length} hotspots at z-index 9999`);
-  }
-
   private removeDebugOverlay(): void {
-    if (this.debugOverlay && this.debugOverlay.parentNode) {
-      this.debugOverlay.parentNode.removeChild(this.debugOverlay);
-      this.debugOverlay = null;
+    if (typeof document === 'undefined') return;
+
+    const hotspotOverlay = document.getElementById('svg-hotspot-debug-overlay');
+    if (hotspotOverlay?.parentNode) {
+      hotspotOverlay.parentNode.removeChild(hotspotOverlay);
+    }
+
+    const candidateOverlay = document.getElementById('svg-candidate-slots-overlay');
+    if (candidateOverlay?.parentNode) {
+      candidateOverlay.parentNode.removeChild(candidateOverlay);
     }
   }
 

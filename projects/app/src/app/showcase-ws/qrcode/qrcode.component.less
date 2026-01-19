@@ -1,6 +1,6 @@
 :host {
     position: absolute;
-    z-index: 10;
+    z-index: 1;
     top: 0;
     left: 0;
     width: 100%;
@@ -13,10 +13,12 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
+        pointer-events: none;
 
         .qrcode {
             transition: all 0.5s ease-in-out;
             transform-origin: bottom left;
+            pointer-events: auto; // Allow QR code to receive focus
         }
         transition: all 0.5s ease-in-out;
 
@@ -25,9 +27,19 @@
             bottom: 20px;
             left: 20px;
             transform: none;
+            pointer-events: none;
             
             .qrcode {
                 transform: scale(2);
+                transition: transform 0.3s ease;
+                transform-origin: bottom left;
+                pointer-events: auto;
+                cursor: pointer;
+            
+                &:hover {
+                    transform: scale(.4) !important;
+                    transform-origin: bottom left;
+                }
             }
         }
     }

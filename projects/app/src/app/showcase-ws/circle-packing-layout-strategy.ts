@@ -42,6 +42,30 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
   }
 
   /**
+   * Calculate evaluation score for sorting within clusters
+   * Higher score = more left in fan (+rotation)
+   * Lower score = more right in fan (-rotation)
+   */
+  private calculateEvaluationScore(photo: PhotoData): number {
+    const plausibility = photo.metadata['plausibility'] as number | undefined;
+    const favorableFuture = photo.metadata['_svgZoneFavorableFuture'] as string | undefined
+      || photo.metadata['favorable_future'] as string | undefined;
+
+    if (plausibility === undefined || favorableFuture === undefined) {
+      return 0; // keep stable when missing data
+    }
+
+    const normalizedPlaus = plausibility / 100;
+    const favorableLower = favorableFuture.toLowerCase().trim();
+    const isFavor = favorableLower === 'favor' || favorableLower === 'favorable' ||
+                    favorableLower === 'prefer' || favorableLower === 'preferred';
+
+    // Match rotation formula: rotation = (1 - plaus) * direction
+    const rotationMagnitude = 1 - normalizedPlaus;
+    return isFavor ? rotationMagnitude : -rotationMagnitude;
+  }
+
+  /**
    * Gets the configuration for this layout strategy
    */
   getConfiguration(): LayoutConfiguration {
@@ -134,17 +158,50 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
       return null;
     }
     
-    // Calculate photo position within the group circle
-    const photoPositions = this.packPhotosInGroup(groupPhotos);
-    const relativePos = photoPositions[photoIndex];
+    // Arrange photos in fan/bow layout like playing cards held in hand
+    const groupSize = groupPhotos.length;
     
-    if (!relativePos) {
-      return null;
+    // Calculate fan parameters
+    const minRotation = 8; // degrees for small clusters
+    const maxRotation = 32; // degrees for large clusters
+    const sizeForMaxRotation = 10;
+    const sizeFactor = Math.min(groupSize / sizeForMaxRotation, 1.0);
+    const rotationRange = minRotation + (maxRotation - minRotation) * sizeFactor;
+    
+    // Evaluate rotation purely from plausibility + favorable_future
+    const plausibility = photo.metadata['plausibility'] as number | undefined;
+    const favorableFuture = photo.metadata['_svgZoneFavorableFuture'] as string | undefined
+      || photo.metadata['favorable_future'] as string | undefined;
+
+    let evaluationRotationDeg = 0;
+    if (plausibility !== undefined && favorableFuture) {
+      const normalizedPlaus = plausibility / 100;
+      const magnitude = (1 - normalizedPlaus) * 32; // degrees
+      const favorableLower = favorableFuture.toLowerCase().trim();
+      const isFavor = favorableLower === 'favor' || favorableLower === 'favorable' ||
+                      favorableLower === 'prefer' || favorableLower === 'preferred';
+      evaluationRotationDeg = isFavor ? magnitude : -magnitude;
     }
     
-    // Convert relative position to world position
-    const worldX = groupPosition.x + relativePos.x;
-    const worldY = groupPosition.y + relativePos.y;
+    // Fan spread uses sorted index: left = positive, right = negative
+    const cardWidth = this.photoWidth;
+    const overlapSpacing = cardWidth * 0.65; // 35% overlap
+    const totalWidth = (groupSize - 1) * overlapSpacing;
+    const startX = -totalWidth / 2;
+    const worldX = groupPosition.x + startX + (photoIndex * overlapSpacing);
+    
+    // Arc based on evaluation rotation magnitude - fan curve composition
+    // Items at extremes (high |rotation|) curve down, center items (low |rotation|) stay higher
+    const evaluationRotationRad = evaluationRotationDeg * Math.PI / 180;
+    const normalizedRotation = Math.abs(evaluationRotationDeg) / 32; // 0 at center, 1 at edges
+    const arcHeight = -normalizedRotation * normalizedRotation * 200; // quadratic curve: edges dip more
+    const worldY = groupPosition.y + arcHeight;
+    
+    // Render order: rightmost on top (like hand of cards), accumulate right→left
+    // Rightmost cards overlap leftmost cards
+    const baseRenderOrder = (32 - evaluationRotationDeg) * 1.5625; // map -32..32 -> 100..0 (reversed)
+    const tiebreaker = photoIndex * 0.01; // rightmost (high index) gets highest tiebreaker
+    const renderOrder = Math.round((baseRenderOrder + tiebreaker) * 10) / 10; // preserve 1 decimal
     
     return {
       x: worldX,
@@ -154,7 +211,8 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
         groupSize: groupPhotos.length,
         photoIndex,
         groupPosition: { x: groupPosition.x, y: groupPosition.y, radius: groupPosition.radius },
-        circlePackKey: `circle-pack-${groupId}-${photoIndex}` // Use our own key instead of gridKey
+        circlePackKey: `circle-pack-${groupId}-${photoIndex}`, // Use our own key instead of gridKey
+        renderOrder: renderOrder // Preferred on top of prevent
       }
     };
   }
@@ -174,6 +232,15 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
       }
       
       this.photoGroups.get(groupId)!.push(photo);
+    }
+
+    // Sort photos within each group by evaluation score BEFORE layout calculation
+    for (const groupPhotos of this.photoGroups.values()) {
+      groupPhotos.sort((a, b) => {
+        const scoreA = this.calculateEvaluationScore(a);
+        const scoreB = this.calculateEvaluationScore(b);
+        return scoreB - scoreA; // Descending: highest score (most positive rotation) = leftmost
+      });
     }
     
     // Recalculate layout once with all photos
@@ -224,6 +291,17 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
       }
       
       this.photoGroups.get(groupId)!.push(photo);
+    }
+    
+    // Sort photos within each group by evaluation score
+    // Left (+rotation): preferred + preposterous (high score)
+    // Right (-rotation): prevent + preposterous (low score)
+    for (const [groupId, groupPhotos] of this.photoGroups.entries()) {
+      groupPhotos.sort((a, b) => {
+        const scoreA = this.calculateEvaluationScore(a);
+        const scoreB = this.calculateEvaluationScore(b);
+        return scoreB - scoreA; // Descending order (highest score = leftmost)
+      });
     }
     
     this.recalculateLayout();

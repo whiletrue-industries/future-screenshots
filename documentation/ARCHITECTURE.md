@@ -133,6 +133,13 @@ The application uses Angular standalone components organized by feature:
    - Smooth camera animations with damping
    - QR code for easy mobile access
    - Random showcase mode to highlight photos
+          - SVG layout strategy:
+             - Uses a per-hotspot deterministic slot grid (hex-like staggered) clipped to each `#hit > path`.
+             - Slot order is a seeded shuffle for even coverage across the shape.
+             - Placement selects the first slot that does not overlap other photos; otherwise applies a minimal nudge constrained to the path to resolve overlaps.
+             - Path inclusion prefers `SVGGeometryElement.isPointInFill` when available; falls back to hotspot bounding box.
+             - Excludes positions that would overlap header UI regions.
+             - Slots are cached per hotspot to improve performance.
 
 #### Admin Components
 

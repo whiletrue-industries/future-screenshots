@@ -205,6 +205,11 @@ export class PhotoDataRepository {
     photoData.setMesh(mesh);
     this.renderer.setMeshPhotoId(mesh, photoData.id);
 
+    // Enable hover/drag detection for ALL layouts
+    // For interactive layouts, this enables actual dragging
+    // For non-interactive layouts, this enables hover feedback (cursor changes)
+    this.setupHoverDetectionForPhoto(photoData);
+    
     // Enable dragging for interactive layouts
     if (this.layoutStrategy && isInteractiveLayout(this.layoutStrategy)) {
       this.setupInteractiveDragForPhoto(photoData);
@@ -232,7 +237,6 @@ export class PhotoDataRepository {
     // Add to showcase queue for new photo introduction
     if (hasValidPosition) {
       this.photoQueue.push(metadata.id);
-      console.log('Added photo to queue:', metadata.id, 'Queue length:', this.photoQueue.length);
     }
 
     // Update camera bounds if photo was placed immediately (not animated)
@@ -289,6 +293,13 @@ export class PhotoDataRepository {
   }
 
   /**
+   * Get a photo by its ID
+   */
+  getPhotoById(photoId: string): PhotoData | undefined {
+    return this.photos.get(photoId);
+  }
+
+  /**
    * Get the current layout strategy
    */
   getLayoutStrategy(): LayoutStrategy | null {
@@ -325,8 +336,13 @@ export class PhotoDataRepository {
       newStrategy.addPhoto(photo);
     }
 
-    // Calculate new positions for all photos
-    const newPositions = await newStrategy.calculateAllPositions(currentPhotos);
+    // Calculate new positions for all photos (pass auto-positioning flag for SVG background)
+    let newPositions: Array<LayoutPosition | null> = [];
+    if (newStrategy.getConfiguration().name === 'svg-background' && 'calculateAllPositions' in newStrategy) {
+      newPositions = await (newStrategy as any).calculateAllPositions(currentPhotos, this.enableSvgAutoPositioning);
+    } else {
+      newPositions = await (newStrategy as any).calculateAllPositions(currentPhotos);
+    }
 
     // Update layout strategy
     this.layoutStrategy = newStrategy;
@@ -932,6 +948,23 @@ export class PhotoDataRepository {
       photoData.setTargetPosition(position);
       
       // Note: Layout strategy drag handlers are now called directly by the renderer
+    });
+  }
+
+  /**
+   * Enable hover detection for a photo (for both interactive and non-interactive layouts)
+   * This allows cursor feedback and preview widgets
+   */
+  private setupHoverDetectionForPhoto(photoData: PhotoData): void {
+    if (!photoData.mesh || !this.renderer) {
+      return;
+    }
+
+    // Register the mesh for raycasting even if not draggable
+    // This enables cursor feedback and hover effects
+    this.renderer.enableDragForMesh(photoData.mesh, (position: { x: number; y: number; z: number }) => {
+      // No-op for non-interactive layouts - just enables hover detection
+      // The cursor feedback and preview widget are handled in the renderer
     });
   }
 
