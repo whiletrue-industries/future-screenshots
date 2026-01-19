@@ -726,8 +726,19 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
               _svgZoneFavorableFuture: null
             } : hotspotData;
             
-            await this.apiService.updateItemMetadata(workspace, adminKey, photoId, metadataToSave);
-            console.log('[HOTSPOT-DROP] Saved metadata to API for photo', photoId);
+            // Use the original updateProperties method
+            await new Promise<void>((resolve, reject) => {
+              this.apiService.updateProperties(metadataToSave, photoId).subscribe({
+                next: () => {
+                  console.log('[HOTSPOT-DROP] Saved metadata to API for photo', photoId);
+                  resolve();
+                },
+                error: (error) => {
+                  console.error('[HOTSPOT-DROP] Error saving metadata to API:', error);
+                  reject(error);
+                }
+              });
+            });
           }
         } catch (error) {
           console.error('[HOTSPOT-DROP] Error saving metadata to API:', error);

@@ -263,21 +263,4 @@ export class ApiService {
       };
     });    
   }
-
-  /**
-   * Update item metadata via API
-   */
-  /**
-   * Update item metadata via API
-   * Accepts null values to clear fields
-   */
-  updateItemMetadata(workspace: string, adminKey: string, itemId: string, metadata: { [key: string]: string | number | null }): Promise<any> {
-    const url = `${this.CHRONOMAPS_API_URL}/workspace/${workspace}/items/${itemId}`;
-    return this.http.patch(url, metadata, {
-      headers: {
-        'Authorization': `Bearer ${adminKey}`,
-        'Content-Type': 'application/json'
-      }
-    }).toPromise();
-  }
 }
