@@ -87,6 +87,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.loop.pipe(
       distinctUntilChanged()
     ).subscribe(async (items) => {
+      console.log('[SHOWCASE_WS_LOOP] Received', items.length, 'items from API');
+      if (items.length > 0) {
+        console.log('[SHOWCASE_WS_LOOP] First item:', { _id: items[0]._id, screenshot_url: items[0].screenshot_url, created_at: items[0].created_at });
+      }
       items = items.sort((item1, item2) => item1.created_at.localeCompare(item2.created_at));
       
       // First pass: load existing photos immediately
@@ -472,9 +476,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     if (this.api_key()) {
       httpOptions.headers = { 'Authorization': this.api_key()! };
     }
-    return this.http.get<any[]>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${this.workspace()}/items?page_size=10000`, httpOptions).pipe(
+    const url = `https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${this.workspace()}/items?page_size=10000`;
+    console.log('[SHOWCASE_WS_API] Fetching items from:', url, 'with auth:', !!httpOptions.headers);
+    return this.http.get<any[]>(url, httpOptions).pipe(
       catchError((error) => {
-        console.error('Error loading items:', error);
+        console.error('[SHOWCASE_WS_API] Error loading items:', error);
         return of([]);
       })
     );
