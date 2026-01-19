@@ -148,7 +148,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           // Process new photos immediately - they'll be added to the showcase queue
           const photoPromises = newItems.map(async (item) => {
             const id = item._id;
-            const placeholderUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y21DLsAAAAASUVORK5CYII=';
+            const placeholderUrl = this.createPlaceholderImage();
             const url = item.screenshot_url || placeholderUrl;
             if (!item.screenshot_url) {
               console.warn('[SHOWCASE_WS] Missing screenshot_url for item', id, 'using placeholder image');
@@ -161,6 +161,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
               created_at: item.created_at,
               screenshot_url: url,
               author_id: item.author_id,
+              layout_x: item.layout_x,
+              layout_y: item.layout_y,
               plausibility: item.plausibility,
               favorable_future: item.favorable_future,
               transition_bar_position: transitionBarPosition

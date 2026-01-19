@@ -562,9 +562,10 @@ export class ThreeRendererService {
     const favorableFutureLower = favorableFuture.toLowerCase().trim();
     const isFavor = favorableFutureLower === 'favor' || favorableFutureLower === 'favorable' || 
                     favorableFutureLower === 'prefer' || favorableFutureLower === 'preferred' ||
-                    favorableFutureLower === 'mostly prefer';
+                    favorableFutureLower === 'mostly prefer' || favorableFutureLower === 'mostly preferred';
     const isPrevent = favorableFutureLower === 'prevent' || favorableFutureLower === 'prevented' || 
-                      favorableFutureLower === 'unfavorable';
+                      favorableFutureLower === 'unfavorable' ||
+                      favorableFutureLower === 'mostly prevent' || favorableFutureLower === 'mostly prevented';
     const isUncertain = favorableFutureLower === 'uncertain' || favorableFutureLower === 'unsure';
     
     if (isUncertain) {
