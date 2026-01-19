@@ -130,6 +130,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         
         await Promise.all(photoPromises);
         
+        console.log('[SHOWCASE_WS_LOOP] Loaded', this.loadedPhotoIds.size, 'photos successfully');
+        const allPhotos = this.photoRepository.getAllPhotos();
+        console.log('[SHOWCASE_WS_LOOP] Photos in repository:', allPhotos.length, '- URls:', allPhotos.slice(0, 3).map(p => ({ id: p.metadata.id, url: p.url.substring(0, 80) })));
+        
         this.qrSmall.set(true);
         
         // Set lastCreatedAt to the most recent item
