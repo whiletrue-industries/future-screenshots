@@ -58,19 +58,31 @@ export class ModerateComponent {
   searchText = signal<string>('');
   orderBy = signal<string>('date');
   
-  // Item counts for dropdown options
-  statusCounts = signal<Map<string, number>>(new Map());
-  authorCounts = signal<Map<string, number>>(new Map());
-  preferenceCounts = signal<Map<string, number>>(new Map());
-  potentialCounts = signal<Map<string, number>>(new Map());
-  typeCounts = signal<Map<string, number>>(new Map());
+  // Computed filter counts from raw data (automatic reactivity)
+  private filterCountsData = computed(() => {
+    return this.filterService.calculateFilterCounts(this.allFetchedItems());
+  });
+  
+  statusCounts = computed(() => this.filterCountsData().status);
+  authorCounts = computed(() => this.filterCountsData().author);
+  preferenceCounts = computed(() => this.filterCountsData().preference);
+  potentialCounts = computed(() => this.filterCountsData().potential);
+  typeCounts = computed(() => this.filterCountsData().type);
   
   editTagline = signal<string | null>(null);
   editDescription = signal<string | null>(null);
   editTags = signal<string | null>(null);
   newTag = signal<string>('');
   showDescription = signal<Set<string>>(new Set());
-  userItemCounts = signal<Map<string, number>>(new Map());
+  userItemCounts = computed(() => {
+    const allItems = this.allFetchedItems();
+    const userCounts = new Map<string, number>();
+    allItems.forEach((item: any) => {
+      const authorId = item.author_id || 'unknown';
+      userCounts.set(authorId, (userCounts.get(authorId) || 0) + 1);
+    });
+    return userCounts;
+  });
   allItemsForCounting = signal<any[]>([]); // Store all items for accurate counting
   allFetchedItems = signal<any[]>([]); // Store all fetched items for client-side filtering
   viewMode = signal<'list' | 'grid'>('grid');
@@ -89,7 +101,23 @@ export class ModerateComponent {
   bulkSaving = signal<boolean>(false);
   bulkError = signal<string | null>(null);
 
-  items = signal<any[]>([]);
+  // Computed filtered items (intermediate step)
+  private filteredItems = computed(() => {
+    return this.filterService.applyFilters(
+      this.allFetchedItems(),
+      this.filterState()
+    );
+  });
+
+  // Computed final sorted items (automatic reactivity - no manual updates needed!)
+  items = computed(() => {
+    return this.filterService.sortItems(
+      this.filteredItems(),
+      this.orderBy(),
+      this.userItemCounts()
+    );
+  });
+  
   indexLink = signal<string | null>(null);
 
   private readonly preferSlotMap = new Map<number, number>([
@@ -278,8 +306,8 @@ export class ModerateComponent {
             const newItems = data.filter((item: any) => !existing.find((i: any) => i._id === item._id));
             this.allFetchedItems.set([...existing, ...newItems]);
             
-            // Note: applyFiltersAndSort() will be called automatically by the effect
-            // that watches allFetchedItems() when it changes
+            // Note: items will be automatically recomputed via computed signals
+            // when allFetchedItems changes
           }
         });
       }
@@ -294,19 +322,10 @@ export class ModerateComponent {
       }
     });
     effect(() => {
-      // Watch all filter changes AND data updates and apply client-side
-      this.filterStatus();
-      this.filterAuthor();
-      this.filterPreference();
-      this.filterPotential();
-      this.filterType();
-      this.searchText();
-      this.orderBy();
-      this.viewMode();
-      const fetched = this.allFetchedItems();
-      
+      // Watch filter changes and update URL hash
+      // Note: items are now automatically computed via computed signals!
+      this.filterState(); // Track all filter dependencies
       this.updateHashParams();
-      this.applyFiltersAndSort();
     });
   }
 
@@ -315,7 +334,8 @@ export class ModerateComponent {
     const apiKey = this.apiKey();
     if (workspaceId && apiKey) {
       this.api.updateItemModeration(workspaceId, apiKey, itemId, level).subscribe(data => {
-        this.items.set(this.items().filter(item => item._id !== itemId));
+        // Update source data - items will be recomputed automatically
+        this.allFetchedItems.set(this.allFetchedItems().filter(item => item._id !== itemId));
       });
     } else {
       console.error('workspaceId or apiKey is null');
@@ -345,43 +365,15 @@ export class ModerateComponent {
     if (!workspaceId || !apiKey || !current) return;
     this.api.updateItemModeration(workspaceId, apiKey, current._id, level).subscribe({
       next: () => {
-        this.items.update(items => items.map(item => item._id === current._id ? { ...item, _private_moderation: level } : item));
+        // Update source data - items will be recomputed automatically
+        this.allFetchedItems.update(items => items.map(item => item._id === current._id ? { ...item, _private_moderation: level } : item));
         this.selectedItem.update(item => item ? { ...item, _private_moderation: level } : item);
       },
       error: (err) => console.error('Error updating status', err)
     });
   }
 
-  applyFiltersAndSort(): void {
-    // Apply filters using the service
-    const filtered = this.filterService.applyFilters(
-      this.allFetchedItems(),
-      this.filterState()
-    );
-    
-    // Calculate counts from ALL fetched items (not filtered)
-    const counts = this.filterService.calculateFilterCounts(this.allFetchedItems());
-    this.statusCounts.set(counts.status);
-    this.authorCounts.set(counts.author);
-    this.preferenceCounts.set(counts.preference);
-    this.potentialCounts.set(counts.potential);
-    this.typeCounts.set(counts.type);
-    
-    // Update user item counts from all fetched items
-    const allItems = this.allFetchedItems();
-    const userCounts = new Map<string, number>();
-    allItems.forEach((item: any) => {
-      const authorId = item.author_id || 'unknown';
-      userCounts.set(authorId, (userCounts.get(authorId) || 0) + 1);
-    });
-    this.userItemCounts.set(userCounts);
-    
-    // Sort and set items using the service
-    const sorted = this.filterService.sortItems(filtered, this.orderBy(), this.userItemCounts());
-    this.items.set(sorted);
-  }
-  
-  
+
   updateHashParams(): void {
     const params = new URLSearchParams();
     
@@ -457,7 +449,8 @@ export class ModerateComponent {
 
     this.api.updateItem(workspaceId, apiKey, current._id, { [key]: value }).subscribe({
       next: () => {
-        this.items.update(items => items.map(item => item._id === current._id ? { ...item, [key]: value } : item));
+        // Update source data - items will be recomputed automatically
+        this.allFetchedItems.update(items => items.map(item => item._id === current._id ? { ...item, [key]: value } : item));
         this.selectedItem.update(item => item ? { ...item, [key]: value } : item);
       },
       error: (err) => console.error('Error updating field', key, err)
@@ -858,7 +851,8 @@ export class ModerateComponent {
 
     this.api.updateItem(workspaceId, apiKey, current._id, updateData).subscribe({
       next: () => {
-        this.items.update(items => items.map(item => item._id === current._id ? { ...item, ...updateData } : item));
+        // Update source data - items will be recomputed automatically
+        this.allFetchedItems.update(items => items.map(item => item._id === current._id ? { ...item, ...updateData } : item));
         this.selectedItem.update(item => item ? { ...item, ...updateData } : item);
       },
       error: (err) => console.error('Error regenerating AI fields', err)
@@ -1025,7 +1019,7 @@ export class ModerateComponent {
 
     const applyUpdates = (arr: any[]) => arr.map(item => ids.includes(item._id) ? { ...item, ...updates } : item);
     this.allFetchedItems.set(applyUpdates(this.allFetchedItems()));
-    this.applyFiltersAndSort();
+    // No need to call applyFiltersAndSort - items are now computed automatically!
 
     this.bulkSaving.set(false);
     this.clearBulkSelection();
@@ -1074,8 +1068,7 @@ export class ModerateComponent {
       this.viewMode.set(newState.view as 'grid' | 'list');
     }
     
-    // No need to call applyFiltersAndSort() here - the effect at lines 210-223 will handle it
-    // when the filter signals change
+    // No need to manually update items - they are computed automatically from filter signals
   }
 
   onFiltersCommit(newState: FiltersBarState): void {
@@ -1095,7 +1088,8 @@ export class ModerateComponent {
 
   onImageReplaced(itemId: string, data: { screenshot_url: string }): void {
     const url = data.screenshot_url;
-    this.items.update(items => items.map(item => item._id === itemId ? { ...item, screenshot_url: url } : item));
+    // Update source data - items will be recomputed automatically
+    this.allFetchedItems.update(items => items.map(item => item._id === itemId ? { ...item, screenshot_url: url } : item));
     if (this.selectedItem() && this.selectedItem()._id === itemId) {
       this.selectedItem.update(item => item ? { ...item, screenshot_url: url } : item);
     }
