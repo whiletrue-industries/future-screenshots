@@ -82,6 +82,11 @@ export class CanvasCreatorComponent implements AfterViewInit {
   private templateScaleX = 1;
   private templateScaleY = 1;
   
+  // Font scale factors to match x-height across languages
+  private readonly FONT_SCALE_HEBREW = 0.80; // 20% reduction for Gadi Almog
+  private readonly FONT_SCALE_ARABIC = 0.78; // 22% reduction for Mikhak
+  private readonly FONT_SCALE_ENGLISH = 1.0;  // No scaling for Caveat
+  
   private injector = inject(Injector);
   
   // Template gallery with new order
@@ -1231,11 +1236,28 @@ export class CanvasCreatorComponent implements AfterViewInit {
    */
   private getFontSizeScale(fontFamily: string): number {
     if (fontFamily.includes('Gadi Almog')) {
-      return 0.80; // Scale Hebrew down by 20% to match x-height
+      return this.FONT_SCALE_HEBREW;
     } else if (fontFamily.includes('Mikhak')) {
-      return 0.78; // Scale Arabic down by 22% to match x-height
+      return this.FONT_SCALE_ARABIC;
     }
-    return 1.0; // No scaling for English fonts
+    return this.FONT_SCALE_ENGLISH;
+  }
+
+  /**
+   * Apply font size scaling when switching between languages.
+   * Adjusts font size to maintain consistent visual x-height across different scripts.
+   */
+  private applyFontScaling(textbox: any, newFontFamily: string): void {
+    const prevFont = textbox.fontFamily || this.selectedFont();
+    
+    // Only adjust font size if the font family is actually changing
+    if (prevFont !== newFontFamily) {
+      // Get scale factors for old and new fonts
+      const prevScale = this.getFontSizeScale(prevFont);
+      const newScale = this.getFontSizeScale(newFontFamily);
+      // Adjust font size to maintain consistent visual size
+      textbox.fontSize = (textbox.fontSize / prevScale) * newScale;
+    }
   }
   
   async selectTransition(choice: 'before' | 'during' | 'after') {
@@ -1527,7 +1549,6 @@ export class CanvasCreatorComponent implements AfterViewInit {
     text.on('changed', () => {
       const effectiveText = text.text || '';
       const isRTL = this.detectRTL(effectiveText);
-      const prevFont = text.fontFamily || this.selectedFont();
       
       // Determine which RTL font to use based on character set
       let rtlFont = this.selectedFont();
@@ -1542,21 +1563,13 @@ export class CanvasCreatorComponent implements AfterViewInit {
         }
       }
       
-      // Only adjust font size if the font family is actually changing
-      let adjustedFontSize = text.fontSize;
-      if (prevFont !== rtlFont) {
-        // Get scale factors for old and new fonts
-        const prevScale = this.getFontSizeScale(prevFont);
-        const newScale = this.getFontSizeScale(rtlFont);
-        // Adjust font size to maintain consistent visual size
-        adjustedFontSize = (text.fontSize / prevScale) * newScale;
-      }
+      // Apply font size scaling when switching fonts
+      this.applyFontScaling(text, rtlFont);
       
       text.set({ 
         direction: isRTL ? 'rtl' : 'ltr',
         textAlign: isRTL ? 'right' : 'left',
-        fontFamily: rtlFont,
-        fontSize: adjustedFontSize
+        fontFamily: rtlFont
       });
       targetCanvas.requestRenderAll();
     });
@@ -1868,7 +1881,6 @@ export class CanvasCreatorComponent implements AfterViewInit {
               obj.on('changed', () => {
                 const effectiveText = obj.text || '';
                 const isRTL = this.detectRTL(effectiveText);
-                const prevFont = obj.fontFamily || this.selectedFont();
                 
                 let rtlFont = this.selectedFont();
                 if (isRTL) {
@@ -1881,21 +1893,13 @@ export class CanvasCreatorComponent implements AfterViewInit {
                   }
                 }
                 
-                // Only adjust font size if the font family is actually changing
-                let adjustedFontSize = obj.fontSize;
-                if (prevFont !== rtlFont) {
-                  // Get scale factors for old and new fonts
-                  const prevScale = this.getFontSizeScale(prevFont);
-                  const newScale = this.getFontSizeScale(rtlFont);
-                  // Adjust font size to maintain consistent visual size
-                  adjustedFontSize = (obj.fontSize / prevScale) * newScale;
-                }
+                // Apply font size scaling when switching fonts
+                this.applyFontScaling(obj, rtlFont);
                 
                 obj.set({ 
                   direction: isRTL ? 'rtl' : 'ltr',
                   textAlign: isRTL ? 'right' : 'left',
-                  fontFamily: rtlFont,
-                  fontSize: adjustedFontSize
+                  fontFamily: rtlFont
                 });
                 fabricCanvas.requestRenderAll();
               });
