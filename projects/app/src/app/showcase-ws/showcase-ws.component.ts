@@ -18,7 +18,7 @@ import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
-import * as THREE from 'three';
+import { MathUtils } from 'three';
 
 @Component({
   selector: 'app-showcase-ws',
@@ -722,7 +722,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           if (photo.mesh) {
             const plausibility = photo.metadata['plausibility'] as number ?? 50;
             const favorableFuture = (photo.metadata['favorable_future'] as string)?.toLowerCase().includes('prefer') ? 'prefer' : 'prevent';
-            const photoRotation = THREE.MathUtils.radToDeg(photo.mesh.rotation.z);
+            const photoRotation = MathUtils.radToDeg(photo.mesh.rotation.z);
             
             this.toastData.set({
               photoUrl: photo.url,

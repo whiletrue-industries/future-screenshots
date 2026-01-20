@@ -1496,7 +1496,7 @@ export class ThreeRendererService {
    */
   private calculatePreviewRotation(photoData: PhotoData, hotspotData: { [key: string]: string | number }): number {
     // Use hotspot's plausibility if available, otherwise fallback to photo's plausibility
-    const plausibility = hotspotData['plausibility'] as number | undefined ?? photoData.metadata['plausibility'] as number | undefined;
+    const plausibility = (hotspotData['plausibility'] as number | undefined) ?? (photoData.metadata['plausibility'] as number | undefined);
     const favorableFuture = hotspotData['favorable_future'] as string | undefined;
     
     if (plausibility === undefined || !favorableFuture) {
@@ -1504,22 +1504,8 @@ export class ThreeRendererService {
     }
     
     // Map plausibility to rotation: 0→32°, 25→24°, 50→16°, 75→8°, 100→0°
-    let magnitude: number;
-    if (plausibility === 0) {
-      magnitude = 32;
-    } else if (plausibility === 25) {
-      magnitude = 24;
-    } else if (plausibility === 50) {
-      magnitude = 16;
-    } else if (plausibility === 75) {
-      magnitude = 8;
-    } else if (plausibility === 100) {
-      magnitude = 0;
-    } else {
-      // Interpolate for values between discrete points
-      const normalizedPlaus = plausibility / 100;
-      magnitude = (1 - normalizedPlaus) * 32;
-    }
+    const rotationMap = new Map([[0, 32], [25, 24], [50, 16], [75, 8], [100, 0]]);
+    const magnitude = rotationMap.get(plausibility) ?? (1 - plausibility / 100) * 32;
     
     const favorableLower = favorableFuture.toLowerCase().trim();
     const isFavor = favorableLower === 'favor' || favorableLower === 'favorable'

@@ -17,6 +17,9 @@ interface ToastData {
   styleUrl: './drag-confirmation-toast.component.less'
 })
 export class DragConfirmationToastComponent {
+  private static readonly COUNTDOWN_DURATION_MS = 3000;
+  private static readonly UPDATE_INTERVAL_MS = 50;
+  
   // Inputs
   data = input<ToastData | null>(null);
   
@@ -32,17 +35,7 @@ export class DragConfirmationToastComponent {
   // Computed values
   plausibilityText = computed(() => {
     const plausibility = this.data()?.plausibility ?? 50;
-    if (plausibility === 0) return 'Preposterous';
-    if (plausibility === 25) return 'Possible';
-    if (plausibility === 50) return 'Plausible';
-    if (plausibility === 75) return 'Probable';
-    if (plausibility === 100) return 'Projected';
-    // Interpolate between values
-    if (plausibility < 25) return 'Preposterous';
-    if (plausibility < 50) return 'Possible';
-    if (plausibility < 75) return 'Plausible';
-    if (plausibility < 100) return 'Probable';
-    return 'Projected';
+    return this.getPlausibilityText(plausibility);
   });
   
   favorableFutureText = computed(() => {
@@ -72,18 +65,38 @@ export class DragConfirmationToastComponent {
     });
   }
   
+  private getPlausibilityText(plausibility: number): string {
+    const plausibilityMap = new Map([
+      [0, 'Preposterous'],
+      [25, 'Possible'],
+      [50, 'Plausible'],
+      [75, 'Probable'],
+      [100, 'Projected']
+    ]);
+    
+    // Return exact match if available
+    if (plausibilityMap.has(plausibility)) {
+      return plausibilityMap.get(plausibility)!;
+    }
+    
+    // Interpolate for values between discrete points
+    if (plausibility < 25) return 'Preposterous';
+    if (plausibility < 50) return 'Possible';
+    if (plausibility < 75) return 'Plausible';
+    if (plausibility < 100) return 'Probable';
+    return 'Projected';
+  }
+  
   private show(): void {
     this.isVisible.set(true);
     this.countdownProgress.set(0);
     this.isAmbivalent.set(false);
     
-    // Start 3-second countdown
-    const countdownDuration = 3000; // 3 seconds
-    const updateInterval = 50; // Update every 50ms for smooth animation
-    const totalSteps = countdownDuration / updateInterval;
+    // Start countdown
+    const totalSteps = DragConfirmationToastComponent.COUNTDOWN_DURATION_MS / DragConfirmationToastComponent.UPDATE_INTERVAL_MS;
     let currentStep = 0;
     
-    interval(updateInterval)
+    interval(DragConfirmationToastComponent.UPDATE_INTERVAL_MS)
       .pipe(
         take(totalSteps),
         takeWhile(() => this.isVisible())
