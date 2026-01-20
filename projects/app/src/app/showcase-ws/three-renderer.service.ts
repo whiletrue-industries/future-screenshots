@@ -203,9 +203,9 @@ export class ThreeRendererService {
     const rotation = this.calculatePhotoRotation(photoData);
     mesh.rotation.z = rotation;
     
-    console.log('[RENDERER] Adding mesh to scene for photo:', photoData.id, 'at position:', mesh.position);
+    console.log('[RENDERER] Adding mesh to scene for photo:', photoData.id, 'at position:', mesh.position, 'opacity:', (mesh.material as THREE.MeshBasicMaterial).opacity);
     this.root.add(mesh);
-    console.log('[RENDERER] Mesh added. Scene now has', this.root.children.length, 'children');
+    console.log('[RENDERER] Mesh added. Root group now has', this.root.children.length, 'children. Camera at z:', this.camera.position.z);
     photoData.setMesh(mesh);
     // Track PhotoData for hover/fisheye so positions stay current after layout changes
     this.meshToPhotoData.set(mesh, photoData);
@@ -2935,7 +2935,7 @@ export class ThreeRendererService {
       const material = new THREE.MeshBasicMaterial({
         map: this.svgBackgroundTexture,
         transparent: true,
-        opacity: 0,
+        opacity: desiredOpacity, // Start at desired opacity instead of 0 to ensure visibility
         depthWrite: false // Transparent background shouldn't write to depth buffer
       });
       
@@ -2954,9 +2954,9 @@ export class ThreeRendererService {
       if (svgOptions.scale) this.svgBackgroundPlane.scale.setScalar(svgOptions.scale);
       
       // Add to scene
+      console.log('[SVG-BACKGROUND] Adding SVG background plane to scene at position:', this.svgBackgroundPlane.position, 'with opacity:', desiredOpacity);
       this.scene.add(this.svgBackgroundPlane);
-      // Fade in to preserve original SVG element opacities while bringing the plane into view
-      this.animateMaterialOpacity(material, desiredOpacity, 650);
+      console.log('[SVG-BACKGROUND] SVG background added successfully. Scene now has', this.scene.children.length, 'children');
     };
     
     img.onerror = (error) => {
