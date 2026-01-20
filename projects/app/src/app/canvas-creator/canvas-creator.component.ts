@@ -83,8 +83,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
   private templateScaleY = 1;
   
   // Font scale factors to match x-height across languages
-  private readonly FONT_SCALE_HEBREW = 0.80; // 20% reduction for Gadi Almog
-  private readonly FONT_SCALE_ARABIC = 0.78; // 22% reduction for Mikhak
+  private readonly FONT_SCALE_HEBREW = 0.65; // 30% reduction for Gadi Almog
+  private readonly FONT_SCALE_ARABIC = 0.65; // 30% reduction for Mikhak
   private readonly FONT_SCALE_ENGLISH = 1.0;  // No scaling for Caveat
   
   private injector = inject(Injector);
@@ -155,15 +155,15 @@ export class CanvasCreatorComponent implements AfterViewInit {
               "geometry": {
                 "type": "Point",
                 "coordinates": [
-                  80,
-                  604
+                  71,
+                  540
                 ]
               },
               "properties": {
                 "id": "textbox-0",
                 "placeholder": "transition",
                 "line-height": 1,
-                "width": 175,
+                "width": 156,
                 "height": 32,
                 "textAlign": "center",
                 "originY": "bottom"
@@ -264,8 +264,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
           "geometry": {
             "type": "Point",
             "coordinates": [
-              80,
-              604
+                  71,
+                  540
             ]
           },
           "properties": {
@@ -358,8 +358,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
           "geometry": {
             "type": "Point",
             "coordinates": [
-              80,
-              604
+              71,
+              600
             ]
           },
           "properties": {
@@ -385,7 +385,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
             "id": "textbox-1",
             "placeholder": "Title",
             "line-height": 1,
-            "width": 145,
+            "width": 160,
             "height": 32
           }
         },
@@ -453,7 +453,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
             "id": "textbox-5",
             "placeholder": "Review here...",
             "line-height": 1.1,
-            "width": 202,
+            "width": 247,
             "height": 32
           }
         }
@@ -467,8 +467,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
           "geometry": {
             "type": "Point",
             "coordinates": [
-              80,
-              604
+              71,
+              600
             ]
           },
           "properties": {
@@ -505,7 +505,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
       features: [
         {
           type: 'Feature',
-          geometry: { type: 'Point', coordinates: [80, 604] },
+          geometry: { type: 'Point', coordinates: [71, 600] },
           properties: {
             id: 'textbox-0',
             placeholder: 'transition',
@@ -523,7 +523,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
       features: [
         {
           type: 'Feature',
-          geometry: { type: 'Point', coordinates: [80, 604] },
+          geometry: { type: 'Point', coordinates: [71, 600] },
           properties: {
             id: 'textbox-0',
             placeholder: 'transition',
@@ -541,7 +541,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
       features: [
         {
           type: 'Feature',
-          geometry: { type: 'Point', coordinates: [80, 604] },
+          geometry: { type: 'Point', coordinates: [71, 600] },
           properties: {
             id: 'textbox-0',
             placeholder: 'transition',
@@ -559,7 +559,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
       features: [
         {
           type: 'Feature',
-          geometry: { type: 'Point', coordinates: [80, 604] },
+          geometry: { type: 'Point', coordinates: [71, 600] },
           properties: {
             id: 'textbox-0',
             placeholder: 'transition',
@@ -577,7 +577,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
       features: [
         {
           type: 'Feature',
-          geometry: { type: 'Point', coordinates: [80, 604] },
+          geometry: { type: 'Point', coordinates: [71, 600] },
           properties: {
             id: 'textbox-0',
             placeholder: 'transition',
