@@ -597,9 +597,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(tsneStrategy);
       
-      // Ensure camera shows all content
-      this.rendererService.resetCameraView(true);
-      
     } catch (error) {
       console.error('Error switching to TSNE layout:', error);
     } finally {
@@ -640,9 +637,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(gridStrategy);
-      
-      // Ensure camera shows all content
-      this.rendererService.resetCameraView(true);
       
     } catch (error) {
       console.error('Error switching to Grid layout:', error);
@@ -834,9 +828,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(circlePackingStrategy);
-      
-      // Ensure camera shows all content
-      this.rendererService.resetCameraView(true);
       
     } catch (error) {
       console.error('Error switching to Circle Packing layout:', error);
