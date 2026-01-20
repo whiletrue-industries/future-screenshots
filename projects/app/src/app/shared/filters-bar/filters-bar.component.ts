@@ -246,9 +246,7 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
     'none': 'None'
   };
   
-  private initialized = false;
-  private isInitializing = false;
-  private changeEffectTriggered = false;
+  private hasEmittedOnce = false;
   private debounceTimer: any = null;
   private readonly DEBOUNCE_DELAY = 300; // 300ms debounce for view updates
   private documentClickListener?: (event: MouseEvent) => void;
@@ -257,10 +255,8 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
     // Set initial state from parent if provided
     effect(() => {
       const state = this.initialState();
-      console.log('[FiltersBar] initialState effect - state:', state);
-      if (state && !this.initialized) {
-        console.log('[FiltersBar] Setting initial state');
-        this.isInitializing = true;
+      if (state && !this.hasEmittedOnce) {
+        // Apply initial state without emitting
         this.filterStatus.set(state.status);
         this.filterAuthor.set(state.author);
         this.filterPreference.set(state.preference);
@@ -271,42 +267,7 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
         if (state.view) {
           this.viewMode.set(state.view as 'grid' | 'list');
         }
-        this.initialized = true;
-        // Use setTimeout to ensure the change detection cycle completes before allowing emissions
-        setTimeout(() => {
-          console.log('[FiltersBar] Initialization complete, allowing emissions');
-          this.isInitializing = false;
-        }, 0);
       }
-    });
-    
-    // Watch for filter changes and emit (skip emissions during initialization)
-    effect(() => {
-      const status = this.filterStatus();
-      const author = this.filterAuthor();
-      const preference = this.filterPreference();
-      const potential = this.filterPotential();
-      const type = this.filterType();
-      const search = this.searchText();
-      const order = this.orderBy();
-      const view = this.viewMode();
-      
-      console.log('[FiltersBar] Change effect triggered - isInitializing:', this.isInitializing, 'initialized:', this.initialized, 'changeEffectTriggered:', this.changeEffectTriggered);
-      
-      // Skip the very first effect trigger if we have an initialState, because the initialization
-      // effect hasn't run yet, and emitting now would send the default values instead of the initial state values
-      if (!this.changeEffectTriggered && this.initialState()) {
-        console.log('[FiltersBar] Skipping first change effect emission because initialState is pending');
-        this.changeEffectTriggered = true;
-        return;
-      }
-      this.changeEffectTriggered = true;
-      
-      // Note: We no longer emit here automatically. Instead, we rely on:
-      // 1. Debounced emissions when checkboxes are toggled (for immediate view updates)
-      // 2. Commit emissions when dropdowns close or focus changes (for hash updates)
-      // This prevents continuous emissions and gives us fine-grained control over when to emit
-      console.log('[FiltersBar] Change detected but not auto-emitting (using debounced/commit pattern)');
     });
   }
   
@@ -327,13 +288,14 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
       this.potentialDropdownOpen.set(false);
       
       // Commit changes when dropdown closes
-      if (wasOpen && !this.isInitializing) {
+      if (wasOpen && this.hasEmittedOnce) {
         this.commitFilters();
       }
     }
   }
   
   private emitFiltersChange(): void {
+    this.hasEmittedOnce = true;
     this.filtersChange.emit({
       status: this.filterStatus(),
       author: this.filterAuthor(),
@@ -347,6 +309,7 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
   }
   
   private commitFilters(): void {
+    this.hasEmittedOnce = true;
     this.filtersCommit.emit({
       status: this.filterStatus(),
       author: this.filterAuthor(),
@@ -367,9 +330,8 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
     
     // Set new timer for debounced emission
     this.debounceTimer = setTimeout(() => {
-      if (!this.isInitializing) {
-        this.emitFiltersChange();
-      }
+      this.hasEmittedOnce = true;
+      this.emitFiltersChange();
     }, this.DEBOUNCE_DELAY);
   }
   
@@ -384,7 +346,7 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
       this.clearStatusSearch(); // Clear search when opening
     } else {
       this.clearStatusSearch(); // Clear search when closing
-      if (wasOpen && !this.isInitializing) {
+      if (wasOpen && this.hasEmittedOnce) {
         // Commit changes when dropdown is manually closed
         this.commitFilters();
       }
@@ -460,7 +422,7 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
       this.clearPreferenceSearch(); // Clear search when opening
     } else {
       this.clearPreferenceSearch(); // Clear search when closing
-      if (wasOpen && !this.isInitializing) {
+      if (wasOpen && this.hasEmittedOnce) {
         // Commit changes when dropdown is manually closed
         this.commitFilters();
       }
@@ -557,7 +519,7 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
       this.clearPotentialSearch(); // Clear search when opening
     } else {
       this.clearPotentialSearch(); // Clear search when closing
-      if (wasOpen && !this.isInitializing) {
+      if (wasOpen && this.hasEmittedOnce) {
         // Commit changes when dropdown is manually closed
         this.commitFilters();
       }
