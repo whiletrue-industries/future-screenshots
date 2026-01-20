@@ -775,6 +775,18 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         if (newAuthorId && newAuthorId !== oldAuthorId) {
           await this.recalculateClusterLayout(newAuthorId);
         }
+        
+        // Auto-zoom camera to fit all items after composition changes
+        if (!isDraggedOut) {
+          // Get all photo positions for camera fit
+          const allPhotos = this.photoRepository.getAllPhotos();
+          const positions = allPhotos.map(p => ({ x: p.currentPosition.x, y: p.currentPosition.y }));
+          
+          // Fit camera to show all items
+          if (positions.length > 0) {
+            await this.rendererService.fitCameraToBounds(positions);
+          }
+        }
       });
 
       // Needed when auto-positioning is enabled
