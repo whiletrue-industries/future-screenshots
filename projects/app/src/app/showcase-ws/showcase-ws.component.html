@@ -98,3 +98,10 @@
 </div>
 }
 
+<!-- Drag Confirmation Toast -->
+<app-drag-confirmation-toast 
+  [data]='toastData()'
+  (ambivalenceToggled)='onAmbivalenceToggled($event)'
+  (closed)='onToastClosed()'
+></app-drag-confirmation-toast>
+
