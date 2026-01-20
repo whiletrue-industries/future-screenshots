@@ -180,7 +180,9 @@ export class ThreeRendererService {
       throw new Error('ThreeRendererService not initialized');
     }
 
+    console.log('[RENDERER] Creating mesh for photo:', photoData.id, 'URL:', photoData.url.substring(0, 100));
     const texture = await this.loadTexture(photoData.url);
+    console.log('[RENDERER] Texture loaded for photo:', photoData.id);
     const material = new THREE.MeshBasicMaterial({ 
       map: texture, 
       transparent: true, 
@@ -201,7 +203,9 @@ export class ThreeRendererService {
     const rotation = this.calculatePhotoRotation(photoData);
     mesh.rotation.z = rotation;
     
+    console.log('[RENDERER] Adding mesh to scene for photo:', photoData.id, 'at position:', mesh.position);
     this.root.add(mesh);
+    console.log('[RENDERER] Mesh added. Scene now has', this.root.children.length, 'children');
     photoData.setMesh(mesh);
     // Track PhotoData for hover/fisheye so positions stay current after layout changes
     this.meshToPhotoData.set(mesh, photoData);
@@ -417,6 +421,13 @@ export class ThreeRendererService {
   // Camera management
   updateCameraTarget(newBounds: SceneBounds): void {
     this.bounds = { ...newBounds };
+    
+    // Center camera on bounds center
+    const centerX = (this.bounds.minX + this.bounds.maxX) / 2;
+    const centerY = (this.bounds.minY + this.bounds.maxY) / 2;
+    this.targetCamX = centerX;
+    this.targetCamY = centerY;
+    
     if (this.autoFitEnabled) {
       const targetCamZ = this.computeFitZWithMargin(
         this.bounds,
@@ -436,6 +447,10 @@ export class ThreeRendererService {
         return;
       }
       
+      // Center camera on bounds center
+      const centerX = (this.bounds.minX + this.bounds.maxX) / 2;
+      const centerY = (this.bounds.minY + this.bounds.maxY) / 2;
+      
       const targetCamZ = this.computeFitZWithMargin(
         this.bounds,
         THREE.MathUtils.degToRad(this.camera.fov),
@@ -443,20 +458,30 @@ export class ThreeRendererService {
         this.CAM_MARGIN
       );
       
+      const startCamX = this.targetCamX;
+      const startCamY = this.targetCamY;
       const startCamZ = this.targetCamZ;
+      const finalTargetCamX = centerX;
+      const finalTargetCamY = centerY;
       const finalTargetCamZ = targetCamZ;
       
       // If no change needed, resolve immediately
-      if (Math.abs(finalTargetCamZ - startCamZ) < 0.01) {
+      if (Math.abs(finalTargetCamZ - startCamZ) < 0.01 &&
+          Math.abs(finalTargetCamX - startCamX) < 0.01 &&
+          Math.abs(finalTargetCamY - startCamY) < 0.01) {
         resolve();
         return;
       }
       
       const tweenFn = this.makeTween(durationSec, (progress: number) => {
         const eased = this.easeOutCubic(progress);
+        this.targetCamX = this.lerp(startCamX, finalTargetCamX, eased);
+        this.targetCamY = this.lerp(startCamY, finalTargetCamY, eased);
         this.targetCamZ = this.lerp(startCamZ, finalTargetCamZ, eased);
         
         if (progress >= 1.0) {
+          this.targetCamX = finalTargetCamX;
+          this.targetCamY = finalTargetCamY;
           this.targetCamZ = finalTargetCamZ;
           resolve();
         }
@@ -2686,14 +2711,17 @@ export class ThreeRendererService {
   private async loadTexture(url: string): Promise<THREE.Texture> {
     // Check cache first
     if (this.textureCache.has(url)) {
+      console.log('[RENDERER] Texture already cached for URL:', url.substring(0, 80));
       return this.textureCache.get(url)!;
     }
 
     // Check if already loading
     if (this.loadingTextures.has(url)) {
+      console.log('[RENDERER] Texture already loading for URL:', url.substring(0, 80));
       return this.loadingTextures.get(url)!;
     }
 
+    console.log('[RENDERER] Starting to load texture for URL:', url.substring(0, 80));
     // Start loading with image downscaling
     const loadPromise = this.loadAndDownscaleImage(url).then(texture => {
       texture.colorSpace = THREE.SRGBColorSpace;
@@ -2706,8 +2734,10 @@ export class ThreeRendererService {
       this.textureCache.set(url, texture);
       this.loadingTextures.delete(url);
       
+      console.log('[RENDERER] Texture loaded and cached for URL:', url.substring(0, 80));
       return texture;
     }).catch(error => {
+      console.error('[RENDERER] Failed to load texture for URL:', url.substring(0, 80), 'Error:', error);
       this.loadingTextures.delete(url);
       throw error;
     });
