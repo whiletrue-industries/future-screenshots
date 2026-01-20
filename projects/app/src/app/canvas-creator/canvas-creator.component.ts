@@ -87,6 +87,11 @@ export class CanvasCreatorComponent implements AfterViewInit {
   private readonly FONT_SCALE_ARABIC = 0.65; // 30% reduction for Mikhak
   private readonly FONT_SCALE_ENGLISH = 1.0;  // No scaling for Caveat
   
+  // Line-height scale factors for Hebrew and Arabic (140% of standard)
+  private readonly LINE_HEIGHT_SCALE_HEBREW = 1.38;
+  private readonly LINE_HEIGHT_SCALE_ARABIC = 1.38;
+  private readonly LINE_HEIGHT_SCALE_ENGLISH = 1.0;
+  
   private injector = inject(Injector);
   
   // Template gallery with new order
@@ -129,9 +134,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
           properties: {
             id: 'textbox-1',
             placeholder: 'Name',
-            'line-height': 0.75,
-            width: 202,
-            height: 32,
+            'line-height': 1,
+              width: 202,
+              height: 32,
           },
         },
         {
@@ -140,7 +145,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
           properties: {
             id: 'textbox-2',
             placeholder: 'Type here...',
-            'line-height': 0.75,
+            'line-height': 1,
             width: 243,
             height: 32,
           },
@@ -1244,6 +1249,19 @@ export class CanvasCreatorComponent implements AfterViewInit {
   }
 
   /**
+   * Calculate line-height scale factor for Hebrew and Arabic texts.
+   * Hebrew and Arabic texts need 140% line-height compared to English for better readability.
+   */
+  private getLineHeightScale(fontFamily: string): number {
+    if (fontFamily.includes('Gadi Almog')) {
+      return this.LINE_HEIGHT_SCALE_HEBREW;
+    } else if (fontFamily.includes('Mikhak')) {
+      return this.LINE_HEIGHT_SCALE_ARABIC;
+    }
+    return this.LINE_HEIGHT_SCALE_ENGLISH;
+  }
+
+  /**
    * Apply font size scaling when switching between languages.
    * Adjusts font size to maintain consistent visual x-height across different scripts.
    */
@@ -1253,10 +1271,16 @@ export class CanvasCreatorComponent implements AfterViewInit {
     // Only adjust font size if the font family is actually changing
     if (prevFont !== newFontFamily) {
       // Get scale factors for old and new fonts
-      const prevScale = this.getFontSizeScale(prevFont);
-      const newScale = this.getFontSizeScale(newFontFamily);
+      const prevFontScale = this.getFontSizeScale(prevFont);
+      const newFontScale = this.getFontSizeScale(newFontFamily);
       // Adjust font size to maintain consistent visual size
-      textbox.fontSize = (textbox.fontSize / prevScale) * newScale;
+      textbox.fontSize = (textbox.fontSize / prevFontScale) * newFontScale;
+      
+      // Also adjust line-height scaling for the new font
+      const prevLineHeightScale = this.getLineHeightScale(prevFont);
+      const newLineHeightScale = this.getLineHeightScale(newFontFamily);
+      // Recalculate line-height with new scaling factor
+      textbox.lineHeight = (textbox.lineHeight / prevLineHeightScale) * newLineHeightScale;
     }
   }
   
@@ -1300,14 +1324,19 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const fabricCanvas = this.canvas();
     if (!fabricCanvas) return;
     
+    const fontFamily = this.selectedFont();
+    const lineHeightScale = this.getLineHeightScale(fontFamily);
+    const scaledLineHeight = this.selectedLineHeight() * lineHeightScale;
+    
     const text = new fabric.Textbox('Type above transition...', {
       left: 180,
       top: 1850,
-      fontFamily: this.selectedFont(),
+      fontFamily: fontFamily,
       fontSize: 20,
       fill: this.currentColor(),
       textAlign: 'center',
       width: 320,
+      lineHeight: scaledLineHeight,
     });
     this.configureTextbox(text);
     fabricCanvas.add(text);
@@ -1495,7 +1524,11 @@ export class CanvasCreatorComponent implements AfterViewInit {
     if (!fabricCanvas) return;
     const active = fabricCanvas.getActiveObject();
     if (active && active.type === 'textbox') {
-      active.set('lineHeight', lineHeight);
+      // Apply line-height scale factor for Hebrew and Arabic
+      const fontFamily = active.fontFamily || this.selectedFont();
+      const scale = this.getLineHeightScale(fontFamily);
+      const scaledLineHeight = lineHeight * scale;
+      active.set('lineHeight', scaledLineHeight);
       fabricCanvas.requestRenderAll();
     }
   }
@@ -1517,16 +1550,20 @@ export class CanvasCreatorComponent implements AfterViewInit {
     if (!targetCanvas) return;
     const placeholderColor = '#9aa0a6';
     // Create textbox with placeholder text visible
+    const fontFamily = this.selectedFont();
+    const lineHeightScale = this.getLineHeightScale(fontFamily);
+    const scaledLineHeight = this.selectedLineHeight() * lineHeightScale;
+    
     const text = new fabric.Textbox(placeholderText, {
       left: x,
       top: y,
-      fontFamily: this.selectedFont(),
+      fontFamily: fontFamily,
       fontSize: 28,
       fill: placeholderColor,
       width: width || Math.min(360, targetCanvas.getWidth() * 0.6),
       height: this.selectedHeight(),
       editable: false,
-      lineHeight: this.selectedLineHeight(),
+      lineHeight: scaledLineHeight,
       textAlign: (textAlign as any) || 'left',
       originY: (originY as any) || 'top',
       originX: (originX as any) || 'left',
@@ -1869,6 +1906,13 @@ export class CanvasCreatorComponent implements AfterViewInit {
               
               // Clear placeholder state that was saved (don't restore it)
               obj._placeholder = false;
+              
+              // Apply line-height scaling based on font family when loading
+              const fontFamily = obj.fontFamily || this.selectedFont();
+              const lineHeightScale = this.getLineHeightScale(fontFamily);
+              if (obj.lineHeight) {
+                obj.lineHeight = obj.lineHeight * lineHeightScale;
+              }
               
               // Re-attach event handlers
               obj.on('editing:entered', () => {
