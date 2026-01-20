@@ -1241,21 +1241,6 @@ export class ThreeRendererService {
     this.container.appendChild(this.svgContainer);
   }
 
-  private animateMaterialOpacity(material: THREE.Material, targetOpacity: number, durationMs = 600): void {
-    const startOpacity = (material as any).opacity ?? 1;
-    const start = performance.now();
-    const animate = (now: number) => {
-      const t = Math.min(1, (now - start) / durationMs);
-      const eased = t * (2 - t); // easeOutQuad
-      (material as any).opacity = startOpacity + (targetOpacity - startOpacity) * eased;
-      material.needsUpdate = true;
-      if (t < 1) {
-        requestAnimationFrame(animate);
-      }
-    };
-    requestAnimationFrame(animate);
-  }
-
   /**
    * Create dragging preview widget
    */
