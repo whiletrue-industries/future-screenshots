@@ -157,13 +157,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
           "features": [
             {
               "type": "Feature",
-              "geometry": {
-                "type": "Point",
-                "coordinates": [
-                  71,
-                  540
-                ]
-              },
+              geometry: { type: 'Point', coordinates: [80, 610] },
               "properties": {
                 "id": "textbox-0",
                 "placeholder": "transition",
@@ -266,13 +260,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
       "features": [
         {
           "type": "Feature",
-          "geometry": {
-            "type": "Point",
-            "coordinates": [
-                  71,
-                  540
-            ]
-          },
+          geometry: { type: 'Point', coordinates: [80, 604] },
           "properties": {
             "id": "textbox-0",
             "placeholder": "transition",
