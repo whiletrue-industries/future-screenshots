@@ -4,6 +4,7 @@ import { PlatformService } from '../../platform.service';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
 import { QrcodeComponent } from "./qrcode/qrcode.component";
+import { DragConfirmationToastComponent } from './drag-confirmation-toast/drag-confirmation-toast.component';
 import { FisheyeSettings } from './settings-panel.component';
 import { PhotoData, PhotoAnimationState, PhotoMetadata } from './photo-data';
 import { ThreeRendererService } from './three-renderer.service';
@@ -17,11 +18,11 @@ import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
-import e from 'express';
+import { MathUtils } from 'three';
 
 @Component({
   selector: 'app-showcase-ws',
-  imports: [QrcodeComponent],
+  imports: [QrcodeComponent, DragConfirmationToastComponent],
   templateUrl: './showcase-ws.component.html',
   styleUrl: './showcase-ws.component.less'
 })
@@ -43,6 +44,15 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   enableSvgAutoPositioning = signal(true);
   fisheyeEnabled = signal(false);
   currentZoomLevel = signal(1.0); // Track current zoom level for UI display
+  
+  // Toast data signal for drag confirmation
+  toastData = signal<{
+    photoUrl: string;
+    photoRotation: number;
+    plausibility: number;
+    favorableFuture: 'prefer' | 'prevent';
+    photoId: string;
+  } | null>(null);
   
   // Check if user has admin access
   isAdmin = computed(() => this.admin_key() !== '' && this.admin_key() !== 'ADMIN_KEY_NOT_SET');
@@ -707,6 +717,23 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           // Update photo metadata with hotspot zone data
           photo.updateMetadata(hotspotData);
           console.log('[HOTSPOT-DROP] Updated metadata for photo', photoId, 'new metadata:', photo.metadata);
+          
+          // Show toast with photo data
+          if (photo.mesh) {
+            const plausibility = photo.metadata['plausibility'] as number ?? 50;
+            const favorableFuture = (photo.metadata['favorable_future'] as string)?.toLowerCase().includes('prefer') ? 'prefer' : 'prevent';
+            const photoRotation = MathUtils.radToDeg(photo.mesh.rotation.z);
+            
+            this.toastData.set({
+              photoUrl: photo.url,
+              photoRotation,
+              plausibility,
+              favorableFuture,
+              photoId
+            });
+            
+            console.log('[TOAST] Showing toast with data:', this.toastData());
+          }
         }
         
         // Save metadata to API
@@ -747,6 +774,18 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         const newAuthorId = photo.metadata['author_id'] as string;
         if (newAuthorId && newAuthorId !== oldAuthorId) {
           await this.recalculateClusterLayout(newAuthorId);
+        }
+        
+        // Auto-zoom camera to fit all items after composition changes
+        if (!isDraggedOut) {
+          // Get all photo positions for camera fit
+          const allPhotos = this.photoRepository.getAllPhotos();
+          const positions = allPhotos.map(p => ({ x: p.currentPosition.x, y: p.currentPosition.y }));
+          
+          // Fit camera to show all items
+          if (positions.length > 0) {
+            await this.rendererService.fitCameraToBounds(positions);
+          }
         }
       });
 
@@ -884,6 +923,47 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       maxHeight: settings.maxHeight,
       viewportHeight: window.innerHeight
     });
+  }
+
+  /**
+   * Handle ambivalence toggle from toast component
+   */
+  onAmbivalenceToggled(event: { photoId: string; newValue: string }): void {
+    console.log('[TOAST] Ambivalence toggled:', event);
+    
+    const photo = this.photoRepository.getPhotoById(event.photoId);
+    if (!photo) {
+      console.warn('[TOAST] Photo not found:', event.photoId);
+      return;
+    }
+    
+    // Update metadata locally
+    photo.updateMetadata({
+      favorable_future: event.newValue
+    });
+    
+    // Save to API
+    if (this.workspace() && this.admin_key() && 
+        this.workspace() !== 'WORKSPACE_NOT_SET' && this.admin_key() !== 'ADMIN_KEY_NOT_SET') {
+      this.apiService.updateProperties({
+        favorable_future: event.newValue
+      }, event.photoId).subscribe({
+        next: () => {
+          console.log('[TOAST] Saved ambivalence toggle to API');
+        },
+        error: (error) => {
+          console.error('[TOAST] Error saving ambivalence toggle to API:', error);
+        }
+      });
+    }
+  }
+
+  /**
+   * Handle toast closed event
+   */
+  onToastClosed(): void {
+    console.log('[TOAST] Toast closed');
+    this.toastData.set(null);
   }
 
   ngOnDestroy() {

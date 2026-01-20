@@ -408,6 +408,72 @@ export class ThreeRendererService {
     });
   }
 
+  /**
+   * Animate mesh position with custom easing
+   */
+  animatePositionWithEasing(
+    mesh: THREE.Mesh,
+    fromPosition: { x: number; y: number; z: number },
+    toPosition: { x: number; y: number; z: number },
+    durationSec: number,
+    easing: 'easeOutBack' | 'easeOutCubic' | 'easeInOutCubic' = 'easeOutCubic'
+  ): Promise<void> {
+    return new Promise((resolve) => {
+      const tweenFn = this.makeTween(durationSec, (progress: number) => {
+        let eased: number;
+        switch (easing) {
+          case 'easeOutBack':
+            eased = this.easeOutBack(progress);
+            break;
+          case 'easeInOutCubic':
+            eased = this.easeInOutCubic(progress);
+            break;
+          default:
+            eased = this.easeOutCubic(progress);
+        }
+        
+        const x = this.lerp(fromPosition.x, toPosition.x, eased);
+        const y = this.lerp(fromPosition.y, toPosition.y, eased);
+        const z = this.lerp(fromPosition.z, toPosition.z, eased);
+        
+        mesh.position.set(x, y, z);
+        
+        if (progress >= 1.0) {
+          mesh.position.set(toPosition.x, toPosition.y, toPosition.z);
+          resolve();
+        }
+      });
+      
+      this.addTween(tweenFn);
+    });
+  }
+
+  /**
+   * Animate mesh rotation
+   */
+  animateRotation(
+    mesh: THREE.Mesh,
+    fromRotation: number,
+    toRotation: number,
+    durationSec: number
+  ): Promise<void> {
+    return new Promise((resolve) => {
+      const tweenFn = this.makeTween(durationSec, (progress: number) => {
+        const eased = this.easeOutCubic(progress);
+        const rotation = this.lerp(fromRotation, toRotation, eased);
+        
+        mesh.rotation.z = rotation;
+        
+        if (progress >= 1.0) {
+          mesh.rotation.z = toRotation;
+          resolve();
+        }
+      });
+      
+      this.addTween(tweenFn);
+    });
+  }
+
   // Camera management
   updateCameraTarget(newBounds: SceneBounds): void {
     this.bounds = { ...newBounds };
@@ -1429,15 +1495,18 @@ export class ThreeRendererService {
    * Calculate preview rotation when hovering over a hotspot zone
    */
   private calculatePreviewRotation(photoData: PhotoData, hotspotData: { [key: string]: string | number }): number {
-    const plausibility = photoData.metadata['plausibility'] as number | undefined;
+    // Use hotspot's plausibility if available, otherwise fallback to photo's plausibility
+    const plausibility = (hotspotData['plausibility'] as number | undefined) ?? (photoData.metadata['plausibility'] as number | undefined);
     const favorableFuture = hotspotData['favorable_future'] as string | undefined;
     
     if (plausibility === undefined || !favorableFuture) {
       return this.draggedMesh?.userData['previewOriginalRotation'] || 0;
     }
     
-    const normalizedPlaus = plausibility / 100;
-    const magnitude = (1 - normalizedPlaus) * 32;
+    // Map plausibility to rotation: 0→32°, 25→24°, 50→16°, 75→8°, 100→0°
+    const rotationMap = new Map([[0, 32], [25, 24], [50, 16], [75, 8], [100, 0]]);
+    const magnitude = rotationMap.get(plausibility) ?? (1 - plausibility / 100) * 32;
+    
     const favorableLower = favorableFuture.toLowerCase().trim();
     const isFavor = favorableLower === 'favor' || favorableLower === 'favorable'
       || favorableLower === 'prefer' || favorableLower === 'preferred';
@@ -1983,12 +2052,24 @@ export class ThreeRendererService {
                 _svgZoneFavorableFuture: undefined
               });
               
-              // Update rotation to 0°
-              draggedMesh.rotation.z = 0;
+              // Animate back to cluster position with easeOutBack
+              const targetPosition = photoData.targetPosition;
+              const currentPosition = draggedMesh.position;
+              
+              const startPos = { x: currentPosition.x, y: currentPosition.y, z: currentPosition.z };
+              const endPos = { x: targetPosition.x, y: targetPosition.y, z: targetPosition.z };
+              
+              // Animate position with easeOutBack (600ms)
+              this.animatePositionWithEasing(draggedMesh, startPos, endPos, 0.6, 'easeOutBack');
+              
+              // Animate rotation back to 0° or cluster rotation
+              const startRotation = draggedMesh.rotation.z;
+              const endRotation = this.calculatePhotoRotation(photoData);
+              this.animateRotation(draggedMesh, startRotation, endRotation, 0.6);
               
               // Trigger async callback to save to API (fire and forget)
               if (this.onHotspotDropCallback) {
-                const position = { x: draggedMesh.position.x, y: draggedMesh.position.y, z: draggedMesh.position.z };
+                const position = { x: endPos.x, y: endPos.y, z: endPos.z };
                 // Use empty object for cleared metadata (callback will handle undefined values)
                 this.onHotspotDropCallback(photoId, {}, position).catch(error => {
                   console.error('[DRAG-OUT] Error saving cleared metadata:', error);

@@ -1,0 +1,68 @@
+@if (isVisible() && data()) {
+  <div class="toast-container">
+    <div class="toast-content">
+      <!-- Photo Preview with Pin Overlay -->
+      <div class="photo-preview">
+        <img 
+          [src]="data()!.photoUrl" 
+          [style.transform]="'rotate(' + data()!.photoRotation + 'deg)'"
+          alt="Photo preview"
+        />
+        <img 
+          class="pin-overlay" 
+          [src]="pinImagePath()" 
+          alt="Pin indicator"
+        />
+      </div>
+      
+      <!-- Evaluation Info -->
+      <div class="evaluation-info">
+        <div class="evaluation-row">
+          <span class="label">Potential:</span>
+          <span class="value">{{ plausibilityText() }}</span>
+        </div>
+        <div class="evaluation-row">
+          <span class="label">Favorable Future:</span>
+          <span class="value">{{ favorableFutureText() }}</span>
+        </div>
+      </div>
+      
+      <!-- Ambivalence Toggle -->
+      <button 
+        class="ambivalence-toggle"
+        [class.active]="isAmbivalent()"
+        (click)="toggleAmbivalence()"
+      >
+        Toggle Ambivalence
+      </button>
+      
+      <!-- Countdown Timer with Close Button -->
+      <div class="countdown-container">
+        <svg class="countdown-circle" width="48" height="48">
+          <circle 
+            cx="24" 
+            cy="24" 
+            r="20" 
+            fill="none" 
+            stroke="#E0E0E0" 
+            stroke-width="3"
+          />
+          <circle 
+            cx="24" 
+            cy="24" 
+            r="20" 
+            fill="none" 
+            [attr.stroke]="data()!.favorableFuture === 'prefer' ? '#698CFF' : '#F73C3C'"
+            stroke-width="3"
+            stroke-linecap="round"
+            [style.stroke-dasharray]="'125.6'"
+            [style.stroke-dashoffset]="125.6 * (1 - countdownProgress() / 100)"
+            [style.transform]="'rotate(-90deg)'"
+            [style.transform-origin]="'center'"
+          />
+        </svg>
+        <button class="close-button" (click)="hide()" aria-label="Close">×</button>
+      </div>
+    </div>
+  </div>
+}

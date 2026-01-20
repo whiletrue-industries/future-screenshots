@@ -1,0 +1,147 @@
+@import '../../../common.less';
+
+.toast-container {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  animation: slideInUp 0.3s ease-out;
+  padding-bottom: 24px;
+}
+
+.toast-content {
+  background: @color-white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  min-width: 320px;
+  max-width: 400px;
+}
+
+.photo-preview {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+  
+  .pin-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100px;
+    height: 100px;
+    pointer-events: none;
+  }
+}
+
+.evaluation-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.evaluation-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 16px;
+  .font-sans;
+  
+  .label {
+    color: @color-gray;
+    font-weight: 400;
+  }
+  
+  .value {
+    color: @color-primary;
+    font-weight: 700;
+  }
+}
+
+.ambivalence-toggle {
+  width: 100%;
+  height: 48px;
+  border-radius: 16px;
+  border: 2px solid @color-accent-100;
+  background: @color-primary-50;
+  color: @color-primary;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  .font-sans;
+  
+  &:hover {
+    background: @color-accent-100;
+  }
+  
+  &.active {
+    background: @color-primary;
+    color: @color-white;
+    border-color: @color-primary;
+  }
+}
+
+.countdown-container {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.countdown-circle {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.close-button {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: @color-primary;
+  color: @color-white;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  
+  &:hover {
+    background: @color-light-purple;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateX(-50%) translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
