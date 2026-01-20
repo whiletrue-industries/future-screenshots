@@ -203,9 +203,11 @@ export class ThreeRendererService {
     const rotation = this.calculatePhotoRotation(photoData);
     mesh.rotation.z = rotation;
     
-    console.log('[RENDERER] Adding mesh to scene for photo:', photoData.id, 'at position:', mesh.position, 'opacity:', (mesh.material as THREE.MeshBasicMaterial).opacity);
+    const materialOpacity = mesh.material instanceof THREE.MeshBasicMaterial ? mesh.material.opacity : 'unknown';
+    console.log('[RENDERER] Adding mesh to scene for photo:', photoData.id, 'at position:', mesh.position, 'opacity:', materialOpacity);
     this.root.add(mesh);
-    console.log('[RENDERER] Mesh added. Root group now has', this.root.children.length, 'children. Camera at z:', this.camera.position.z);
+    const cameraZ = this.camera?.position.z ?? 'not initialized';
+    console.log('[RENDERER] Mesh added. Root group now has', this.root.children.length, 'children. Camera at z:', cameraZ);
     photoData.setMesh(mesh);
     // Track PhotoData for hover/fisheye so positions stay current after layout changes
     this.meshToPhotoData.set(mesh, photoData);
