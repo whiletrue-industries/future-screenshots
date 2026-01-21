@@ -104,6 +104,15 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     return this.calculateEvaluationRotationDeg(photo) / 32; // normalized -1..1
   }
 
+  /**
+   * Check if a photo has evaluation data (plausibility + favorable_future)
+   */
+  private hasEvaluationData(photo: PhotoData): boolean {
+    const plausibility = photo.metadata['plausibility'];
+    const favorableFuture = photo.metadata['_svgZoneFavorableFuture'] || photo.metadata['favorable_future'];
+    return plausibility !== undefined && favorableFuture !== undefined;
+  }
+
   getConfiguration(): LayoutConfiguration {
     return {
       name: 'svg-background',
@@ -320,45 +329,47 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       return restoredPosition;
     }
     
-    // Priority 2: Check for rejected status - hide rejected photos by returning null
-    const moderation = photoData.metadata['_private_moderation'] as number | undefined;
-    if (moderation === 0) { // Rejected
-      return null;
-    }
-    
-    // Priority 3: If auto-positioning is enabled, try to get position from metadata-hotspot matching
+    // Priority 2: If auto-positioning is enabled, try to get position from metadata-hotspot matching
     if (enableAutoPositioning) {
-      const autoPosition = this.getAutoPositionFromMetadata(photoData);
-      if (autoPosition) {
-        // Apply SVG offset to match the rendered SVG position
-        const x = autoPosition.auto_x * this.options.circleRadius + this.options.svgOffsetX;
-        const y = autoPosition.auto_y * this.options.circleRadius + this.options.svgOffsetY;
+      // Check if photo has evaluation data (plausibility + favorable_future)
+      if (this.hasEvaluationData(photoData)) {
+        // Items with evaluation data should be placed on the SVG
+        const autoPosition = this.getAutoPositionFromMetadata(photoData);
+        if (autoPosition) {
+          // Apply SVG offset to match the rendered SVG position
+          const x = autoPosition.auto_x * this.options.circleRadius + this.options.svgOffsetX;
+          const y = autoPosition.auto_y * this.options.circleRadius + this.options.svgOffsetY;
+          
+          const autoPositionData: LayoutPosition = {
+            x,
+            y,
+            metadata: {
+              layoutType: 'auto-positioned',
+              auto_x: autoPosition.auto_x,
+              auto_y: autoPosition.auto_y,
+              circleRadius: this.options.circleRadius,
+              svgOffsetX: this.options.svgOffsetX,
+              svgOffsetY: this.options.svgOffsetY
+            }
+          };
+          
+          this.photoPositions.set(photoData.id, autoPositionData);
+          photoData.setProperty('svgLayoutPosition', autoPositionData);
+          return autoPositionData;
+        }
         
-        const autoPositionData: LayoutPosition = {
-          x,
-          y,
-          metadata: {
-            layoutType: 'auto-positioned',
-            auto_x: autoPosition.auto_x,
-            auto_y: autoPosition.auto_y,
-            circleRadius: this.options.circleRadius,
-            svgOffsetX: this.options.svgOffsetX,
-            svgOffsetY: this.options.svgOffsetY
-          }
-        };
-        
-        this.photoPositions.set(photoData.id, autoPositionData);
-        photoData.setProperty('svgLayoutPosition', autoPositionData);
-        return autoPositionData;
+        // If evaluation data exists but no hotspot match, the getAutoPositionFromMetadata
+        // already defaulted transition_bar_position to 'during' but still returned null.
+        // This means the hotspot for 'during' doesn't exist or doesn't match.
+        // We should still return null to preserve cluster position in this case.
+        console.warn('[SVG-LAYOUT] Photo has evaluation data but no matching hotspot:', photoData.id);
       }
       
-      // If auto-positioning is enabled but this photo doesn't match any hotspot,
-      // preserve its cluster position by returning null.
-      // This prevents items from being repositioned when switching to SVG view.
+      // Items without evaluation data should preserve their cluster positions
       return null;
     }
     
-    // Priority 4: Check if photo has a saved SVG layout position from previous session
+    // Priority 3: Check if photo has a saved SVG layout position from previous session
     const savedSvgPosition = photoData.getProperty<LayoutPosition>('svgLayoutPosition');
 
     if (savedSvgPosition && savedSvgPosition.metadata?.['layoutType'] === 'proportional-circular') {
