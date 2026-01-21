@@ -108,28 +108,16 @@ export class CanvasCreatorComponent implements AfterViewInit {
     { id: 'prompt', name: 'Prompt', url: '/templates/FS_template_prompt.png', preview: '/templates/FS_template_prompt.png' },
     { id: 'photo', name: 'Photo', url: '/templates/FS_template_photo.png', preview: '/templates/FS_template_photo.png' },
     { id: 'sign', name: 'Sign', url: '/templates/FS_template_sign.png', preview: '/templates/FS_template_sign.png' },
-    { id: 'holyland', name: 'Holy Land', url: '/templates/FS_template_holyland.png', preview: '/templates/FS_template_holyland.png' },
+    // { id: 'holyland', name: 'Holy Land', url: '/templates/FS_template_holyland.png', preview: '/templates/FS_template_holyland.png' },
     { id: 'world', name: 'World', url: '/templates/FS_template_world.png', preview: '/templates/FS_template_world.png' },
-    { id: 'jerusalem', name: 'Jerusalem', url: '/templates/FS_template_jerusalem.png', preview: '/templates/FS_template_jerusalem.png' },
-    { id: 'europe', name: 'Europe', url: '/templates/FS_template_europe.png', preview: '/templates/FS_template_europe.png' },
+    // { id: 'jerusalem', name: 'Jerusalem', url: '/templates/FS_template_jerusalem.png', preview: '/templates/FS_template_jerusalem.png' },
     { id: 'us', name: 'United States', url: '/templates/FS_template_US.png', preview: '/templates/FS_template_US.png' },
+    { id: 'europe', name: 'Europe', url: '/templates/FS_template_europe.png', preview: '/templates/FS_template_europe.png' },
   ];
 
-  // Filtered templates based on workspace configuration
+  // Show all templates (filtering disabled)
   templates = computed(() => {
-    const workspace = this.api.workspace();
-    const activeTemplates = workspace?.metadata?.active_templates;
-    
-    // If no active_templates configured, use defaults (all except jerusalem, europe, us)
-    if (!activeTemplates || activeTemplates.length === 0) {
-      return this.allTemplates.filter(t => !['jerusalem', 'europe', 'us'].includes(t.id));
-    }
-    
-    // Otherwise, filter based on workspace configuration
-    const filtered = this.allTemplates.filter(t => activeTemplates.includes(t.id));
-    
-    // Ensure at least one template is available to prevent runtime errors
-    return filtered.length > 0 ? filtered : this.allTemplates;
+    return this.allTemplates;
   });
 
   // Template presets: GeoJSON with textbox positions and properties

@@ -33,7 +33,10 @@ export class WorkspaceFormComponent implements OnInit {
     languages: [],
     facilitator_names: [''],
     keywords: [],
-    active_templates: [],
+    active_templates: [
+      'post', 'chat', 'notification', 'review', 'prompt', 
+      'photo', 'sign', 'holyland', 'world'
+    ], // Default: all except jerusalem, europe, us
     'context-label': '',
     source: '',
     'email-template': ''
