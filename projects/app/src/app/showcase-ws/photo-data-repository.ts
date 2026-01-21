@@ -381,6 +381,10 @@ export class PhotoDataRepository {
           photo.setProperty('gridKey', newPosition.gridKey);
         }
         
+        if (this.renderer) {
+          this.renderer.updatePhotoRotation(photo);
+        }
+        
         // Animate both position and opacity to visible state
         if (photo.mesh) {
           const actualCurrentPosition = {
@@ -528,6 +532,10 @@ export class PhotoDataRepository {
           photo.setProperty('gridKey', newPosition.gridKey);
         }
         
+        if (this.renderer) {
+          this.renderer.updatePhotoRotation(photo);
+        }
+        
         // Animate both position and opacity to visible state
         if (photo.mesh) {
           const actualCurrentPosition = {
@@ -551,6 +559,11 @@ export class PhotoDataRepository {
         if (currentOpacity > 0) {
           // Keep current position and opacity - don't move or hide
           console.log('[REFRESH-LAYOUT] Preserving current position for photo:', photo.id);
+          
+          if (this.renderer) {
+            this.renderer.updatePhotoRotation(photo);
+          }
+          
           return;
         }
         

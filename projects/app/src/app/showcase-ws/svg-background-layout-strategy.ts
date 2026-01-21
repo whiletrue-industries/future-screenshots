@@ -330,9 +330,8 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     }
     
     // Priority 2: Check if photo has evaluation data (plausibility + favorable_future)
-    // Items with evaluation data should ALWAYS be placed on the SVG, regardless of enableAutoPositioning
+    // Items with evaluation data should ALWAYS be placed on the SVG
     if (this.hasEvaluationData(photoData)) {
-      // Items with evaluation data should be placed on the SVG
       const autoPosition = this.getAutoPositionFromMetadata(photoData);
       if (autoPosition) {
         // Apply SVG offset to match the rendered SVG position
@@ -356,12 +355,10 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         photoData.setProperty('svgLayoutPosition', autoPositionData);
         return autoPositionData;
       }
-      
-      // If evaluation data exists but no hotspot match, the getAutoPositionFromMetadata
-      // already defaulted transition_bar_position to 'during' but still returned null.
-      // This means the hotspot for 'during' doesn't exist or doesn't match.
-      // We should still return null to preserve cluster position in this case.
+
+      // No matching hotspot: keep the photo at its existing cluster position
       console.warn('[SVG-LAYOUT] Photo has evaluation data but no matching hotspot:', photoData.id);
+      return null;
     }
     
     // Items without evaluation data should preserve their cluster positions
@@ -402,172 +399,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     }
     
     return positions;
-  }
-
-  private generateRandomCircularPosition(): LayoutPosition {
-    // Random angle in radians
-    const angle = Math.random() * 2 * Math.PI;
-    
-    // Random radius with variation
-    const radiusVariation = (Math.random() - 0.5) * 2 * this.options.radiusVariation;
-    const radius = this.options.circleRadius + radiusVariation;
-    
-    // Calculate position
-    const x = this.options.centerX + Math.cos(angle) * radius;
-    const y = this.options.centerY + Math.sin(angle) * radius;
-    
-    return {
-      x,
-      y,
-      metadata: {
-        angle,
-        radius,
-        layoutType: 'circular'
-      }
-    };
-  }
-
-  private generateProportionalCircularPosition(photo: PhotoData, allPhotos: PhotoData[]): LayoutPosition {
-    // Group photos by their SVG group affinity (using circle packing logic)
-    const groupId = this.getPhotoGroupId(photo);
-    const photoGroups = this.groupPhotosByGroupId(allPhotos);
-    
-    // Calculate proportional slice angles for each group
-    const groupSlices = this.calculateGroupSlices(photoGroups);
-    const groupSlice = groupSlices.get(groupId);
-    
-    if (!groupSlice) {
-      // Fallback to random positioning if group not found
-      return this.generateRandomCircularPosition();
-    }
-    
-    // Find photo's position within its group
-    const groupPhotos = photoGroups.get(groupId) || [];
-    const photoIndex = groupPhotos.findIndex(p => p.id === photo.id);
-    const totalInGroup = groupPhotos.length;
-    
-    // Calculate angle within the group's slice with spacing between groups
-    const groupSpacing = 0.5; // 25% of full circle spacing between groups
-    const effectiveSliceWidth = (groupSlice.endAngle - groupSlice.startAngle) * (1 - groupSpacing);
-    const sliceCenter = (groupSlice.startAngle + groupSlice.endAngle) / 2;
-    
-    let angle: number;
-    if (totalInGroup === 1) {
-      // Single photo goes to center of slice
-      angle = sliceCenter;
-    } else {
-      // Distribute photos within the effective slice width
-      const photoSpacing = effectiveSliceWidth / totalInGroup;
-      const startAngle = sliceCenter - effectiveSliceWidth / 2;
-      angle = startAngle + (photoIndex + 0.5) * photoSpacing;
-    }
-    
-    // Create packed appearance with varied radius for each photo in the group
-    // Use consistent random seed based on photo ID for reproducible positioning
-    const photoSeed = this.hashCode(photo.id) / 2147483647; // Normalize to [-1, 1]
-    const groupRadiusVariation = this.options.radiusVariation * 0.8; // Use most of the variation for packing
-    const radiusVariation = photoSeed * groupRadiusVariation;
-    
-    // Add slight inward/outward variation based on group size for more natural packing
-    const groupPackingFactor = Math.min(totalInGroup / 10, 0.5); // More packing for larger groups
-    const packingVariation = (photoIndex / totalInGroup - 0.5) * groupPackingFactor * this.options.radiusVariation * 0.3;
-    
-    const radius = this.options.circleRadius + radiusVariation + packingVariation;
-    
-    // Calculate position
-    let x = this.options.centerX + Math.cos(angle) * radius;
-    const y = this.options.centerY + Math.sin(angle) * radius;
-    x = x * 0.5 + Math.sign(x) * radius;
-    
-    return {
-      x,
-      y,
-      metadata: {
-        angle,
-        radius,
-        groupId,
-        groupSlice,
-        photoIndex,
-        totalInGroup,
-        radiusVariation,
-        packingVariation,
-        layoutType: 'proportional-circular'
-      }
-    };
-  }
-
-  private getPhotoGroupId(photo: PhotoData): string {
-    // Use the same grouping logic as circle packing layout
-    // Priority 1: author_id from metadata
-    const authorId = photo.metadata['author_id'];
-    if (authorId) {
-      return `author:${authorId}`;
-    }
-        
-    // Priority 3: Generate random group ID and store it as a property
-    let randomId = photo.getProperty<string>('_svg_background_group_id');
-    if (!randomId) {
-      randomId = Math.random().toString(36).substring(2, 15);
-      photo.setProperty('_svg_background_group_id', randomId);
-    }
-    
-    return `random:${randomId}`;
-  }
-
-  private groupPhotosByGroupId(photos: PhotoData[]): Map<string, PhotoData[]> {
-    const groups = new Map<string, PhotoData[]>();
-    
-    for (const photo of photos) {
-      const groupId = this.getPhotoGroupId(photo);
-      if (!groups.has(groupId)) {
-        groups.set(groupId, []);
-      }
-      groups.get(groupId)!.push(photo);
-    }
-    
-    return groups;
-  }
-
-  private calculateGroupSlices(photoGroups: Map<string, PhotoData[]>): Map<string, { startAngle: number; endAngle: number; size: number }> {
-    const totalPhotos = Array.from(photoGroups.values()).reduce((sum, photos) => sum + photos.length, 0);
-    const groupSlices = new Map<string, { startAngle: number; endAngle: number; size: number }>();
-    
-    if (totalPhotos === 0) {
-      return groupSlices;
-    }
-    
-    
-    // Sort groups by size (descending) for consistent ordering
-    const sortedGroups = Array.from(photoGroups.entries())
-      .sort(([groupIdA, photosA], [groupIdB, photosB]) => {
-        // First by size (descending)
-        if (photosB.length !== photosA.length) {
-          return photosB.length - photosA.length;
-        }
-        // Then by group ID (ascending) for consistent ordering
-        return groupIdA.localeCompare(groupIdB);
-      });
-    
-    // Keep original circular distribution - view transition will reveal SVG
-    let currentAngle = 0;
-    const fullCircle = 2 * Math.PI;
-    
-    for (const [groupId, photos] of sortedGroups) {
-      const groupSize = photos.length;
-      const proportion = groupSize / totalPhotos;
-      const proportionalAngle = (groupSize / totalPhotos) * fullCircle;
-      const endAngle = currentAngle + proportionalAngle;
-      
-      groupSlices.set(groupId, {
-        startAngle: currentAngle,
-        endAngle: endAngle,
-        size: groupSize
-      });
-      
-      currentAngle = endAngle;
-    }
-    
-    return groupSlices;
   }
 
   /**
@@ -1478,6 +1309,8 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   private normalizeFavorableFuture(value: string | undefined): string {
     if (!value) return '';
     const v = value.toLowerCase().trim();
+    // Handle common misspellings/variants so they map consistently to hotspot metadata
+    if (v.includes('prevet')) return 'prevent';
     if (v.includes('prevent')) return 'prevent';
     if (v.includes('prefer')) return 'prefer';
     if (v.includes('uncertain')) return 'uncertain';

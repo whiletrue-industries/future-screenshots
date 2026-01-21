@@ -221,6 +221,11 @@ export class ThreeRendererService {
     console.log('[UPDATE_MESH] Photo:', photoData.id, 'mesh.rotation.z updated to', photoData.mesh.rotation.z, 'radians (', THREE.MathUtils.radToDeg(photoData.mesh.rotation.z).toFixed(1), '°)');
   }
 
+  updatePhotoRotation(photoData: PhotoData): void {
+    if (!photoData.mesh) return;
+    photoData.mesh.rotation.z = this.calculatePhotoRotation(photoData);
+  }
+
   removePhotoMesh(photoData: PhotoData): void {
     if (!photoData.mesh) return;
 

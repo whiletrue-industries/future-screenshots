@@ -11,7 +11,6 @@ import { LayoutStrategy } from './layout-strategy.interface';
 import { GridLayoutStrategy } from './grid-layout-strategy';
 import { TsneLayoutStrategy } from './tsne-layout-strategy';
 import { SvgBackgroundLayoutStrategy } from './svg-background-layout-strategy';
-import { SvgSideLayoutStrategy } from './svg-side-layout-strategy';
 import { CirclePackingLayoutStrategy } from './circle-packing-layout-strategy';
 import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
@@ -68,7 +67,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   loadedPhotoIds = new Set<string>();
   private layoutChangeInProgress = false;
   private svgBackgroundStrategy: SvgBackgroundLayoutStrategy | null = null;
-  private svgSideStrategy: SvgSideLayoutStrategy | null = null;
   // Store circle packing strategy to reuse when toggling SVG auto-positioning
   private circlePackingStrategy: CirclePackingLayoutStrategy | null = null;
   private readonly svgCircleRadius = 20000;
@@ -277,9 +275,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
   private async applySvgLayoutMode(enableAutoPositioning: boolean): Promise<void> {
     const backgroundStrategy = this.svgBackgroundStrategy;
-    const sideStrategy = this.svgSideStrategy;
 
-    if (!backgroundStrategy || !sideStrategy) {
+    if (!backgroundStrategy) {
       console.warn('[SVG] Strategies not initialized; run switchToSvgLayout first');
       return;
     }
@@ -759,11 +756,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       });
 
       // Needed when auto-positioning is enabled
-      this.svgSideStrategy = new SvgSideLayoutStrategy({
-        photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
-        photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
-        svgRadius: this.svgCircleRadius
-      });
       const svgElement = this.svgBackgroundStrategy.getSvgElement();
       if (svgElement) {
         // Place SVG to the left of clusters; keep items untouched
