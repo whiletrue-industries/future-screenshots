@@ -1737,7 +1737,8 @@ export class ThreeRendererService {
     });
 
     // Mouse up - stop dragging or panning
-    canvas.addEventListener('mouseup', () => {
+    canvas.addEventListener('mouseup', (event) => {
+      this.updateMousePosition(event);
       this.onMouseUp();
     });
 
@@ -1976,6 +1977,22 @@ export class ThreeRendererService {
       
       this.isDragging = false;
       
+      // If this was a click (no actual dragging), treat it as a photo click
+      if (isClick) {
+        const photoId = this.findPhotoIdForMesh(draggedMesh);
+        if (photoId && this.onPhotoClickCallback) {
+          console.log('[CLICK] Photo clicked (was about to drag but moved < threshold):', photoId);
+          
+          // Re-enable fisheye if it was enabled before dragging
+          if (this.wasFisheyeEnabled) {
+            this.fisheyeEnabled = true;
+          }
+          
+          this.onPhotoClickCallback(photoId);
+          return; // Exit early, don't process drag logic
+        }
+      }
+      
       // Animate preview widget drop with current matched hotspot
       this.animatePreviewWidgetDrop(this.currentMatchedHotspot);
       
@@ -2051,20 +2068,23 @@ export class ThreeRendererService {
       this.raycaster.setFromCamera(this.mouse, this.camera);
       const intersects = this.raycaster.intersectObjects(this.root.children, false);
       
-      if (intersects.length > 0 && this.dragCallbacks.has(intersects[0].object as THREE.Mesh)) {
-        // Clicked on a photo
+      if (intersects.length > 0) {
         const mesh = intersects[0].object as THREE.Mesh;
         const photoId = this.findPhotoIdForMesh(mesh);
+        
         if (photoId && this.onPhotoClickCallback) {
+          // Clicked on a photo
           console.log('[CLICK] Photo clicked:', photoId);
           this.onPhotoClickCallback(photoId);
-        }
-      } else {
-        // Clicked on background
-        if (this.onBackgroundClickCallback) {
+        } else if (!photoId && this.onBackgroundClickCallback) {
+          // Clicked on background
           console.log('[CLICK] Background clicked');
           this.onBackgroundClickCallback();
         }
+      } else if (this.onBackgroundClickCallback) {
+        // Clicked on empty area (no mesh intersected)
+        console.log('[CLICK] Background clicked');
+        this.onBackgroundClickCallback();
       }
     }
   }
