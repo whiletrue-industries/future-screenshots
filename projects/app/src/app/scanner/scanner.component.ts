@@ -98,6 +98,10 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
+    if (this.api.demo()) {
+      this.torchSupported.set(true);
+    }
+
     interval(100).pipe(
       takeUntilDestroyed(this.destroyRef),      
       filter(() => !!(window as any).jscanify !== undefined),
@@ -135,6 +139,9 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       video: true
     };
     constraints.video = this.getVideoConstraints();
+    if (this.api.demo()) {
+      this.torchSupported.set(true);
+    }
     if (this.platform.browser()) {
       navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
         this.stream = stream;
