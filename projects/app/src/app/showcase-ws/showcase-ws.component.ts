@@ -4,6 +4,7 @@ import { PlatformService } from '../../platform.service';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
 import { QrcodeComponent } from "./qrcode/qrcode.component";
+import { EvaluationSidebarComponent } from "./evaluation-sidebar/evaluation-sidebar.component";
 import { FisheyeSettings } from './settings-panel.component';
 import { PhotoData, PhotoAnimationState, PhotoMetadata } from './photo-data';
 import { ThreeRendererService } from './three-renderer.service';
@@ -21,7 +22,7 @@ import e from 'express';
 
 @Component({
   selector: 'app-showcase-ws',
-  imports: [QrcodeComponent],
+  imports: [QrcodeComponent, EvaluationSidebarComponent],
   templateUrl: './showcase-ws.component.html',
   styleUrl: './showcase-ws.component.less'
 })
@@ -43,6 +44,18 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   enableSvgAutoPositioning = signal(true);
   fisheyeEnabled = signal(false);
   currentZoomLevel = signal(1.0); // Track current zoom level for UI display
+  
+  // Evaluation sidebar state
+  sidebarOpen = signal(false);
+  selectedItemId = signal<string | null>(null);
+  
+  // Get the selected item's key (if available)
+  selectedItemKey = computed(() => {
+    const itemId = this.selectedItemId();
+    if (!itemId) return null;
+    const photo = this.photoRepository.getPhoto(itemId);
+    return photo?.metadata?.['item_key'] || null;
+  });
   
   // Check if user has admin access
   isAdmin = computed(() => this.admin_key() !== '' && this.admin_key() !== 'ADMIN_KEY_NOT_SET');
@@ -112,7 +125,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             layout_y: item.layout_y,
             plausibility: item.plausibility,
             favorable_future: item.favorable_future,
-            transition_bar_position: transitionBarPosition
+            transition_bar_position: transitionBarPosition,
+            item_key: item.item_key  // Include item key for authentication
           };
           
           try {
@@ -158,7 +172,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
               author_id: item.author_id,
               plausibility: item.plausibility,
               favorable_future: item.favorable_future,
-              transition_bar_position: transitionBarPosition
+              transition_bar_position: transitionBarPosition,
+              item_key: item.item_key  // Include item key for authentication
             };
             console.log('[METADATA] New photo:', id, '-> plausibility:', item.plausibility, 'favorable_future:', item.favorable_future, 'transition_bar_position:', transitionBarPosition);
             
@@ -449,6 +464,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     await this.rendererService.initialize(container, {
       photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
       photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT
+    });
+
+    // Set up click callbacks for evaluation sidebar
+    this.rendererService.setPhotoClickCallback((photoId: string) => {
+      this.onPhotoClick(photoId);
+    });
+    this.rendererService.setBackgroundClickCallback(() => {
+      this.onBackgroundClick();
     });
 
     // Apply default fisheye settings immediately on init
@@ -885,6 +908,58 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       viewportHeight: window.innerHeight
     });
   }
+
+  /**
+   * Handle photo click - open evaluation sidebar
+   */
+  onPhotoClick(photoId: string): void {
+    console.log('[SHOWCASE_WS] Photo clicked:', photoId);
+    this.selectedItemId.set(photoId);
+    this.sidebarOpen.set(true);
+  }
+
+  /**
+   * Handle background click - close evaluation sidebar
+   */
+  onBackgroundClick(): void {
+    console.log('[SHOWCASE_WS] Background clicked');
+    this.sidebarOpen.set(false);
+    this.selectedItemId.set(null);
+  }
+
+  /**
+   * Handle sidebar close
+   */
+  onSidebarClose(): void {
+    console.log('[SHOWCASE_WS] Sidebar closed');
+    this.sidebarOpen.set(false);
+    this.selectedItemId.set(null);
+  }
+
+  /**
+   * Handle metadata updates from the sidebar
+   */
+  async onMetadataUpdated(event: { itemId: string; metadata: any }): Promise<void> {
+    console.log('[SHOWCASE_WS] Metadata updated:', event);
+    
+    const { itemId, metadata } = event;
+    const photo = this.photoRepository.getPhoto(itemId);
+    
+    if (photo) {
+      // Update photo metadata
+      photo.updateMetadata(metadata);
+      
+      // If on SVG layout with auto-positioning, trigger layout recalculation
+      if (this.currentLayout() === 'svg' && this.enableSvgAutoPositioning()) {
+        const authorId = photo.metadata['author_id'] as string;
+        if (authorId) {
+          console.log('[SHOWCASE_WS] Recalculating layout for cluster:', authorId);
+          await this.recalculateClusterLayout(authorId);
+        }
+      }
+    }
+  }
+
 
   ngOnDestroy() {
     this.destroy$.next();

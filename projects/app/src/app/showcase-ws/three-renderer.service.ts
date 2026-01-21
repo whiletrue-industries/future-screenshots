@@ -93,6 +93,13 @@ export class ThreeRendererService {
   // Hotspot drop callback
   private onHotspotDropCallback?: (photoId: string, hotspotData: { [key: string]: string | number }, position: { x: number, y: number, z: number }) => Promise<void>;
 
+  // Click callbacks
+  private onPhotoClickCallback?: (photoId: string) => void;
+  private onBackgroundClickCallback?: () => void;
+  private mouseDownPosition = new THREE.Vector2();
+  private clickThreshold = 5; // pixels - max movement to be considered a click
+  private readonly FALLBACK_MOUSE_MOVEMENT = 1000; // Large fallback value when coordinates unavailable
+
   // Dragging Preview Widget
   private previewWidget: HTMLElement | null = null;
   private previewImage: HTMLImageElement | null = null;
@@ -534,7 +541,7 @@ export class ThreeRendererService {
     
     // If either value is missing, use stable random rotation
     if (plausibility === undefined || plausibility === null || !favorableFuture) {
-      console.warn('[ROTATION] Missing data for photo:', photoData.id, '- plausibility:', plausibility, 'favorable_future:', favorableFuture);
+      // Suppress verbose logging - this is expected for items without evaluation data yet
       return this.getStableRandomRotation(photoData.id);
     }
     
@@ -1153,6 +1160,20 @@ export class ThreeRendererService {
   }
 
   /**
+   * Set the photo click callback
+   */
+  setPhotoClickCallback(callback: (photoId: string) => void): void {
+    this.onPhotoClickCallback = callback;
+  }
+
+  /**
+   * Set the background click callback
+   */
+  setBackgroundClickCallback(callback: () => void): void {
+    this.onBackgroundClickCallback = callback;
+  }
+
+  /**
    * Set layout strategy reference for debug visualization
    */
   setLayoutStrategyReference(strategy: any): void {
@@ -1716,7 +1737,8 @@ export class ThreeRendererService {
     });
 
     // Mouse up - stop dragging or panning
-    canvas.addEventListener('mouseup', () => {
+    canvas.addEventListener('mouseup', (event) => {
+      this.updateMousePosition(event);
       this.onMouseUp();
     });
 
@@ -1802,6 +1824,9 @@ export class ThreeRendererService {
   }
 
   private onMouseDown(event: MouseEvent): void {
+    // Store mouse down position for click detection
+    this.mouseDownPosition.set(event.clientX, event.clientY);
+    
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(this.root.children, false);
 
@@ -1935,6 +1960,13 @@ export class ThreeRendererService {
   }
 
   private onMouseUp(): void {
+    // Calculate mouse movement since mousedown (with null checks)
+    const mouseMovement = (this.lastClientX !== null && this.lastClientY !== null) ? Math.sqrt(
+      (this.lastClientX - this.mouseDownPosition.x) * (this.lastClientX - this.mouseDownPosition.x) +
+      (this.lastClientY - this.mouseDownPosition.y) * (this.lastClientY - this.mouseDownPosition.y)
+    ) : this.FALLBACK_MOUSE_MOVEMENT; // Fallback if coordinates unavailable
+    const isClick = mouseMovement < this.clickThreshold;
+    
     if (this.isDragging && this.draggedMesh) {
       const draggedMesh = this.draggedMesh; // Store reference before clearing
       
@@ -1944,6 +1976,22 @@ export class ThreeRendererService {
       }
       
       this.isDragging = false;
+      
+      // If this was a click (no actual dragging), treat it as a photo click
+      if (isClick) {
+        const photoId = this.findPhotoIdForMesh(draggedMesh);
+        if (photoId && this.onPhotoClickCallback) {
+          console.log('[CLICK] Photo clicked (was about to drag but moved < threshold):', photoId);
+          
+          // Re-enable fisheye if it was enabled before dragging
+          if (this.wasFisheyeEnabled) {
+            this.fisheyeEnabled = true;
+          }
+          
+          this.onPhotoClickCallback(photoId);
+          return; // Exit early, don't process drag logic
+        }
+      }
       
       // Animate preview widget drop with current matched hotspot
       this.animatePreviewWidgetDrop(this.currentMatchedHotspot);
@@ -2015,6 +2063,29 @@ export class ThreeRendererService {
     } else if (this.isPanning) {
       // Stop panning
       this.isPanning = false;
+    } else if (isClick && !this.isDragging) {
+      // Handle click events (not drag or pan)
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+      const intersects = this.raycaster.intersectObjects(this.root.children, false);
+      
+      if (intersects.length > 0) {
+        const mesh = intersects[0].object as THREE.Mesh;
+        const photoId = this.findPhotoIdForMesh(mesh);
+        
+        if (photoId && this.onPhotoClickCallback) {
+          // Clicked on a photo
+          console.log('[CLICK] Photo clicked:', photoId);
+          this.onPhotoClickCallback(photoId);
+        } else if (!photoId && this.onBackgroundClickCallback) {
+          // Clicked on background
+          console.log('[CLICK] Background clicked');
+          this.onBackgroundClickCallback();
+        }
+      } else if (this.onBackgroundClickCallback) {
+        // Clicked on empty area (no mesh intersected)
+        console.log('[CLICK] Background clicked');
+        this.onBackgroundClickCallback();
+      }
     }
   }
 
