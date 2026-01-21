@@ -226,6 +226,37 @@ width/height: 24px;  // Standard icon size
     transition: all 0.2s;
 
     &.primary {
+    ### Attention Animations
+
+    Use subtle, accessible motion to draw focus to newly-appearing interactive elements without causing distraction.
+
+    - **Pop-In (default):** brief scale-up to 1.06 then settle to 1 with a fade-in, using easing `cubic-bezier(0.22, 1, 0.36, 1)` and duration ~420ms.
+    - **Reduced Motion:** respect `prefers-reduced-motion: reduce` by switching to a minimal opacity fade (~160ms) and removing scale/bounce.
+    - **Performance:** animate `transform` and `opacity` only; set `transform-origin: center` and consider `will-change: transform, opacity` on targeted elements.
+    - **Consistency:** keep attention cues restrained; avoid repeated looping.
+
+    Example (component-scoped LESS):
+
+    ```less
+    .camera-button {
+        transform-origin: center;
+        will-change: transform, opacity;
+        animation: popIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    @keyframes popIn {
+        0%   { transform: translateX(-50%) scale(0.92); opacity: 0; }
+        60%  { transform: translateX(-50%) scale(1.06); opacity: 1; }
+        100% { transform: translateX(-50%) scale(1);    opacity: 1; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        :host .camera-button { animation: popFade 160ms ease-out both; }
+    }
+
+    @keyframes popFade { from { opacity: 0; } to { opacity: 1; } }
+    ```
+
         border: 1px solid @color-purple;
         background: @color-purple;
         color: @color-white;
