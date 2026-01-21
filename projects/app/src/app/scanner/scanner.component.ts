@@ -65,6 +65,10 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   points = signal<{x: number, y: number}[]>([]);
   cameraClicked = signal<boolean>(false);
   displayCameraButton = signal<boolean>(false);
+  displayTimeoutSubmitButton = signal<boolean>(false);
+  timeoutSubmitClicked = signal<boolean>(false);
+  scanStartTime: number = 0;
+  TIMEOUT_DURATION = 5000; // 5 seconds in milliseconds
 
   constructor(
     private el: ElementRef, 
@@ -262,6 +266,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     console.log('SAMPLE RATIO', sampleRatio);
 
     let count = 0;
+    this.scanStartTime = Date.now();
     interval(33).pipe(
       takeUntilDestroyed(this.destroyRef),
       takeUntil(this.stopScannerSubject),
@@ -316,6 +321,13 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       this.setPoints(shape?.snap ? shape?.cornerPoints || null : null);
       let frame = null;
 
+      // Check if timeout has elapsed and no valid edges found
+      const elapsedTime = Date.now() - this.scanStartTime;
+      if (elapsedTime >= this.TIMEOUT_DURATION && !shape?.valid && !this.displayTimeoutSubmitButton()) {
+        this.displayTimeoutSubmitButton.set(true);
+        this.displayMsgSubject.next($localize`Edges not detected. You can submit anyway.`);
+      }
+
       if (shape?.cornerPoints) {
         shape.cornerPoints.topLeftCorner.x *= sampleRatio;
         shape.cornerPoints.topLeftCorner.y *= sampleRatio;
@@ -358,6 +370,34 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
         }
       } else {
         this.countDown = this.COUNTDOWN_INITIAL;
+      }
+
+      // Handle timeout submit button click
+      if (this.timeoutSubmitClicked()) {
+        this.countDown = -1;
+        // Use default corner points (unadjusted frame)
+        const defaultCornerPoints = {
+          topLeftCorner: { x: videoWidth * 0.15, y: videoHeight * 0.15 },
+          topRightCorner: { x: videoWidth * 0.85, y: videoHeight * 0.15 },
+          bottomLeftCorner: { x: videoWidth * 0.15, y: videoHeight * 0.85 },
+          bottomRightCorner: { x: videoWidth * 0.85, y: videoHeight * 0.85 }
+        };
+        frame = scanner.extractPaper(this.canvasEl.nativeElement, 1060, 2000, defaultCornerPoints);
+        console.log('Extraction result (timeout):', frame);
+        this.stream?.getTracks().forEach((track) => {
+          if (track.readyState == 'live') {
+              track.stop();
+          }
+        });
+        this.videoEl.nativeElement.pause();
+        this.stream = null;
+        // Convert the result to a JPEG image
+        frame.toBlob((blob: Blob) => {
+          if (blob) {
+            this.state.setImage(blob);
+            this.router.navigate(['/confirm'], { queryParamsHandling: 'merge' });
+          }
+        }, 'image/jpeg', 0.95);
       }
     });
   }
