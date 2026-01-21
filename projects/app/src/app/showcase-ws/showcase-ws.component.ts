@@ -69,6 +69,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   private layoutChangeInProgress = false;
   private svgBackgroundStrategy: SvgBackgroundLayoutStrategy | null = null;
   private svgSideStrategy: SvgSideLayoutStrategy | null = null;
+  // Store circle packing strategy to reuse when toggling SVG auto-positioning
+  private circlePackingStrategy: CirclePackingLayoutStrategy | null = null;
   private readonly svgCircleRadius = 20000;
   qrUrl = computed(() => 
     `https://mapfutur.es/${this.lang()}prescan?workspace=${this.workspace()}&api_key=${this.api_key()}&ws=true`
@@ -282,31 +284,30 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    // Switch strategies based on requested mode
-    const strategy = enableAutoPositioning
-      ? backgroundStrategy
-      : new CirclePackingLayoutStrategy({
-          photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
-          photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
-          spacingX: PHOTO_CONSTANTS.SPACING_X,
-          spacingY: PHOTO_CONSTANTS.SPACING_Y,
-          groupBuffer: 1500,
-          photoBuffer: 0
-        });
+    // In SVG mode, always use the SvgBackgroundLayoutStrategy
+    const strategy = backgroundStrategy;
 
-    // Clear any lingering debug overlay when leaving auto-positioning mode
-    if (!enableAutoPositioning) {
+    // Update strategy reference for renderer
+    this.rendererService.setLayoutStrategyReference(strategy);
+
+    // Check if we need to switch strategy (first time entering SVG mode)
+    const currentStrategy = this.photoRepository.getLayoutStrategy();
+    if (currentStrategy !== strategy) {
+      // First time entering SVG mode - switch strategy
+      // This will position items with evaluation data on SVG, others keep cluster positions
+      await this.photoRepository.setLayoutStrategy(strategy);
+    }
+    // Note: No need to call refreshLayout when just toggling debug visualization
+    // Items with evaluation data are always on SVG regardless of the toggle
+
+    // Show/hide debug overlay based on toggle
+    if (enableAutoPositioning) {
+      this.showSvgHotspotDebugVisualization();
+    } else {
       const removeDebugOverlay = (backgroundStrategy as any).removeDebugOverlay;
       if (typeof removeDebugOverlay === 'function') {
         removeDebugOverlay.call(backgroundStrategy);
       }
-    }
-
-    await this.photoRepository.setLayoutStrategy(strategy);
-    this.rendererService.setLayoutStrategyReference(strategy);
-
-    if (enableAutoPositioning) {
-      this.showSvgHotspotDebugVisualization();
     }
 
     // Don't refit camera here - it causes unwanted zoom-out
@@ -658,6 +659,13 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // UI mode indicator only; we keep existing item positions (circle packing)
       this.currentLayout.set('svg');
       
+      // Store the current CirclePackingLayoutStrategy if it's active
+      const currentStrategy = this.photoRepository.getLayoutStrategy();
+      if (currentStrategy && currentStrategy.getConfiguration().name === 'circle-packing' && !this.circlePackingStrategy) {
+        console.log('[SVG-LAYOUT] Storing current CirclePackingLayoutStrategy for reuse');
+        this.circlePackingStrategy = currentStrategy as CirclePackingLayoutStrategy;
+      }
+      
       // Read optional `svg` query param to override background path
       const svgParam = this.activatedRoute.snapshot.queryParams['svg'];
       const svgPath = svgParam || '/showcase-bg.svg';
@@ -787,11 +795,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         console.warn('❌ SVG element is null, cannot set background');
       }
       
-      // Apply auto-positioning only if enabled; otherwise keep circle packing positions intact
+      // Always apply SVG layout mode when entering SVG view
+      // The strategy handles both auto-positioning and cluster modes via the enableSvgAutoPositioning flag
       this.photoRepository.setSvgAutoPositioningEnabled(this.enableSvgAutoPositioning());
-      if (this.enableSvgAutoPositioning()) {
-        await this.applySvgLayoutMode(true);
-      }
+      await this.applySvgLayoutMode(this.enableSvgAutoPositioning());
     } catch (error) {
       console.error('Error switching to SVG layout:', error);
     } finally {
@@ -812,15 +819,21 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Update UI immediately for responsive feedback
       this.currentLayout.set('circle-packing');
       
-      // Create circle packing layout strategy
-      const circlePackingStrategy = new CirclePackingLayoutStrategy({
-        photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
-        photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
-        spacingX: PHOTO_CONSTANTS.SPACING_X,
-        spacingY: PHOTO_CONSTANTS.SPACING_Y,
-        groupBuffer: 1500,  // Ample buffer between groups
-        photoBuffer: 0   // Buffer between photos within groups
-      });
+      // Reuse existing circle packing strategy if available to preserve positions
+      let circlePackingStrategy = this.circlePackingStrategy;
+      
+      if (!circlePackingStrategy) {
+        // Create circle packing layout strategy only if we don't have one
+        circlePackingStrategy = new CirclePackingLayoutStrategy({
+          photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
+          photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
+          spacingX: PHOTO_CONSTANTS.SPACING_X,
+          spacingY: PHOTO_CONSTANTS.SPACING_Y,
+          groupBuffer: 1500,  // Ample buffer between groups
+          photoBuffer: 0   // Buffer between photos within groups
+        });
+        this.circlePackingStrategy = circlePackingStrategy;
+      }
       
       // Remove SVG background if switching from SVG layout
       this.rendererService.removeSvgBackground();

@@ -399,7 +399,15 @@ export class PhotoDataRepository {
           );
         }
       } else {
-        // Hide photo and move to (0,0)
+        // null position in SVG mode means "preserve current position" (for items without evaluation data)
+        // Only hide if opacity is already 0
+        if (currentOpacity > 0) {
+          // Keep current position and opacity - don't move or hide
+          console.log('[SET-LAYOUT-STRATEGY] Preserving current position for photo:', photo.id);
+          return;
+        }
+        
+        // If already hidden, move to (0,0)
         photo.setProperty('opacity', 0);
         photo.setTargetPosition({ x: 0, y: 0, z: 0 });
         // Animate to (0,0) and fade out simultaneously
@@ -538,10 +546,17 @@ export class PhotoDataRepository {
           );
         }
       } else {
-        // Hide photo and move to (0,0)
+        // null position in SVG mode means \"preserve current position\" (for items without evaluation data)
+        // Only hide if opacity is already 0
+        if (currentOpacity > 0) {
+          // Keep current position and opacity - don't move or hide
+          console.log('[REFRESH-LAYOUT] Preserving current position for photo:', photo.id);
+          return;
+        }
+        
+        // If already hidden, move to (0,0)
         photo.setProperty('opacity', 0);
         photo.setTargetPosition({ x: 0, y: 0, z: 0 });
-        // Animate to (0,0) and fade out simultaneously
         if (photo.mesh) {
           const actualCurrentPosition = {
             x: photo.mesh.position.x,
