@@ -753,6 +753,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         if (newAuthorId && newAuthorId !== oldAuthorId) {
           await this.recalculateClusterLayout(newAuthorId);
         }
+        
+        // Refresh layout to reposition item on SVG and update rotation
+        console.log('[HOTSPOT-DROP] Refreshing layout to apply SVG placement and rotation');
+        await this.photoRepository.refreshLayout();
       });
 
       // Needed when auto-positioning is enabled

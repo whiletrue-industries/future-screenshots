@@ -110,7 +110,9 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   private hasEvaluationData(photo: PhotoData): boolean {
     const plausibility = photo.metadata['plausibility'];
     const favorableFuture = photo.metadata['_svgZoneFavorableFuture'] || photo.metadata['favorable_future'];
-    return plausibility !== undefined && favorableFuture !== undefined;
+    // Both must exist and be non-null (null means data is missing)
+    return plausibility !== undefined && plausibility !== null && 
+           favorableFuture !== undefined && favorableFuture !== null;
   }
 
   getConfiguration(): LayoutConfiguration {
@@ -331,7 +333,8 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     
     // Priority 2: Check if photo has evaluation data (plausibility + favorable_future)
     // Items with evaluation data should ALWAYS be placed on the SVG
-    if (this.hasEvaluationData(photoData)) {
+    const hasEvalData = this.hasEvaluationData(photoData);
+    if (hasEvalData) {
       const autoPosition = this.getAutoPositionFromMetadata(photoData);
       if (autoPosition) {
         // Apply SVG offset to match the rendered SVG position
@@ -357,7 +360,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       }
 
       // No matching hotspot: keep the photo at its existing cluster position
-      console.warn('[SVG-LAYOUT] Photo has evaluation data but no matching hotspot:', photoData.id);
       return null;
     }
     
@@ -537,7 +539,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     // Default to 'during' if transition_bar_position is missing
     if (!transitionBarPosition && plausibility !== null && favorableFuture) {
       transitionBarPosition = 'during';
-      console.log('[AUTO-POSITION] No transition_bar_position for photo', photoData.id, ', defaulting to "during"');
     }
     
     // Return null if metadata is missing
@@ -566,10 +567,10 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         continue;
       }
       
+      const matches = groupPlausibility === plausibility && groupFavorable === favorableFuture && groupTransition === transitionBarPosition;
+      
       // Check if this hotspot matches the photo's metadata (all three fields must match)
-        if (groupPlausibility === plausibility &&
-          groupFavorable === favorableFuture &&
-          groupTransition === transitionBarPosition) {
+      if (matches) {
         
         // Store the hotspot association BEFORE calculating position
         // This ensures overlap detection can see all previously placed photos in this hotspot
@@ -1323,7 +1324,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     if (v.startsWith('bef')) return 'before';
     if (v.startsWith('dur')) return 'during';
     if (v.startsWith('aft') || v.startsWith('acher')) return 'after';
-    if (v.includes('unclear')) return 'unclear';
+    if (v.includes('unclear')) return 'during'; // treat 'unclear' as 'during'
     return v;
   }
 
