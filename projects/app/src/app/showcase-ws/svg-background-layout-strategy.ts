@@ -353,11 +353,10 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       }
       
       // If auto-positioning is enabled but this photo doesn't match any hotspot,
-      // return null to preserve its existing position (from circle-packing clusters)
-      return null;
+      // continue to fallback positioning so the photo remains visible
     }
     
-    // Priority 3: Check if photo has a saved SVG layout position from previous session
+    // Priority 4: Check if photo has a saved SVG layout position from previous session
     const savedSvgPosition = photoData.getProperty<LayoutPosition>('svgLayoutPosition');
 
     if (savedSvgPosition && savedSvgPosition.metadata?.['layoutType'] === 'proportional-circular') {
