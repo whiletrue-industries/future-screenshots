@@ -139,18 +139,18 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       video: true
     };
     constraints.video = this.getVideoConstraints();
-    if (this.api.demo()) {
-      this.torchSupported.set(true);
-    }
     if (this.platform.browser()) {
       navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
         this.stream = stream;
         this.videoEl.nativeElement.srcObject = stream;
-        const track = stream.getVideoTracks()[0];
-        const capabilities: any = track.getCapabilities();
-        if (capabilities.torch) {
-          this.torchSupported.set(true);
-          this.applyFlashState(track);
+        const tracks = stream.getVideoTracks();
+        if (tracks.length > 0) {
+          const track = tracks[0];
+          const capabilities: any = track.getCapabilities();
+          if (capabilities.torch) {
+            this.torchSupported.set(true);
+            this.applyFlashState(track);
+          }
         }
       });
     }
@@ -424,8 +424,10 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   toggleFlash() {
     this.flashEnabled.update(enabled => !enabled);
     if (this.stream) {
-      const track = this.stream.getVideoTracks()[0];
-      this.applyFlashState(track);
+      const tracks = this.stream.getVideoTracks();
+      if (tracks.length > 0) {
+        this.applyFlashState(tracks[0]);
+      }
     }
   }
 }
