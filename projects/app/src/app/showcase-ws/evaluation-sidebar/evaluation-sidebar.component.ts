@@ -43,7 +43,9 @@ export class EvaluationSidebarComponent implements OnDestroy {
           key: apiKeyValue,
           sidebar: 'true'
         });
-        const urlString = `https://mapfutur.es/${langValue}props?${params.toString()}`;
+        // Ensure proper path separator for lang prefix
+        const langPath = langValue ? `${langValue}/` : '';
+        const urlString = `https://mapfutur.es/${langPath}props?${params.toString()}`;
         const safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(urlString);
         this.iframeUrl.set(safeUrl);
         

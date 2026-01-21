@@ -1961,8 +1961,8 @@ export class ThreeRendererService {
   private onMouseUp(): void {
     // Calculate mouse movement since mousedown (with null checks)
     const mouseMovement = (this.lastClientX !== null && this.lastClientY !== null) ? Math.sqrt(
-      Math.pow(this.lastClientX - this.mouseDownPosition.x, 2) +
-      Math.pow(this.lastClientY - this.mouseDownPosition.y, 2)
+      (this.lastClientX - this.mouseDownPosition.x) * (this.lastClientX - this.mouseDownPosition.x) +
+      (this.lastClientY - this.mouseDownPosition.y) * (this.lastClientY - this.mouseDownPosition.y)
     ) : this.FALLBACK_MOUSE_MOVEMENT; // Fallback if coordinates unavailable
     const isClick = mouseMovement < this.clickThreshold;
     
