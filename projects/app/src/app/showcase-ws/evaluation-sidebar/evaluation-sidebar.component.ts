@@ -11,6 +11,7 @@ export class EvaluationSidebarComponent implements OnDestroy {
   // Inputs
   isOpen = input<boolean>(false);
   itemId = input<string | null>(null);
+  itemKey = input<string | null>(null);  // Item-specific key
   workspaceId = input<string>('');
   apiKey = input<string>('');
   adminKey = input<string>('');
@@ -31,23 +32,38 @@ export class EvaluationSidebarComponent implements OnDestroy {
     // Update iframe URL when inputs change
     effect(() => {
       const itemIdValue = this.itemId();
+      const itemKeyValue = this.itemKey();
       const workspaceIdValue = this.workspaceId();
       const apiKeyValue = this.apiKey();
+      const adminKeyValue = this.adminKey();
       const langValue = this.lang();
 
-      if (itemIdValue && workspaceIdValue && apiKeyValue) {
+      if (itemIdValue && workspaceIdValue && (apiKeyValue || adminKeyValue)) {
         // Build URL with proper query parameter encoding
+        // The props route expects:
+        // - workspace: workspace ID
+        // - api_key: workspace API key (for authentication)
+        // - item-id: the item ID
+        // - key: the item-specific key (optional, for item-level authentication)
         const params = new URLSearchParams({
           workspace: workspaceIdValue,
+          api_key: apiKeyValue || adminKeyValue,  // Use api_key param name
           'item-id': itemIdValue,
-          key: apiKeyValue,
           sidebar: 'true'
         });
+        
+        // Add item key if available
+        if (itemKeyValue) {
+          params.set('key', itemKeyValue);
+        }
+        
         // Ensure proper path separator for lang prefix
         const langPath = langValue ? `${langValue}/` : '';
         const urlString = `https://mapfutur.es/${langPath}props?${params.toString()}`;
         const safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(urlString);
         this.iframeUrl.set(safeUrl);
+        
+        console.log('[SIDEBAR] Loading iframe with URL:', urlString);
         
         // Start polling for metadata changes
         this.startPolling();
@@ -69,14 +85,9 @@ export class EvaluationSidebarComponent implements OnDestroy {
    * Start polling for metadata changes
    */
   private startPolling(): void {
-    this.stopPolling(); // Clear any existing interval
-    
-    this.platform.browser(() => {
-      // Poll every 2 seconds to check for metadata changes
-      this.pollInterval = setInterval(() => {
-        this.checkMetadataUpdates();
-      }, 2000);
-    });
+    // Metadata polling is disabled due to CORS restrictions with the backend API from localhost
+    // The metadata updates will be handled through iframe postMessage communication instead
+    // once the backend supports it
   }
 
   /**

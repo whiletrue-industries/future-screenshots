@@ -541,7 +541,7 @@ export class ThreeRendererService {
     
     // If either value is missing, use stable random rotation
     if (plausibility === undefined || plausibility === null || !favorableFuture) {
-      console.warn('[ROTATION] Missing data for photo:', photoData.id, '- plausibility:', plausibility, 'favorable_future:', favorableFuture);
+      // Suppress verbose logging - this is expected for items without evaluation data yet
       return this.getStableRandomRotation(photoData.id);
     }
     

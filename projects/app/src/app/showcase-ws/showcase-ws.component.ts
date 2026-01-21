@@ -49,6 +49,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   sidebarOpen = signal(false);
   selectedItemId = signal<string | null>(null);
   
+  // Get the selected item's key (if available)
+  selectedItemKey = computed(() => {
+    const itemId = this.selectedItemId();
+    if (!itemId) return null;
+    const photo = this.photoRepository.getPhoto(itemId);
+    return photo?.metadata?.['item_key'] || null;
+  });
+  
   // Check if user has admin access
   isAdmin = computed(() => this.admin_key() !== '' && this.admin_key() !== 'ADMIN_KEY_NOT_SET');
   fisheyeSettings = signal<FisheyeSettings>({
@@ -117,7 +125,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             layout_y: item.layout_y,
             plausibility: item.plausibility,
             favorable_future: item.favorable_future,
-            transition_bar_position: transitionBarPosition
+            transition_bar_position: transitionBarPosition,
+            item_key: item.item_key  // Include item key for authentication
           };
           
           try {
@@ -163,7 +172,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
               author_id: item.author_id,
               plausibility: item.plausibility,
               favorable_future: item.favorable_future,
-              transition_bar_position: transitionBarPosition
+              transition_bar_position: transitionBarPosition,
+              item_key: item.item_key  // Include item key for authentication
             };
             console.log('[METADATA] New photo:', id, '-> plausibility:', item.plausibility, 'favorable_future:', item.favorable_future, 'transition_bar_position:', transitionBarPosition);
             
