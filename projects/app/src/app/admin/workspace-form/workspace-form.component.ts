@@ -33,6 +33,7 @@ export class WorkspaceFormComponent implements OnInit {
     languages: [],
     facilitator_names: [''],
     keywords: [],
+    active_templates: [],
     'context-label': '',
     source: '',
     'email-template': ''
@@ -51,6 +52,22 @@ export class WorkspaceFormComponent implements OnInit {
 
   // Keyword input
   keywordInput = signal('');
+
+  // Available templates
+  availableTemplates = [
+    { id: 'post', name: 'Post' },
+    { id: 'chat', name: 'Chat' },
+    { id: 'notification', name: 'Notification' },
+    { id: 'review', name: 'Review' },
+    { id: 'prompt', name: 'Prompt' },
+    { id: 'photo', name: 'Photo' },
+    { id: 'sign', name: 'Sign' },
+    { id: 'holyland', name: 'Holy Land' },
+    { id: 'world', name: 'World' },
+    { id: 'jerusalem', name: 'Jerusalem' },
+    { id: 'europe', name: 'Europe' },
+    { id: 'us', name: 'United States' },
+  ];
 
   // UI state
   isSubmitting = signal(false);
@@ -171,6 +188,15 @@ export class WorkspaceFormComponent implements OnInit {
     if (!metadata.keywords) {
       metadata.keywords = [];
     }
+
+    // Initialize active_templates with default values if not present
+    // By default all templates are active except: jerusalem, europe, us
+    if (!metadata.active_templates) {
+      metadata.active_templates = [
+        'post', 'chat', 'notification', 'review', 'prompt', 
+        'photo', 'sign', 'holyland', 'world'
+      ];
+    }
   }
 
   isLanguageSelected(code: string): boolean {
@@ -222,6 +248,23 @@ export class WorkspaceFormComponent implements OnInit {
       event.preventDefault();
       this.addKeyword();
     }
+  }
+
+  isTemplateSelected(templateId: string): boolean {
+    return this.formData().active_templates?.includes(templateId) || false;
+  }
+
+  toggleTemplate(templateId: string) {
+    const currentTemplates = [...this.formData().active_templates || []];
+    const index = currentTemplates.indexOf(templateId);
+
+    if (index > -1) {
+      currentTemplates.splice(index, 1);
+    } else {
+      currentTemplates.push(templateId);
+    }
+
+    this.formData.update(data => ({ ...data, active_templates: currentTemplates }));
   }
 
   addFacilitatorName() {

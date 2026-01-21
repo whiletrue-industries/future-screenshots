@@ -158,6 +158,24 @@
       }
     </div>
 
+    <!-- Template Gallery Configuration -->
+    <div class="form-group">
+      <label>Template Gallery (optional)</label>
+      <p class="field-hint">Select which templates should be available in the no-paper flow template gallery</p>
+      <div class="multi-select-group">
+        @for (template of availableTemplates; track template.id) {
+          <label class="checkbox-item">
+            <input
+              type="checkbox"
+              [checked]="isTemplateSelected(template.id)"
+              (change)="toggleTemplate(template.id)"
+            />
+            {{ template.name }}
+          </label>
+        }
+      </div>
+    </div>
+
     <!-- Auto-generated fields (read-only display) -->
     <div class="auto-generated-section">
       <h3>Auto-Generated Fields</h3>

@@ -100,7 +100,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
   private injector = inject(Injector);
   
   // Template gallery with new order
-  templates: Template[] = [
+  private allTemplates: Template[] = [
     { id: 'post', name: 'Post', url: '/templates/FS_template_post.png', preview: '/templates/FS_template_post.png' },
     { id: 'chat', name: 'Chat', url: '/templates/FS_template_chat.png', preview: '/templates/FS_template_chat.png' },
     { id: 'notification', name: 'Notification', url: '/templates/FS_template_notification.png', preview: '/templates/FS_template_notification.png' },
@@ -114,6 +114,20 @@ export class CanvasCreatorComponent implements AfterViewInit {
     { id: 'europe', name: 'Europe', url: '/templates/FS_template_europe.png', preview: '/templates/FS_template_europe.png' },
     { id: 'us', name: 'United States', url: '/templates/FS_template_US.png', preview: '/templates/FS_template_US.png' },
   ];
+
+  // Filtered templates based on workspace configuration
+  templates = computed(() => {
+    const workspace = this.api.workspace();
+    const activeTemplates = workspace?.metadata?.active_templates;
+    
+    // If no active_templates configured, use defaults (all except jerusalem, europe, us)
+    if (!activeTemplates || activeTemplates.length === 0) {
+      return this.allTemplates.filter(t => !['jerusalem', 'europe', 'us'].includes(t.id));
+    }
+    
+    // Otherwise, filter based on workspace configuration
+    return this.allTemplates.filter(t => activeTemplates.includes(t.id));
+  });
 
   // Template presets: GeoJSON with textbox positions and properties
   templatePresets: { [key: string]: any } = {
@@ -590,7 +604,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     },
   };
   
-  currentTemplate = computed(() => this.templates[this.currentTemplateIndex()]);
+  currentTemplate = computed(() => this.templates()[this.currentTemplateIndex()]);
   
   // Marker colors (random selection)
   markerColors = ['#4E02B2', '#B969FF', '#698CFF', '#F73C3C', '#FF6B35', '#2A9D8F'];
@@ -658,7 +672,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     // If a specific template was requested (re-edit flow), open it
     const requestedId = this.route.snapshot.queryParamMap.get('template_id');
     if (requestedId) {
-      const idx = this.templates.findIndex(t => t.id === requestedId);
+      const idx = this.templates().findIndex(t => t.id === requestedId);
       if (idx >= 0) {
         this.currentTemplateIndex.set(idx);
         // Open editor directly with the requested template
@@ -783,13 +797,13 @@ export class CanvasCreatorComponent implements AfterViewInit {
   previousTemplate() {
     if (this.isCarouselAnimating() || this.carouselDragging()) return;
     const index = this.currentTemplateIndex();
-    this.currentTemplateIndex.set(index > 0 ? index - 1 : this.templates.length - 1);
+    this.currentTemplateIndex.set(index > 0 ? index - 1 : this.templates().length - 1);
   }
 
   nextTemplate() {
     if (this.isCarouselAnimating() || this.carouselDragging()) return;
     const index = this.currentTemplateIndex();
-    this.currentTemplateIndex.set((index + 1) % this.templates.length);
+    this.currentTemplateIndex.set((index + 1) % this.templates().length);
   }
   
   backToGallery() {
@@ -833,9 +847,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
   private spinCarouselToRandomTemplate() {
     if (!this.platform.browser()) return;
     
-    const randomIndex = Math.floor(Math.random() * this.templates.length);
+    const randomIndex = Math.floor(Math.random() * this.templates().length);
     // Make animation slower, softer, and shorter - only go through templates once plus landing
-    const totalSpins = randomIndex + Math.floor(Math.random() * 1 + 1) * this.templates.length;
+    const totalSpins = randomIndex + Math.floor(Math.random() * 1 + 1) * this.templates().length;
     const animationDuration = 2500; // 2.5 seconds (slower)
     
     this.isCarouselAnimating.set(true);
@@ -850,7 +864,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
       const easeOutProgress = 1 - Math.pow(1 - progress, 4);
       const targetSpin = Math.round(totalSpins * easeOutProgress);
       
-      this.currentTemplateIndex.set(targetSpin % this.templates.length);
+      this.currentTemplateIndex.set(targetSpin % this.templates().length);
       
       if (progress < 1) {
         requestAnimationFrame(spin);
