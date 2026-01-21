@@ -669,7 +669,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     }
   }
 
-  private resizeTimeout: any = null;
+  private resizeTimeout: number | null = null;
   
   @HostListener('window:resize')
   handleResize() {
@@ -677,7 +677,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     if (this.resizeTimeout) {
       clearTimeout(this.resizeTimeout);
     }
-    this.resizeTimeout = setTimeout(() => {
+    this.resizeTimeout = window.setTimeout(() => {
       this.resizeCanvas();
     }, 250);
   }
@@ -700,6 +700,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const targetHeight = 2000;
     const aspectRatio = targetWidth / targetHeight;
 
+    const oldWidth = fabricCanvas.getWidth();
+    const oldHeight = fabricCanvas.getHeight();
+
     let displayWidth = Math.max(100, containerWidth);
     let displayHeight = displayWidth / aspectRatio;
 
@@ -708,9 +711,14 @@ export class CanvasCreatorComponent implements AfterViewInit {
       displayWidth = displayHeight * aspectRatio;
     }
 
-    // Calculate scale factors
-    const scaleX = displayWidth / fabricCanvas.getWidth();
-    const scaleY = displayHeight / fabricCanvas.getHeight();
+    // Only resize if dimensions have actually changed
+    if (Math.abs(displayWidth - oldWidth) < 1 && Math.abs(displayHeight - oldHeight) < 1) {
+      return;
+    }
+
+    // Calculate scale factors based on old dimensions
+    const scaleX = displayWidth / oldWidth;
+    const scaleY = displayHeight / oldHeight;
 
     // Resize canvas
     fabricCanvas.setDimensions({
@@ -718,13 +726,15 @@ export class CanvasCreatorComponent implements AfterViewInit {
       height: displayHeight
     });
 
-    // Scale all objects
-    fabricCanvas.getObjects().forEach((obj: any) => {
-      obj.scaleX = (obj.scaleX || 1) * scaleX;
-      obj.scaleY = (obj.scaleY || 1) * scaleY;
-      obj.left = (obj.left || 0) * scaleX;
-      obj.top = (obj.top || 0) * scaleY;
-      obj.setCoords();
+    // Scale all objects based on the dimension change
+    fabricCanvas.getObjects().forEach((obj) => {
+      if (obj.scaleX && obj.scaleY && obj.left !== undefined && obj.top !== undefined) {
+        obj.scaleX = obj.scaleX * scaleX;
+        obj.scaleY = obj.scaleY * scaleY;
+        obj.left = obj.left * scaleX;
+        obj.top = obj.top * scaleY;
+        obj.setCoords();
+      }
     });
 
     // Update template scale factors
@@ -894,12 +904,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
     
     console.log('Canvas display size:', displayWidth, 'x', displayHeight);
     
-    // Set both canvas attributes and style to ensure consistent rendering
+    // Set canvas dimensions - only set attributes, let CSS handle display size
     canvasElement.width = displayWidth;
     canvasElement.height = displayHeight;
-    canvasElement.style.width = `${displayWidth}px`;
-    canvasElement.style.height = `${displayHeight}px`;
-    canvasElement.style.display = 'block';
     
     const fabricCanvas = new fabric.Canvas(canvasElement, {
       width: displayWidth,
