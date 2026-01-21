@@ -183,7 +183,13 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
   }
 
   private startTypewriter(message: Message): Promise<void> {
+    // TYPEWRITER DISABLED - Show full text immediately
     const full = message.fullText || '';
+    message.setText(full);
+    this.scrollIfOutOfView();
+    return Promise.resolve();
+    
+    /* TODO: Re-enable typewriter effect later
     if (!full.length) {
       message.setText(full);
       return Promise.resolve();
@@ -217,6 +223,7 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
       }, perChar);
       this.typingIntervals.add(handle);
     });
+    */
   }
 
   setScrollParams(messages: Message[]) {
