@@ -387,17 +387,16 @@
       overflow: hidden;
       background: #2a1a4d;
       display: flex;
-      align-items: stretch;
+      align-items: center;
       justify-content: center;
       padding: 0;
       /* Account for the fixed control bar at bottom */
       /* Control bar height: 40px buttons + 24px padding + safe-area */
-      padding-bottom: calc(64px + env(safe-area-inset-bottom));
+      /* Use margin-bottom instead of padding to keep canvas out of that space */
+      margin-bottom: calc(64px + env(safe-area-inset-bottom));
 
       canvas {
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-        width: 100%;
-        height: 100%;
         max-width: 100%;
         max-height: 100%;
         object-fit: contain;

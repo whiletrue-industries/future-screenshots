@@ -740,7 +740,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     });
 
     // Scale all objects based on the dimension change
-    fabricCanvas.getObjects().forEach((obj) => {
+    fabricCanvas.getObjects().forEach((obj: any) => {
       if (obj.scaleX && obj.scaleY && obj.left !== undefined && obj.top !== undefined) {
         obj.scaleX = obj.scaleX * scaleX;
         obj.scaleY = obj.scaleY * scaleY;
