@@ -104,17 +104,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     return this.calculateEvaluationRotationDeg(photo) / 32; // normalized -1..1
   }
 
-  /**
-   * Check if a photo has been evaluated (has both plausibility and favorable_future metadata)
-   */
-  private hasEvaluationData(photo: PhotoData): boolean {
-    const plausibility = photo.metadata['plausibility'] as number | undefined;
-    const favorableFuture = photo.metadata['_svgZoneFavorableFuture'] as string | undefined
-      || photo.metadata['favorable_future'] as string | undefined;
-    
-    return plausibility !== undefined && favorableFuture !== undefined;
-  }
-
   getConfiguration(): LayoutConfiguration {
     return {
       name: 'svg-background',
@@ -364,11 +353,9 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       }
       
       // If auto-positioning is enabled but this photo doesn't match any hotspot,
-      // only continue to fallback positioning if the photo has evaluation data.
-      // Otherwise, preserve its cluster position by returning null.
-      if (!this.hasEvaluationData(photoData)) {
-        return null;
-      }
+      // preserve its cluster position by returning null.
+      // This prevents items from being repositioned when switching to SVG view.
+      return null;
     }
     
     // Priority 4: Check if photo has a saved SVG layout position from previous session
