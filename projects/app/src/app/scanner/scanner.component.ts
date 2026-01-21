@@ -444,6 +444,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     this.countDown = this.COUNTDOWN_INITIAL;
     this.displayTimeoutSubmitButton.set(false);
     this.timeoutSubmitClicked.set(false);
+    this.scanStartTime = 0;
     console.log('RESTARTING SCANNER');
     timer(500).subscribe(() => {
       this.startScanner();
