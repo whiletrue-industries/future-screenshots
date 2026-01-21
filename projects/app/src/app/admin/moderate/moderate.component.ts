@@ -1,6 +1,7 @@
 import { Component, effect, signal, computed, inject, afterNextRender, OnDestroy } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AdminApiService } from '../../../admin-api.service';
+import { StateService } from '../../../state.service';
 import { FormsModule } from '@angular/forms';
 import { FilterHelpers, FiltersBarComponent, FiltersBarState, FilterCounts } from '../../shared/filters-bar/filters-bar.component';
 import { ItemFilterService } from '../../shared/filters-bar/item-filter.service';
@@ -183,6 +184,7 @@ export class ModerateComponent {
   });
 
   private filterService = inject(ItemFilterService);
+  private stateService = inject(StateService);
 
   constructor(private route: ActivatedRoute, private api: AdminApiService) {
     // Read filters from hash synchronously first (before effects run)
@@ -447,13 +449,27 @@ export class ModerateComponent {
     const original = (current as any)[key];
     const value = this.coerceValue(original, rawValue);
 
+    console.log('[MODERATE] updateMetadataField called for:', current._id, 'key:', key, 'value:', value);
     this.api.updateItem(workspaceId, apiKey, current._id, { [key]: value }).subscribe({
-      next: () => {
+      next: (data) => {
+        console.log('[MODERATE] updateMetadataField API response:', data);
         // Update source data - items will be recomputed automatically
         this.allFetchedItems.update(items => items.map(item => item._id === current._id ? { ...item, [key]: value } : item));
         this.selectedItem.update(item => item ? { ...item, [key]: value } : item);
+        
+        // Notify showcase-ws if this is a metadata field we care about
+        if (key === 'plausibility' || key === 'favorable_future' || key === 'transition_bar_position') {
+          const updatedItem = this.selectedItem();
+          const metadataUpdate = {
+            plausibility: updatedItem.plausibility,
+            favorable_future: updatedItem.favorable_future,
+            transition_bar_position: updatedItem.transition_bar_position
+          };
+          console.log('[MODERATE] Notifying metadata update for item:', current._id, 'with data:', metadataUpdate);
+          this.stateService.notifyMetadataUpdated(current._id, metadataUpdate);
+        }
       },
-      error: (err) => console.error('Error updating field', key, err)
+      error: (err) => console.error('[MODERATE] Error updating field', key, err)
     });
   }
 
@@ -629,8 +645,22 @@ export class ModerateComponent {
     const apiKey = this.apiKey();
     if (workspaceId && apiKey) {
       item.plausibility = parseInt(item.plausibility, 10);
-      this.api.updateItem(workspaceId, apiKey, item._id, {plausibility: item.plausibility}).subscribe(data => {
-        console.log('item updated', data);
+      console.log('[MODERATE] setPlausibility called for item:', item._id, 'new plausibility:', item.plausibility);
+      this.api.updateItem(workspaceId, apiKey, item._id, {plausibility: item.plausibility}).subscribe({
+        next: (data) => {
+          console.log('[MODERATE] API response for setPlausibility:', data);
+          // Notify showcase-ws and other components about the metadata update
+          const metadataUpdate = {
+            plausibility: data.plausibility !== undefined ? data.plausibility : item.plausibility,
+            favorable_future: data.favorable_future !== undefined ? data.favorable_future : item.favorable_future,
+            transition_bar_position: data.transition_bar_position !== undefined ? data.transition_bar_position : item.transition_bar_position
+          };
+          console.log('[MODERATE] Notifying metadata update for item:', item._id, 'with data:', metadataUpdate);
+          this.stateService.notifyMetadataUpdated(item._id, metadataUpdate);
+        },
+        error: (error) => {
+          console.error('[MODERATE] Error updating plausibility:', error);
+        }
       });
     } else {
       console.error('workspaceId or apiKey is null');
@@ -641,8 +671,22 @@ export class ModerateComponent {
     const workspaceId = this.workspaceId();
     const apiKey = this.apiKey();
     if (workspaceId && apiKey) {
-      this.api.updateItem(workspaceId, apiKey, item._id, {favorable_future: item.favorable_future}).subscribe(data => {
-        console.log('item updated', data);
+      console.log('[MODERATE] setFavorable called for item:', item._id, 'new favorable_future:', item.favorable_future);
+      this.api.updateItem(workspaceId, apiKey, item._id, {favorable_future: item.favorable_future}).subscribe({
+        next: (data) => {
+          console.log('[MODERATE] API response for setFavorable:', data);
+          // Notify showcase-ws and other components about the metadata update
+          const metadataUpdate = {
+            plausibility: data.plausibility !== undefined ? data.plausibility : item.plausibility,
+            favorable_future: data.favorable_future !== undefined ? data.favorable_future : item.favorable_future,
+            transition_bar_position: data.transition_bar_position !== undefined ? data.transition_bar_position : item.transition_bar_position
+          };
+          console.log('[MODERATE] Notifying metadata update for item:', item._id, 'with data:', metadataUpdate);
+          this.stateService.notifyMetadataUpdated(item._id, metadataUpdate);
+        },
+        error: (error) => {
+          console.error('[MODERATE] Error updating favorable_future:', error);
+        }
       });
     } else {
       console.error('workspaceId or apiKey is null');
@@ -1005,7 +1049,16 @@ export class ModerateComponent {
 
     const results = await Promise.all(ids.map(async id => {
       try {
-        await firstValueFrom(this.api.updateItem(workspaceId, apiKey, id, updates));
+        const response = await firstValueFrom(this.api.updateItem(workspaceId, apiKey, id, updates));
+        // Notify showcase-ws about metadata updates
+        if (updates.plausibility !== undefined || updates.favorable_future !== undefined || updates.transition_bar_position !== undefined) {
+          const metadataUpdate: any = {};
+          if (updates.plausibility !== undefined) metadataUpdate.plausibility = updates.plausibility;
+          if (updates.favorable_future !== undefined) metadataUpdate.favorable_future = updates.favorable_future;
+          if (updates.transition_bar_position !== undefined) metadataUpdate.transition_bar_position = updates.transition_bar_position;
+          console.log('[MODERATE] Bulk update notifying metadata for:', id, metadataUpdate);
+          this.stateService.notifyMetadataUpdated(id, metadataUpdate);
+        }
         return { id, ok: true };
       } catch (error: any) {
         return { id, ok: false, error };

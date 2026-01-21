@@ -1,6 +1,7 @@
-import { AfterViewInit, Component, computed, ElementRef, signal, ViewChild, inject, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { AfterViewInit, Component, computed, ElementRef, signal, ViewChild, inject, OnDestroy, ChangeDetectorRef, effect } from '@angular/core';
 import { catchError, distinctUntilChanged, filter, forkJoin, from, interval, Observable, of, Subject, timer, takeUntil } from 'rxjs';
 import { PlatformService } from '../../platform.service';
+import { StateService } from '../../state.service';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
 import { QrcodeComponent } from "./qrcode/qrcode.component";
@@ -93,7 +94,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     private apiService: ApiService,
     private http: HttpClient,
     private platform: PlatformService,
-    private rendererService: ThreeRendererService
+    private rendererService: ThreeRendererService,
+    private stateService: StateService
   ) {
     this.activatedRoute = route;
     this.photoRepository = new PhotoDataRepository();
@@ -226,6 +228,18 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     
     apiService.updateFromRoute(this.activatedRoute.snapshot);
     apiService.api_key.set(this.admin_key());
+
+    // Listen for metadata updates from other screens (moderate, evaluation sidebar)
+    effect(() => {
+      const update = this.stateService.itemMetadataUpdated();
+      console.log('[SHOWCASE_WS] itemMetadataUpdated signal triggered:', update);
+      if (update && update.itemId && update.metadata) {
+        console.log('[SHOWCASE_WS] Valid update detected, processing:', update.itemId);
+        this.onMetadataUpdated(update);
+      } else {
+        console.log('[SHOWCASE_WS] Update is null or invalid, skipping');
+      }
+    });
   }
 
   /**
@@ -949,23 +963,43 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Handle metadata updates from the sidebar
    */
   async onMetadataUpdated(event: { itemId: string; metadata: any }): Promise<void> {
-    console.log('[SHOWCASE_WS] Metadata updated:', event);
+    console.log('[SHOWCASE_WS] onMetadataUpdated called with:', event);
     
     const { itemId, metadata } = event;
     const photo = this.photoRepository.getPhoto(itemId);
     
     if (photo) {
+      console.log('[SHOWCASE_WS] Found photo in repository:', itemId);
       // Update photo metadata
       photo.updateMetadata(metadata);
+      console.log('[SHOWCASE_WS] Updated photo metadata:', photo.metadata);
       
-      // If on SVG layout with auto-positioning, trigger layout recalculation
-      if (this.currentLayout() === 'svg' && this.enableSvgAutoPositioning()) {
-        const authorId = photo.metadata['author_id'] as string;
+      // Update rotation immediately (works for all layouts)
+      this.rendererService.updatePhotoRotation(photo);
+      console.log('[SHOWCASE_WS] Updated rotation for item:', itemId);
+      
+      // Trigger layout recalculation based on current layout
+      const authorId = photo.metadata['author_id'] as string;
+      const currentLayout = this.currentLayout();
+      console.log('[SHOWCASE_WS] Current layout:', currentLayout, 'authorId:', authorId);
+      
+      if (currentLayout === 'svg' && this.enableSvgAutoPositioning()) {
+        // SVG layout with auto-positioning - recalculate position on SVG
         if (authorId) {
-          console.log('[SHOWCASE_WS] Recalculating layout for cluster:', authorId);
+          console.log('[SHOWCASE_WS] Recalculating SVG layout for cluster:', authorId);
+          await this.recalculateClusterLayout(authorId);
+        }
+      } else if (currentLayout === 'circle-packing') {
+        // Circle-packing layout - recalculate cluster positions
+        if (authorId) {
+          console.log('[SHOWCASE_WS] Recalculating circle-packing layout for cluster:', authorId);
           await this.recalculateClusterLayout(authorId);
         }
       }
+      // For other layouts (grid, tsne), rotation update is sufficient
+    } else {
+      console.log('[SHOWCASE_WS] Photo NOT found in repository:', itemId);
+      console.log('[SHOWCASE_WS] Available photos:', this.photoRepository.getAllPhotos().map(p => p.id));
     }
   }
 
