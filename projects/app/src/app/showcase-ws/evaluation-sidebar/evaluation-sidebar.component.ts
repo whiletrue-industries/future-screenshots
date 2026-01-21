@@ -36,7 +36,14 @@ export class EvaluationSidebarComponent implements OnDestroy {
       const langValue = this.lang();
 
       if (itemIdValue && workspaceIdValue && apiKeyValue) {
-        const urlString = `https://mapfutur.es/${langValue}props?workspace=${workspaceIdValue}&item-id=${itemIdValue}&key=${apiKeyValue}&sidebar=true`;
+        // Build URL with proper query parameter encoding
+        const params = new URLSearchParams({
+          workspace: workspaceIdValue,
+          'item-id': itemIdValue,
+          key: apiKeyValue,
+          sidebar: 'true'
+        });
+        const urlString = `https://mapfutur.es/${langValue}props?${params.toString()}`;
         const safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(urlString);
         this.iframeUrl.set(safeUrl);
         
@@ -94,9 +101,13 @@ export class EvaluationSidebarComponent implements OnDestroy {
     }
 
     try {
-      // Fetch the latest item data from the API
+      // Fetch the latest item data from the API with proper query parameter encoding
+      const params = new URLSearchParams({
+        workspace: workspaceIdValue,
+        api_key: adminKeyValue
+      });
       const response = await fetch(
-        `https://api-qjzuw7ypfq-ez.a.run.app/items?workspace=${workspaceIdValue}&api_key=${adminKeyValue}`
+        `https://api-qjzuw7ypfq-ez.a.run.app/items?${params.toString()}`
       );
       
       if (!response.ok) {

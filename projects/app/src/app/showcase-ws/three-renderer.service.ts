@@ -98,6 +98,7 @@ export class ThreeRendererService {
   private onBackgroundClickCallback?: () => void;
   private mouseDownPosition = new THREE.Vector2();
   private clickThreshold = 5; // pixels - max movement to be considered a click
+  private readonly FALLBACK_MOUSE_MOVEMENT = 1000; // Large fallback value when coordinates unavailable
 
   // Dragging Preview Widget
   private previewWidget: HTMLElement | null = null;
@@ -1962,7 +1963,7 @@ export class ThreeRendererService {
     const mouseMovement = (this.lastClientX !== null && this.lastClientY !== null) ? Math.sqrt(
       Math.pow(this.lastClientX - this.mouseDownPosition.x, 2) +
       Math.pow(this.lastClientY - this.mouseDownPosition.y, 2)
-    ) : 1000; // Large number if coordinates unavailable
+    ) : this.FALLBACK_MOUSE_MOVEMENT; // Fallback if coordinates unavailable
     const isClick = mouseMovement < this.clickThreshold;
     
     if (this.isDragging && this.draggedMesh) {
