@@ -640,6 +640,15 @@ export class CanvasCreatorComponent implements AfterViewInit {
       .subscribe(() => {
         this.resizeCanvas();
       });
+    
+    // Set up keyboard event handler with RxJS
+    fromEvent<KeyboardEvent>(window, 'keydown')
+      .pipe(
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe((event) => {
+        this.handleKeyboardEvent(event);
+      });
   }
   
   ngAfterViewInit(): void {
@@ -665,8 +674,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     this.spinCarouselToRandomTemplate();
   }
   
-  @HostListener('window:keydown', ['$event'])
-  handleKeyboardEvent(event: KeyboardEvent) {
+  private handleKeyboardEvent(event: KeyboardEvent) {
     if (event.ctrlKey && event.shiftKey && event.key === 'E') {
       event.preventDefault();
       this.exportTextboxesAsGeoJSON();
