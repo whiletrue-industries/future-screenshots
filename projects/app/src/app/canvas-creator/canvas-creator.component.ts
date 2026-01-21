@@ -703,6 +703,11 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
 
+    // Account for container padding (8px on each side = 16px total per dimension)
+    const containerPadding = 16;
+    const availableWidth = Math.max(100, containerWidth - containerPadding);
+    const availableHeight = Math.max(100, containerHeight - containerPadding);
+
     // Fixed dimensions: 1060x2000px
     const targetWidth = 1060;
     const targetHeight = 2000;
@@ -716,11 +721,11 @@ export class CanvasCreatorComponent implements AfterViewInit {
       return;
     }
 
-    let displayWidth = Math.max(100, containerWidth);
+    let displayWidth = availableWidth;
     let displayHeight = displayWidth / aspectRatio;
 
-    if (displayHeight > containerHeight) {
-      displayHeight = Math.max(100, containerHeight);
+    if (displayHeight > availableHeight) {
+      displayHeight = availableHeight;
       displayWidth = displayHeight * aspectRatio;
     }
 
@@ -898,20 +903,24 @@ export class CanvasCreatorComponent implements AfterViewInit {
       containerHeight = container?.clientHeight || window.innerHeight;
     }
     
-    console.log('Canvas dimensions - Container:', containerWidth, 'x', containerHeight);
+    // Account for container padding (8px on each side = 16px total per dimension)
+    const containerPadding = 16;
+    const availableWidth = Math.max(100, containerWidth - containerPadding);
+    const availableHeight = Math.max(100, containerHeight - containerPadding);
+    
+    console.log('Canvas dimensions - Container:', containerWidth, 'x', containerHeight, '| Available:', availableWidth, 'x', availableHeight);
     
     // Fixed dimensions: 1060x2000px
     const targetWidth = 1060;
     const targetHeight = 2000;
     
-    // Calculate display dimensions to fit in container while maintaining aspect ratio
-    // No padding subtraction - CSS handles spacing with padding-bottom for control bar
+    // Calculate display dimensions to fit in available space while maintaining aspect ratio
     const aspectRatio = targetWidth / targetHeight;
-    let displayWidth = Math.max(100, containerWidth);
+    let displayWidth = availableWidth;
     let displayHeight = displayWidth / aspectRatio;
     
-    if (displayHeight > containerHeight) {
-      displayHeight = Math.max(100, containerHeight);
+    if (displayHeight > availableHeight) {
+      displayHeight = availableHeight;
       displayWidth = displayHeight * aspectRatio;
     }
     
