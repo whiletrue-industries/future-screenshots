@@ -21,7 +21,7 @@
                (touchstart)="onCarouselTouchStart($event)"
                (touchmove)="onCarouselTouchMove($event)"
                (touchend)="onCarouselTouchEnd()">
-            @for (template of templates; track template.id; let i = $index) {
+            @for (template of templates(); track template.id; let i = $index) {
               <div class="carousel-item"
                    [class.active]="i === currentTemplateIndex()"
                    [class.expanding]="isTemplateExpanding() && i === currentTemplateIndex()"

@@ -47,6 +47,7 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
 
   messages = signal<Message[]>([]);
   thinking = signal(false);
+  allTypingComplete = signal(false);
   @ViewChild('messagesEl') messagesEl!: ElementRef;
   @ViewChild('spacer') spacerEl!: ElementRef;
   scroller = new Subject<() => void>();
@@ -139,6 +140,8 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
 
   addMessage(message: Message) {
     console.log('[Messages] addMessage called - queuing:', message.kind, message.fullText.substring(0, 30));
+    // Reset allTypingComplete when new messages are added
+    this.allTypingComplete.set(false);
     // Add to queue but don't add to DOM yet
     this.messageQueue.push(message);
     // Start processing if not already processing
@@ -151,6 +154,8 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
     if (this.messageQueue.length === 0) {
       this.isProcessingQueue = false;
       console.log('[Messages] Queue empty, stopping processor');
+      // Set allTypingComplete when queue is empty
+      this.allTypingComplete.set(true);
       return;
     }
 
@@ -178,7 +183,13 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
   }
 
   private startTypewriter(message: Message): Promise<void> {
+    // TYPEWRITER DISABLED - Show full text immediately
     const full = message.fullText || '';
+    message.setText(full);
+    this.scrollIfOutOfView();
+    return Promise.resolve();
+    
+    /* TODO: Re-enable typewriter effect later
     if (!full.length) {
       message.setText(full);
       return Promise.resolve();
@@ -212,6 +223,7 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
       }, perChar);
       this.typingIntervals.add(handle);
     });
+    */
   }
 
   setScrollParams(messages: Message[]) {
