@@ -719,7 +719,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     });
 
     // Scale all objects
-    fabricCanvas.getObjects().forEach(obj => {
+    fabricCanvas.getObjects().forEach((obj: any) => {
       obj.scaleX = (obj.scaleX || 1) * scaleX;
       obj.scaleY = (obj.scaleY || 1) * scaleY;
       obj.left = (obj.left || 0) * scaleX;
