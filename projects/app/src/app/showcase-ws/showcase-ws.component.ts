@@ -411,13 +411,35 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       console.warn('[CLUSTER-RECALC] No layout strategy available');
       return;
     }
+
+    const shouldClearSvgPosition = this.currentLayout() === 'svg' && this.enableSvgAutoPositioning();
+    const canClearPosition = shouldClearSvgPosition && typeof (strategy as any).clearPhotoPosition === 'function';
     
     // Recalculate positions for all photos in this cluster
     // The circle-packing strategy will use the updated evaluation data
     for (const photo of clusterPhotos) {
+      // Clear cached SVG position so metadata changes trigger a fresh auto-position lookup
+      if (canClearPosition) {
+        (strategy as any).clearPhotoPosition(photo.id, photo);
+      }
+
       const newPosition = await strategy.getPositionForPhoto(photo, allPhotos);
       if (newPosition) {
-        photo.setTargetPosition({ x: newPosition.x, y: newPosition.y, z: 0 });
+        const target = { x: newPosition.x, y: newPosition.y, z: 0 };
+        const current = photo.currentPosition;
+
+        // Animate if mesh exists; otherwise set immediately
+        if (photo.mesh) {
+          await this.rendererService.animateToPosition(
+            photo.mesh,
+            { x: current.x, y: current.y, z: current.z },
+            target,
+            0.6
+          );
+        }
+
+        photo.setTargetPosition(target);
+        photo.setCurrentPosition(target);
       }
     }
     

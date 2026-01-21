@@ -520,6 +520,14 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     return this.photoPositions.get(photoId) || null;
   }
 
+  clearPhotoPosition(photoId: string, photo?: PhotoData): void {
+    this.photoPositions.delete(photoId);
+    this.batchPositionedPhotos.delete(photoId);
+    if (photo) {
+      photo.removeProperty('svgLayoutPosition');
+    }
+  }
+
   setPhotoPosition(photoId: string, position: LayoutPosition): void {
     this.photoPositions.set(photoId, position);
   }
