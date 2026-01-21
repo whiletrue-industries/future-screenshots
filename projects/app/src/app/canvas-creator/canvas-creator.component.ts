@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, DestroyRef, ElementRef, signal, ViewChild, computed, afterNextRender, Injector, inject, HostListener } from '@angular/core';
+import { AfterViewInit, Component, DestroyRef, ElementRef, signal, ViewChild, computed, afterNextRender, Injector, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
@@ -6,6 +6,8 @@ import { PlatformService } from '../../platform.service';
 import { StateService } from '../../state.service';
 import * as fabric from 'fabric';
 import { getStroke } from 'perfect-freehand';
+import { fromEvent } from 'rxjs';
+import { debounceTime } from 'rxjs/operators';
 
 interface Template {
   id: string;
@@ -629,13 +631,15 @@ export class CanvasCreatorComponent implements AfterViewInit {
     
     this.preloadFonts();
     
-    // Clear resize timeout on component destroy to prevent memory leaks
-    this.destroyRef.onDestroy(() => {
-      if (this.resizeTimeout !== null) {
-        clearTimeout(this.resizeTimeout);
-        this.resizeTimeout = null;
-      }
-    });
+    // Set up resize handler with RxJS
+    fromEvent(window, 'resize')
+      .pipe(
+        debounceTime(250),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(() => {
+        this.resizeCanvas();
+      });
   }
   
   ngAfterViewInit(): void {
@@ -678,19 +682,6 @@ export class CanvasCreatorComponent implements AfterViewInit {
       }
       this.setMode('type');
     }
-  }
-
-  private resizeTimeout: number | null = null;
-  
-  @HostListener('window:resize')
-  handleResize() {
-    // Debounce resize events for better performance
-    if (this.resizeTimeout) {
-      clearTimeout(this.resizeTimeout);
-    }
-    this.resizeTimeout = window.setTimeout(() => {
-      this.resizeCanvas();
-    }, 250);
   }
 
   private resizeCanvas() {
