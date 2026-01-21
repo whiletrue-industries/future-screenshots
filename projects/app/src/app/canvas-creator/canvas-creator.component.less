@@ -389,7 +389,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 0;
+      /* Add padding to give canvas breathing room and prevent edge touching */
+      padding: 8px;
       /* Account for the fixed control bar at bottom */
       /* Control bar height: 40px buttons + 24px padding + safe-area */
       /* Use margin-bottom instead of padding to keep canvas out of that space */
