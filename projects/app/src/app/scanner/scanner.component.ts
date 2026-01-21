@@ -67,9 +67,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   points = signal<{x: number, y: number}[]>([]);
   cameraClicked = signal<boolean>(false);
   displayCameraButton = signal<boolean>(false);
-  displayTimeoutSubmitButton = signal<boolean>(false);
-  timeoutSubmitClicked = signal<boolean>(false);
   scanStartTime: number = 0;
+  timeoutReached = signal<boolean>(false);
 
   constructor(
     private el: ElementRef, 
@@ -323,13 +322,15 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
 
       // Check if timeout has elapsed and no valid edges found yet
       if (this.shouldShowTimeoutButton(shape)) {
-        this.displayTimeoutSubmitButton.set(true);
+        this.timeoutReached.set(true);
+        this.displayCameraButton.set(true);
         this.displayMsgSubject.next($localize`Edges not detected. You can submit anyway.`);
       }
       
-      // Hide timeout button if valid edges are found
-      if (shape?.valid && this.displayTimeoutSubmitButton()) {
-        this.displayTimeoutSubmitButton.set(false);
+      // Hide camera button and reset timeout if valid edges are found after timeout
+      if (shape?.valid && this.timeoutReached()) {
+        this.timeoutReached.set(false);
+        this.displayCameraButton.set(false);
       }
 
       if (shape?.cornerPoints) {
@@ -360,9 +361,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
         this.countDown = this.COUNTDOWN_INITIAL;
       }
 
-      // Handle timeout submit button click
-      if (this.timeoutSubmitClicked()) {
-        // Use default corner points (unadjusted frame)
+      // Handle camera click when timeout was reached (use default corners)
+      if (this.cameraClicked() && this.timeoutReached()) {
         const defaultCornerPoints = {
           topLeftCorner: { x: videoWidth * this.DEFAULT_CORNER_MARGIN, y: videoHeight * this.DEFAULT_CORNER_MARGIN },
           topRightCorner: { x: videoWidth * (1 - this.DEFAULT_CORNER_MARGIN), y: videoHeight * this.DEFAULT_CORNER_MARGIN },
@@ -418,8 +418,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     const elapsedTime = Date.now() - this.scanStartTime;
     return elapsedTime >= this.TIMEOUT_DURATION && 
            !shape?.valid && 
-           !this.displayTimeoutSubmitButton() && 
-           !this.displayCameraButton();
+           !this.timeoutReached();
   }
 
   ngOnDestroy() {
@@ -442,8 +441,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   restartScanner() {
     this.stopScanner();
     this.countDown = this.COUNTDOWN_INITIAL;
-    this.displayTimeoutSubmitButton.set(false);
-    this.timeoutSubmitClicked.set(false);
+    this.timeoutReached.set(false);
     this.scanStartTime = 0;
     console.log('RESTARTING SCANNER');
     timer(500).subscribe(() => {
