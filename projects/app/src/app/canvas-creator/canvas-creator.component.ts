@@ -82,6 +82,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
   private templateScaleX = 1;
   private templateScaleY = 1;
   
+  // Canvas container padding (8px on each side = 16px total)
+  private readonly CANVAS_CONTAINER_PADDING = 16;
+  
   // Font scale factors to match x-height across languages
   private readonly FONT_SCALE_HEBREW = 0.65; // 30% reduction for Gadi Almog
   private readonly FONT_SCALE_ARABIC = 0.65; // 30% reduction for Mikhak
@@ -703,10 +706,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
 
-    // Account for container padding (8px on each side = 16px total per dimension)
-    const containerPadding = 16;
-    const availableWidth = Math.max(100, containerWidth - containerPadding);
-    const availableHeight = Math.max(100, containerHeight - containerPadding);
+    // Account for container padding
+    const availableWidth = Math.max(100, containerWidth - this.CANVAS_CONTAINER_PADDING);
+    const availableHeight = Math.max(100, containerHeight - this.CANVAS_CONTAINER_PADDING);
 
     // Fixed dimensions: 1060x2000px
     const targetWidth = 1060;
@@ -903,10 +905,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
       containerHeight = container?.clientHeight || window.innerHeight;
     }
     
-    // Account for container padding (8px on each side = 16px total per dimension)
-    const containerPadding = 16;
-    const availableWidth = Math.max(100, containerWidth - containerPadding);
-    const availableHeight = Math.max(100, containerHeight - containerPadding);
+    // Account for container padding
+    const availableWidth = Math.max(100, containerWidth - this.CANVAS_CONTAINER_PADDING);
+    const availableHeight = Math.max(100, containerHeight - this.CANVAS_CONTAINER_PADDING);
     
     console.log('Canvas dimensions - Container:', containerWidth, 'x', containerHeight, '| Available:', availableWidth, 'x', availableHeight);
     
