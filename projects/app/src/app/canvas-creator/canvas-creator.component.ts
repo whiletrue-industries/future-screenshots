@@ -668,6 +668,78 @@ export class CanvasCreatorComponent implements AfterViewInit {
       this.setMode('type');
     }
   }
+
+  private resizeTimeout: any = null;
+  
+  @HostListener('window:resize')
+  handleResize() {
+    // Debounce resize events for better performance
+    if (this.resizeTimeout) {
+      clearTimeout(this.resizeTimeout);
+    }
+    this.resizeTimeout = setTimeout(() => {
+      this.resizeCanvas();
+    }, 250);
+  }
+
+  private resizeCanvas() {
+    const fabricCanvas = this.canvas();
+    if (!fabricCanvas || !this.canvasEl?.nativeElement) {
+      return;
+    }
+
+    const canvasElement = this.canvasEl.nativeElement;
+    const container = canvasElement.parentElement;
+    if (!container) return;
+
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+
+    // Fixed dimensions: 1060x2000px
+    const targetWidth = 1060;
+    const targetHeight = 2000;
+    const aspectRatio = targetWidth / targetHeight;
+
+    let displayWidth = Math.max(100, containerWidth);
+    let displayHeight = displayWidth / aspectRatio;
+
+    if (displayHeight > containerHeight) {
+      displayHeight = Math.max(100, containerHeight);
+      displayWidth = displayHeight * aspectRatio;
+    }
+
+    // Calculate scale factors
+    const scaleX = displayWidth / fabricCanvas.getWidth();
+    const scaleY = displayHeight / fabricCanvas.getHeight();
+
+    // Resize canvas
+    fabricCanvas.setDimensions({
+      width: displayWidth,
+      height: displayHeight
+    });
+
+    // Scale all objects
+    fabricCanvas.getObjects().forEach(obj => {
+      obj.scaleX = (obj.scaleX || 1) * scaleX;
+      obj.scaleY = (obj.scaleY || 1) * scaleY;
+      obj.left = (obj.left || 0) * scaleX;
+      obj.top = (obj.top || 0) * scaleY;
+      obj.setCoords();
+    });
+
+    // Update template scale factors
+    this.templateScaleX = displayWidth / this.templateBaseWidth;
+    this.templateScaleY = displayHeight / this.templateBaseHeight;
+
+    // Update background image scale
+    const bgImage = fabricCanvas.backgroundImage;
+    if (bgImage && typeof bgImage !== 'string') {
+      bgImage.scaleX = this.templateScaleX;
+      bgImage.scaleY = this.templateScaleY;
+    }
+
+    fabricCanvas.renderAll();
+  }
   
   selectTemplate(template: Template) {
     this.selectedTemplate.set(template);
@@ -795,15 +867,12 @@ export class CanvasCreatorComponent implements AfterViewInit {
     
     let containerWidth = container?.clientWidth || 0;
     let containerHeight = container?.clientHeight || 0;
-    // Subtract control bar height if present to avoid overlap
-    const controlBarEl = container?.parentElement?.querySelector('.control-bar') as HTMLElement | null;
-    const controlBarH = controlBarEl ? (controlBarEl.getBoundingClientRect().height || 0) : 0;
     
     // If container dimensions are not available, wait and try again
     if (containerWidth === 0 || containerHeight === 0) {
       await new Promise(resolve => setTimeout(resolve, 100));
-      containerWidth = container?.clientWidth || window.innerWidth - 40;
-      containerHeight = container?.clientHeight || window.innerHeight - 100;
+      containerWidth = container?.clientWidth || window.innerWidth;
+      containerHeight = container?.clientHeight || window.innerHeight;
     }
     
     console.log('Canvas dimensions - Container:', containerWidth, 'x', containerHeight);
@@ -813,12 +882,13 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const targetHeight = 2000;
     
     // Calculate display dimensions to fit in container while maintaining aspect ratio
+    // No padding subtraction - CSS handles spacing with padding-bottom for control bar
     const aspectRatio = targetWidth / targetHeight;
-    let displayWidth = Math.max(100, containerWidth - 32); // padding, min 100px
+    let displayWidth = Math.max(100, containerWidth);
     let displayHeight = displayWidth / aspectRatio;
     
-    if (displayHeight > containerHeight - 32) {
-      displayHeight = Math.max(100, containerHeight - 32 - controlBarH);
+    if (displayHeight > containerHeight) {
+      displayHeight = Math.max(100, containerHeight);
       displayWidth = displayHeight * aspectRatio;
     }
     
