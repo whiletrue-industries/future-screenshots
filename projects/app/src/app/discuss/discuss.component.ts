@@ -39,12 +39,13 @@ export class DiscussComponent implements AfterViewInit {
   inputDisabled = signal<boolean>(true);
   imageLoaded = signal<boolean>(false);
   hasText = signal<boolean>(false);
+  typingComplete = signal<boolean>(false);
   visible = computed(() => {
     return this.hasText() && this.imageLoaded();
   });
   completed = signal<boolean>(false);
   inputVisible = computed(() => {
-    return this.visible() && !this.completed();
+    return this.visible() && !this.completed() && this.typingComplete();
   });
   failed = signal<boolean>(false);
 
@@ -64,6 +65,12 @@ export class DiscussComponent implements AfterViewInit {
 
   ngAfterViewInit(): void {
     this.messages = this.messagesComponent.messages;
+    // Watch for typing completion
+    effect(() => {
+      if (this.messagesComponent.allTypingComplete()) {
+        this.typingComplete.set(true);
+      }
+    });
     const item_id = this.item_id();
     if (item_id) {
       this.item_key.set(this.route.snapshot.queryParams['key']);
