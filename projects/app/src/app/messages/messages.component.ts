@@ -208,8 +208,6 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
           this.typingIntervals.delete(handle);
           const endTime = Date.now();
           console.log('[Typewriter] Completed for:', message.kind, 'duration:', endTime - startTime, 'ms');
-          // Notify that typing is complete
-          this.onTypingComplete();
           resolve();
           return;
         } else {
@@ -219,11 +217,6 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
       }, perChar);
       this.typingIntervals.add(handle);
     });
-  }
-
-  private onTypingComplete() {
-    // This can be overridden or listened to by parent components
-    // For now, we'll use a simple approach by letting the parent check message queue
   }
 
   setScrollParams(messages: Message[]) {

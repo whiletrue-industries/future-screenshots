@@ -126,7 +126,10 @@ export class CanvasCreatorComponent implements AfterViewInit {
     }
     
     // Otherwise, filter based on workspace configuration
-    return this.allTemplates.filter(t => activeTemplates.includes(t.id));
+    const filtered = this.allTemplates.filter(t => activeTemplates.includes(t.id));
+    
+    // Ensure at least one template is available to prevent runtime errors
+    return filtered.length > 0 ? filtered : this.allTemplates;
   });
 
   // Template presets: GeoJSON with textbox positions and properties
@@ -671,7 +674,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     }
     // If a specific template was requested (re-edit flow), open it
     const requestedId = this.route.snapshot.queryParamMap.get('template_id');
-    if (requestedId) {
+    if (requestedId && this.templates().length > 0) {
       const idx = this.templates().findIndex(t => t.id === requestedId);
       if (idx >= 0) {
         this.currentTemplateIndex.set(idx);
