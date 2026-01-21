@@ -91,8 +91,8 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     const normalizedPlaus = plausibility / 100;
     const magnitude = (1 - normalizedPlaus) * 32;
     const favorableLower = favorableFuture.toLowerCase().trim();
-    const isFavor = favorableLower === 'favor' || favorableLower === 'favorable'
-      || favorableLower === 'prefer' || favorableLower === 'preferred';
+    // Use includes() to match variants like "prefer-ish", "prevent-ish", etc.
+    const isFavor = favorableLower.includes('favor') || favorableLower.includes('prefer');
 
     return isFavor ? magnitude : -magnitude;
   }

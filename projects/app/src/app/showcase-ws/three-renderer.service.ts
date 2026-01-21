@@ -559,12 +559,10 @@ export class ThreeRendererService {
     // Apply direction based on favorable_future
     // "favor" -> positive rotation, "prevent" -> negative rotation
     const favorableFutureLower = favorableFuture.toLowerCase().trim();
-    const isFavor = favorableFutureLower === 'favor' || favorableFutureLower === 'favorable' || 
-                    favorableFutureLower === 'prefer' || favorableFutureLower === 'preferred' ||
-                    favorableFutureLower === 'mostly prefer';
-    const isPrevent = favorableFutureLower === 'prevent' || favorableFutureLower === 'prevented' || 
-                      favorableFutureLower === 'unfavorable';
-    const isUncertain = favorableFutureLower === 'uncertain' || favorableFutureLower === 'unsure';
+    // Use includes() to match variants like "prefer-ish", "prevent-ish", etc.
+    const isFavor = favorableFutureLower.includes('favor') || favorableFutureLower.includes('prefer');
+    const isPrevent = favorableFutureLower.includes('prevent');
+    const isUncertain = favorableFutureLower.includes('uncertain') || favorableFutureLower.includes('unsure');
     
     if (isUncertain) {
       // Uncertain items should have no rotation (neutral)
@@ -608,10 +606,9 @@ export class ThreeRendererService {
     
     // Apply direction based on favorable_future
     const favorableFutureLower = favorableFuture.toLowerCase().trim();
-    const isFavor = favorableFutureLower === 'favor' || favorableFutureLower === 'favorable' || 
-                    favorableFutureLower === 'prefer' || favorableFutureLower === 'preferred';
-    const isPrevent = favorableFutureLower === 'prevent' || favorableFutureLower === 'prevented' || 
-                      favorableFutureLower === 'unfavorable';
+    // Use includes() to match variants like "prefer-ish", "prevent-ish", etc.
+    const isFavor = favorableFutureLower.includes('favor') || favorableFutureLower.includes('prefer');
+    const isPrevent = favorableFutureLower.includes('prevent');
     
     if (!isFavor && !isPrevent) {
       return this.getStableRandomRotation(photoData.id);
