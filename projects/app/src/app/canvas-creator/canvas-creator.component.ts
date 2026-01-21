@@ -625,6 +625,14 @@ export class CanvasCreatorComponent implements AfterViewInit {
     // Otherwise keep default (Caveat)
     
     this.preloadFonts();
+    
+    // Clear resize timeout on component destroy to prevent memory leaks
+    this.destroyRef.onDestroy(() => {
+      if (this.resizeTimeout !== null) {
+        clearTimeout(this.resizeTimeout);
+        this.resizeTimeout = null;
+      }
+    });
   }
   
   ngAfterViewInit(): void {
@@ -703,6 +711,11 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const oldWidth = fabricCanvas.getWidth();
     const oldHeight = fabricCanvas.getHeight();
 
+    // Guard against zero dimensions
+    if (!oldWidth || !oldHeight || oldWidth === 0 || oldHeight === 0) {
+      return;
+    }
+
     let displayWidth = Math.max(100, containerWidth);
     let displayHeight = displayWidth / aspectRatio;
 
@@ -743,7 +756,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
 
     // Update background image scale
     const bgImage = fabricCanvas.backgroundImage;
-    if (bgImage && typeof bgImage !== 'string') {
+    if (bgImage && typeof bgImage !== 'string' && 'scaleX' in bgImage && 'scaleY' in bgImage) {
       bgImage.scaleX = this.templateScaleX;
       bgImage.scaleY = this.templateScaleY;
     }
