@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, DestroyRef, ElementRef, signal, ViewChild, computed, afterNextRender, Injector, inject, HostListener } from '@angular/core';
+import { AfterViewInit, Component, DestroyRef, ElementRef, signal, ViewChild, computed, afterNextRender, Injector, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
@@ -6,6 +6,8 @@ import { PlatformService } from '../../platform.service';
 import { StateService } from '../../state.service';
 import * as fabric from 'fabric';
 import { getStroke } from 'perfect-freehand';
+import { fromEvent } from 'rxjs';
+import { debounceTime } from 'rxjs/operators';
 
 interface Template {
   id: string;
@@ -81,6 +83,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
   private templateBaseHeight = 2000;
   private templateScaleX = 1;
   private templateScaleY = 1;
+  
+  // Canvas container padding (8px on each side = 16px total)
+  private readonly CANVAS_CONTAINER_PADDING = 16;
   
   // Font scale factors to match x-height across languages
   private readonly FONT_SCALE_HEBREW = 0.65; // 30% reduction for Gadi Almog
@@ -625,6 +630,25 @@ export class CanvasCreatorComponent implements AfterViewInit {
     // Otherwise keep default (Caveat)
     
     this.preloadFonts();
+    
+    // Set up resize handler with RxJS
+    fromEvent(window, 'resize')
+      .pipe(
+        debounceTime(250),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(() => {
+        this.resizeCanvas();
+      });
+    
+    // Set up keyboard event handler with RxJS
+    fromEvent<KeyboardEvent>(window, 'keydown')
+      .pipe(
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe((event) => {
+        this.handleKeyboardEvent(event);
+      });
   }
   
   ngAfterViewInit(): void {
@@ -650,8 +674,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     this.spinCarouselToRandomTemplate();
   }
   
-  @HostListener('window:keydown', ['$event'])
-  handleKeyboardEvent(event: KeyboardEvent) {
+  private handleKeyboardEvent(event: KeyboardEvent) {
     if (event.ctrlKey && event.shiftKey && event.key === 'E') {
       event.preventDefault();
       this.exportTextboxesAsGeoJSON();
@@ -667,6 +690,84 @@ export class CanvasCreatorComponent implements AfterViewInit {
       }
       this.setMode('type');
     }
+  }
+
+  private resizeCanvas() {
+    const fabricCanvas = this.canvas();
+    if (!fabricCanvas || !this.canvasEl?.nativeElement) {
+      return;
+    }
+
+    const canvasElement = this.canvasEl.nativeElement;
+    const container = canvasElement.parentElement;
+    if (!container) return;
+
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+
+    // Account for container padding
+    const availableWidth = Math.max(100, containerWidth - this.CANVAS_CONTAINER_PADDING);
+    const availableHeight = Math.max(100, containerHeight - this.CANVAS_CONTAINER_PADDING);
+
+    // Fixed dimensions: 1060x2000px
+    const targetWidth = 1060;
+    const targetHeight = 2000;
+    const aspectRatio = targetWidth / targetHeight;
+
+    const oldWidth = fabricCanvas.getWidth();
+    const oldHeight = fabricCanvas.getHeight();
+
+    // Guard against zero dimensions
+    if (!oldWidth || !oldHeight || oldWidth === 0 || oldHeight === 0) {
+      return;
+    }
+
+    let displayWidth = availableWidth;
+    let displayHeight = displayWidth / aspectRatio;
+
+    if (displayHeight > availableHeight) {
+      displayHeight = availableHeight;
+      displayWidth = displayHeight * aspectRatio;
+    }
+
+    // Only resize if dimensions have actually changed
+    if (Math.abs(displayWidth - oldWidth) < 1 && Math.abs(displayHeight - oldHeight) < 1) {
+      return;
+    }
+
+    // Calculate scale factors based on old dimensions
+    const scaleX = displayWidth / oldWidth;
+    const scaleY = displayHeight / oldHeight;
+
+    // Resize canvas
+    fabricCanvas.setDimensions({
+      width: displayWidth,
+      height: displayHeight
+    });
+
+    // Scale all objects based on the dimension change
+    fabricCanvas.getObjects().forEach((obj: any) => {
+      if (obj.scaleX && obj.scaleY && obj.left !== undefined && obj.top !== undefined) {
+        obj.scaleX = obj.scaleX * scaleX;
+        obj.scaleY = obj.scaleY * scaleY;
+        obj.left = obj.left * scaleX;
+        obj.top = obj.top * scaleY;
+        obj.setCoords();
+      }
+    });
+
+    // Update template scale factors
+    this.templateScaleX = displayWidth / this.templateBaseWidth;
+    this.templateScaleY = displayHeight / this.templateBaseHeight;
+
+    // Update background image scale
+    const bgImage = fabricCanvas.backgroundImage;
+    if (bgImage && typeof bgImage !== 'string' && 'scaleX' in bgImage && 'scaleY' in bgImage) {
+      bgImage.scaleX = this.templateScaleX;
+      bgImage.scaleY = this.templateScaleY;
+    }
+
+    fabricCanvas.renderAll();
   }
   
   selectTemplate(template: Template) {
@@ -795,41 +896,39 @@ export class CanvasCreatorComponent implements AfterViewInit {
     
     let containerWidth = container?.clientWidth || 0;
     let containerHeight = container?.clientHeight || 0;
-    // Subtract control bar height if present to avoid overlap
-    const controlBarEl = container?.parentElement?.querySelector('.control-bar') as HTMLElement | null;
-    const controlBarH = controlBarEl ? (controlBarEl.getBoundingClientRect().height || 0) : 0;
     
     // If container dimensions are not available, wait and try again
     if (containerWidth === 0 || containerHeight === 0) {
       await new Promise(resolve => setTimeout(resolve, 100));
-      containerWidth = container?.clientWidth || window.innerWidth - 40;
-      containerHeight = container?.clientHeight || window.innerHeight - 100;
+      containerWidth = container?.clientWidth || window.innerWidth;
+      containerHeight = container?.clientHeight || window.innerHeight;
     }
     
-    console.log('Canvas dimensions - Container:', containerWidth, 'x', containerHeight);
+    // Account for container padding
+    const availableWidth = Math.max(100, containerWidth - this.CANVAS_CONTAINER_PADDING);
+    const availableHeight = Math.max(100, containerHeight - this.CANVAS_CONTAINER_PADDING);
+    
+    console.log('Canvas dimensions - Container:', containerWidth, 'x', containerHeight, '| Available:', availableWidth, 'x', availableHeight);
     
     // Fixed dimensions: 1060x2000px
     const targetWidth = 1060;
     const targetHeight = 2000;
     
-    // Calculate display dimensions to fit in container while maintaining aspect ratio
+    // Calculate display dimensions to fit in available space while maintaining aspect ratio
     const aspectRatio = targetWidth / targetHeight;
-    let displayWidth = Math.max(100, containerWidth - 32); // padding, min 100px
+    let displayWidth = availableWidth;
     let displayHeight = displayWidth / aspectRatio;
     
-    if (displayHeight > containerHeight - 32) {
-      displayHeight = Math.max(100, containerHeight - 32 - controlBarH);
+    if (displayHeight > availableHeight) {
+      displayHeight = availableHeight;
       displayWidth = displayHeight * aspectRatio;
     }
     
     console.log('Canvas display size:', displayWidth, 'x', displayHeight);
     
-    // Set both canvas attributes and style to ensure consistent rendering
+    // Set canvas dimensions - only set attributes, let CSS handle display size
     canvasElement.width = displayWidth;
     canvasElement.height = displayHeight;
-    canvasElement.style.width = `${displayWidth}px`;
-    canvasElement.style.height = `${displayHeight}px`;
-    canvasElement.style.display = 'block';
     
     const fabricCanvas = new fabric.Canvas(canvasElement, {
       width: displayWidth,

@@ -288,7 +288,8 @@
 
   .editor {
     width: 100%;
-    height: 100%;
+    height: 100vh;
+    height: 100dvh; /* Use dynamic viewport height for mobile browsers */
     display: flex;
     flex-flow: column;
     position: relative;
@@ -305,7 +306,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-      position: absolute;
+      position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
@@ -382,17 +383,25 @@
 
     .canvas-container {
       flex: 1;
-      overflow: auto;
+      width: 100%;
+      overflow: hidden;
       background: #2a1a4d;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 16px;
-      /* ensure canvas bottom isn't obscured by control bar */
-      padding-bottom: 120px;
+      /* Add padding to give canvas breathing room and prevent edge touching */
+      padding: 8px;
+      /* Account for the fixed control bar at bottom */
+      /* Control bar height: 40px buttons + 24px padding + safe-area */
+      /* Use margin-bottom instead of padding to keep canvas out of that space */
+      margin-bottom: calc(64px + env(safe-area-inset-bottom));
 
       canvas {
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        display: block;
       }
     }
   }
