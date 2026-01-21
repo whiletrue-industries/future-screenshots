@@ -1,4 +1,17 @@
 <div class='container' [class.dragging]='isDragging()' [class.hovering]='isHoveringItem()' #container></div>
+
+<!-- Evaluation Sidebar -->
+<app-evaluation-sidebar
+  [isOpen]='sidebarOpen()'
+  [itemId]='selectedItemId()'
+  [workspaceId]='workspace()'
+  [apiKey]='api_key()'
+  [adminKey]='admin_key()'
+  [lang]='lang()'
+  (close)='onSidebarClose()'
+  (metadataUpdated)='onMetadataUpdated($event)'
+></app-evaluation-sidebar>
+
 <app-qrcode [small]='qrSmall()' [url]='qrUrl()'></app-qrcode>
 <div class='logo'>
 </div>

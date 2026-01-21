@@ -93,6 +93,12 @@ export class ThreeRendererService {
   // Hotspot drop callback
   private onHotspotDropCallback?: (photoId: string, hotspotData: { [key: string]: string | number }, position: { x: number, y: number, z: number }) => Promise<void>;
 
+  // Click callbacks
+  private onPhotoClickCallback?: (photoId: string) => void;
+  private onBackgroundClickCallback?: () => void;
+  private mouseDownPosition = new THREE.Vector2();
+  private clickThreshold = 5; // pixels - max movement to be considered a click
+
   // Dragging Preview Widget
   private previewWidget: HTMLElement | null = null;
   private previewImage: HTMLImageElement | null = null;
@@ -1153,6 +1159,20 @@ export class ThreeRendererService {
   }
 
   /**
+   * Set the photo click callback
+   */
+  setPhotoClickCallback(callback: (photoId: string) => void): void {
+    this.onPhotoClickCallback = callback;
+  }
+
+  /**
+   * Set the background click callback
+   */
+  setBackgroundClickCallback(callback: () => void): void {
+    this.onBackgroundClickCallback = callback;
+  }
+
+  /**
    * Set layout strategy reference for debug visualization
    */
   setLayoutStrategyReference(strategy: any): void {
@@ -1802,6 +1822,9 @@ export class ThreeRendererService {
   }
 
   private onMouseDown(event: MouseEvent): void {
+    // Store mouse down position for click detection
+    this.mouseDownPosition.set(event.clientX, event.clientY);
+    
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(this.root.children, false);
 
@@ -1935,6 +1958,13 @@ export class ThreeRendererService {
   }
 
   private onMouseUp(): void {
+    // Calculate mouse movement since mousedown (with null checks)
+    const mouseMovement = (this.lastClientX !== null && this.lastClientY !== null) ? Math.sqrt(
+      Math.pow(this.lastClientX - this.mouseDownPosition.x, 2) +
+      Math.pow(this.lastClientY - this.mouseDownPosition.y, 2)
+    ) : 1000; // Large number if coordinates unavailable
+    const isClick = mouseMovement < this.clickThreshold;
+    
     if (this.isDragging && this.draggedMesh) {
       const draggedMesh = this.draggedMesh; // Store reference before clearing
       
@@ -2015,6 +2045,26 @@ export class ThreeRendererService {
     } else if (this.isPanning) {
       // Stop panning
       this.isPanning = false;
+    } else if (isClick && !this.isDragging) {
+      // Handle click events (not drag or pan)
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+      const intersects = this.raycaster.intersectObjects(this.root.children, false);
+      
+      if (intersects.length > 0 && this.dragCallbacks.has(intersects[0].object as THREE.Mesh)) {
+        // Clicked on a photo
+        const mesh = intersects[0].object as THREE.Mesh;
+        const photoId = this.findPhotoIdForMesh(mesh);
+        if (photoId && this.onPhotoClickCallback) {
+          console.log('[CLICK] Photo clicked:', photoId);
+          this.onPhotoClickCallback(photoId);
+        }
+      } else {
+        // Clicked on background
+        if (this.onBackgroundClickCallback) {
+          console.log('[CLICK] Background clicked');
+          this.onBackgroundClickCallback();
+        }
+      }
     }
   }
 
