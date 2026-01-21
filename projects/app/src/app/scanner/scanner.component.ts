@@ -65,6 +65,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   points = signal<{x: number, y: number}[]>([]);
   cameraClicked = signal<boolean>(false);
   displayCameraButton = signal<boolean>(false);
+  flashEnabled = signal<boolean>(true);
+  torchSupported = signal<boolean>(false);
 
   constructor(
     private el: ElementRef, 
@@ -94,6 +96,10 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     if (!this.platform.browser()) {
       console.log('Not in browser, skipping scanner initialization');
       return;
+    }
+
+    if (this.api.demo()) {
+      this.torchSupported.set(true);
     }
 
     interval(100).pipe(
@@ -137,13 +143,14 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
         this.stream = stream;
         this.videoEl.nativeElement.srcObject = stream;
-        const track = stream.getVideoTracks()[0];
-        const capabilities: any = track.getCapabilities();
-        if (capabilities.torch) {
-          // Turn on the flash by applying the constraint
-          track.applyConstraints({
-              advanced: [{ torch: true } as MediaTrackConstraintSet]
-          }).catch(e => console.error('Torch ON failed:', e));
+        const tracks = stream.getVideoTracks();
+        if (tracks.length > 0) {
+          const track = tracks[0];
+          const capabilities: any = track.getCapabilities();
+          if (capabilities.torch) {
+            this.torchSupported.set(true);
+            this.applyFlashState(track);
+          }
         }
       });
     }
@@ -406,5 +413,21 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     timer(500).subscribe(() => {
       this.startScanner();
     });
+  }
+
+  applyFlashState(track: MediaStreamTrack) {
+    track.applyConstraints({
+      advanced: [{ torch: this.flashEnabled() } as MediaTrackConstraintSet]
+    }).catch(e => console.error('Torch toggle failed:', e));
+  }
+
+  toggleFlash() {
+    this.flashEnabled.update(enabled => !enabled);
+    if (this.stream) {
+      const tracks = this.stream.getVideoTracks();
+      if (tracks.length > 0) {
+        this.applyFlashState(tracks[0]);
+      }
+    }
   }
 }
