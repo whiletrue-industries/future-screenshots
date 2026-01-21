@@ -65,6 +65,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   points = signal<{x: number, y: number}[]>([]);
   cameraClicked = signal<boolean>(false);
   displayCameraButton = signal<boolean>(false);
+  flashEnabled = signal<boolean>(true);
+  torchSupported = signal<boolean>(false);
 
   constructor(
     private el: ElementRef, 
@@ -140,10 +142,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
         const track = stream.getVideoTracks()[0];
         const capabilities: any = track.getCapabilities();
         if (capabilities.torch) {
-          // Turn on the flash by applying the constraint
-          track.applyConstraints({
-              advanced: [{ torch: true } as MediaTrackConstraintSet]
-          }).catch(e => console.error('Torch ON failed:', e));
+          this.torchSupported.set(true);
+          this.applyFlashState(track);
         }
       });
     }
@@ -406,5 +406,19 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     timer(500).subscribe(() => {
       this.startScanner();
     });
+  }
+
+  applyFlashState(track: MediaStreamTrack) {
+    track.applyConstraints({
+      advanced: [{ torch: this.flashEnabled() } as MediaTrackConstraintSet]
+    }).catch(e => console.error('Torch toggle failed:', e));
+  }
+
+  toggleFlash() {
+    this.flashEnabled.update(enabled => !enabled);
+    if (this.stream) {
+      const track = this.stream.getVideoTracks()[0];
+      this.applyFlashState(track);
+    }
   }
 }
