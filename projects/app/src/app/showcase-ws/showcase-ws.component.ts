@@ -49,6 +49,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   sidebarOpen = signal(false);
   selectedItemId = signal<string | null>(null);
   
+  // Permalink support - item to focus on after load
+  focusItemId = signal<string | null>(null);
+  
   // Get the selected item's key (if available)
   selectedItemKey = computed(() => {
     const itemId = this.selectedItemId();
@@ -209,14 +212,33 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.admin_key.set(qp['admin_key'] || 'ADMIN_KEY_NOT_SET');
     this.lang.set(qp['lang'] ? qp['lang'] + '/' : '');
     
+    // Check for item permalink
+    if (qp['item-id']) {
+      this.focusItemId.set(qp['item-id']);
+    }
+    
     // Fetch workspace data to get title
     if (this.workspace() !== 'WORKSPACE_NOT_SET') {
       this.fetchWorkspaceData();
     }
     
+    // Map layout parameter aliases to actual layout names
     const layoutParam = qp['layout'];
-    if (layoutParam && ['grid','tsne','svg','circle-packing'].includes(layoutParam)) {
-      this.currentLayout.set(layoutParam as any);
+    if (layoutParam) {
+      // Map friendly names to internal layout names
+      const layoutMap: { [key: string]: 'grid' | 'tsne' | 'svg' | 'circle-packing' } = {
+        'map': 'svg',
+        'clusters': 'circle-packing',
+        'themes': 'grid',
+        'grid': 'grid',
+        'tsne': 'tsne',
+        'svg': 'svg',
+        'circle-packing': 'circle-packing'
+      };
+      const mappedLayout = layoutMap[layoutParam.toLowerCase()];
+      if (mappedLayout) {
+        this.currentLayout.set(mappedLayout);
+      }
     }
     
     // Check for fisheye parameters
@@ -531,6 +553,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         newPhotoAnimationDelay: ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DELAY
       }
     );
+    
+    // Set drag permissions based on admin status
+    // Only admins can drag items in the showcase
+    this.photoRepository.setDragEnabled(this.isAdmin());
+    console.log('[SHOWCASE_WS] Drag permissions set:', this.isAdmin() ? 'enabled (admin)' : 'disabled (visitor)');
 
     // Switch to the desired initial layout if it's not grid
     if (this.currentLayout() !== 'grid') {
@@ -577,6 +604,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       timer(ANIMATION_CONSTANTS.INITIAL_POLLING_DELAY).subscribe(() => {
         this.getItems().subscribe((items) => {
           this.loop.next(items);
+          
+          // If there's an item to focus on, do it after a short delay to ensure rendering
+          const focusId = this.focusItemId();
+          if (focusId) {
+            timer(500).subscribe(() => {
+              this.focusOnItem(focusId);
+            });
+          }
         });
       });
     }
@@ -911,12 +946,59 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
   /**
    * Handle photo click - open evaluation sidebar
+   * Only allow editing for admins; visitors can only view
    */
   onPhotoClick(photoId: string): void {
     console.log('[SHOWCASE_WS] Photo clicked:', photoId);
+    
+    // Always allow viewing the item
     this.selectedItemId.set(photoId);
     this.sidebarOpen.set(true);
+    
+    // Note: Permission checks for editing are handled in the evaluation sidebar
+    // The sidebar will show read-only mode for visitors (no admin_key)
   }
+
+  /**
+   * Focus camera on a specific item
+   */
+  async focusOnItem(itemId: string): Promise<void> {
+    console.log('[SHOWCASE_WS] Focusing on item:', itemId);
+    
+    // Wait for photo to be loaded
+    const maxAttempts = 50; // 5 seconds max wait
+    let attempts = 0;
+    
+    while (attempts < maxAttempts) {
+      const photo = this.photoRepository.getPhoto(itemId);
+      if (photo && photo.mesh) {
+        // Get the photo's position
+        const position = photo.mesh.position;
+        console.log('[SHOWCASE_WS] Found photo at position:', position);
+        
+        // Focus camera on this position with appropriate zoom
+        this.rendererService.focusOnPosition(position.x, position.y, 800);
+        
+        // Optionally open the sidebar for this item
+        // Commenting out for now as per requirements - user can click to view
+        // this.selectedItemId.set(itemId);
+        // this.sidebarOpen.set(true);
+        
+        return;
+      }
+      
+      // Wait 100ms before trying again
+      await new Promise(resolve => setTimeout(resolve, 100));
+      attempts++;
+    }
+    
+    console.warn('[SHOWCASE_WS] Could not find photo to focus on:', itemId);
+  }
+
+  /**
+   * Check if the current user is an editor (has admin_key)
+   */
+  canEdit = computed(() => this.isAdmin());
 
   /**
    * Handle background click - close evaluation sidebar

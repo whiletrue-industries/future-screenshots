@@ -2688,6 +2688,21 @@ export class ThreeRendererService {
   }
 
   /**
+   * Focus camera on a specific position with zoom
+   */
+  focusOnPosition(x: number, y: number, targetZ: number = 800): void {
+    // Disable auto-fit mode
+    this.autoFitEnabled = false;
+    
+    // Set target camera position
+    this.targetCamX = x;
+    this.targetCamY = y;
+    this.targetCamZ = THREE.MathUtils.clamp(targetZ, this.minCamZ, this.maxCamZ);
+    
+    console.log('[THREE_RENDERER] Focusing on position:', { x, y, targetZ: this.targetCamZ });
+  }
+
+  /**
    * Zoom at a point with smooth animation
    * Maintains cursor position as exact anchor throughout animation
    */

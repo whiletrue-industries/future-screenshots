@@ -28,6 +28,7 @@ export class PhotoDataRepository {
   // Configuration
   private enableRandomShowcase = false;
   private enableSvgAutoPositioning = false;
+  private isDragEnabled = true; // Permission-based flag for dragging
   private showcaseInterval: number = ANIMATION_CONSTANTS.SHOWCASE_INTERVAL;
   private newPhotoAnimationDelay: number = ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DELAY;
   
@@ -463,6 +464,15 @@ export class PhotoDataRepository {
    */
   setSvgAutoPositioningEnabled(enabled: boolean): void {
     this.enableSvgAutoPositioning = enabled;
+  }
+  
+  /**
+   * Enable or disable drag functionality (permission-based)
+   * When disabled, users can view but not drag items
+   */
+  setDragEnabled(enabled: boolean): void {
+    this.isDragEnabled = enabled;
+    console.log('[PHOTO_REPOSITORY] Drag enabled set to:', enabled);
   }
 
   /**
@@ -928,9 +938,18 @@ export class PhotoDataRepository {
 
   /**
    * Set up interactive drag functionality for a photo with layout strategy integration
+   * Only enables if isDragEnabled is true (admin permission)
    */
   private setupInteractiveDragForPhoto(photoData: PhotoData): void {
     if (!photoData.mesh || !this.renderer || !this.layoutStrategy || !isInteractiveLayout(this.layoutStrategy)) {
+      return;
+    }
+    
+    // Check permission before enabling drag
+    if (!this.isDragEnabled) {
+      console.log('[PHOTO_REPOSITORY] Drag disabled by permissions, skipping drag setup for photo:', photoData.id);
+      // Still enable hover detection for cursor feedback
+      this.setupHoverDetectionForPhoto(photoData);
       return;
     }
 
