@@ -98,7 +98,9 @@ export class PhotoDataRepository {
     if (this.layoutStrategy.requiresFullRecalculationOnAdd()) {
       // Recalculate all positions for layouts that need it (like circle-packing)
       const allPhotos = Array.from(this.photos.values());
+      console.log('[LAYOUT] Calculating positions for', allPhotos.length, 'photos');
       const allPositions = await this.layoutStrategy.calculateAllPositions(allPhotos);
+      console.log('[LAYOUT] Got positions:', allPositions.length, 'positions. First 3:', allPositions.slice(0, 3));
       
       // Update all photos with new positions
       const animationPromises: Promise<void>[] = [];
@@ -108,6 +110,7 @@ export class PhotoDataRepository {
         
         if (layoutPosition && layoutPosition.x !== undefined && layoutPosition.y !== undefined) {
           const newPosition = { x: layoutPosition.x, y: layoutPosition.y, z: 0 };
+          console.log('[LAYOUT] Photo', photo.id, 'positioned at', newPosition);
           photo.setProperty('opacity', 1);
           photo.setTargetPosition(newPosition);
           
@@ -217,6 +220,7 @@ export class PhotoDataRepository {
 
      if (hasValidPosition) {
       // Place immediately at target position with full opacity
+      console.log('[LAYOUT] Placing mesh immediately at', photoData.targetPosition, 'for photo', photoData.id);
       photoData.setCurrentPosition(photoData.targetPosition);
       this.renderer.updateMeshPosition(mesh, photoData.targetPosition);
       photoData.setAnimationState(PhotoAnimationState.POSITIONED);
@@ -241,7 +245,10 @@ export class PhotoDataRepository {
 
     // Update camera bounds if photo was placed immediately (not animated)
     if (hasValidPosition) {
+      console.log('[LAYOUT] Photo placed, updating camera bounds for photo', metadata.id);
       this.updateCameraBounds();
+    } else {
+      console.log('[LAYOUT] Photo has no valid position, skipping camera bounds update');
     }
 
     this.photoAddedSubject.next(photoData);
@@ -817,6 +824,7 @@ export class PhotoDataRepository {
    */
   private updateCameraBounds(): void {
     // Debounce camera bounds updates to prevent excessive calls
+    console.log('[CAMERA] updateCameraBounds called, scheduling with debounce');
     if (this.cameraBoundsUpdateTimer) {
       clearTimeout(this.cameraBoundsUpdateTimer);
     }
@@ -830,12 +838,16 @@ export class PhotoDataRepository {
    * Actually perform the camera bounds update
    */
   private performCameraBoundsUpdate(): void {
+    console.log('[CAMERA] performCameraBoundsUpdate executing');
     if (!this.renderer) {
+      console.log('[CAMERA] No renderer, returning');
       return;
     }
 
     const visiblePhotos = this.getVisiblePhotos();
+    console.log('[CAMERA] Found', visiblePhotos.length, 'visible photos');
     if (visiblePhotos.length === 0) {
+      console.log('[CAMERA] No visible photos, cannot update bounds');
       return;
     }
 
@@ -845,7 +857,9 @@ export class PhotoDataRepository {
     }));
 
     const bounds = this.calculateBounds(positions);
+    console.log('[CAMERA] Calculated bounds:', bounds);
     this.renderer.updateCameraTarget(bounds);
+    console.log('[CAMERA] Updated camera target');
   }
 
   /**

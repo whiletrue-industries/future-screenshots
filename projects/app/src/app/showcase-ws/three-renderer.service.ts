@@ -107,6 +107,12 @@ export class ThreeRendererService {
   private hoveredMesh: THREE.Mesh | null = null;
   private currentMatchedHotspot: { [key: string]: string | number } | null = null;
   
+  // Confirmation Toast Widget
+  private confirmationToast: HTMLElement | null = null;
+  private toastCountdownTimer: number | null = null;
+  private dragOutToast: HTMLElement | null = null;
+  private dragOutToastTimer: number | null = null;
+  
   // Store fisheye state before dragging
   private wasFisheyeEnabled = false;
 
@@ -181,7 +187,9 @@ export class ThreeRendererService {
       throw new Error('ThreeRendererService not initialized');
     }
 
+    console.log('[RENDERER] Creating mesh for photo:', photoData.id, 'URL:', photoData.url.substring(0, 100));
     const texture = await this.loadTexture(photoData.url);
+    console.log('[RENDERER] Texture loaded for photo:', photoData.id);
     const material = new THREE.MeshBasicMaterial({ 
       map: texture, 
       transparent: true, 
@@ -202,7 +210,11 @@ export class ThreeRendererService {
     const rotation = this.calculatePhotoRotation(photoData);
     mesh.rotation.z = rotation;
     
+    const materialOpacity = mesh.material instanceof THREE.MeshBasicMaterial ? mesh.material.opacity : 'unknown';
+    console.log('[RENDERER] Adding mesh to scene for photo:', photoData.id, 'at position:', mesh.position, 'opacity:', materialOpacity);
     this.root.add(mesh);
+    const cameraZ = this.camera?.position.z ?? 'not initialized';
+    console.log('[RENDERER] Mesh added. Root group now has', this.root.children.length, 'children. Camera at z:', cameraZ);
     photoData.setMesh(mesh);
     // Track PhotoData for hover/fisheye so positions stay current after layout changes
     this.meshToPhotoData.set(mesh, photoData);
@@ -418,6 +430,13 @@ export class ThreeRendererService {
   // Camera management
   updateCameraTarget(newBounds: SceneBounds): void {
     this.bounds = { ...newBounds };
+    
+    // Center camera on bounds center
+    const centerX = (this.bounds.minX + this.bounds.maxX) / 2;
+    const centerY = (this.bounds.minY + this.bounds.maxY) / 2;
+    this.targetCamX = centerX;
+    this.targetCamY = centerY;
+    
     if (this.autoFitEnabled) {
       const targetCamZ = this.computeFitZWithMargin(
         this.bounds,
@@ -437,6 +456,10 @@ export class ThreeRendererService {
         return;
       }
       
+      // Center camera on bounds center
+      const centerX = (this.bounds.minX + this.bounds.maxX) / 2;
+      const centerY = (this.bounds.minY + this.bounds.maxY) / 2;
+      
       const targetCamZ = this.computeFitZWithMargin(
         this.bounds,
         THREE.MathUtils.degToRad(this.camera.fov),
@@ -444,20 +467,30 @@ export class ThreeRendererService {
         this.CAM_MARGIN
       );
       
+      const startCamX = this.targetCamX;
+      const startCamY = this.targetCamY;
       const startCamZ = this.targetCamZ;
+      const finalTargetCamX = centerX;
+      const finalTargetCamY = centerY;
       const finalTargetCamZ = targetCamZ;
       
       // If no change needed, resolve immediately
-      if (Math.abs(finalTargetCamZ - startCamZ) < 0.01) {
+      if (Math.abs(finalTargetCamZ - startCamZ) < 0.01 &&
+          Math.abs(finalTargetCamX - startCamX) < 0.01 &&
+          Math.abs(finalTargetCamY - startCamY) < 0.01) {
         resolve();
         return;
       }
       
       const tweenFn = this.makeTween(durationSec, (progress: number) => {
         const eased = this.easeOutCubic(progress);
+        this.targetCamX = this.lerp(startCamX, finalTargetCamX, eased);
+        this.targetCamY = this.lerp(startCamY, finalTargetCamY, eased);
         this.targetCamZ = this.lerp(startCamZ, finalTargetCamZ, eased);
         
         if (progress >= 1.0) {
+          this.targetCamX = finalTargetCamX;
+          this.targetCamY = finalTargetCamY;
           this.targetCamZ = finalTargetCamZ;
           resolve();
         }
@@ -563,9 +596,10 @@ export class ThreeRendererService {
     const favorableFutureLower = favorableFuture.toLowerCase().trim();
     const isFavor = favorableFutureLower === 'favor' || favorableFutureLower === 'favorable' || 
                     favorableFutureLower === 'prefer' || favorableFutureLower === 'preferred' ||
-                    favorableFutureLower === 'mostly prefer';
+                    favorableFutureLower === 'mostly prefer' || favorableFutureLower === 'mostly preferred';
     const isPrevent = favorableFutureLower === 'prevent' || favorableFutureLower === 'prevented' || 
-                      favorableFutureLower === 'unfavorable';
+                      favorableFutureLower === 'unfavorable' ||
+                      favorableFutureLower === 'mostly prevent' || favorableFutureLower === 'mostly prevented';
     const isUncertain = favorableFutureLower === 'uncertain' || favorableFutureLower === 'unsure';
     
     if (isUncertain) {
@@ -1230,21 +1264,6 @@ export class ThreeRendererService {
     this.container.appendChild(this.svgContainer);
   }
 
-  private animateMaterialOpacity(material: THREE.Material, targetOpacity: number, durationMs = 600): void {
-    const startOpacity = (material as any).opacity ?? 1;
-    const start = performance.now();
-    const animate = (now: number) => {
-      const t = Math.min(1, (now - start) / durationMs);
-      const eased = t * (2 - t); // easeOutQuad
-      (material as any).opacity = startOpacity + (targetOpacity - startOpacity) * eased;
-      material.needsUpdate = true;
-      if (t < 1) {
-        requestAnimationFrame(animate);
-      }
-    };
-    requestAnimationFrame(animate);
-  }
-
   /**
    * Create dragging preview widget
    */
@@ -1303,6 +1322,171 @@ export class ThreeRendererService {
     this.previewWidget.appendChild(this.previewImage);
     this.previewWidget.appendChild(this.previewHotspotInfo);
     this.container.appendChild(this.previewWidget);
+  }
+
+  /**
+   * Create confirmation toast widget that appears after dropping on hotspot
+   * Shows image with rotation, pin icon, textual evaluation, and countdown timer
+   */
+  private createConfirmationToast(): void {
+    if (!this.container) {
+      return;
+    }
+
+    // Create main toast container
+    this.confirmationToast = document.createElement('div');
+    this.confirmationToast.style.position = 'fixed';
+    this.confirmationToast.style.bottom = '-300px'; // Start off-screen
+    this.confirmationToast.style.right = '32px';
+    this.confirmationToast.style.width = '320px';
+    this.confirmationToast.style.backgroundColor = '#FFFDF6';
+    this.confirmationToast.style.borderRadius = '16px';
+    this.confirmationToast.style.padding = '20px';
+    this.confirmationToast.style.boxShadow = '0 12px 48px rgba(0, 0, 0, 0.25)';
+    this.confirmationToast.style.zIndex = '2000';
+    this.confirmationToast.style.display = 'none';
+    this.confirmationToast.style.transition = 'bottom 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    this.confirmationToast.style.fontFamily = 'Arial, sans-serif';
+    this.confirmationToast.innerHTML = `
+      <div style="position: relative;">
+        <!-- Close button with countdown -->
+        <button id="toast-close-btn" style="
+          position: absolute;
+          top: -8px;
+          right: -8px;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          border: 2px solid #334155;
+          background: white;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+          color: #334155;
+          z-index: 10;
+        ">×</button>
+        
+        <!-- Countdown circle -->
+        <svg id="toast-countdown" style="
+          position: absolute;
+          top: -8px;
+          right: -8px;
+          width: 32px;
+          height: 32px;
+          transform: rotate(-90deg);
+          pointer-events: none;
+          z-index: 11;
+        ">
+          <circle cx="16" cy="16" r="14" fill="none" stroke="#10b981" stroke-width="2" 
+            stroke-dasharray="87.96" stroke-dashoffset="0" 
+            style="transition: stroke-dashoffset 3s linear;"/>
+        </svg>
+        
+        <!-- Content container -->
+        <div style="display: flex; gap: 16px; align-items: flex-start;">
+          <!-- Image with pin -->
+          <div style="position: relative; flex-shrink: 0;">
+            <img id="toast-image" style="
+              width: 80px;
+              height: 150px;
+              object-fit: cover;
+              border-radius: 8px;
+              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            " />
+            <!-- Pin icon overlay -->
+            <div id="toast-pin" style="
+              position: absolute;
+              top: -12px;
+              left: 50%;
+              transform: translateX(-50%);
+              font-size: 32px;
+              filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+            ">📍</div>
+          </div>
+          
+          <!-- Text content -->
+          <div style="flex: 1; min-width: 0;">
+            <div id="toast-evaluation" style="
+              font-size: 16px;
+              font-weight: 600;
+              color: #0f172a;
+              margin-bottom: 8px;
+              line-height: 1.4;
+            "></div>
+            
+            <!-- Ambivalence button -->
+            <button id="toast-ambivalence-btn" style="
+              margin-top: 8px;
+              padding: 8px 12px;
+              background: #e2e8f0;
+              border: 1px solid #cbd5e1;
+              border-radius: 8px;
+              font-size: 12px;
+              color: #475569;
+              cursor: pointer;
+              width: 100%;
+              transition: all 0.2s;
+            ">
+              ± Add ambivalence marker
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    this.container.appendChild(this.confirmationToast);
+    
+    // Set up event listeners
+    const closeBtn = this.confirmationToast.querySelector('#toast-close-btn') as HTMLButtonElement;
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => this.hideConfirmationToast());
+    }
+    
+    const ambivalenceBtn = this.confirmationToast.querySelector('#toast-ambivalence-btn') as HTMLButtonElement;
+    if (ambivalenceBtn) {
+      ambivalenceBtn.addEventListener('click', () => this.handleAmbivalenceClick());
+      // Hover effect
+      ambivalenceBtn.addEventListener('mouseenter', () => {
+        ambivalenceBtn.style.background = '#cbd5e1';
+        ambivalenceBtn.style.borderColor = '#94a3b8';
+      });
+      ambivalenceBtn.addEventListener('mouseleave', () => {
+        ambivalenceBtn.style.background = '#e2e8f0';
+        ambivalenceBtn.style.borderColor = '#cbd5e1';
+      });
+    }
+  }
+
+  /**
+   * Create drag-out toast for "evaluation removed" message
+   */
+  private createDragOutToast(): void {
+    if (!this.container) {
+      return;
+    }
+
+    // Create simple toast for drag-out notification
+    this.dragOutToast = document.createElement('div');
+    this.dragOutToast.style.position = 'fixed';
+    this.dragOutToast.style.bottom = '-80px'; // Start off-screen
+    this.dragOutToast.style.left = '50%';
+    this.dragOutToast.style.transform = 'translateX(-50%)';
+    this.dragOutToast.style.padding = '16px 24px';
+    this.dragOutToast.style.backgroundColor = '#475569';
+    this.dragOutToast.style.color = 'white';
+    this.dragOutToast.style.borderRadius = '12px';
+    this.dragOutToast.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.25)';
+    this.dragOutToast.style.zIndex = '2000';
+    this.dragOutToast.style.display = 'none';
+    this.dragOutToast.style.transition = 'bottom 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    this.dragOutToast.style.fontFamily = 'Arial, sans-serif';
+    this.dragOutToast.style.fontSize = '14px';
+    this.dragOutToast.style.fontWeight = '500';
+    this.dragOutToast.innerHTML = '↩️ Evaluation removed';
+
+    this.container.appendChild(this.dragOutToast);
   }
 
   /**
@@ -1404,66 +1588,228 @@ export class ThreeRendererService {
   }
 
   /**
+   * Show confirmation toast with evaluation details after drop
+   */
+  private showConfirmationToast(photoUrl: string, hotspotData: { [key: string]: string | number }, rotation: number): void {
+    if (!this.confirmationToast) return;
+    
+    // Clear any existing countdown timer
+    if (this.toastCountdownTimer) {
+      window.clearTimeout(this.toastCountdownTimer);
+    }
+    
+    // Set image with rotation
+    const toastImage = this.confirmationToast.querySelector('#toast-image') as HTMLImageElement;
+    if (toastImage) {
+      toastImage.src = photoUrl;
+      toastImage.style.transform = `rotate(${rotation}deg)`;
+    }
+    
+    // Set evaluation text
+    const toastEvaluation = this.confirmationToast.querySelector('#toast-evaluation') as HTMLDivElement;
+    if (toastEvaluation) {
+      const displayText = this.formatHotspotDisplay(hotspotData);
+      toastEvaluation.innerHTML = displayText.replace(/<br>/g, '<br>✓ ');
+      toastEvaluation.innerHTML = '✓ ' + toastEvaluation.innerHTML;
+    }
+    
+    // Reset countdown circle
+    const countdownCircle = this.confirmationToast.querySelector('#toast-countdown circle') as SVGCircleElement;
+    if (countdownCircle) {
+      countdownCircle.style.strokeDashoffset = '0';
+      // Trigger reflow to restart animation
+      void (countdownCircle as any).offsetWidth;
+      countdownCircle.style.strokeDashoffset = '87.96';
+    }
+    
+    // Show toast with slide-up animation
+    this.confirmationToast.style.display = 'block';
+    // Force reflow
+    void this.confirmationToast.offsetWidth;
+    this.confirmationToast.style.bottom = '32px';
+    
+    // Auto-hide after 3 seconds
+    this.toastCountdownTimer = window.setTimeout(() => {
+      this.hideConfirmationToast();
+    }, 3000);
+  }
+  
+  /**
+   * Hide confirmation toast
+   */
+  private hideConfirmationToast(): void {
+    if (!this.confirmationToast) return;
+    
+    // Clear countdown timer
+    if (this.toastCountdownTimer) {
+      window.clearTimeout(this.toastCountdownTimer);
+      this.toastCountdownTimer = null;
+    }
+    
+    // Slide down
+    this.confirmationToast.style.bottom = '-300px';
+    
+    // Hide after animation
+    setTimeout(() => {
+      if (this.confirmationToast) {
+        this.confirmationToast.style.display = 'none';
+      }
+    }, 500);
+  }
+  
+  /**
+   * Handle ambivalence button click
+   * Converts "prevent" to "mostly prevent" and "preferred" to "mostly preferred"
+   */
+  private handleAmbivalenceClick(): void {
+    // TODO: Implement ambivalence marker logic
+    // This would modify the favorable_future value to add "mostly" prefix
+    console.log('[AMBIVALENCE] Ambivalence marker clicked - feature to be implemented');
+    
+    // For now, just update the toast text to show the change
+    const toastEvaluation = this.confirmationToast?.querySelector('#toast-evaluation') as HTMLDivElement;
+    if (toastEvaluation) {
+      const currentText = toastEvaluation.innerHTML;
+      const updatedText = currentText
+        .replace(/Prevent/g, 'Mostly Prevent')
+        .replace(/Prefer/g, 'Mostly Prefer')
+        .replace(/Favorable/g, 'Mostly Favorable');
+      toastEvaluation.innerHTML = updatedText;
+    }
+    
+    // Hide the ambivalence button after click
+    const ambivalenceBtn = this.confirmationToast?.querySelector('#toast-ambivalence-btn') as HTMLButtonElement;
+    if (ambivalenceBtn) {
+      ambivalenceBtn.style.display = 'none';
+    }
+  }
+
+  /**
+   * Show drag-out toast notification
+   */
+  private showDragOutToast(): void {
+    if (!this.dragOutToast) return;
+    
+    // Clear any existing timer
+    if (this.dragOutToastTimer) {
+      window.clearTimeout(this.dragOutToastTimer);
+    }
+    
+    // Show toast with slide-up animation
+    this.dragOutToast.style.display = 'block';
+    // Force reflow
+    void this.dragOutToast.offsetWidth;
+    this.dragOutToast.style.bottom = '32px';
+    
+    // Auto-hide after 2 seconds
+    this.dragOutToastTimer = window.setTimeout(() => {
+      this.hideDragOutToast();
+    }, 2000);
+  }
+  
+  /**
+   * Hide drag-out toast
+   */
+  private hideDragOutToast(): void {
+    if (!this.dragOutToast) return;
+    
+    // Clear timer
+    if (this.dragOutToastTimer) {
+      window.clearTimeout(this.dragOutToastTimer);
+      this.dragOutToastTimer = null;
+    }
+    
+    // Slide down
+    this.dragOutToast.style.bottom = '-80px';
+    
+    // Hide after animation
+    setTimeout(() => {
+      if (this.dragOutToast) {
+        this.dragOutToast.style.display = 'none';
+      }
+    }, 400);
+  }
+
+  /**
    * Animate preview widget disappearance with hotspot highlight
+   * Now shows confirmation toast instead of preview widget
    */
   private animatePreviewWidgetDrop(hotspotData: { [key: string]: string | number } | null): void {
-    if (!this.previewWidget || !this.previewImage || !this.previewHotspotInfo) return;
+    // Hide preview widget immediately
+    this.hidePreviewWidget();
+    
+    // Reset preview widget styles for next use
+    setTimeout(() => {
+      if (this.previewImage) {
+        this.previewImage.style.opacity = '1';
+        this.previewImage.style.transition = '';
+      }
+      if (this.previewHotspotInfo) {
+        this.previewHotspotInfo.style.display = 'none';
+        this.previewHotspotInfo.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        this.previewHotspotInfo.style.fontSize = '12px';
+        this.previewHotspotInfo.innerHTML = '';
+      }
+    }, 300);
 
-    if (hotspotData) {
-      // First fade out the image
-      this.previewImage.style.transition = 'opacity 0.3s ease-out';
-      this.previewImage.style.opacity = '0';
-
-      // Show hotspot info prominently
-      this.previewHotspotInfo.style.display = 'block';
-      this.previewHotspotInfo.style.backgroundColor = 'rgba(34, 197, 94, 0.9)'; // Green success color
-      this.previewHotspotInfo.style.fontSize = '14px';
-      
-      const displayText = this.formatHotspotDisplay(hotspotData);
-      this.previewHotspotInfo.innerHTML = `✅ ${displayText}`;
-
-      // Hide everything after 2 seconds and fully reset
-      setTimeout(() => {
-        this.hidePreviewWidget();
-        // Reset all styles completely
-        setTimeout(() => {
-          if (this.previewImage) {
-            this.previewImage.style.opacity = '1';
-            this.previewImage.style.transition = '';
-          }
-          if (this.previewHotspotInfo) {
-            this.previewHotspotInfo.style.display = 'none';
-            this.previewHotspotInfo.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-            this.previewHotspotInfo.style.fontSize = '12px';
-            this.previewHotspotInfo.innerHTML = '';
-          }
-          this.currentMatchedHotspot = null;
-        }, 300); // Wait for fade out animation
-      }, 2000);
-    } else {
-      // No hotspot, just hide normally
-      this.hidePreviewWidget();
+    if (hotspotData && this.draggedMesh) {
+      // Get photo data for the dropped image
+      const photoData = this.meshToPhotoData.get(this.draggedMesh);
+      if (photoData) {
+        // Calculate rotation in degrees for display
+        const rotationRad = this.draggedMesh.rotation.z;
+        const rotationDeg = THREE.MathUtils.radToDeg(rotationRad);
+        
+        // Show confirmation toast with image, rotation, and evaluation
+        this.showConfirmationToast(photoData.url, hotspotData, rotationDeg);
+      }
     }
   }
 
   /**
    * Calculate preview rotation when hovering over a hotspot zone
    */
+  /**
+   * Calculate preview rotation based on hotspot data during drag
+   * Uses hotspot's plausibility and favorable_future values
+   * 
+   * Rotation mapping:
+   * - plausibility: 0 → ±32º
+   * - plausibility: 25 → ±24º  
+   * - plausibility: 50 → ±16º
+   * - plausibility: 75 → ±8º
+   * - plausibility: 100 → 0º
+   * - Plus (+) for preferred, minus (-) for prevent
+   */
   private calculatePreviewRotation(photoData: PhotoData, hotspotData: { [key: string]: string | number }): number {
-    const plausibility = photoData.metadata['plausibility'] as number | undefined;
+    const plausibility = hotspotData['plausibility'] as number | undefined;
     const favorableFuture = hotspotData['favorable_future'] as string | undefined;
     
     if (plausibility === undefined || !favorableFuture) {
       return this.draggedMesh?.userData['previewOriginalRotation'] || 0;
     }
     
+    // Calculate rotation magnitude based on plausibility
+    // Linear interpolation: plausibility 0 → 32°, plausibility 100 → 0°
     const normalizedPlaus = plausibility / 100;
     const magnitude = (1 - normalizedPlaus) * 32;
+    
+    // Determine direction based on favorable_future
     const favorableLower = favorableFuture.toLowerCase().trim();
     const isFavor = favorableLower === 'favor' || favorableLower === 'favorable'
-      || favorableLower === 'prefer' || favorableLower === 'preferred';
+      || favorableLower === 'prefer' || favorableLower === 'preferred'
+      || favorableLower === 'mostly prefer';
+    const isPrevent = favorableLower === 'prevent' || favorableLower === 'prevented'
+      || favorableLower === 'mostly prevent';
     
-    const degrees = isFavor ? magnitude : -magnitude;
+    // Apply direction: positive for favor/prefer, negative for prevent
+    let degrees = 0;
+    if (isFavor) {
+      degrees = magnitude;
+    } else if (isPrevent) {
+      degrees = -magnitude;
+    }
+    
     return THREE.MathUtils.degToRad(degrees);
   }
 
@@ -1939,11 +2285,14 @@ export class ThreeRendererService {
       if (intersects.length > 0 && this.dragCallbacks.has(intersects[0].object as THREE.Mesh)) {
         const mesh = intersects[0].object as THREE.Mesh;
         
-        // Show preview widget on hover
+        // Only show preview widget on hover if fisheye is NOT enabled
+        // (Fisheye provides magnification so preview is redundant)
         if (this.hoveredMesh !== mesh) {
           this.hoveredMesh = mesh;
           this.hoveredItemSignal.set(true);
-          this.showPreviewWidget(mesh);
+          if (!this.fisheyeEnabled) {
+            this.showPreviewWidget(mesh);
+          }
         }
       } else {
         // Hide preview widget when not hovering
@@ -2023,6 +2372,9 @@ export class ThreeRendererService {
             const photoData = this.meshToPhotoData.get(draggedMesh);
             if (photoData) {
               console.log('[DRAG-OUT] Photo', photoId, 'dragged out of canvas, clearing evaluation metadata');
+              
+              // Show drag-out toast notification
+              this.showDragOutToast();
               
               // Update photo metadata locally to clear evaluation fields
               photoData.updateMetadata({
@@ -2249,6 +2601,26 @@ export class ThreeRendererService {
       this.previewImage = null;
       this.previewHotspotInfo = null;
     }
+    
+    // Clear confirmation toast
+    if (this.toastCountdownTimer) {
+      window.clearTimeout(this.toastCountdownTimer);
+      this.toastCountdownTimer = null;
+    }
+    if (this.confirmationToast) {
+      this.confirmationToast.remove();
+      this.confirmationToast = null;
+    }
+    
+    // Clear drag-out toast
+    if (this.dragOutToastTimer) {
+      window.clearTimeout(this.dragOutToastTimer);
+      this.dragOutToastTimer = null;
+    }
+    if (this.dragOutToast) {
+      this.dragOutToast.remove();
+      this.dragOutToast = null;
+    }
 
     // Clear drag callbacks
     this.dragCallbacks.clear();
@@ -2283,6 +2655,12 @@ export class ThreeRendererService {
 
     // Create preview widget
     this.createPreviewWidget();
+    
+    // Create confirmation toast
+    this.createConfirmationToast();
+    
+    // Create drag-out toast
+    this.createDragOutToast();
 
     // Scene & camera
     this.scene = new THREE.Scene();
@@ -2391,14 +2769,17 @@ export class ThreeRendererService {
   private async loadTexture(url: string): Promise<THREE.Texture> {
     // Check cache first
     if (this.textureCache.has(url)) {
+      console.log('[RENDERER] Texture already cached for URL:', url.substring(0, 80));
       return this.textureCache.get(url)!;
     }
 
     // Check if already loading
     if (this.loadingTextures.has(url)) {
+      console.log('[RENDERER] Texture already loading for URL:', url.substring(0, 80));
       return this.loadingTextures.get(url)!;
     }
 
+    console.log('[RENDERER] Starting to load texture for URL:', url.substring(0, 80));
     // Start loading with image downscaling
     const loadPromise = this.loadAndDownscaleImage(url).then(texture => {
       texture.colorSpace = THREE.SRGBColorSpace;
@@ -2411,8 +2792,10 @@ export class ThreeRendererService {
       this.textureCache.set(url, texture);
       this.loadingTextures.delete(url);
       
+      console.log('[RENDERER] Texture loaded and cached for URL:', url.substring(0, 80));
       return texture;
     }).catch(error => {
+      console.error('[RENDERER] Failed to load texture for URL:', url.substring(0, 80), 'Error:', error);
       this.loadingTextures.delete(url);
       throw error;
     });
@@ -2465,7 +2848,10 @@ export class ThreeRendererService {
   private async loadFullResolutionImage(url: string): Promise<THREE.Texture> {
     return new Promise<THREE.Texture>((resolve, reject) => {
       const img = new Image();
-      img.crossOrigin = 'anonymous'; // Enable CORS
+      // Only set CORS for remote URLs (not for data URLs which don't support CORS)
+      if (!url.startsWith('data:')) {
+        img.crossOrigin = 'anonymous';
+      }
       
       img.onload = () => {
         try {
@@ -2497,7 +2883,10 @@ export class ThreeRendererService {
     
     return new Promise<THREE.Texture>((resolve, reject) => {
       const img = new Image();
-      img.crossOrigin = 'anonymous'; // Enable CORS
+      // Only set CORS for remote URLs (not for data URLs which don't support CORS)
+      if (!url.startsWith('data:')) {
+        img.crossOrigin = 'anonymous';
+      }
       
       img.onload = () => {
         try {
@@ -2604,7 +2993,7 @@ export class ThreeRendererService {
       const material = new THREE.MeshBasicMaterial({
         map: this.svgBackgroundTexture,
         transparent: true,
-        opacity: 0,
+        opacity: desiredOpacity, // Start at desired opacity instead of 0 to ensure visibility
         depthWrite: false // Transparent background shouldn't write to depth buffer
       });
       
@@ -2623,9 +3012,9 @@ export class ThreeRendererService {
       if (svgOptions.scale) this.svgBackgroundPlane.scale.setScalar(svgOptions.scale);
       
       // Add to scene
+      console.log('[SVG-BACKGROUND] Adding SVG background plane to scene at position:', this.svgBackgroundPlane.position, 'with opacity:', desiredOpacity);
       this.scene.add(this.svgBackgroundPlane);
-      // Fade in to preserve original SVG element opacities while bringing the plane into view
-      this.animateMaterialOpacity(material, desiredOpacity, 650);
+      console.log('[SVG-BACKGROUND] SVG background added successfully. Scene now has', this.scene.children.length, 'children');
     };
     
     img.onerror = (error) => {

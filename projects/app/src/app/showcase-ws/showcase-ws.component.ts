@@ -100,6 +100,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.loop.pipe(
       distinctUntilChanged()
     ).subscribe(async (items) => {
+      console.log('[SHOWCASE_WS_LOOP] Received', items.length, 'items from API');
+      if (items.length > 0) {
+        console.log('[SHOWCASE_WS_LOOP] First item:', { _id: items[0]._id, screenshot_url: items[0].screenshot_url, created_at: items[0].created_at });
+      }
       items = items.sort((item1, item2) => item1.created_at.localeCompare(item2.created_at));
       
       // First pass: load existing photos immediately
@@ -108,7 +112,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         // Process photos sequentially and then refresh layout
         const photoPromises = items.map(async (item) => {
           const id = item._id;
-          const placeholderUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y21DLsAAAAASUVORK5CYII=';
+          // Create a proper placeholder image (100x100 gray canvas) instead of 1x1 pixel
+          const placeholderUrl = this.createPlaceholderImage();
           const url = item.screenshot_url || placeholderUrl;
           if (!item.screenshot_url) {
             console.warn('[SHOWCASE_WS] Missing screenshot_url for item', id, 'using placeholder image');
@@ -139,6 +144,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         
         await Promise.all(photoPromises);
         
+        console.log('[SHOWCASE_WS_LOOP] Loaded', this.loadedPhotoIds.size, 'photos successfully');
+        const allPhotos = this.photoRepository.getAllPhotos();
+        console.log('[SHOWCASE_WS_LOOP] Photos in repository:', allPhotos.length, '- URls:', allPhotos.slice(0, 3).map(p => ({ id: p.metadata.id, url: p.url.substring(0, 80) })));
+        
         this.qrSmall.set(true);
         
         // Set lastCreatedAt to the most recent item
@@ -157,7 +166,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           // Process new photos immediately - they'll be added to the showcase queue
           const photoPromises = newItems.map(async (item) => {
             const id = item._id;
-            const placeholderUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y21DLsAAAAASUVORK5CYII=';
+            const placeholderUrl = this.createPlaceholderImage();
             const url = item.screenshot_url || placeholderUrl;
             if (!item.screenshot_url) {
               console.warn('[SHOWCASE_WS] Missing screenshot_url for item', id, 'using placeholder image');
@@ -170,6 +179,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
               created_at: item.created_at,
               screenshot_url: url,
               author_id: item.author_id,
+              layout_x: item.layout_x,
+              layout_y: item.layout_y,
               plausibility: item.plausibility,
               favorable_future: item.favorable_future,
               transition_bar_position: transitionBarPosition,
@@ -440,6 +451,47 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       });
   }
 
+  /**
+   * Create a proper placeholder image for items missing screenshot_url
+   * Returns a data URL with a 200x300 gray canvas image (matches typical photo dimensions)
+   */
+  private createPlaceholderImage(): string {
+    // Fallback for server-side rendering or when document is not available
+    if (!this.platform.browser()) {
+      // Return a minimal valid PNG data URL (light gray 1x1 pixel - but larger than before)
+      return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2U1ZTdlYiIvPjwvc3ZnPg==';
+    }
+    
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 200;
+      canvas.height = 300;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        // Light gray background
+        ctx.fillStyle = '#e5e7eb';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Add a subtle border
+        ctx.strokeStyle = '#d1d5db';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, canvas.width, canvas.height);
+        
+        // Add loading indicator text
+        ctx.fillStyle = '#9ca3af';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Loading...', canvas.width / 2, canvas.height / 2);
+      }
+      return canvas.toDataURL('image/png');
+    } catch (error) {
+      console.error('Error creating placeholder image:', error);
+      // Fallback SVG if canvas fails
+      return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2U1ZTdlYiIvPjwvc3ZnPg==';
+    }
+  }
+
   getItems(): Observable<any[]> {
     const httpOptions: { headers?: Record<string, string> } = {};
     if (this.api_key()) {
@@ -620,6 +672,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(tsneStrategy);
       
+      // Ensure camera shows all content
+      this.rendererService.resetCameraView(true);
+      
     } catch (error) {
       console.error('Error switching to TSNE layout:', error);
     } finally {
@@ -660,6 +715,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(gridStrategy);
+      
+      // Ensure camera shows all content
+      this.rendererService.resetCameraView(true);
       
     } catch (error) {
       console.error('Error switching to Grid layout:', error);
@@ -851,6 +909,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(circlePackingStrategy);
+      
+      // Ensure camera shows all content
+      this.rendererService.resetCameraView(true);
       
     } catch (error) {
       console.error('Error switching to Circle Packing layout:', error);
