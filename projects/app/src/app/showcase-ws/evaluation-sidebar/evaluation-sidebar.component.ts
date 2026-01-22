@@ -49,7 +49,6 @@ export class EvaluationSidebarComponent implements OnDestroy {
           workspace: workspaceIdValue,
           api_key: apiKeyValue || adminKeyValue,  // Use api_key param name
           'item-id': itemIdValue,
-          'item-key': itemKeyValue || '',
           sidebar: 'true'
         });
         
