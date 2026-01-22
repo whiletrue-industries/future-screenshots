@@ -61,16 +61,16 @@ export class DiscussComponent implements AfterViewInit {
         this.refreshItem();
       }
     });
+    // Watch for typing completion
+    effect(() => {
+      if (this.messagesComponent?.allTypingComplete()) {
+        this.typingComplete.set(true);
+      }
+    });
   }
 
   ngAfterViewInit(): void {
     this.messages = this.messagesComponent.messages;
-    // Watch for typing completion
-    effect(() => {
-      if (this.messagesComponent.allTypingComplete()) {
-        this.typingComplete.set(true);
-      }
-    });
     const item_id = this.item_id();
     if (item_id) {
       this.item_key.set(this.route.snapshot.queryParams['key']);
