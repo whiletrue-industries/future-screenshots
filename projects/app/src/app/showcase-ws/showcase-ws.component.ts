@@ -126,7 +126,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             plausibility: item.plausibility,
             favorable_future: item.favorable_future,
             transition_bar_position: transitionBarPosition,
-            item_key: item.item_key  // Include item key for authentication
+            item_key: item._key  // Include item key for authentication
           };
           
           try {
@@ -443,7 +443,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   getItems(): Observable<any[]> {
     const httpOptions: { headers?: Record<string, string> } = {};
     if (this.api_key()) {
-      httpOptions.headers = { 'Authorization': this.api_key()! };
+      httpOptions.headers = { 'Authorization': this.admin_key() || this.api_key()! };
     }
     return this.http.get<any[]>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${this.workspace()}/items?page_size=10000`, httpOptions).pipe(
       catchError((error) => {

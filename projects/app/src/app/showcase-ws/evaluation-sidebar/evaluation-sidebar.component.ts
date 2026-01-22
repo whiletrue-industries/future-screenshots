@@ -49,6 +49,7 @@ export class EvaluationSidebarComponent implements OnDestroy {
           workspace: workspaceIdValue,
           api_key: apiKeyValue || adminKeyValue,  // Use api_key param name
           'item-id': itemIdValue,
+          'item-key': itemKeyValue || '',
           sidebar: 'true'
         });
         
@@ -59,7 +60,9 @@ export class EvaluationSidebarComponent implements OnDestroy {
         
         // Ensure proper path separator for lang prefix
         const langPath = langValue ? `${langValue}/` : '';
-        const urlString = `https://mapfutur.es/${langPath}props?${params.toString()}`;
+        const urlString = window.location.host.startsWith('localhost')
+          ? `http://${window.location.host}/props?${params.toString()}`
+          : `https://mapfutur.es/${langPath}props?${params.toString()}`;
         const safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(urlString);
         this.iframeUrl.set(safeUrl);
         
