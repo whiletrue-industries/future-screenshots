@@ -140,12 +140,12 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
 
   addMessage(message: Message) {
     console.log('[Messages] addMessage called - queuing:', message.kind, message.fullText.substring(0, 30));
-    // Reset allTypingComplete when new messages are added
-    this.allTypingComplete.set(false);
     // Add to queue but don't add to DOM yet
     this.messageQueue.push(message);
     // Start processing if not already processing
     if (!this.isProcessingQueue) {
+      // Reset allTypingComplete when starting to process new messages
+      this.allTypingComplete.set(false);
       this.processQueue();
     }
   }
@@ -155,7 +155,8 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
       this.isProcessingQueue = false;
       console.log('[Messages] Queue empty, stopping processor');
       // Set allTypingComplete when queue is empty
-      this.allTypingComplete.set(true);
+      // Use setTimeout to ensure signal update happens after DOM updates
+      setTimeout(() => this.allTypingComplete.set(true), 0);
       return;
     }
 
@@ -187,6 +188,7 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
     const full = message.fullText || '';
     message.setText(full);
     this.scrollIfOutOfView();
+    // Since typewriter is disabled, mark typing as complete immediately
     return Promise.resolve();
     
     /* TODO: Re-enable typewriter effect later
