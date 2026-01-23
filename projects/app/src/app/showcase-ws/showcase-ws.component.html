@@ -49,6 +49,41 @@
 <!-- Zoom Controls (Top Right) -->
 <div class='zoom-controls' [class.sidebar-open]='sidebarOpen()'>
   <div class='zoom-buttons'>
+    <!-- Search Controls -->
+    <div class='search-section'>
+      <button 
+        class='zoom-button'
+        [class.active]='searchActive()'
+        (click)='searchActive.set(!searchActive())'
+        title='Search'>
+        <svg viewBox='0 0 24 24' class='button-icon'>
+          <circle cx='11' cy='11' r='8' stroke='currentColor' stroke-width='2' fill='none'/>
+          <path d='M21 21l-4.35-4.35' stroke='currentColor' stroke-width='2' stroke-linecap='round'/>
+        </svg>
+      </button>
+      
+      @if (searchActive()) {
+        <div class='search-input-container'>
+          <input 
+            type='text' 
+            class='search-input'
+            placeholder='Search...'
+            [value]='searchText()'
+            (input)='onSearchInput($event)'
+            (keydown.escape)='clearSearch()'
+          />
+          @if (searchText()) {
+            <button 
+              class='search-clear' 
+              (click)='clearSearch()'
+              title='Clear search'>
+              ×
+            </button>
+          }
+        </div>
+      }
+    </div>
+
     <button 
       class='zoom-button hide-on-mobile'
       (click)='zoomIn()'
@@ -96,6 +131,7 @@
       </svg>
     </button>
   }
+  
 </div>
 
 <!-- Layout Selection Toggle (Visible to All Users) -->
