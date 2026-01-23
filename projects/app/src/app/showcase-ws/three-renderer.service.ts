@@ -2397,6 +2397,31 @@ export class ThreeRendererService {
     this.svgBackgroundOptions = undefined;
   }
 
+  /**
+   * Set opacity for a specific photo
+   */
+  setPhotoOpacity(photoId: string, opacity: number): void {
+    const photoData = this.photoMap.get(photoId);
+    if (!photoData || !photoData.mesh) return;
+    
+    const mesh = photoData.mesh;
+    if (mesh.material && 'opacity' in mesh.material) {
+      (mesh.material as any).opacity = opacity;
+      // Ensure transparency is enabled for opacity < 1
+      (mesh.material as any).transparent = true;
+    }
+  }
+
+  /**
+   * Set z-index (renderOrder) for a specific photo
+   */
+  setPhotoZIndex(photoId: string, zIndex: number): void {
+    const photoData = this.photoMap.get(photoId);
+    if (!photoData || !photoData.mesh) return;
+    
+    photoData.mesh.renderOrder = zIndex;
+  }
+
   // Cleanup
   dispose(): void {
     if (!this.isInitialized) return;

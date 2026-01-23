@@ -74,6 +74,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     radius: 700,
     maxHeight: 40
   });
+  
+  // Search state
+  searchText = signal<string>('');
+  searchActive = signal<boolean>(false);
 
   // Check if currently dragging (for cursor style)
   isDragging = computed(() => this.rendererService.isDraggingItem());
@@ -641,13 +645,35 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     
     // Start initial polling after component is ready
     if (this.platform.browser()) {
+      // Read search from URL hash on init
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+      const searchParam = params.get('search');
+      if (searchParam) {
+        const searchText = searchParam.replace(/\+/g, ' ');
+        this.searchText.set(searchText);
+        if (searchText) {
+          this.searchActive.set(true);
+        }
+      }
+      
       timer(ANIMATION_CONSTANTS.INITIAL_POLLING_DELAY).subscribe(() => {
         this.getItems().subscribe((items) => {
           this.loop.next(items);
           
+          // Apply search filter if search was loaded from hash
+          if (this.searchText()) {
+            // Wait a bit for photos to be loaded
+            timer(1000).subscribe(() => {
+              this.applySearchFilter();
+            });
+          }
+          
           // Check for item to focus from URL hash first, then from query params
-          const focusId = window.location.hash.slice(1) || this.focusItemId();
-          if (focusId) {
+          // Extract item ID from hash (before any search parameter)
+          const hashParts = window.location.hash.slice(1).split('?')[0];
+          const focusId = hashParts || this.focusItemId();
+          if (focusId && !focusId.includes('search=')) {
             console.log('[SHOWCASE_WS] Focusing on item from URL:', focusId);
             timer(500).subscribe(() => {
               this.focusOnItem(focusId, { animateFromFull: true, fromShowOnMap: true });
@@ -974,6 +1000,90 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   zoomOut(): void {
     this.rendererService.zoomAtCenter(1.5);
+  }
+
+  /**
+   * Handle search input
+   */
+  onSearchInput(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.searchText.set(target.value);
+    this.applySearchFilter();
+    this.updateSearchHash();
+  }
+
+  /**
+   * Clear search
+   */
+  clearSearch(): void {
+    this.searchText.set('');
+    this.searchActive.set(false);
+    this.applySearchFilter();
+    this.updateSearchHash();
+  }
+
+  /**
+   * Update URL hash with search parameter
+   */
+  private updateSearchHash(): void {
+    const search = this.searchText();
+    const params = new URLSearchParams(window.location.hash.substring(1));
+    
+    if (search) {
+      params.set('search', search.replace(/ /g, '+'));
+    } else {
+      params.delete('search');
+    }
+    
+    const newHash = params.toString();
+    if (newHash) {
+      window.location.hash = newHash;
+    } else {
+      // Remove hash if empty (but preserve the # for consistency)
+      window.location.hash = '';
+    }
+  }
+
+  /**
+   * Apply search filter to photos
+   * Matching items: 100% opacity, higher z-index
+   * Non-matching items: 20% opacity, lower z-index
+   */
+  private applySearchFilter(): void {
+    const search = this.searchText().toLowerCase().trim();
+    
+    if (!search) {
+      // No search - reset all items to full opacity and normal z-index
+      this.photoRepository.getAllPhotos().forEach(photo => {
+        this.rendererService.setPhotoOpacity(photo.metadata.id, 1.0);
+        this.rendererService.setPhotoZIndex(photo.metadata.id, 0);
+      });
+      return;
+    }
+    
+    // Apply filter
+    this.photoRepository.getAllPhotos().forEach(photo => {
+      const metadata = photo.metadata;
+      const tagline = (metadata['future_scenario_tagline'] || '').toLowerCase();
+      const description = (metadata['future_scenario_description'] || '').toLowerCase();
+      const content = (metadata['content'] || '').toLowerCase();
+      const id = (metadata['id'] || '').toLowerCase();
+      
+      const matches = tagline.includes(search) || 
+                     description.includes(search) || 
+                     content.includes(search) ||
+                     id.includes(search);
+      
+      if (matches) {
+        // Matching item: full opacity, higher z-index
+        this.rendererService.setPhotoOpacity(metadata.id, 1.0);
+        this.rendererService.setPhotoZIndex(metadata.id, 100);
+      } else {
+        // Non-matching item: 20% opacity, lower z-index
+        this.rendererService.setPhotoOpacity(metadata.id, 0.2);
+        this.rendererService.setPhotoZIndex(metadata.id, -100);
+      }
+    });
   }
 
   /**

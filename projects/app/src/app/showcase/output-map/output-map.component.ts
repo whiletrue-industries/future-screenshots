@@ -51,10 +51,6 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
   lang = signal('dutch');
   sortCorrectly = true;
   currentIndex = 0;
-  
-  // Search state
-  searchText = signal<string>('');
-  searchActive = signal<boolean>(false);
 
   // Loop state
   clusterLabelsVisible = signal(false);
@@ -113,29 +109,6 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
   bounds = computed<L.LatLngBoundsLiteral>(() => {
     return [[-this.h(), 0], [0, this.w()]];
   });
-  
-  // Filtered grid based on search text
-  filteredGrid = computed(() => {
-    const grid = this.config()?.grid;
-    const search = this.searchText().toLowerCase().trim();
-    
-    if (!grid || !search) {
-      return grid || [];
-    }
-    
-    return grid.filter((item: any) => {
-      const tagline = (item.metadata?.future_scenario_tagline || '').toLowerCase();
-      const description = (item.metadata?.future_scenario_description || '').toLowerCase();
-      const content = (item.metadata?.content || '').toLowerCase();
-      const id = (item.id || '').toLowerCase();
-      
-      return tagline.includes(search) || 
-             description.includes(search) || 
-             content.includes(search) ||
-             id.includes(search);
-    });
-  });
-  
   loopStep = 0;
   
   constructor(private api: ShowcaseApiService, private platform: PlatformService, private activatedRoute: ActivatedRoute, private leafletService: LeafletService) {
@@ -144,42 +117,6 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
       this.setLanguage();
       this.tag = params['tag'] || this.tag;
     });
-    
-    // Handle URL hash for search parameter
-    this.platform.browser(() => {
-      // Read initial search from hash
-      const hash = window.location.hash.substring(1);
-      const params = new URLSearchParams(hash);
-      const searchParam = params.get('search');
-      if (searchParam) {
-        const searchText = searchParam.replace(/\+/g, ' ');
-        this.searchText.set(searchText);
-        if (searchText) {
-          this.searchActive.set(true);
-        }
-      }
-      
-      // Update hash when search changes
-      effect(() => {
-        const search = this.searchText();
-        const params = new URLSearchParams(window.location.hash.substring(1));
-        
-        if (search) {
-          params.set('search', search.replace(/ /g, '+'));
-        } else {
-          params.delete('search');
-        }
-        
-        const newHash = params.toString();
-        if (newHash) {
-          window.location.hash = newHash;
-        } else {
-          // Remove hash if empty
-          history.replaceState(null, '', window.location.pathname + window.location.search);
-        }
-      }, { allowSignalWrites: true });
-    });
-    
     this.api.config.pipe(
       takeUntilDestroyed(),
       filter(config => !!config),
@@ -550,7 +487,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
   addToQueue() {
     if (this.config()) {
       let item = null;
-      const grid = this.filteredGrid();
+      const grid = this.config().grid;
       if (grid && grid.length > 0) {
         while (!item) {
           let index = this.currentIndex;
@@ -568,11 +505,6 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
         this.queue.next(item);
       }
     }
-  }
-
-  onSearchInput(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    this.searchText.set(target.value);
   }
 
   calculateMask(maskAmount: number, maskBase: MaskItem): MaskItem[] {
