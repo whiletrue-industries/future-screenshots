@@ -11,13 +11,18 @@
         height: 100%;
         cursor: default;
         
-        // Grab cursor when hovering over items
-        &.hovering {
+        // Pointer cursor when hovering over items in visitor mode (click-only)
+        &.hovering:not(.drag-enabled) {
+            cursor: pointer;
+        }
+        
+        // Grab cursor when hovering over items in admin mode (draggable)
+        &.hovering.drag-enabled {
             cursor: grab;
         }
         
-        // Grabbing cursor during active drag
-        &.hovering.dragging {
+        // Grabbing cursor during active drag (admin mode only)
+        &.hovering.drag-enabled.dragging {
             cursor: grabbing;
         }
     }

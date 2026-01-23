@@ -1,4 +1,4 @@
-<div class='container' [class.dragging]='isDragging()' [class.hovering]='isHoveringItem()' #container></div>
+<div class='container' [class.dragging]='isDragging()' [class.hovering]='isHoveringItem()' [class.drag-enabled]='isDragEnabled()' #container></div>
 
 <!-- QR Code (Only shown if additional contributions are allowed) -->
 @if (allowAdditionalContributions()) {

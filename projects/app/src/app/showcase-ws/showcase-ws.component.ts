@@ -110,11 +110,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   isDragging = computed(() => this.rendererService.isDraggingItem());
   
   // Check if hovering over an item (for cursor style) - directly use the signal
-  isHoveringItem = computed(() => {
-    const hovering = this.rendererService.isHoveringItem()();
-    console.log('[SHOWCASE_WS_CURSOR] isHoveringItem computed changed to:', hovering);
-    return hovering;
-  });
+  isHoveringItem = computed(() => this.rendererService.isHoveringItem()());
+  
+  // Check if drag is enabled (admin mode)
+  isDragEnabled = computed(() => this.isAdmin());
 
   // Track if fisheye is currently enabled
   // No longer needed: private currentFisheyeValue = 0;
@@ -1157,10 +1156,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   onPhotoClick(photoId: string): void {
     console.log('[SHOWCASE_WS] Photo clicked:', photoId, 'isAdmin:', this.isAdmin());
     
-    // Save item ID to URL hash
-    window.location.hash = photoId;
-    // Bump z-index for this item
-    this.updateActiveItemZIndex();
+    // Save item ID to URL hash (defer to avoid interfering with event handling)
+    queueMicrotask(() => {
+      window.location.hash = photoId;
+      // Bump z-index for this item
+      this.updateActiveItemZIndex();
+    });
     
     if (this.isAdmin()) {
       // User has edit permissions - open sidebar for evaluation

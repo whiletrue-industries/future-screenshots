@@ -1260,14 +1260,10 @@ export class ThreeRendererService {
       this.isDragging = false;
       this.draggedMesh = null;
       this.hoveredMesh = null;
+      this.hoveredItemSignal.set(false);
       
       // Hide preview widget
       this.hidePreviewWidget();
-      
-      // Reset cursor
-      if (this.container) {
-        this.container.style.cursor = 'default';
-      }
     }
   }
 
@@ -1981,9 +1977,6 @@ export class ThreeRendererService {
         this.raycaster.ray.intersectPlane(this.dragPlane, intersection);
         this.dragOffset.copy(intersection).sub(intersectedMesh.position);
         
-        // Change cursor to indicate dragging
-        this.renderer.domElement.style.cursor = 'grabbing';
-        
         // Call layout strategy drag start if available
         if (this.currentLayoutStrategy && this.currentLayoutStrategy.onPhotoDragStart) {
           const photoData = this.meshToPhotoData.get(intersectedMesh);
@@ -2006,7 +1999,6 @@ export class ThreeRendererService {
       this.isPanning = true;
       this.panStartMouse.set(event.clientX, event.clientY);
       this.panStartCameraPos.set(this.targetCamX, this.targetCamY, this.targetCamZ);
-      this.renderer.domElement.style.cursor = 'grabbing';
     }
   }
 
@@ -2076,11 +2068,6 @@ export class ThreeRendererService {
         const isHoverOnly = this.hoverOnlyMeshes.has(mesh);
         
         if (isDraggable || isHoverOnly) {
-          // Set cursor based on whether the mesh is draggable or just hoverable
-          if (this.container) {
-            this.container.style.cursor = isDraggable ? 'grab' : 'pointer';
-          }
-          
           // Show preview widget on hover
           if (this.hoveredMesh !== mesh) {
             this.hoveredMesh = mesh;
@@ -2124,12 +2111,15 @@ export class ThreeRendererService {
       if (isClick) {
         const photoId = this.findPhotoIdForMesh(draggedMesh);
         if (photoId && this.onPhotoClickCallback) {
-          console.log('[CLICK] Photo clicked (was about to drag but moved < threshold):', photoId);
-          
           // Re-enable fisheye if it was enabled before dragging
           if (this.wasFisheyeEnabled) {
             this.fisheyeEnabled = true;
           }
+          
+          // Clear drag state before calling callback to ensure clean state
+          this.draggedMesh = null;
+          this.hoveredItemSignal.set(false);
+          this.hidePreviewWidget();
           
           this.onPhotoClickCallback(photoId);
           return; // Exit early, don't process drag logic
@@ -2195,7 +2185,6 @@ export class ThreeRendererService {
       
       this.draggedMesh = null;
       this.hoveredMesh = null; // Clear hovered mesh on drop
-      console.log('[CURSOR] Drop event, setting hover signal to false');
       this.hoveredItemSignal.set(false);
       this.currentMatchedHotspot = null; // Clear matched hotspot
       
@@ -2203,9 +2192,54 @@ export class ThreeRendererService {
       if (this.wasFisheyeEnabled) {
         this.fisheyeEnabled = true;
       }
+      
+      // Re-check hover state for current mouse position after drag ends
+      // This ensures the signal and CSS state are updated if mouse is still over an item
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+      const intersects = this.raycaster.intersectObjects(this.root.children, false);
+      
+      if (intersects.length > 0) {
+        const mesh = intersects[0].object as THREE.Mesh;
+        const isDraggable = this.dragCallbacks.has(mesh) && !this.hoverOnlyMeshes.has(mesh);
+        const isHoverOnly = this.hoverOnlyMeshes.has(mesh);
+        
+        if (isDraggable || isHoverOnly) {
+          // Restore hover state (let CSS handle cursor based on signal)
+          this.hoveredMesh = mesh;
+          this.hoveredItemSignal.set(true);
+          this.showPreviewWidget(mesh);
+        }
+      }
     } else if (this.isPanning) {
       // Stop panning
       this.isPanning = false;
+      
+      // If this was a click (not actual panning), handle as click
+      if (isClick) {
+        this.raycaster.setFromCamera(this.mouse, this.camera);
+        const intersects = this.raycaster.intersectObjects(this.root.children, false);
+        
+        if (intersects.length > 0) {
+          const mesh = intersects[0].object as THREE.Mesh;
+          const photoId = this.findPhotoIdForMesh(mesh);
+          
+          if (photoId && this.onPhotoClickCallback) {
+            // Clicked on a photo
+            // Clear hover state to prevent cursor from staying as pointer after click
+            this.hoveredMesh = null;
+            this.hoveredItemSignal.set(false);
+            this.hidePreviewWidget();
+            
+            this.onPhotoClickCallback(photoId);
+          } else if (!photoId && this.onBackgroundClickCallback) {
+            // Clicked on background
+            this.onBackgroundClickCallback();
+          }
+        } else if (this.onBackgroundClickCallback) {
+          // Clicked on empty area (no mesh intersected)
+          this.onBackgroundClickCallback();
+        }
+      }
     } else if (isClick && !this.isDragging) {
       // Handle click events (not drag or pan)
       this.raycaster.setFromCamera(this.mouse, this.camera);
@@ -2217,16 +2251,19 @@ export class ThreeRendererService {
         
         if (photoId && this.onPhotoClickCallback) {
           // Clicked on a photo
-          console.log('[CLICK] Photo clicked:', photoId);
+          // Clear hover state to prevent cursor from staying as pointer after click
+          // This is especially important for hover-only meshes in visitor mode
+          this.hoveredMesh = null;
+          this.hoveredItemSignal.set(false);
+          this.hidePreviewWidget();
+          
           this.onPhotoClickCallback(photoId);
         } else if (!photoId && this.onBackgroundClickCallback) {
           // Clicked on background
-          console.log('[CLICK] Background clicked');
           this.onBackgroundClickCallback();
         }
       } else if (this.onBackgroundClickCallback) {
         // Clicked on empty area (no mesh intersected)
-        console.log('[CLICK] Background clicked');
         this.onBackgroundClickCallback();
       }
     }

@@ -172,5 +172,12 @@ export function isWebServiceLayout(layout: LayoutStrategy): layout is WebService
 }
 
 export function isInteractiveLayout(layout: LayoutStrategy): layout is InteractiveLayoutStrategy {
-  return 'getDropZones' in layout;
+  // Check if layout has getDropZones method OR is a known interactive layout by name
+  if ('getDropZones' in layout) {
+    return true;
+  }
+  
+  const layoutName = layout.getConfiguration().name;
+  const interactiveLayouts = ['circle-packing', 'tsne'];
+  return interactiveLayouts.includes(layoutName);
 }

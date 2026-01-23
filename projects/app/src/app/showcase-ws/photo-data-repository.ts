@@ -943,18 +943,19 @@ export class PhotoDataRepository {
    */
   private setupInteractiveDragForPhoto(photoData: PhotoData): void {
     if (!photoData.mesh || !this.renderer || !this.layoutStrategy || !isInteractiveLayout(this.layoutStrategy)) {
+      console.log('[DEBUG] setupInteractiveDragForPhoto: skipped (missing dependencies)');
       return;
     }
     
     // Check permission before enabling drag
     if (!this.isDragEnabled) {
-      console.log('[PHOTO_REPOSITORY_DRAG] Permission check: isDragEnabled is', this.isDragEnabled, '- Drag disabled by permissions, skipping drag setup for photo:', photoData.id);
+      console.log('[DEBUG] setupInteractiveDragForPhoto: isDragEnabled=false, photo', photoData.id);
       // Still enable hover detection for cursor feedback
       this.setupHoverDetectionForPhoto(photoData);
       return;
     }
 
-    console.log('[PHOTO_REPOSITORY_DRAG] Permission check: isDragEnabled is', this.isDragEnabled, '- Setting up interactive drag for photo:', photoData.id);
+    console.log('[DEBUG] setupInteractiveDragForPhoto: enabling drag for', photoData.id);
     const interactiveStrategy = this.layoutStrategy as any; // Cast to access drag methods
     
     // Store the layout strategy reference in the renderer for drag integration
@@ -984,7 +985,7 @@ export class PhotoDataRepository {
     // Register the mesh for hover detection only (not draggable)
     // This enables cursor feedback and click detection without drag functionality
     this.renderer.enableHoverForMesh(photoData.mesh);
-    console.log('[PHOTO_REPOSITORY_HOVER] Enabled hover-only detection for photo:', photoData.id);
+    console.log('[DEBUG] setupHoverDetectionForPhoto:', photoData.id);
   }
 
   /**
