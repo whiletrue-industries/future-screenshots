@@ -30,6 +30,41 @@
 <!-- Zoom Controls (Top Right) -->
 <div class='zoom-controls' [class.sidebar-open]='sidebarOpen()'>
   <div class='zoom-buttons'>
+    <!-- Search Controls -->
+    <div class='search-section'>
+      <button 
+        class='zoom-button'
+        [class.active]='searchActive()'
+        (click)='searchActive.set(!searchActive())'
+        title='Search'>
+        <svg viewBox='0 0 24 24' class='button-icon'>
+          <circle cx='11' cy='11' r='8' stroke='currentColor' stroke-width='2' fill='none'/>
+          <path d='M21 21l-4.35-4.35' stroke='currentColor' stroke-width='2' stroke-linecap='round'/>
+        </svg>
+      </button>
+      
+      @if (searchActive()) {
+        <div class='search-input-container'>
+          <input 
+            type='text' 
+            class='search-input'
+            placeholder='Search...'
+            [value]='searchText()'
+            (input)='onSearchInput($event)'
+            (keydown.escape)='clearSearch()'
+          />
+          @if (searchText()) {
+            <button 
+              class='search-clear' 
+              (click)='clearSearch()'
+              title='Clear search'>
+              ×
+            </button>
+          }
+        </div>
+      }
+    </div>
+
     <button 
       class='zoom-button'
       (click)='zoomIn()'
@@ -51,7 +86,14 @@
       (click)='resetView()'
       title='Reset View (R)'>
       <svg viewBox='0 0 24 24' class='button-icon'>
-        <path d='M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z' fill='currentColor'/>
+        <!-- Top-left arrow -->
+        <path d='M2 2l4 0 0 2 -2 0 0 2 -2 0 0 -4' fill='currentColor'/>
+        <!-- Top-right arrow -->
+        <path d='M22 2l-4 0 0 2 2 0 0 2 2 0 0 -4' fill='currentColor'/>
+        <!-- Bottom-left arrow -->
+        <path d='M2 22l4 0 0 -2 -2 0 0 -2 -2 0 0 4' fill='currentColor'/>
+        <!-- Bottom-right arrow -->
+        <path d='M22 22l-4 0 0 -2 2 0 0 -2 2 0 0 4' fill='currentColor'/>
       </svg>
     </button>
   </div>
@@ -70,6 +112,7 @@
       </svg>
     </button>
   }
+  
 </div>
 
 <!-- Layout Selection Toggle (Visible to All Users) -->
