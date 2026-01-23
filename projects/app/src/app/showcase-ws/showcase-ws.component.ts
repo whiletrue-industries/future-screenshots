@@ -234,6 +234,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.admin_key.set(qp['admin_key'] || 'ADMIN_KEY_NOT_SET');
     this.lang.set(qp['lang'] ? qp['lang'] + '/' : '');
     
+    // Set drag permissions immediately based on admin status
+    // This must be done before photos are added to the repository
+    const adminKeyValue = this.admin_key();
+    const isAdminUser = adminKeyValue !== '' && adminKeyValue !== 'ADMIN_KEY_NOT_SET';
+    this.photoRepository.setDragEnabled(isAdminUser);
+    console.log('[SHOWCASE_WS_INIT] Query params - admin_key:', adminKeyValue);
+    console.log('[SHOWCASE_WS_INIT] Drag permissions set during initialization:', isAdminUser ? 'enabled (admin)' : 'disabled (visitor)');
+    
     // Check for item permalink
     if (qp['item-id']) {
       this.focusItemId.set(qp['item-id']);
@@ -579,11 +587,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         newPhotoAnimationDelay: ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DELAY
       }
     );
-    
-    // Set drag permissions based on admin status
-    // Only admins can drag items in the showcase
-    this.photoRepository.setDragEnabled(this.isAdmin());
-    console.log('[SHOWCASE_WS] Drag permissions set:', this.isAdmin() ? 'enabled (admin)' : 'disabled (visitor)');
 
     // Switch to the desired initial layout if it's not grid
     if (this.currentLayout() !== 'grid') {

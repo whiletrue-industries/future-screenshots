@@ -1,8 +1,8 @@
 <div class='container' [class.dragging]='isDragging()' [class.hovering]='isHoveringItem()' #container></div>
 
-<!-- Evaluation Sidebar -->
+<!-- Evaluation Sidebar (Protected - Only for authenticated users) -->
 <app-evaluation-sidebar
-  [isOpen]='sidebarOpen()'
+  [isOpen]='sidebarOpen() && isAdmin()'
   [itemId]='selectedItemId()'
   [itemKey]='selectedItemKey()'
   [workspaceId]='workspace()'
@@ -69,8 +69,7 @@
   }
 </div>
 
-<!-- Layout Selection Toggle (Admin Only - Centered) -->
-@if (isAdmin()) {
+<!-- Layout Selection Toggle (Visible to All Users) -->
 <div class='layout-toggle-centered'>
   <div class='layout-toggle'>
     <div class='toggle-background'>
@@ -95,8 +94,8 @@
     </div>
   </div>
   
-  <!-- SVG Auto-Positioning Toggle (only visible when SVG layout is active) -->
-  @if (currentLayout() === 'svg') {
+  <!-- SVG Auto-Positioning Toggle (only visible when SVG layout is active and user is admin) -->
+  @if (currentLayout() === 'svg' && isAdmin()) {
     <div class='svg-auto-toggle'>
       <button 
         class='svg-auto-button'
@@ -110,5 +109,4 @@
     </div>
   }
 </div>
-}
 

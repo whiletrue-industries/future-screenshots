@@ -82,6 +82,7 @@ export class ThreeRendererService {
   private dragPlane = new THREE.Plane();
   private dragOffset = new THREE.Vector3();
   private dragCallbacks = new Map<THREE.Mesh, (position: { x: number; y: number; z: number }) => void>();
+  private hoverOnlyMeshes = new Set<THREE.Mesh>();  // Meshes that should only have hover detection, not dragging
   private meshToPhotoId = new Map<THREE.Mesh, string>();
   private meshToPhotoData = new Map<THREE.Mesh, any>(); // Store PhotoData for drag callbacks
   private currentLayoutStrategy: any = null; // Store reference to current layout strategy
@@ -1231,6 +1232,16 @@ export class ThreeRendererService {
    */
   enableDragForMesh(mesh: THREE.Mesh, callback: (position: { x: number; y: number; z: number }) => void) {
     this.dragCallbacks.set(mesh, callback);
+    // Remove from hover-only set if it was there
+    this.hoverOnlyMeshes.delete(mesh);
+  }
+
+  /**
+   * Enable hover detection for a mesh without enabling drag functionality
+   * This allows cursor feedback and click detection without allowing dragging
+   */
+  enableHoverForMesh(mesh: THREE.Mesh) {
+    this.hoverOnlyMeshes.add(mesh);
   }
 
   /**
@@ -1928,8 +1939,9 @@ export class ThreeRendererService {
     if (intersects.length > 0) {
       const intersectedMesh = intersects[0].object as THREE.Mesh;
       
-      // Check if this mesh is draggable
-      if (this.dragCallbacks.has(intersectedMesh)) {
+      // Check if this mesh is draggable (has drag callback AND not marked as hover-only)
+      const canDrag = this.dragCallbacks.has(intersectedMesh) && !this.hoverOnlyMeshes.has(intersectedMesh);
+      if (canDrag) {
         this.isDragging = true;
         this.draggedMesh = intersectedMesh;
         
@@ -2040,14 +2052,23 @@ export class ThreeRendererService {
       this.raycaster.setFromCamera(this.mouse, this.camera);
       const intersects = this.raycaster.intersectObjects(this.root.children, false);
       
-      if (intersects.length > 0 && this.dragCallbacks.has(intersects[0].object as THREE.Mesh)) {
+      if (intersects.length > 0) {
         const mesh = intersects[0].object as THREE.Mesh;
+        const isDraggable = this.dragCallbacks.has(mesh) && !this.hoverOnlyMeshes.has(mesh);
+        const isHoverOnly = this.hoverOnlyMeshes.has(mesh);
         
-        // Show preview widget on hover
-        if (this.hoveredMesh !== mesh) {
-          this.hoveredMesh = mesh;
-          this.hoveredItemSignal.set(true);
-          this.showPreviewWidget(mesh);
+        if (isDraggable || isHoverOnly) {
+          // Set cursor based on whether the mesh is draggable or just hoverable
+          if (this.container) {
+            this.container.style.cursor = isDraggable ? 'grab' : 'pointer';
+          }
+          
+          // Show preview widget on hover
+          if (this.hoveredMesh !== mesh) {
+            this.hoveredMesh = mesh;
+            this.hoveredItemSignal.set(true);
+            this.showPreviewWidget(mesh);
+          }
         }
       } else {
         // Hide preview widget when not hovering
