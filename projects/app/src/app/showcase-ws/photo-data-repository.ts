@@ -902,12 +902,15 @@ export class PhotoDataRepository {
       const maxExtentY = Math.max(Math.abs(calculatedBounds.minY), Math.abs(calculatedBounds.maxY));
       const maxExtent = Math.max(maxExtentX, maxExtentY);
       
+      // Ensure we have a valid extent (fallback to default if clusters are all at origin)
+      const finalExtent = maxExtent > 0 ? maxExtent : 20000;
+      
       // Create bounds centered at (0, 0) with the calculated extent
       bounds = {
-        minX: -maxExtent,
-        maxX: maxExtent,
-        minY: -maxExtent,
-        maxY: maxExtent
+        minX: -finalExtent,
+        maxX: finalExtent,
+        minY: -finalExtent,
+        maxY: finalExtent
       };
     } else {
       // For other layouts: calculate bounds from actual photo positions
