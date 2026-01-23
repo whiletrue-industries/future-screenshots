@@ -1,4 +1,38 @@
 <div #mapEl class='map' [style.transform]='mapTransform()'></div>
+<div class='search-controls'>
+    <button 
+        class='search-button' 
+        [class.active]='searchActive()'
+        (click)='searchActive.set(!searchActive())'
+        title='Search workspace items'
+        type='button'>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+        </svg>
+    </button>
+    @if (searchActive()) {
+        <div class='search-input-container'>
+            <input 
+                type='text' 
+                class='search-input'
+                placeholder='Search...'
+                [value]='searchText()'
+                (input)='searchText.set($any($event.target).value)'
+                (keydown.escape)='searchActive.set(false); searchText.set("")'
+            />
+            @if (searchText()) {
+                <button 
+                    class='search-clear' 
+                    (click)='searchText.set("")'
+                    title='Clear search'
+                    type='button'>
+                    ×
+                </button>
+            }
+        </div>
+    }
+</div>
 <div #clusterLabelsEl style='display:none'>
     @if (map()) {
         <svg xmlns="http://www.w3.org/2000/svg" class='cluster-labels' [attr.width]='w()' [attr.height]='h()' [attr.viewBox]='"0 0 " + w() + " " + h()' [class.visible]='clusterLabelsVisible()'>
