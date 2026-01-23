@@ -501,6 +501,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   async ngAfterViewInit() {
     if (this.platform.browser()) {
       window.addEventListener('message', this.onMessageFromChild);
+      // Listen for hash changes to update z-index
+      window.addEventListener('hashchange', () => this.updateActiveItemZIndex());
       await this.initialize(this.container.nativeElement);
     }
   }
@@ -629,11 +631,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         this.getItems().subscribe((items) => {
           this.loop.next(items);
           
-          // If there's an item to focus on, do it after a short delay to ensure rendering
-          const focusId = this.focusItemId();
+          // Check for item to focus from URL hash first, then from query params
+          const focusId = window.location.hash.slice(1) || this.focusItemId();
           if (focusId) {
+            console.log('[SHOWCASE_WS] Focusing on item from URL:', focusId);
             timer(500).subscribe(() => {
-              this.focusOnItem(focusId, { animateFromFull: true });
+              this.focusOnItem(focusId, { animateFromFull: true, fromShowOnMap: true });
             });
           }
         });
@@ -972,9 +975,15 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Handle photo click
    * If user has edit permissions: open evaluation sidebar
    * If user does not have edit permissions: trigger zoom animation (like "show on map")
+   * Also updates URL hash with item ID
    */
   onPhotoClick(photoId: string): void {
     console.log('[SHOWCASE_WS] Photo clicked:', photoId, 'isAdmin:', this.isAdmin());
+    
+    // Save item ID to URL hash
+    window.location.hash = photoId;
+    // Bump z-index for this item
+    this.updateActiveItemZIndex();
     
     if (this.isAdmin()) {
       // User has edit permissions - open sidebar for evaluation
@@ -1039,6 +1048,41 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     console.warn('[SHOWCASE_WS] Could not find photo to focus on:', itemId);
   }
 
+  /**
+   * Update z-index (renderOrder) for the active hash item
+   */
+  private updateActiveItemZIndex(): void {
+    const activeItemId = window.location.hash.slice(1);
+    
+    if (activeItemId) {
+      // Boost the active item
+      const photo = this.photoRepository.getPhoto(activeItemId);
+      if (photo && photo.mesh) {
+        console.log('[SHOWCASE_WS] Bumping z-index for item:', activeItemId);
+        photo.mesh.renderOrder = 100; // High z-index
+      }
+    } else {
+      // No active item, reset all
+      this.resetAllItemsZIndex();
+    }
+  }
+
+  /**
+   * Reset z-index for all items back to normal
+   */
+  private resetAllItemsZIndex(): void {
+    console.log('[SHOWCASE_WS] Resetting z-index for all items');
+    // Get all photos and reset their renderOrder
+    const allPhotos = this.photoRepository.getAllPhotos?.();
+    if (allPhotos) {
+      allPhotos.forEach(photo => {
+        if (photo.mesh) {
+          photo.mesh.renderOrder = 0; // Normal z-index
+        }
+      });
+    }
+  }
+
   // Check if the current user is an editor (has admin_key)
   canEdit = computed(() => this.isAdmin());
   
@@ -1054,6 +1098,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     console.log('[SHOWCASE_WS] Background clicked');
     this.sidebarOpen.set(false);
     this.selectedItemId.set(null);
+    // Clear URL hash when closing
+    window.location.hash = '';
+    // Reset z-index for all items
+    this.resetAllItemsZIndex();
   }
 
   /**
@@ -1063,6 +1111,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     console.log('[SHOWCASE_WS] Sidebar closed');
     this.sidebarOpen.set(false);
     this.selectedItemId.set(null);
+    // Clear URL hash when closing
+    window.location.hash = '';
+    // Reset z-index for all items
+    this.resetAllItemsZIndex();
   }
 
   /**
