@@ -1228,6 +1228,33 @@ export class ThreeRendererService {
   }
 
   /**
+   * Clean up drag state (used when drag is cancelled or interrupted)
+   */
+  private cleanupDragState(): void {
+    if (this.isDragging && this.draggedMesh) {
+      console.log('[DRAG] Cleaning up drag state');
+      
+      // Re-enable fisheye if it was enabled before dragging
+      if (this.wasFisheyeEnabled) {
+        this.fisheyeEnabled = true;
+      }
+      
+      // Clear drag state
+      this.isDragging = false;
+      this.draggedMesh = null;
+      this.hoveredMesh = null;
+      
+      // Hide preview widget
+      this.hidePreviewWidget();
+      
+      // Reset cursor
+      if (this.container) {
+        this.container.style.cursor = 'default';
+      }
+    }
+  }
+
+  /**
    * Enable drag functionality for a mesh with callback
    */
   enableDragForMesh(mesh: THREE.Mesh, callback: (position: { x: number; y: number; z: number }) => void) {
@@ -1848,8 +1875,14 @@ export class ThreeRendererService {
       this.onMouseUp();
     });
 
-    // Mouse leave - reset fisheye effect
+    // Mouse leave - reset fisheye effect and cleanup drag state
     canvas.addEventListener('mouseleave', () => {
+      // Clean up drag state if dragging when leaving canvas
+      if (this.isDragging) {
+        console.log('[DRAG] Mouse left canvas while dragging, cleaning up drag state');
+        this.cleanupDragState();
+      }
+      
       // Only reset if fisheye is enabled and there are affected meshes
       if (this.fisheyeEnabled && this.fisheyeAffectedMeshes.size > 0) {
         this.resetAllFisheyeEffects();
@@ -1900,6 +1933,22 @@ export class ThreeRendererService {
     // Keyboard controls
     window.addEventListener('keydown', (event) => {
       this.onKeyDown(event);
+    });
+
+    // Window-level mouseup as fallback (handles release outside canvas)
+    window.addEventListener('mouseup', () => {
+      if (this.isDragging) {
+        console.log('[DRAG] Window mouseup detected while dragging, cleaning up drag state');
+        this.cleanupDragState();
+      }
+    });
+
+    // Window-level touchend as fallback (handles release outside canvas)
+    window.addEventListener('touchend', () => {
+      if (this.isDragging) {
+        console.log('[DRAG] Window touchend detected while dragging, cleaning up drag state');
+        this.cleanupDragState();
+      }
     });
   }
 
