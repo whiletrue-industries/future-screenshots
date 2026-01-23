@@ -159,7 +159,8 @@ export class ThreeRendererService {
     this.FOV_DEG = opts.fovDeg ?? 45;
     this.CAM_MARGIN = opts.cameraMargin ?? 300;
     this.CAM_DAMP = opts.cameraDamp ?? 0.1 * 10000;
-    this.ANISO = opts.anisotropy ?? 4;
+    // Reduce anisotropic filtering on mobile for better performance
+    this.ANISO = opts.anisotropy ?? (this.platformService.isMobile ? 2 : 4);
     this.BG = opts.background ?? 0xFFFDF6;
   }
 
@@ -1905,6 +1906,8 @@ export class ThreeRendererService {
     // Touch events for mobile
     canvas.addEventListener('touchstart', (event) => {
       if (event.touches.length === 1) {
+        // Single touch - treat as mouse click
+        event.preventDefault(); // Prevent default touch behavior
         this.updateMousePositionFromTouch(event.touches[0]);
         const mouseEvent = new MouseEvent('mousedown', {
           clientX: event.touches[0].clientX,
@@ -1915,19 +1918,22 @@ export class ThreeRendererService {
         // Two-finger touch for pinch zoom (to be implemented)
         event.preventDefault();
       }
-    }, { passive: true });
+    }, { passive: false }); // Changed to false to allow preventDefault
 
     canvas.addEventListener('touchmove', (event) => {
       if (event.touches.length === 1) {
-        event.preventDefault();
+        event.preventDefault(); // Prevent scrolling while dragging
         this.updateMousePositionFromTouch(event.touches[0]);
         const mouseEvent = new MouseEvent('mousemove', {
           clientX: event.touches[0].clientX,
           clientY: event.touches[0].clientY
         });
         this.onMouseMove(mouseEvent);
+      } else if (event.touches.length === 2) {
+        // Prevent default for multi-touch
+        event.preventDefault();
       }
-    }, { passive: true });
+    }, { passive: false }); // Changed to false to allow preventDefault
 
     canvas.addEventListener('touchend', () => {
       this.onMouseUp();

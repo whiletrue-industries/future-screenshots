@@ -67,28 +67,17 @@
             font-size: 14px;
             top: 10px;
             
-            // Enable horizontal scrolling for truncated titles on mobile
-            &:hover, &:active {
+            // On mobile, when text is truncated, it will scroll on touch/tap
+            &:active {
                 overflow-x: auto;
                 overflow-y: hidden;
-                white-space: nowrap;
                 text-overflow: clip;
                 -webkit-overflow-scrolling: touch;
                 scrollbar-width: none; // Firefox
                 &::-webkit-scrollbar {
                     display: none; // Chrome, Safari
                 }
-                animation: slide-text 10s linear infinite;
             }
-        }
-    }
-    
-    @keyframes slide-text {
-        0% {
-            text-indent: 0;
-        }
-        100% {
-            text-indent: -100%;
         }
     }
 
