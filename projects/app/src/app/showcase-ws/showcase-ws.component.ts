@@ -966,10 +966,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     console.log('[SHOWCASE_WS] Focusing on item:', itemId);
     
     // Wait for photo to be loaded
-    const maxAttempts = 50; // 5 seconds max wait
     let attempts = 0;
     
-    while (attempts < maxAttempts) {
+    while (attempts < this.MAX_FOCUS_ATTEMPTS) {
       const photo = this.photoRepository.getPhoto(itemId);
       if (photo && photo.mesh) {
         // Get the photo's position
@@ -977,7 +976,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         console.log('[SHOWCASE_WS] Found photo at position:', position);
         
         // Focus camera on this position with appropriate zoom
-        this.rendererService.focusOnPosition(position.x, position.y, 800);
+        this.rendererService.focusOnPosition(position.x, position.y, this.DEFAULT_FOCUS_ZOOM);
         
         // Optionally open the sidebar for this item
         // Commenting out for now as per requirements - user can click to view
@@ -987,18 +986,21 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         return;
       }
       
-      // Wait 100ms before trying again
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait before trying again
+      await new Promise(resolve => setTimeout(resolve, this.FOCUS_RETRY_DELAY_MS));
       attempts++;
     }
     
     console.warn('[SHOWCASE_WS] Could not find photo to focus on:', itemId);
   }
 
-  /**
-   * Check if the current user is an editor (has admin_key)
-   */
+  // Check if the current user is an editor (has admin_key)
   canEdit = computed(() => this.isAdmin());
+  
+  // Focus attempt configuration
+  private readonly MAX_FOCUS_ATTEMPTS = 50; // 5 seconds max wait (50 * 100ms)
+  private readonly FOCUS_RETRY_DELAY_MS = 100;
+  private readonly DEFAULT_FOCUS_ZOOM = 800;
 
   /**
    * Handle background click - close evaluation sidebar

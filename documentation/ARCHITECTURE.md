@@ -133,6 +133,16 @@ The application uses Angular standalone components organized by feature:
    - Smooth camera animations with damping
    - QR code for easy mobile access
    - Random showcase mode to highlight photos
+   - **Permalink support**: Navigate to specific items via `item-id` parameter
+     - Example: `/showcase-ws?workspace=XXX&api_key=YYY&item-id=ZZZ&layout=map`
+     - Camera automatically zooms and centers on the specified item
+   - **Layout aliases**: Friendly URL parameters for layout modes
+     - `layout=map` → SVG layout (interactive map)
+     - `layout=clusters` → Circle-packing layout
+     - `layout=themes` → Grid layout
+   - **Access control**: Drag-to-edit only for users with admin_key
+     - Visitors can view and click but not drag items
+     - Editors with admin_key can drag and edit all items
           - SVG layout strategy:
              - Uses a per-hotspot deterministic slot grid (hex-like staggered) clipped to each `#hit > path`.
              - Slot order is a seeded shuffle for even coverage across the shape.
@@ -329,6 +339,25 @@ The Showcase WS component provides interactive camera controls for navigating th
 ### Backend API Endpoints
 
 Base URL: Configured via environment/workspace settings
+
+#### Access Control
+
+The showcase supports three levels of access:
+
+1. **Visitors** (no admin_key)
+   - Can view items in the showcase
+   - Can click items to view details in sidebar
+   - Cannot drag items or edit evaluations
+   - Read-only mode
+
+2. **Editors** (with admin_key) 
+   - Can drag items in interactive layouts (SVG)
+   - Can click items to edit evaluations in sidebar
+   - Full editing permissions for all items
+
+3. **Authors** (with item_key)
+   - Can edit their own items via special edit link
+   - Edit link includes item-specific key for authentication
 
 #### Workspace Management
 

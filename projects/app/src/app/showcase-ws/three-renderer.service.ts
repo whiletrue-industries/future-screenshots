@@ -2695,6 +2695,10 @@ export class ThreeRendererService {
 
   /**
    * Focus camera on a specific position with zoom
+   * @param x World space X coordinate of the target position
+   * @param y World space Y coordinate of the target position
+   * @param targetZ Camera Z distance (zoom level). Must be between minCamZ (300) and maxCamZ (50000).
+   *                Smaller values = more zoomed in. Default is 800.
    */
   focusOnPosition(x: number, y: number, targetZ: number = 800): void {
     // Disable auto-fit mode
