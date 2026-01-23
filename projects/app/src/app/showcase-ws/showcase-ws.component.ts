@@ -445,7 +445,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           spacingX: PHOTO_CONSTANTS.SPACING_X,
           spacingY: PHOTO_CONSTANTS.SPACING_Y,
           groupBuffer: 1500,
-          photoBuffer: 0
+          photoBuffer: 0,
+          useFanLayout: !this.isMobile()
         });
 
     // Clear any lingering debug overlay when leaving auto-positioning mode
@@ -964,7 +965,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       this.svgSideStrategy = new SvgSideLayoutStrategy({
         photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
         photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
-        svgRadius: this.svgCircleRadius
+        svgRadius: this.svgCircleRadius,
+        useFanLayout: !this.isMobile()
       });
       const svgElement = this.svgBackgroundStrategy.getSvgElement();
       if (svgElement) {
@@ -1040,7 +1042,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         spacingX: PHOTO_CONSTANTS.SPACING_X,
         spacingY: PHOTO_CONSTANTS.SPACING_Y,
         groupBuffer: 1500,  // Ample buffer between groups
-        photoBuffer: 0   // Buffer between photos within groups
+        photoBuffer: 0,   // Buffer between photos within groups
+        useFanLayout: !this.isMobile()
       });
       
       // Remove SVG background if switching from SVG layout
