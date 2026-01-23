@@ -1,7 +1,7 @@
 <div class='container' [class.dragging]='isDragging()' [class.hovering]='isHoveringItem()' #container></div>
 
-<!-- QR Code (Only shown if additional contributions are allowed) -->
-@if (allowAdditionalContributions()) {
+<!-- QR Code (Only shown if additional contributions are allowed and not on mobile) -->
+@if (allowAdditionalContributions() && !isMobile()) {
   <app-qrcode [small]='qrSmall()' [url]='qrUrl()'></app-qrcode>
 }
 

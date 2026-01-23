@@ -95,6 +95,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   qrUrl = computed(() => 
     `https://mapfutur.es/${this.lang()}prescan?workspace=${this.workspace()}&api_key=${this.api_key()}&ws=true`
   );
+  
+  // Check if device is mobile
+  isMobile = computed(() => this.platform.isMobile);
 
   private onMessageFromChild = (event: MessageEvent) => {
     const data = event.data;

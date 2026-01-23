@@ -1,9 +1,10 @@
 import * as THREE from 'three';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { signal, Signal } from '@angular/core';
 import { PhotoData, PhotoAnimationState } from './photo-data';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { FisheyeEffectService } from './fisheye-effect.service';
+import { PlatformService } from '../../platform.service';
 
 export interface ThreeRendererOptions {
   photoWidth?: number;   // default PHOTO_CONSTANTS.PHOTO_WIDTH
@@ -147,6 +148,8 @@ export class ThreeRendererService {
   private panSensitivityMultiplier = 1.0;
   private dofStrength = 0;
   private dofPass: any = null; // Post-processing pass for depth of field (if implemented)
+  
+  private platformService = inject(PlatformService);
 
   constructor() {
     this.fisheyeService = new FisheyeEffectService();
@@ -2451,10 +2454,14 @@ export class ThreeRendererService {
 
   // Private methods
   private async initializeThreeJS(): Promise<void> {
-    // Renderer
+    // Renderer - optimize pixel ratio for mobile
+    const pixelRatio = this.platformService.isMobile 
+      ? Math.min(1.5, window.devicePixelRatio || 1) // Lower pixel ratio on mobile for better performance
+      : Math.min(2, window.devicePixelRatio || 1);
+    
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(this.container!.clientWidth, this.container!.clientHeight);
     this.container!.appendChild(this.renderer.domElement);
 
@@ -2673,7 +2680,9 @@ export class ThreeRendererService {
    * Load and downscale image to maximum dimension for performance optimization
    */
   private async loadAndDownscaleImage(url: string): Promise<THREE.Texture> {
-    const MAX_DIMENSION = PHOTO_CONSTANTS.MAX_TEXTURE_DIMENSION;
+    const MAX_DIMENSION = this.platformService.isMobile 
+      ? PHOTO_CONSTANTS.MAX_TEXTURE_DIMENSION_MOBILE 
+      : PHOTO_CONSTANTS.MAX_TEXTURE_DIMENSION;
     
     return new Promise<THREE.Texture>((resolve, reject) => {
       const img = new Image();
