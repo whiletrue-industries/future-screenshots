@@ -22,8 +22,9 @@
     <div class='input' ltr [class.visible]='inputVisible()'>
         <textarea
             class='input-el'
-            [(ngModel)]="inputMessage"
-            (keyup.enter)="submitMessage()"
+            [ngModel]="inputMessage()"
+            (ngModelChange)="inputMessage.set($event)"
+            (keydown.enter)="$event.preventDefault(); submitMessage()"
             [disabled]='inputDisabled()'
             rows="1"
             placeholder="in your own words..."

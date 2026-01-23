@@ -232,6 +232,7 @@ export class ApiService {
   }
 
   sendMessage(message: string): Observable<any> {
+    console.log('[API] sendMessage called with:', message ? `"${message}"` : '(empty)');
     const params: any = {
       workspace: this.workspaceId(),
       api_key: this.api_key(),
@@ -239,6 +240,7 @@ export class ApiService {
       item_key: this.item().item_key,
       message: message,
     };
+    console.log('[API] Request params:', params);
     // return this.http.get(`${this.ITEM_INGRES_AGENT_URL}`, {params}).pipe(
     //   map((response: any) => {
     //     return response as DiscussResult;
@@ -246,24 +248,42 @@ export class ApiService {
     // );
     return new Observable(observer => {
       const url = `${this.ITEM_INGRES_AGENT_URL}?${new URLSearchParams(params).toString()}`;
+      console.log('[API] EventSource URL:', url);
       const eventSource = new EventSource(url);
+      let completed = false;
+      
       eventSource.onmessage = (event) => {
-        // console.log('EVENT', event);
         try {
+          const data = JSON.parse(event.data);
+          console.log('[API] Received:', data);
           this.zone.run(() => {
-            observer.next(JSON.parse(event.data));
+            observer.next(data);
           });
+          
+          // Complete the observable when we get a completed or done status
+          if ((data.kind === 'status' && (data.status === 'completed' || data.status === 'done' || data.status === 'failed'))) {
+            completed = true;
+            setTimeout(() => {
+              eventSource.close();
+              observer.complete();
+            }, 100); // Small delay to ensure all events are processed
+          }
         } catch (error) {
           console.error('PARSE ERROR', error);
+          eventSource.close();
           observer.error(error);
         }
       };
+      
       eventSource.onerror = (error) => {
-        console.error('EVENTSOURCE ERROR', error);
-        eventSource.close(); //
+        // Only log error if we haven't already completed
+        if (!completed) {
+          console.error('EVENTSOURCE ERROR', error);
+        }
+        eventSource.close();
         observer.complete();
-        // observer.error(error);
       };
+      
       return () => {
         eventSource.close();
       };

@@ -5,7 +5,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService, DiscussResult } from '../../api.service';
 import { PlatformService } from '../../platform.service';
 import { Message, MessagesComponent } from '../messages/messages.component';
-import { from, fromEvent, switchMap, take } from 'rxjs';
+import { from, fromEvent, Subscription, switchMap, take } from 'rxjs';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { HttpClient } from '@angular/common/http';
 import { LtrDirective } from '../ltr.directive';
@@ -48,6 +48,9 @@ export class DiscussComponent implements AfterViewInit {
     return this.visible() && !this.completed();
   });
   failed = signal<boolean>(false);
+
+  private messageSubscription?: Subscription;
+  private isSubmitting = false;
 
   @ViewChild(MessagesComponent) messagesComponent!: MessagesComponent;
   @ViewChild('image') imageEl!: ElementRef<HTMLImageElement>;
@@ -103,16 +106,42 @@ export class DiscussComponent implements AfterViewInit {
   }
 
   submitMessage() {
+    console.log('[DISCUSS] submitMessage() called, stack trace:');
+    console.trace();
+    
+    // Prevent double submission with processing flag
+    if (this.isSubmitting) {
+      console.log('[DISCUSS] Ignoring submit - already submitting');
+      return;
+    }
+
+    // Don't submit if input is disabled (unless it's the first auto-submit)
+    const message = this.inputMessage();
+    if (this.inputDisabled() && message === '') {
+      console.log('[DISCUSS] Ignoring submit - input disabled and message empty');
+      return;
+    }
+
+    this.isSubmitting = true;
+    console.log('[DISCUSS] Input message value:', message ? `"${message}"` : '(empty)');
+    console.log('[DISCUSS] Input message length:', message?.length || 0);
+    console.log('[DISCUSS] Will send to server:', message || 'initial');
+
+    // Unsubscribe from any previous message stream
+    if (this.messageSubscription) {
+      this.messageSubscription.unsubscribe();
+      this.messageSubscription = undefined;
+    }
+
     this.inputDisabled.set(true);
     this.thinking.set(true);
     this.messagesComponent.thinking.set(true);
     console.log('thinking...');
-    const message = this.inputMessage();
     if (message) {
       this.addMessage('human', message);
     }
     this.inputMessage.set('');
-    this.api.sendMessage(message || 'initial').subscribe((ret: any) => {
+    this.messageSubscription = this.api.sendMessage(message || 'initial').subscribe((ret: any) => {
       // console.log('MESSAGE', ret);
       if (ret.kind === 'message') {
         this.hasText.set(true);
@@ -149,16 +178,24 @@ export class DiscussComponent implements AfterViewInit {
         console.log('thinking done...');
         this.thinking.set(false);
         this.messagesComponent.thinking.set(false);
-      } else if (ret.kind === 'status' && ret.status) {
+      } else if (ret.kind === 'status' && ret.status === 'completed') {
+        // Re-enable input when assistant completes its turn
         this.thinking.set(false);
         this.messagesComponent.thinking.set(false);
         this.failed.set(false);
         this.inputDisabled.set(false);
+        this.isSubmitting = false;
         if (this.reply()) {
           this.addMessage('ai', this.reply());
           this.reply.set('');  
         }
       }
+    }, () => {
+      // Error handler
+      this.isSubmitting = false;
+    }, () => {
+      // Complete handler
+      this.isSubmitting = false;
     });
   }
 }
