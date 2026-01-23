@@ -177,7 +177,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
           // Remove hash if empty
           history.replaceState(null, '', window.location.pathname + window.location.search);
         }
-      });
+      }, { allowSignalWrites: true });
     });
     
     this.api.config.pipe(
@@ -568,6 +568,11 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
         this.queue.next(item);
       }
     }
+  }
+
+  onSearchInput(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.searchText.set(target.value);
   }
 
   calculateMask(maskAmount: number, maskBase: MaskItem): MaskItem[] {
