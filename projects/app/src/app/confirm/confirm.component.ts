@@ -42,10 +42,14 @@ export class ConfirmComponent {
       }
       
       this.api.createItem(metadata).subscribe((res: any) => {
-        const params = {
+        const params: any = {
           'item-id': res.item_id,
           'key': res.item_key
         };
+        // Preserve template flag for no-paper flow
+        if (this.isTemplateFlow) {
+          params['template'] = 'true';
+        }
         if (!this.api.automatic()) {
           this.api.uploadImage(currentImage, res.item_id, res.item_key);
           this.router.navigate(['/props'], { queryParams: params, queryParamsHandling: 'merge'});
