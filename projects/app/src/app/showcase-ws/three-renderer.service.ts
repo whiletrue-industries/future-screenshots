@@ -84,6 +84,7 @@ export class ThreeRendererService {
   private dragCallbacks = new Map<THREE.Mesh, (position: { x: number; y: number; z: number }) => void>();
   private hoverOnlyMeshes = new Set<THREE.Mesh>();  // Meshes that should only have hover detection, not dragging
   private meshToPhotoId = new Map<THREE.Mesh, string>();
+  private photoIdToMesh = new Map<string, THREE.Mesh>(); // Reverse map from photoId to mesh
   private meshToPhotoData = new Map<THREE.Mesh, any>(); // Store PhotoData for drag callbacks
   private currentLayoutStrategy: any = null; // Store reference to current layout strategy
   private layoutStrategyRef: any = null; // Store reference for debug visualization
@@ -243,6 +244,10 @@ export class ThreeRendererService {
     }
     this.meshToPhotoData.delete(photoData.mesh);
     this.meshToUrl.delete(photoData.mesh);
+    const photoId = this.meshToPhotoId.get(photoData.mesh);
+    if (photoId) {
+      this.photoIdToMesh.delete(photoId);
+    }
     this.meshToPhotoId.delete(photoData.mesh);
     this.dragCallbacks.delete(photoData.mesh);
     this.highResActive.delete(photoData.mesh);
@@ -945,11 +950,8 @@ export class ThreeRendererService {
   }
   
   private applyFisheyeEffect(): void {
-    
-    // Get viewport dimensions
     const viewportHeight = this.container?.clientHeight ?? window.innerHeight;
 
-    // Update camera state in fisheye config for accurate world-to-screen conversions
     this.fisheyeService.setConfig({
       cameraZ: this.targetCamZ,
       fov: this.FOV_DEG,
@@ -971,6 +973,19 @@ export class ThreeRendererService {
 
     // Apply fisheye effect to all meshes in the scene
     const config = this.fisheyeService.getConfig();
+
+    // If current zoom already makes photos taller than the fisheye maxHeight, skip fisheye
+    if (config.maxHeight !== undefined && viewportHeight > 0) {
+      const vFOV = (this.FOV_DEG * Math.PI) / 180;
+      const visibleHeightWorld = 2 * Math.tan(vFOV / 2) * this.targetCamZ;
+      const pxPerWorldUnit = viewportHeight / Math.max(1, visibleHeightWorld);
+      const photoHeightPx = this.PHOTO_H * pxPerWorldUnit;
+      const photoHeightVh = (photoHeightPx / viewportHeight) * 100;
+      if (photoHeightVh >= config.maxHeight) {
+        return; // Disable fisheye when zoomed in beyond fisheye extent
+      }
+    }
+
     const effectRadiusSquared = config.radius * config.radius; // Use squared distance to avoid sqrt
     
     this.root.children.forEach((child) => {
@@ -982,18 +997,17 @@ export class ThreeRendererService {
       
       // Skip hidden items (animationState === 'hidden')
       if (photoData && photoData.animationState === 'hidden') return;
+
+      let logicalPosition = mesh.position.clone();
+      let meshHeight = this.PHOTO_H;
       
-      let logicalPosition: THREE.Vector3;
-      let meshHeight = this.PHOTO_H; // Default to standard photo height
-      
-      if (photoData && photoData.currentPosition) {
-        // Use PhotoData's current position as the logical position
+      if (photoData) {
+        // Use current position from PhotoData for fisheye calculations
         logicalPosition = new THREE.Vector3(
           photoData.currentPosition.x,
           photoData.currentPosition.y,
           photoData.currentPosition.z
         );
-        // Use PhotoData's dimensions if available
         if (photoData.height) {
           meshHeight = photoData.height;
         }
@@ -1030,9 +1044,12 @@ export class ThreeRendererService {
             mesh.renderOrder = 0;
           }
           
-          if (mesh.material && 'opacity' in mesh.material) {
-            (mesh.material as any).opacity = 1;
+          // Restore original rotation (cluster rotation)
+          if (mesh.userData['originalRotation'] !== undefined) {
+            mesh.rotation.z = mesh.userData['originalRotation'];
+            mesh.userData['originalRotation'] = undefined;
           }
+          
           // Remove shadow if dragging
           if (this.draggedMesh === mesh && mesh.userData['shadowMesh']) {
             this.scene.remove(mesh.userData['shadowMesh']);
@@ -1276,6 +1293,7 @@ export class ThreeRendererService {
    */
   setMeshPhotoId(mesh: THREE.Mesh, photoId: string): void {
     this.meshToPhotoId.set(mesh, photoId);
+    this.photoIdToMesh.set(photoId, mesh);
   }
 
   /**
@@ -1382,60 +1400,10 @@ export class ThreeRendererService {
    * Create dragging preview widget
    */
   private createPreviewWidget(): void {
-    if (!this.container) {
-      return;
-    }
-
-    // Create main widget container
-    this.previewWidget = document.createElement('div');
-    this.previewWidget.style.position = 'absolute';
-    this.previewWidget.style.top = '50%';
-    this.previewWidget.style.transform = 'translateY(-50%)';
-    this.previewWidget.style.height = '50vh';
-    this.previewWidget.style.width = 'auto';
-    this.previewWidget.style.aspectRatio = '530/1000'; // Actual photo proportions (530x1000)
-    this.previewWidget.style.backgroundColor = 'transparent';
-    this.previewWidget.style.borderRadius = '12px';
-    this.previewWidget.style.padding = '0';
-    this.previewWidget.style.pointerEvents = 'none';
-    this.previewWidget.style.zIndex = '1000';
-    this.previewWidget.style.display = 'none';
-    this.previewWidget.style.transition = 'opacity 0.2s ease-in-out, left 0.3s ease-in-out';
-    this.previewWidget.style.fontFamily = 'Arial, sans-serif';
-    this.previewWidget.style.fontSize = '14px';
-    this.previewWidget.style.color = 'white';
-    this.previewWidget.style.filter = 'drop-shadow(0 8px 32px rgba(0, 0, 0, 0.3))';
-
-    // Create image element
-    this.previewImage = document.createElement('img');
-    this.previewImage.style.width = '100%';
-    this.previewImage.style.height = '100%';
-    this.previewImage.style.objectFit = 'contain'; // Changed from 'cover' to 'contain' to prevent cropping
-    this.previewImage.style.borderRadius = '12px';
-    this.previewImage.style.display = 'block';
-
-    // Create hotspot info element
-    this.previewHotspotInfo = document.createElement('div');
-    this.previewHotspotInfo.style.display = 'none';
-    this.previewHotspotInfo.style.position = 'absolute';
-    this.previewHotspotInfo.style.bottom = '10px';
-    this.previewHotspotInfo.style.left = '50%';
-    this.previewHotspotInfo.style.transform = 'translateX(-50%)';
-    this.previewHotspotInfo.style.padding = '8px 12px';
-    this.previewHotspotInfo.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-    this.previewHotspotInfo.style.borderRadius = '20px';
-    this.previewHotspotInfo.style.fontWeight = 'bold';
-    this.previewHotspotInfo.style.fontSize = '12px';
-    this.previewHotspotInfo.style.whiteSpace = 'nowrap';
-    this.previewHotspotInfo.style.maxWidth = '90%';
-    this.previewHotspotInfo.style.textAlign = 'center';
-    this.previewHotspotInfo.style.overflow = 'hidden';
-    this.previewHotspotInfo.style.textOverflow = 'ellipsis';
-
-    // Assemble widget
-    this.previewWidget.appendChild(this.previewImage);
-    this.previewWidget.appendChild(this.previewHotspotInfo);
-    this.container.appendChild(this.previewWidget);
+    // Preview widget disabled per request
+    this.previewWidget = null;
+    this.previewImage = null;
+    this.previewHotspotInfo = null;
   }
 
   /**
@@ -1845,6 +1813,7 @@ export class ThreeRendererService {
   disableAllDragging(): void {
     this.dragCallbacks.clear();
     this.meshToPhotoId.clear();
+    this.photoIdToMesh.clear();
     this.isDragging = false;
     this.draggedMesh = null;
   }
@@ -2401,10 +2370,9 @@ export class ThreeRendererService {
    * Set opacity for a specific photo
    */
   setPhotoOpacity(photoId: string, opacity: number): void {
-    const photoData = this.photoMap.get(photoId);
-    if (!photoData || !photoData.mesh) return;
+    const mesh = this.photoIdToMesh.get(photoId);
+    if (!mesh) return;
     
-    const mesh = photoData.mesh;
     if (mesh.material && 'opacity' in mesh.material) {
       (mesh.material as any).opacity = opacity;
       // Ensure transparency is enabled for opacity < 1
@@ -2416,10 +2384,10 @@ export class ThreeRendererService {
    * Set z-index (renderOrder) for a specific photo
    */
   setPhotoZIndex(photoId: string, zIndex: number): void {
-    const photoData = this.photoMap.get(photoId);
-    if (!photoData || !photoData.mesh) return;
+    const mesh = this.photoIdToMesh.get(photoId);
+    if (!mesh) return;
     
-    photoData.mesh.renderOrder = zIndex;
+    mesh.renderOrder = zIndex;
   }
 
   // Cleanup

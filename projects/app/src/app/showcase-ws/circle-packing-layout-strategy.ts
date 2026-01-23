@@ -185,7 +185,7 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
     
     // Fan spread uses sorted index: left = positive, right = negative
     const cardWidth = this.photoWidth;
-    const overlapSpacing = cardWidth * 0.65; // 35% overlap
+    const overlapSpacing = cardWidth * 0.75; // 50% overlap
     const totalWidth = (groupSize - 1) * overlapSpacing;
     const startX = -totalWidth / 2;
     const worldX = groupPosition.x + startX + (photoIndex * overlapSpacing);

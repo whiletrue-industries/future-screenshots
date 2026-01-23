@@ -371,7 +371,7 @@ export class SettingsPanelComponent implements AfterViewInit, OnDestroy, OnInit 
     enabled: true,
     maxMagnification: 10,
     radius: 700,
-    maxHeight: 40
+    maxHeight: 50
   };
 
   constructor() {

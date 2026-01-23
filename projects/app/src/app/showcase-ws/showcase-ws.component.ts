@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, computed, ElementRef, signal, ViewChild, inject, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { AfterViewInit, Component, computed, effect, ElementRef, signal, ViewChild, inject, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { catchError, distinctUntilChanged, filter, forkJoin, from, interval, Observable, of, Subject, timer, takeUntil } from 'rxjs';
 import { PlatformService } from '../../platform.service';
 import { HttpClient } from '@angular/common/http';
@@ -72,12 +72,39 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     enabled: true,
     maxMagnification: 10.0,
     radius: 700,
-    maxHeight: 40
+    maxHeight: 50
   });
   
   // Search state
   searchText = signal<string>('');
   searchActive = signal<boolean>(false);
+  private searchIndex = new Map<string, string>();
+
+  /**
+   * Build (and cache) lowercase searchable text for a photo by flattening all metadata values
+   */
+  private getSearchableText(photo: PhotoData): string {
+    const cached = this.searchIndex.get(photo.metadata.id);
+    if (cached) return cached;
+
+    const parts: string[] = [];
+    const visit = (val: any): void => {
+      if (val === null || val === undefined) return;
+      const t = typeof val;
+      if (t === 'string' || t === 'number' || t === 'boolean') {
+        parts.push(String(val));
+      } else if (Array.isArray(val)) {
+        val.forEach(visit);
+      } else if (t === 'object') {
+        Object.values(val).forEach(visit);
+      }
+    };
+
+    visit(photo.metadata);
+    const text = parts.join(' ').toLowerCase();
+    this.searchIndex.set(photo.metadata.id, text);
+    return text;
+  }
 
   // Check if currently dragging (for cursor style)
   isDragging = computed(() => this.rendererService.isDraggingItem());
@@ -132,6 +159,16 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   ) {
     this.activatedRoute = route;
     this.photoRepository = new PhotoDataRepository();
+
+    // Search effect - automatically applies filter when searchText changes
+    effect(() => {
+      const search = this.searchText();
+      // Only apply if we have photos loaded
+      if (this.photoRepository.getAllPhotos().length > 0) {
+        // Debounce the search application slightly to avoid excessive updates while typing
+        setTimeout(() => this.applySearchFilter(), 50);
+      }
+    });
     this.loop.pipe(
       distinctUntilChanged()
     ).subscribe(async (items) => {
@@ -150,18 +187,19 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           }
           // Generate transition_bar_position if not provided by API
           const transitionBarPosition = item.transition_bar_position || this.getDefaultTransitionBarPosition(item);
+          // Include all item fields to make search work across every string field
           const metadata: PhotoMetadata = {
+            ...item,
             id,
             url,
             created_at: item.created_at,
             screenshot_url: url,
-            author_id: item.author_id,
             layout_x: item.layout_x,
             layout_y: item.layout_y,
             plausibility: item.plausibility,
             favorable_future: item.favorable_future,
             transition_bar_position: transitionBarPosition,
-            item_key: item._key  // Include item key for authentication
+            item_key: item._key ?? item.item_key ?? item._key // Prefer explicit key but keep fallbacks
           };
           
           try {
@@ -173,8 +211,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         });
         
         await Promise.all(photoPromises);
+        this.searchIndex.clear();
         
         this.qrSmall.set(true);
+        
+        // Apply search filter if query was provided in URL
+        if (this.searchText()) {
+          this.applySearchFilter();
+        }
         
         // Set lastCreatedAt to the most recent item
         const latestItem = items[items.length - 1];
@@ -200,15 +244,15 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             // Generate transition_bar_position if not provided by API
             const transitionBarPosition = item.transition_bar_position || this.getDefaultTransitionBarPosition(item);
             const metadata: PhotoMetadata = {
+              ...item,
               id,
               url,
               created_at: item.created_at,
               screenshot_url: url,
-              author_id: item.author_id,
               plausibility: item.plausibility,
               favorable_future: item.favorable_future,
               transition_bar_position: transitionBarPosition,
-              item_key: item.item_key  // Include item key for authentication
+              item_key: item._key ?? item.item_key ?? item._key
             };
             console.log('[METADATA] New photo:', id, '-> plausibility:', item.plausibility, 'favorable_future:', item.favorable_future, 'transition_bar_position:', transitionBarPosition);
             
@@ -222,6 +266,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           });
           
           await Promise.all(photoPromises);
+          this.searchIndex.clear();
         }
       }
 
@@ -661,14 +706,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         this.getItems().subscribe((items) => {
           this.loop.next(items);
           
-          // Apply search filter if search was loaded from hash
-          if (this.searchText()) {
-            // Wait a bit for photos to be loaded
-            timer(1000).subscribe(() => {
-              this.applySearchFilter();
-            });
-          }
-          
           // Check for item to focus from URL hash first, then from query params
           // Extract item ID from hash (before any search parameter)
           const hashParts = window.location.hash.slice(1).split('?')[0];
@@ -1008,8 +1045,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   onSearchInput(event: Event): void {
     const target = event.target as HTMLInputElement;
     this.searchText.set(target.value);
-    this.applySearchFilter();
-    this.updateSearchHash();
   }
 
   /**
@@ -1018,8 +1053,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   clearSearch(): void {
     this.searchText.set('');
     this.searchActive.set(false);
-    this.applySearchFilter();
-    this.updateSearchHash();
   }
 
   /**
@@ -1051,39 +1084,48 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   private applySearchFilter(): void {
     const search = this.searchText().toLowerCase().trim();
+    const allPhotos = this.photoRepository.getAllPhotos();
+    
+    console.log('[SEARCH] Applying filter. Search text:', search, 'Photo count:', allPhotos.length);
+    
+    // Update URL hash
+    this.updateSearchHash();
     
     if (!search) {
       // No search - reset all items to full opacity and normal z-index
-      this.photoRepository.getAllPhotos().forEach(photo => {
+      let resetCount = 0;
+      this.searchIndex.clear();
+      allPhotos.forEach(photo => {
         this.rendererService.setPhotoOpacity(photo.metadata.id, 1.0);
         this.rendererService.setPhotoZIndex(photo.metadata.id, 0);
+        resetCount++;
       });
+      console.log('[SEARCH] Reset', resetCount, 'photos to default state');
       return;
     }
     
     // Apply filter
-    this.photoRepository.getAllPhotos().forEach(photo => {
-      const metadata = photo.metadata;
-      const tagline = (metadata['future_scenario_tagline'] || '').toLowerCase();
-      const description = (metadata['future_scenario_description'] || '').toLowerCase();
-      const content = (metadata['content'] || '').toLowerCase();
-      const id = (metadata['id'] || '').toLowerCase();
-      
-      const matches = tagline.includes(search) || 
-                     description.includes(search) || 
-                     content.includes(search) ||
-                     id.includes(search);
+    let matchCount = 0;
+    let nonMatchCount = 0;
+    
+    allPhotos.forEach(photo => {
+      const searchable = this.getSearchableText(photo);
+      const matches = searchable.includes(search);
       
       if (matches) {
         // Matching item: full opacity, higher z-index
-        this.rendererService.setPhotoOpacity(metadata.id, 1.0);
-        this.rendererService.setPhotoZIndex(metadata.id, 100);
+        this.rendererService.setPhotoOpacity(photo.metadata.id, 1.0);
+        this.rendererService.setPhotoZIndex(photo.metadata.id, 100);
+        matchCount++;
       } else {
         // Non-matching item: 20% opacity, lower z-index
-        this.rendererService.setPhotoOpacity(metadata.id, 0.2);
-        this.rendererService.setPhotoZIndex(metadata.id, -100);
+        this.rendererService.setPhotoOpacity(photo.metadata.id, 0.2);
+        this.rendererService.setPhotoZIndex(photo.metadata.id, -100);
+        nonMatchCount++;
       }
     });
+    
+    console.log('[SEARCH] Filter applied. Matches:', matchCount, 'Non-matches:', nonMatchCount);
   }
 
   /**
