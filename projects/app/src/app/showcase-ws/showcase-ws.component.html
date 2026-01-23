@@ -1,8 +1,13 @@
 <div class='container' [class.dragging]='isDragging()' [class.hovering]='isHoveringItem()' #container></div>
 
+<!-- QR Code (Only shown if additional contributions are allowed) -->
+@if (allowAdditionalContributions()) {
+  <app-qrcode [small]='qrSmall()' [url]='qrUrl()'></app-qrcode>
+}
+
 <!-- Evaluation Sidebar -->
 <app-evaluation-sidebar
-  [isOpen]='sidebarOpen()'
+  [isOpen]='sidebarOpen() && canEditSelectedItem()'
   [itemId]='selectedItemId()'
   [itemKey]='selectedItemKey()'
   [workspaceId]='workspace()'
@@ -12,8 +17,6 @@
   (close)='onSidebarClose()'
   (metadataUpdated)='onMetadataUpdated($event)'
 ></app-evaluation-sidebar>
-
-<app-qrcode [small]='qrSmall()' [url]='qrUrl()'></app-qrcode>
 <div class='logo'>
 </div>
 
@@ -69,34 +72,37 @@
   }
 </div>
 
-<!-- Layout Selection Toggle (Admin Only - Centered) -->
-@if (isAdmin()) {
+<!-- Layout Selection Toggle (Visible to All Users) -->
 <div class='layout-toggle-centered'>
   <div class='layout-toggle'>
     <div class='toggle-background'>
-      <div class='toggle-indicator' 
-           [style.transform]='getLayoutIndicatorTransform()'></div>
     </div>
     <div class='toggle-buttons'>
       <button 
-        class='toggle-button'
+        class='toggle-button map-button'
         [class.active]='currentLayout() === "svg"'
         (click)='switchToSvgLayout()'
         title='Map Layout'>
-        <span class='button-label'>Map</span>
+        <div class='button-content'>
+          <img src='/icon-cone.svg' alt='Map' class='button-icon'>
+          <span class='button-label'>Map</span>
+        </div>
       </button>
       <button 
-        class='toggle-button'
+        class='toggle-button clusters-button'
         [class.active]='currentLayout() === "circle-packing"'
         (click)='switchToCirclePackingLayout()'
         title='Clusters Layout'>
-        <span class='button-label'>Clusters</span>
+        <div class='button-content'>
+          <img src='/icon-clusters.svg' alt='Clusters' class='button-icon'>
+          <span class='button-label'>Clusters</span>
+        </div>
       </button>
     </div>
   </div>
   
-  <!-- SVG Auto-Positioning Toggle (only visible when SVG layout is active) -->
-  @if (currentLayout() === 'svg') {
+  <!-- SVG Auto-Positioning Toggle (only visible when SVG layout is active and user is admin) -->
+  @if (currentLayout() === 'svg' && isAdmin()) {
     <div class='svg-auto-toggle'>
       <button 
         class='svg-auto-button'
@@ -110,5 +116,4 @@
     </div>
   }
 </div>
-}
 

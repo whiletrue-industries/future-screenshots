@@ -38,22 +38,40 @@ export class EvaluationSidebarComponent implements OnDestroy {
       const adminKeyValue = this.adminKey();
       const langValue = this.lang();
 
-      if (itemIdValue && workspaceIdValue && (apiKeyValue || adminKeyValue)) {
+      if (itemIdValue && workspaceIdValue) {
         // Build URL with proper query parameter encoding
         // The props route expects:
         // - workspace: workspace ID
-        // - api_key: workspace API key (for authentication)
+        // - api_key: workspace API key (for authentication) - ONLY admin_key for editing
         // - item-id: the item ID
-        // - key: the item-specific key (optional, for item-level authentication)
+        // - key: the item-specific key (optional, for item-level authentication by authors)
+        
+        // Security: Only allow editing if user has admin_key or item_key
+        // Do NOT pass regular api_key (collaborator key) as it shouldn't allow editing
+        const hasAdminAccess = adminKeyValue && adminKeyValue !== 'ADMIN_KEY_NOT_SET';
+        const hasItemKey = itemKeyValue && itemKeyValue !== '';
+        
+        if (!hasAdminAccess && !hasItemKey) {
+          // No authorization to edit - don't load iframe
+          console.log('[SIDEBAR] No edit authorization (no admin_key or item_key), not loading iframe');
+          this.iframeUrl.set(null);
+          this.stopPolling();
+          return;
+        }
+        
         const params = new URLSearchParams({
           workspace: workspaceIdValue,
-          api_key: apiKeyValue || adminKeyValue,  // Use api_key param name
           'item-id': itemIdValue,
           sidebar: 'true'
         });
         
-        // Add item key if available
-        if (itemKeyValue) {
+        // Only pass admin_key if available (for editors)
+        if (hasAdminAccess) {
+          params.set('api_key', adminKeyValue);
+        }
+        
+        // Add item key if available (for authors editing their own items)
+        if (hasItemKey) {
           params.set('key', itemKeyValue);
         }
         

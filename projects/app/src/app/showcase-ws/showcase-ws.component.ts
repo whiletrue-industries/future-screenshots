@@ -39,6 +39,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   api_key = signal('');
   admin_key = signal('');
   lang = signal('');
+  allowAdditionalContributions = signal(true); // Default to showing QR code
   currentLayout = signal<'grid' | 'tsne' | 'svg' | 'circle-packing'>('circle-packing');
   enableRandomShowcase = signal(false);
   enableSvgAutoPositioning = signal(true);
@@ -48,6 +49,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   // Evaluation sidebar state
   sidebarOpen = signal(false);
   selectedItemId = signal<string | null>(null);
+  
+  // Permalink support - item to focus on after load
+  focusItemId = signal<string | null>(null);
   
   // Get the selected item's key (if available)
   selectedItemKey = computed(() => {
@@ -59,6 +63,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   
   // Check if user has admin access
   isAdmin = computed(() => this.admin_key() !== '' && this.admin_key() !== 'ADMIN_KEY_NOT_SET');
+  
+  // Check if user can edit the selected item (either admin or has item_key)
+  canEditSelectedItem = computed(() => {
+    return this.isAdmin() || (this.selectedItemKey() !== null && this.selectedItemKey() !== '');
+  });
   fisheyeSettings = signal<FisheyeSettings>({
     enabled: true,
     maxMagnification: 10.0,
@@ -86,6 +95,28 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   qrUrl = computed(() => 
     `https://mapfutur.es/${this.lang()}prescan?workspace=${this.workspace()}&api_key=${this.api_key()}&ws=true`
   );
+
+  private onMessageFromChild = (event: MessageEvent) => {
+    const data = event.data;
+    console.log('[SHOWCASE_WS] Message received from child:', data);
+    if (!data || typeof data !== 'object') {
+      console.log('[SHOWCASE_WS] Message skipped - not an object');
+      return;
+    }
+    if (data.type === 'show-on-map') {
+      console.log('[SHOWCASE_WS] Processing show-on-map message');
+      const itemId = typeof data.itemId === 'string' ? data.itemId : null;
+      if (!itemId) {
+        console.log('[SHOWCASE_WS] show-on-map message missing itemId, skipping');
+        return;
+      }
+      console.log('[SHOWCASE_WS] Closing sidebar and focusing on item:', itemId);
+      this.sidebarOpen.set(false);
+      this.selectedItemId.set(null);
+      // Trigger animated focus from "show on map" click
+      this.focusOnItem(itemId, { animateFromFull: true, fromShowOnMap: true });
+    }
+  };
 
   constructor(
     private route: ActivatedRoute,
@@ -209,14 +240,41 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.admin_key.set(qp['admin_key'] || 'ADMIN_KEY_NOT_SET');
     this.lang.set(qp['lang'] ? qp['lang'] + '/' : '');
     
+    // Set drag permissions immediately based on admin status
+    // This must be done before photos are added to the repository
+    const adminKeyValue = this.admin_key();
+    const isAdminUser = adminKeyValue !== '' && adminKeyValue !== 'ADMIN_KEY_NOT_SET';
+    this.photoRepository.setDragEnabled(isAdminUser);
+    console.log('[SHOWCASE_WS_INIT] Query params - admin_key:', adminKeyValue);
+    console.log('[SHOWCASE_WS_INIT] Drag permissions set during initialization:', isAdminUser ? 'enabled (admin)' : 'disabled (visitor)');
+    
+    // Check for item permalink
+    if (qp['item-id']) {
+      this.focusItemId.set(qp['item-id']);
+    }
+    
     // Fetch workspace data to get title
     if (this.workspace() !== 'WORKSPACE_NOT_SET') {
       this.fetchWorkspaceData();
     }
     
+    // Map layout parameter aliases to actual layout names
     const layoutParam = qp['layout'];
-    if (layoutParam && ['grid','tsne','svg','circle-packing'].includes(layoutParam)) {
-      this.currentLayout.set(layoutParam as any);
+    if (layoutParam) {
+      // Map friendly names to internal layout names
+      const layoutMap: { [key: string]: 'grid' | 'tsne' | 'svg' | 'circle-packing' } = {
+        'map': 'svg',
+        'clusters': 'circle-packing',
+        'themes': 'grid',
+        'grid': 'grid',
+        'tsne': 'tsne',
+        'svg': 'svg',
+        'circle-packing': 'circle-packing'
+      };
+      const mappedLayout = layoutMap[layoutParam.toLowerCase()];
+      if (mappedLayout) {
+        this.currentLayout.set(mappedLayout);
+      }
     }
     
     // Check for fisheye parameters
@@ -413,7 +471,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Fetch workspace data to get the title
+   * Fetch workspace data to get the display title (workspace source preferred)
    */
   private fetchWorkspaceData(): void {
     const workspaceId = this.workspace();
@@ -430,8 +488,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.http.get<any>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${workspaceId}`, httpOptions)
       .subscribe({
         next: (workspace) => {
-          if (workspace && workspace.title) {
-            this.workspaceTitle.set(workspace.title);
+          if (workspace) {
+            const displayTitle = workspace.source || workspace.title || '';
+            this.workspaceTitle.set(displayTitle);
+            
+            // Check if additional contributions are allowed
+            const allowContributions = workspace.collaborate !== false; // Default to true if not specified
+            this.allowAdditionalContributions.set(allowContributions);
+            console.log('[WORKSPACE_DATA] allowAdditionalContributions:', allowContributions);
           }
         },
         error: (error) => {
@@ -455,6 +519,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
   async ngAfterViewInit() {
     if (this.platform.browser()) {
+      window.addEventListener('message', this.onMessageFromChild);
+      // Listen for hash changes to update z-index
+      window.addEventListener('hashchange', () => this.updateActiveItemZIndex());
       await this.initialize(this.container.nativeElement);
     }
   }
@@ -577,6 +644,15 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       timer(ANIMATION_CONSTANTS.INITIAL_POLLING_DELAY).subscribe(() => {
         this.getItems().subscribe((items) => {
           this.loop.next(items);
+          
+          // Check for item to focus from URL hash first, then from query params
+          const focusId = window.location.hash.slice(1) || this.focusItemId();
+          if (focusId) {
+            console.log('[SHOWCASE_WS] Focusing on item from URL:', focusId);
+            timer(500).subscribe(() => {
+              this.focusOnItem(focusId, { animateFromFull: true, fromShowOnMap: true });
+            });
+          }
         });
       });
     }
@@ -798,10 +874,21 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         const svgMaxX = svgOffsetX + this.svgCircleRadius;
         const clusterMinX = -this.svgCircleRadius;
         const clusterMaxX = this.svgCircleRadius;
-        const minX = Math.min(svgMinX, clusterMinX);
-        const maxX = Math.max(svgMaxX, clusterMaxX);
-        const minY = -this.svgCircleRadius;
-        const maxY = this.svgCircleRadius;
+        let minX = Math.min(svgMinX, clusterMinX);
+        let maxX = Math.max(svgMaxX, clusterMaxX);
+        let minY = -this.svgCircleRadius;
+        let maxY = this.svgCircleRadius;
+        
+        // Add extra padding (50% expansion) to zoom out more
+        const centerX = (minX + maxX) * 0.5;
+        const centerY = (minY + maxY) * 0.5;
+        const rangeX = maxX - minX;
+        const rangeY = maxY - minY;
+        minX = centerX - rangeX * 0.75;
+        maxX = centerX + rangeX * 0.75;
+        minY = centerY - rangeY * 0.75;
+        maxY = centerY + rangeY * 0.75;
+        
         this.rendererService.fitCameraToBounds([
           { x: minX, y: minY },
           { x: maxX, y: maxY }
@@ -910,13 +997,124 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Handle photo click - open evaluation sidebar
+   * Handle photo click
+   * If user has edit permissions: open evaluation sidebar
+   * If user does not have edit permissions: trigger zoom animation (like "show on map")
+   * Also updates URL hash with item ID
    */
   onPhotoClick(photoId: string): void {
-    console.log('[SHOWCASE_WS] Photo clicked:', photoId);
-    this.selectedItemId.set(photoId);
-    this.sidebarOpen.set(true);
+    console.log('[SHOWCASE_WS] Photo clicked:', photoId, 'isAdmin:', this.isAdmin());
+    
+    // Save item ID to URL hash
+    window.location.hash = photoId;
+    // Bump z-index for this item
+    this.updateActiveItemZIndex();
+    
+    if (this.isAdmin()) {
+      // User has edit permissions - open sidebar for evaluation
+      this.selectedItemId.set(photoId);
+      this.sidebarOpen.set(true);
+    } else {
+      // User does not have edit permissions - trigger zoom animation instead
+      console.log('[SHOWCASE_WS] User has no edit permissions, triggering zoom animation');
+      this.focusOnItem(photoId, { animateFromFull: true, fromShowOnMap: true });
+    }
   }
+
+  /**
+   * Focus camera on a specific item
+   */
+  async focusOnItem(itemId: string, options?: { animateFromFull?: boolean; fromShowOnMap?: boolean }): Promise<void> {
+    console.log('[SHOWCASE_WS] Focusing on item:', itemId);
+    
+    // Wait for photo to be loaded
+    let attempts = 0;
+    
+    while (attempts < this.MAX_FOCUS_ATTEMPTS) {
+      const photo = this.photoRepository.getPhoto(itemId);
+      if (photo && photo.mesh) {
+        // Get the photo's position
+        const position = photo.mesh.position;
+        console.log('[SHOWCASE_WS] Found photo at position:', position);
+        
+        const shouldAnimate = options?.animateFromFull === true;
+
+        if (shouldAnimate && options?.fromShowOnMap) {
+          // "Show on map" flow: smooth pan + zoom to item (50% screen size)
+          await this.rendererService.focusOnItemFromShowOnMap(position.x, position.y, photo);
+        } else if (shouldAnimate) {
+          // Standard permalink animation (currently unused, kept for compatibility)
+          this.rendererService.setAutoFit(false);
+          const bounds = this.rendererService.getCurrentBounds();
+          
+          const fullViewZ = this.rendererService.computeFitZWithMargin(
+            bounds,
+            Math.PI * 45 / 180,
+            window.innerWidth / window.innerHeight,
+            300
+          );
+          
+          await this.rendererService.focusOnPositionAnimated(position.x, position.y, fullViewZ, 1.0);
+          const targetZ = fullViewZ * 0.5;
+          await this.rendererService.focusOnPositionAnimated(position.x, position.y, targetZ, 2.0);
+        } else {
+          // Focus camera on this position with appropriate zoom
+          this.rendererService.focusOnPosition(position.x, position.y, this.DEFAULT_FOCUS_ZOOM);
+        }
+        
+        return;
+      }
+      
+      // Wait before trying again
+      await new Promise(resolve => setTimeout(resolve, this.FOCUS_RETRY_DELAY_MS));
+      attempts++;
+    }
+    
+    console.warn('[SHOWCASE_WS] Could not find photo to focus on:', itemId);
+  }
+
+  /**
+   * Update z-index (renderOrder) for the active hash item
+   */
+  private updateActiveItemZIndex(): void {
+    const activeItemId = window.location.hash.slice(1);
+    
+    if (activeItemId) {
+      // Boost the active item
+      const photo = this.photoRepository.getPhoto(activeItemId);
+      if (photo && photo.mesh) {
+        console.log('[SHOWCASE_WS] Bumping z-index for item:', activeItemId);
+        photo.mesh.renderOrder = 100; // High z-index
+      }
+    } else {
+      // No active item, reset all
+      this.resetAllItemsZIndex();
+    }
+  }
+
+  /**
+   * Reset z-index for all items back to normal
+   */
+  private resetAllItemsZIndex(): void {
+    console.log('[SHOWCASE_WS] Resetting z-index for all items');
+    // Get all photos and reset their renderOrder
+    const allPhotos = this.photoRepository.getAllPhotos?.();
+    if (allPhotos) {
+      allPhotos.forEach(photo => {
+        if (photo.mesh) {
+          photo.mesh.renderOrder = 0; // Normal z-index
+        }
+      });
+    }
+  }
+
+  // Check if the current user is an editor (has admin_key)
+  canEdit = computed(() => this.isAdmin());
+  
+  // Focus attempt configuration
+  private readonly MAX_FOCUS_ATTEMPTS = 50; // 5 seconds max wait (50 * 100ms)
+  private readonly FOCUS_RETRY_DELAY_MS = 100;
+  private readonly DEFAULT_FOCUS_ZOOM = 800;
 
   /**
    * Handle background click - close evaluation sidebar
@@ -925,6 +1123,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     console.log('[SHOWCASE_WS] Background clicked');
     this.sidebarOpen.set(false);
     this.selectedItemId.set(null);
+    // Clear URL hash when closing
+    window.location.hash = '';
+    // Reset z-index for all items
+    this.resetAllItemsZIndex();
   }
 
   /**
@@ -934,6 +1136,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     console.log('[SHOWCASE_WS] Sidebar closed');
     this.sidebarOpen.set(false);
     this.selectedItemId.set(null);
+    // Clear URL hash when closing
+    window.location.hash = '';
+    // Reset z-index for all items
+    this.resetAllItemsZIndex();
   }
 
   /**
@@ -962,6 +1168,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
 
   ngOnDestroy() {
+    if (this.platform.browser()) {
+      window.removeEventListener('message', this.onMessageFromChild);
+    }
+    this.rendererService.dispose();
     this.destroy$.next();
     this.destroy$.complete();
   }

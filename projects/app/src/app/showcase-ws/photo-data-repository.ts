@@ -28,6 +28,7 @@ export class PhotoDataRepository {
   // Configuration
   private enableRandomShowcase = false;
   private enableSvgAutoPositioning = false;
+  private isDragEnabled = true; // Permission-based flag for dragging
   private showcaseInterval: number = ANIMATION_CONSTANTS.SHOWCASE_INTERVAL;
   private newPhotoAnimationDelay: number = ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DELAY;
   
@@ -463,6 +464,16 @@ export class PhotoDataRepository {
    */
   setSvgAutoPositioningEnabled(enabled: boolean): void {
     this.enableSvgAutoPositioning = enabled;
+  }
+  
+  /**
+   * Enable or disable drag functionality (permission-based)
+   * When disabled, users can view but not drag items
+   */
+  setDragEnabled(enabled: boolean): void {
+    this.isDragEnabled = enabled;
+    console.log('[PHOTO_REPOSITORY_DRAG] Drag enabled set to:', enabled, 'Type:', typeof enabled);
+    console.log('[PHOTO_REPOSITORY_DRAG] isDragEnabled property is now:', this.isDragEnabled);
   }
 
   /**
@@ -928,12 +939,22 @@ export class PhotoDataRepository {
 
   /**
    * Set up interactive drag functionality for a photo with layout strategy integration
+   * Only enables if isDragEnabled is true (admin permission)
    */
   private setupInteractiveDragForPhoto(photoData: PhotoData): void {
     if (!photoData.mesh || !this.renderer || !this.layoutStrategy || !isInteractiveLayout(this.layoutStrategy)) {
       return;
     }
+    
+    // Check permission before enabling drag
+    if (!this.isDragEnabled) {
+      console.log('[PHOTO_REPOSITORY_DRAG] Permission check: isDragEnabled is', this.isDragEnabled, '- Drag disabled by permissions, skipping drag setup for photo:', photoData.id);
+      // Still enable hover detection for cursor feedback
+      this.setupHoverDetectionForPhoto(photoData);
+      return;
+    }
 
+    console.log('[PHOTO_REPOSITORY_DRAG] Permission check: isDragEnabled is', this.isDragEnabled, '- Setting up interactive drag for photo:', photoData.id);
     const interactiveStrategy = this.layoutStrategy as any; // Cast to access drag methods
     
     // Store the layout strategy reference in the renderer for drag integration
@@ -953,19 +974,17 @@ export class PhotoDataRepository {
 
   /**
    * Enable hover detection for a photo (for both interactive and non-interactive layouts)
-   * This allows cursor feedback and preview widgets
+   * This allows cursor feedback and preview widgets without enabling drag
    */
   private setupHoverDetectionForPhoto(photoData: PhotoData): void {
     if (!photoData.mesh || !this.renderer) {
       return;
     }
 
-    // Register the mesh for raycasting even if not draggable
-    // This enables cursor feedback and hover effects
-    this.renderer.enableDragForMesh(photoData.mesh, (position: { x: number; y: number; z: number }) => {
-      // No-op for non-interactive layouts - just enables hover detection
-      // The cursor feedback and preview widget are handled in the renderer
-    });
+    // Register the mesh for hover detection only (not draggable)
+    // This enables cursor feedback and click detection without drag functionality
+    this.renderer.enableHoverForMesh(photoData.mesh);
+    console.log('[PHOTO_REPOSITORY_HOVER] Enabled hover-only detection for photo:', photoData.id);
   }
 
   /**
