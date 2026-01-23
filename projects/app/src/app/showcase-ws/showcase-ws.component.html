@@ -73,23 +73,27 @@
 <div class='layout-toggle-centered'>
   <div class='layout-toggle'>
     <div class='toggle-background'>
-      <div class='toggle-indicator' 
-           [style.transform]='getLayoutIndicatorTransform()'></div>
     </div>
     <div class='toggle-buttons'>
       <button 
-        class='toggle-button'
+        class='toggle-button map-button'
         [class.active]='currentLayout() === "svg"'
         (click)='switchToSvgLayout()'
         title='Map Layout'>
-        <span class='button-label'>Map</span>
+        <div class='button-content'>
+          <img src='/icon-cone.svg' alt='Map' class='button-icon'>
+          <span class='button-label'>Map</span>
+        </div>
       </button>
       <button 
-        class='toggle-button'
+        class='toggle-button clusters-button'
         [class.active]='currentLayout() === "circle-packing"'
         (click)='switchToCirclePackingLayout()'
         title='Clusters Layout'>
-        <span class='button-label'>Clusters</span>
+        <div class='button-content'>
+          <img src='/icon-clusters.svg' alt='Clusters' class='button-icon'>
+          <span class='button-label'>Clusters</span>
+        </div>
       </button>
     </div>
   </div>

@@ -863,10 +863,21 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         const svgMaxX = svgOffsetX + this.svgCircleRadius;
         const clusterMinX = -this.svgCircleRadius;
         const clusterMaxX = this.svgCircleRadius;
-        const minX = Math.min(svgMinX, clusterMinX);
-        const maxX = Math.max(svgMaxX, clusterMaxX);
-        const minY = -this.svgCircleRadius;
-        const maxY = this.svgCircleRadius;
+        let minX = Math.min(svgMinX, clusterMinX);
+        let maxX = Math.max(svgMaxX, clusterMaxX);
+        let minY = -this.svgCircleRadius;
+        let maxY = this.svgCircleRadius;
+        
+        // Add extra padding (50% expansion) to zoom out more
+        const centerX = (minX + maxX) * 0.5;
+        const centerY = (minY + maxY) * 0.5;
+        const rangeX = maxX - minX;
+        const rangeY = maxY - minY;
+        minX = centerX - rangeX * 0.75;
+        maxX = centerX + rangeX * 0.75;
+        minY = centerY - rangeY * 0.75;
+        maxY = centerY + rangeY * 0.75;
+        
         this.rendererService.fitCameraToBounds([
           { x: minX, y: minY },
           { x: maxX, y: maxY }

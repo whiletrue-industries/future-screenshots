@@ -2759,15 +2759,20 @@ export class ThreeRendererService {
     const svgWidth = parseInt(svgWidthAttr || '0') || this.container!.clientWidth;
     const svgHeight = parseInt(svgHeightAttr || '0') || this.container!.clientHeight;
     
-    canvas.width = svgWidth;
-    canvas.height = svgHeight;
+    // Render at high resolution (4000x4000)
+    const targetResolution = 4000;
+    const dpiScaleX = targetResolution / svgWidth;
+    const dpiScaleY = targetResolution / svgHeight;
+    canvas.width = targetResolution;
+    canvas.height = targetResolution;
     
     // Create an image from SVG data
     const img = new Image();
     img.onload = () => {
-      // Clear canvas and draw SVG
+      // Clear canvas and draw SVG at high resolution
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      ctx.scale(dpiScaleX, dpiScaleY); // Scale up the drawing context
+      ctx.drawImage(img, 0, 0, svgWidth, svgHeight);
       
       // Create texture from canvas
       this.svgBackgroundTexture = new THREE.CanvasTexture(canvas);
