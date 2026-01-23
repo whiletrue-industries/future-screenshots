@@ -132,6 +132,8 @@ export class ThreeRendererService {
   private fisheyeService: FisheyeEffectService;
   private fisheyeEnabled = false;
   private fisheyeEnabledSignal = false; // Track original request to re-enable on zoom change
+  private fisheyeResumeOnPointer = false; // Re-enable fisheye after animation + first pointer move
+  private fisheyeAnimationLock = false;   // True while we intentionally keep fisheye off during an animation
   private fisheyeAffectedMeshes = new Set<THREE.Mesh>();
   private fisheyeFocusPoint = new THREE.Vector3();
   private meshOriginalStates = new Map<THREE.Mesh, { position: THREE.Vector3; scale: THREE.Vector3; renderOrder: number }>();
@@ -722,6 +724,95 @@ export class ThreeRendererService {
     return this.camera.position.z - this.zSpawn;
   }
 
+  /**
+   * Get the current target camera Z (zoom distance).
+   */
+  getTargetCameraZ(): number {
+    return this.targetCamZ;
+  }
+
+  /**
+   * Focus on item from "show on map" click with smooth flyTo animation:
+   * Smoothly pan to item position and zoom so item height fills 50% of screen
+   */
+  async focusOnItemFromShowOnMap(x: number, y: number, photoData?: PhotoData): Promise<void> {
+    console.log('[SHOW_ON_MAP] Starting flyTo at position:', { x, y });
+    
+    // Disable fisheye for entire animation
+    this.disableFisheyeForZoom();
+    this.fisheyeAnimationLock = true;
+    this.fisheyeResumeOnPointer = false;
+
+    let targetZoomZ = this.targetCamZ * 0.25; // Fallback
+    
+    // Calculate target zoom based on item height filling 50% of screen
+    if (photoData && photoData.mesh) {
+      const bbox = new THREE.Box3().setFromObject(photoData.mesh);
+      const itemWidth = bbox.max.x - bbox.min.x;
+      const itemHeight = bbox.max.y - bbox.min.y;
+      
+      console.log('[SHOW_ON_MAP] Item dimensions: width=', itemWidth.toFixed(2), 'height=', itemHeight.toFixed(2));
+      
+      // At distance Z, visible height = 2 * Z * tan(FOV/2)
+      // We want: itemHeight = 0.5 * visibleHeight
+      // So: Z = itemHeight / (2 * 0.5 * tan(FOV/2)) = itemHeight / tan(FOV/2)
+      const fovRad = THREE.MathUtils.degToRad(this.FOV_DEG);
+      targetZoomZ = itemHeight / Math.tan(fovRad / 2);
+      
+      console.log('[SHOW_ON_MAP] Calculated targetZ for 50% screen height:', targetZoomZ.toFixed(2));
+    } else {
+      console.log('[SHOW_ON_MAP] No photoData provided, using default zoom');
+    }
+
+    // Clamp to valid range
+    targetZoomZ = THREE.MathUtils.clamp(targetZoomZ, this.minCamZ, this.maxCamZ);
+    console.log('[SHOW_ON_MAP] Final targetZ (clamped):', targetZoomZ.toFixed(2));
+
+    // Single unified animation: pan + zoom together (1.25 seconds with smooth easing)
+    await this.animateCameraToZoomLevel(x, y, targetZoomZ, 1.25);
+    console.log('[SHOW_ON_MAP] FlyTo complete');
+  }
+
+  /**
+   * Animate camera to a specific zoom level while keeping fisheye disabled
+   * Fisheye will only re-enable if the camera zooms back out beyond the target level
+   */
+  private animateCameraToZoomLevel(x: number, y: number, targetZ: number, durationSec: number): Promise<void> {
+    return new Promise((resolve) => {
+      const startX = this.targetCamX;
+      const startY = this.targetCamY;
+      const startZ = this.targetCamZ;
+      const clampedZ = THREE.MathUtils.clamp(targetZ, this.minCamZ, this.maxCamZ);
+
+      console.log('[ZOOM_LEVEL_ANIM] Starting animation: start Z=', startZ.toFixed(2), 'target Z=', clampedZ.toFixed(2), 'duration=', durationSec);
+
+      if (durationSec <= 0.01) {
+        this.targetCamX = x;
+        this.targetCamY = y;
+        this.targetCamZ = clampedZ;
+        resolve();
+        return;
+      }
+
+      const tweenFn = this.makeTween(durationSec, (progress: number) => {
+        const eased = this.easeInOutCubic(progress);
+        this.targetCamX = this.lerp(startX, x, eased);
+        this.targetCamY = this.lerp(startY, y, eased);
+        this.targetCamZ = this.lerp(startZ, clampedZ, eased);
+
+        if (progress >= 1.0) {
+          this.targetCamX = x;
+          this.targetCamY = y;
+          this.targetCamZ = clampedZ;
+          this.fisheyeResumeOnPointer = this.fisheyeEnabledSignal;
+          resolve();
+        }
+      });
+
+      this.addTween(tweenFn);
+    });
+  }
+
   getCurrentBounds(): Readonly<SceneBounds> {
     return { ...this.bounds };
   }
@@ -834,6 +925,7 @@ export class ThreeRendererService {
   private disableFisheyeForZoom(): void {
     // Disable fisheye immediately
     if (this.fisheyeEnabled) {
+      console.log('[FISHEYE] Disabling for zoom animation');
       this.fisheyeEnabled = false;
       // Reset all affected meshes to their original non-fisheye scale/position
       this.resetAllFisheyeEffects();
@@ -845,7 +937,9 @@ export class ThreeRendererService {
    */
   private reEnableFisheyeAfterZoom(): void {
     if (this.fisheyeEnabledSignal) {
+      console.log('[FISHEYE] Re-enabling after zoom');
       this.fisheyeEnabled = true;
+      this.fisheyeResumeOnPointer = false;
     }
   }
   
@@ -1061,6 +1155,7 @@ export class ThreeRendererService {
   }
 
   private resetAllFisheyeEffects(): void {
+    console.log('[FISHEYE] Resetting', this.fisheyeAffectedMeshes.size, 'meshes');
     // Reset all affected meshes to their original positions
     this.fisheyeAffectedMeshes.forEach((mesh) => {
       const photoData = this.meshToPhotoData.get(mesh);
@@ -1886,6 +1981,15 @@ export class ThreeRendererService {
   }
 
   private onMouseMove(event: MouseEvent): void {
+    // If fisheye was paused for an animation, resume on the first pointer move afterward
+    if (!this.fisheyeAnimationLock && this.fisheyeResumeOnPointer) {
+      console.log('[FISHEYE] Resuming on mouse move');
+      this.fisheyeResumeOnPointer = false;
+      if (this.fisheyeEnabledSignal) {
+        this.fisheyeEnabled = true;
+      }
+    }
+
     if (this.isDragging && this.draggedMesh) {
       this.raycaster.setFromCamera(this.mouse, this.camera);
       
@@ -2644,7 +2748,7 @@ export class ThreeRendererService {
     img.src = url;
   }
 
-  private computeFitZWithMargin(
+  computeFitZWithMargin(
     bounds: SceneBounds,
     fovY: number,
     aspect: number,
@@ -2710,6 +2814,65 @@ export class ThreeRendererService {
     this.targetCamZ = THREE.MathUtils.clamp(targetZ, this.minCamZ, this.maxCamZ);
     
     console.log('[THREE_RENDERER] Focusing on position:', { x, y, targetZ: this.targetCamZ });
+  }
+
+      /**
+       * Smoothly focus the camera on a position over the given duration.
+   * Monitors zoom level and disables fisheye once it passes the full extent threshold.
+   */
+  focusOnPositionAnimated(x: number, y: number, targetZ: number = 800, durationSec: number = 1): Promise<void> {
+    return new Promise((resolve) => {
+      // Disable auto-fit during manual focus
+      this.autoFitEnabled = false;
+
+      const startX = this.targetCamX;
+      const startY = this.targetCamY;
+      const startZ = this.targetCamZ;
+
+      const clampedZ = THREE.MathUtils.clamp(targetZ, this.minCamZ, this.maxCamZ);
+
+      // If duration is tiny, snap immediately
+      if (durationSec <= 0.01) {
+        this.targetCamX = x;
+        this.targetCamY = y;
+        this.targetCamZ = clampedZ;
+        resolve();
+        return;
+      }
+
+      // Calculate the point where fisheye becomes ineffective (zoomed in significantly)
+      // Use 70% progress through the zoom as the threshold for disabling fisheye
+      const fisheyeDisableThreshold = 0.7;
+      let fisheyeDisabled = false;
+
+      const tweenFn = this.makeTween(durationSec, (progress: number) => {
+        const eased = this.easeOutCubic(progress);
+        this.targetCamX = this.lerp(startX, x, eased);
+        this.targetCamY = this.lerp(startY, y, eased);
+        this.targetCamZ = this.lerp(startZ, clampedZ, eased);
+
+        // Disable fisheye once we pass the threshold during zoom-in
+        if (!fisheyeDisabled && progress >= fisheyeDisableThreshold) {
+          fisheyeDisabled = true;
+          this.disableFisheyeForZoom();
+          this.fisheyeAnimationLock = true;
+          this.fisheyeResumeOnPointer = this.fisheyeEnabledSignal;
+        }
+
+        if (progress >= 1.0) {
+          this.targetCamX = x;
+          this.targetCamY = y;
+          this.targetCamZ = clampedZ;
+          console.log('[ZOOM_LEVEL_ANIM] Animation complete. Final Z=', this.targetCamZ.toFixed(2));
+          // Fisheye stays locked off; will re-enable only on manual zoom out past this level
+          this.fisheyeResumeOnPointer = this.fisheyeEnabledSignal;
+          console.log('[ZOOM_LEVEL_ANIM] Fisheye resumeOnPointer set to:', this.fisheyeResumeOnPointer);
+          resolve();
+        }
+      });
+
+      this.addTween(tweenFn);
+    });
   }
 
   /**

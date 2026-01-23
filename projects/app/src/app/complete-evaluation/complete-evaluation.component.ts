@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { Component, computed, input } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
 import { HttpClient } from '@angular/common/http';
@@ -20,9 +20,50 @@ export class CompleteEvaluationComponent {
   thinking = input<boolean>(false);
   addAnotherRoute: string[] = ['/scan'];
 
+  // Compute the show-on-map URL for the current item
+  showOnMapLink = computed(() => {
+    const workspaceId = this.api.workspaceId();
+    const itemId = this.api.itemId();
+    const apiKey = this.api.api_key();
+
+    if (!workspaceId || !itemId || !apiKey) {
+      return '/';
+    }
+
+    return `/showcase-ws?workspace=${workspaceId}&api_key=${apiKey}&item-id=${itemId}&layout=map`;
+  });
+
   constructor(public api: ApiService, private http: HttpClient, private route: ActivatedRoute) {
     const fromTemplateFlow = this.route.snapshot.queryParamMap.get('template') === 'true';
     this.addAnotherRoute = fromTemplateFlow ? ['/canvas-creator'] : ['/scan'];
+  }
+
+  onShowOnMap(event: MouseEvent): void {
+    console.log('[COMPLETE_EVAL] onShowOnMap called');
+    const url = this.showOnMapLink();
+    const isFramed = typeof window !== 'undefined' && window.self !== window.top;
+    console.log('[COMPLETE_EVAL] isFramed:', isFramed, 'url:', url);
+
+    if (isFramed && window.parent) {
+      console.log('[COMPLETE_EVAL] Posting show-on-map message to parent window');
+      event.preventDefault();
+      window.parent.postMessage({
+        type: 'show-on-map',
+        itemId: this.api.itemId(),
+        workspaceId: this.api.workspaceId(),
+        apiKey: this.api.api_key(),
+        source: 'sidebar-iframe'
+      }, '*');
+      console.log('[COMPLETE_EVAL] Message posted');
+      return;
+    }
+
+    console.log('[COMPLETE_EVAL] Not in frame, navigating to:', url);
+    if (typeof window !== 'undefined' && window.top) {
+      window.top.location.href = url;
+    } else {
+      window.location.href = url;
+    }
   }
 
   downloadImage() {

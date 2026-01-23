@@ -1,12 +1,10 @@
 import { Component, computed } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { CompletionImageComponent } from "../completion-image/completion-image.component";
 import { ApiService } from '../../api.service';
 
 @Component({
   selector: 'app-direct-to-map',
   imports: [
-    RouterLink,
     CompletionImageComponent
 ],
   templateUrl: './direct-to-map.component.html',

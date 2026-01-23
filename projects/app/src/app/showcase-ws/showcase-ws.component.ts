@@ -92,13 +92,23 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
   private onMessageFromChild = (event: MessageEvent) => {
     const data = event.data;
-    if (!data || typeof data !== 'object') return;
+    console.log('[SHOWCASE_WS] Message received from child:', data);
+    if (!data || typeof data !== 'object') {
+      console.log('[SHOWCASE_WS] Message skipped - not an object');
+      return;
+    }
     if (data.type === 'show-on-map') {
+      console.log('[SHOWCASE_WS] Processing show-on-map message');
       const itemId = typeof data.itemId === 'string' ? data.itemId : null;
-      if (!itemId) return;
+      if (!itemId) {
+        console.log('[SHOWCASE_WS] show-on-map message missing itemId, skipping');
+        return;
+      }
+      console.log('[SHOWCASE_WS] Closing sidebar and focusing on item:', itemId);
       this.sidebarOpen.set(false);
       this.selectedItemId.set(null);
-      this.focusOnItem(itemId);
+      // Trigger animated focus from "show on map" click
+      this.focusOnItem(itemId, { animateFromFull: true, fromShowOnMap: true });
     }
   };
 
@@ -447,7 +457,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Fetch workspace data to get the title
+   * Fetch workspace data to get the display title (workspace source preferred)
    */
   private fetchWorkspaceData(): void {
     const workspaceId = this.workspace();
@@ -464,8 +474,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.http.get<any>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${workspaceId}`, httpOptions)
       .subscribe({
         next: (workspace) => {
-          if (workspace && workspace.title) {
-            this.workspaceTitle.set(workspace.title);
+          if (workspace) {
+            const displayTitle = workspace.source || workspace.title || '';
+            this.workspaceTitle.set(displayTitle);
           }
         },
         error: (error) => {
@@ -622,7 +633,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           const focusId = this.focusItemId();
           if (focusId) {
             timer(500).subscribe(() => {
-              this.focusOnItem(focusId);
+              this.focusOnItem(focusId, { animateFromFull: true });
             });
           }
         });
@@ -958,24 +969,28 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Handle photo click - open evaluation sidebar
-   * Only allow editing for admins; visitors can only view
+   * Handle photo click
+   * If user has edit permissions: open evaluation sidebar
+   * If user does not have edit permissions: trigger zoom animation (like "show on map")
    */
   onPhotoClick(photoId: string): void {
-    console.log('[SHOWCASE_WS] Photo clicked:', photoId);
+    console.log('[SHOWCASE_WS] Photo clicked:', photoId, 'isAdmin:', this.isAdmin());
     
-    // Always allow viewing the item
-    this.selectedItemId.set(photoId);
-    this.sidebarOpen.set(true);
-    
-    // Note: Permission checks for editing are handled in the evaluation sidebar
-    // The sidebar will show read-only mode for visitors (no admin_key)
+    if (this.isAdmin()) {
+      // User has edit permissions - open sidebar for evaluation
+      this.selectedItemId.set(photoId);
+      this.sidebarOpen.set(true);
+    } else {
+      // User does not have edit permissions - trigger zoom animation instead
+      console.log('[SHOWCASE_WS] User has no edit permissions, triggering zoom animation');
+      this.focusOnItem(photoId, { animateFromFull: true, fromShowOnMap: true });
+    }
   }
 
   /**
    * Focus camera on a specific item
    */
-  async focusOnItem(itemId: string): Promise<void> {
+  async focusOnItem(itemId: string, options?: { animateFromFull?: boolean; fromShowOnMap?: boolean }): Promise<void> {
     console.log('[SHOWCASE_WS] Focusing on item:', itemId);
     
     // Wait for photo to be loaded
@@ -988,13 +1003,30 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         const position = photo.mesh.position;
         console.log('[SHOWCASE_WS] Found photo at position:', position);
         
-        // Focus camera on this position with appropriate zoom
-        this.rendererService.focusOnPosition(position.x, position.y, this.DEFAULT_FOCUS_ZOOM);
-        
-        // Optionally open the sidebar for this item
-        // Commenting out for now as per requirements - user can click to view
-        // this.selectedItemId.set(itemId);
-        // this.sidebarOpen.set(true);
+        const shouldAnimate = options?.animateFromFull === true;
+
+        if (shouldAnimate && options?.fromShowOnMap) {
+          // "Show on map" flow: smooth pan + zoom to item (50% screen size)
+          await this.rendererService.focusOnItemFromShowOnMap(position.x, position.y, photo);
+        } else if (shouldAnimate) {
+          // Standard permalink animation (currently unused, kept for compatibility)
+          this.rendererService.setAutoFit(false);
+          const bounds = this.rendererService.getCurrentBounds();
+          
+          const fullViewZ = this.rendererService.computeFitZWithMargin(
+            bounds,
+            Math.PI * 45 / 180,
+            window.innerWidth / window.innerHeight,
+            300
+          );
+          
+          await this.rendererService.focusOnPositionAnimated(position.x, position.y, fullViewZ, 1.0);
+          const targetZ = fullViewZ * 0.5;
+          await this.rendererService.focusOnPositionAnimated(position.x, position.y, targetZ, 2.0);
+        } else {
+          // Focus camera on this position with appropriate zoom
+          this.rendererService.focusOnPosition(position.x, position.y, this.DEFAULT_FOCUS_ZOOM);
+        }
         
         return;
       }
