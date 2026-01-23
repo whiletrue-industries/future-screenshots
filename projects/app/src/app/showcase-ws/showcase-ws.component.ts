@@ -39,6 +39,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   api_key = signal('');
   admin_key = signal('');
   lang = signal('');
+  allowAdditionalContributions = signal(true); // Default to showing QR code
   currentLayout = signal<'grid' | 'tsne' | 'svg' | 'circle-packing'>('circle-packing');
   enableRandomShowcase = signal(false);
   enableSvgAutoPositioning = signal(true);
@@ -485,6 +486,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           if (workspace) {
             const displayTitle = workspace.source || workspace.title || '';
             this.workspaceTitle.set(displayTitle);
+            
+            // Check if additional contributions are allowed
+            const allowContributions = workspace.collaborate !== false; // Default to true if not specified
+            this.allowAdditionalContributions.set(allowContributions);
+            console.log('[WORKSPACE_DATA] allowAdditionalContributions:', allowContributions);
           }
         },
         error: (error) => {

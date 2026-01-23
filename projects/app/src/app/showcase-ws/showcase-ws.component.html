@@ -1,5 +1,10 @@
 <div class='container' [class.dragging]='isDragging()' [class.hovering]='isHoveringItem()' #container></div>
 
+<!-- QR Code (Only shown if additional contributions are allowed) -->
+@if (allowAdditionalContributions()) {
+  <app-qrcode [small]='qrSmall()' [url]='qrUrl()'></app-qrcode>
+}
+
 <!-- Evaluation Sidebar (Protected - Only for authenticated users) -->
 <app-evaluation-sidebar
   [isOpen]='sidebarOpen() && isAdmin()'
@@ -12,8 +17,6 @@
   (close)='onSidebarClose()'
   (metadataUpdated)='onMetadataUpdated($event)'
 ></app-evaluation-sidebar>
-
-<app-qrcode [small]='qrSmall()' [url]='qrUrl()'></app-qrcode>
 <div class='logo'>
 </div>
 
