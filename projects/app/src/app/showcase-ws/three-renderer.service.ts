@@ -1,9 +1,10 @@
 import * as THREE from 'three';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { signal, Signal } from '@angular/core';
 import { PhotoData, PhotoAnimationState } from './photo-data';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { FisheyeEffectService } from './fisheye-effect.service';
+import { PlatformService } from '../../platform.service';
 
 export interface ThreeRendererOptions {
   photoWidth?: number;   // default PHOTO_CONSTANTS.PHOTO_WIDTH
@@ -77,6 +78,7 @@ export class ThreeRendererService {
   // Drag and Drop
   private raycaster = new THREE.Raycaster();
   private mouse = new THREE.Vector2();
+  private hasUserInteracted = false; // Track if user has moved mouse/touched screen
   private isDragging = false;
   private draggedMesh: THREE.Mesh | null = null;
   private dragPlane = new THREE.Plane();
@@ -148,6 +150,8 @@ export class ThreeRendererService {
   private panSensitivityMultiplier = 1.0;
   private dofStrength = 0;
   private dofPass: any = null; // Post-processing pass for depth of field (if implemented)
+  
+  private platformService = inject(PlatformService);
 
   constructor() {
     this.fisheyeService = new FisheyeEffectService();
@@ -157,7 +161,8 @@ export class ThreeRendererService {
     this.FOV_DEG = opts.fovDeg ?? 45;
     this.CAM_MARGIN = opts.cameraMargin ?? 300;
     this.CAM_DAMP = opts.cameraDamp ?? 0.1 * 10000;
-    this.ANISO = opts.anisotropy ?? 4;
+    // Reduce anisotropic filtering on mobile for better performance
+    this.ANISO = opts.anisotropy ?? (this.platformService.isMobile ? 2 : 4);
     this.BG = opts.background ?? 0xFFFDF6;
   }
 
@@ -958,8 +963,8 @@ export class ThreeRendererService {
       viewportHeight: viewportHeight
     });
 
-    // Exit early if disabled
-    if (!this.fisheyeEnabled) {
+    // Exit early if disabled or user hasn't interacted yet
+    if (!this.fisheyeEnabled || !this.hasUserInteracted) {
       return;
     }
 
@@ -1871,6 +1876,9 @@ export class ThreeRendererService {
     // Touch events for mobile
     canvas.addEventListener('touchstart', (event) => {
       if (event.touches.length === 1) {
+        // Single touch - treat as mouse click
+        // Prevent scrolling, zooming, and context menus during touch interaction
+        event.preventDefault();
         this.updateMousePositionFromTouch(event.touches[0]);
         const mouseEvent = new MouseEvent('mousedown', {
           clientX: event.touches[0].clientX,
@@ -1881,19 +1889,22 @@ export class ThreeRendererService {
         // Two-finger touch for pinch zoom (to be implemented)
         event.preventDefault();
       }
-    }, { passive: true });
+    }, { passive: false }); // Changed to false to allow preventDefault
 
     canvas.addEventListener('touchmove', (event) => {
       if (event.touches.length === 1) {
-        event.preventDefault();
+        event.preventDefault(); // Prevent scrolling while dragging
         this.updateMousePositionFromTouch(event.touches[0]);
         const mouseEvent = new MouseEvent('mousemove', {
           clientX: event.touches[0].clientX,
           clientY: event.touches[0].clientY
         });
         this.onMouseMove(mouseEvent);
+      } else if (event.touches.length === 2) {
+        // Prevent default for multi-touch
+        event.preventDefault();
       }
-    }, { passive: true });
+    }, { passive: false }); // Changed to false to allow preventDefault
 
     canvas.addEventListener('touchend', () => {
       this.onMouseUp();
@@ -1924,6 +1935,7 @@ export class ThreeRendererService {
   private updateMousePosition(event: MouseEvent): void {
     if (!this.container) return;
     
+    this.hasUserInteracted = true; // User has moved mouse
     const rect = this.container.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -1937,6 +1949,7 @@ export class ThreeRendererService {
   private updateMousePositionFromTouch(touch: Touch): void {
     if (!this.container) return;
     
+    this.hasUserInteracted = true; // User has touched screen
     const rect = this.container.getBoundingClientRect();
     this.mouse.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
@@ -2444,10 +2457,14 @@ export class ThreeRendererService {
 
   // Private methods
   private async initializeThreeJS(): Promise<void> {
-    // Renderer
+    // Renderer - optimize pixel ratio for mobile
+    const pixelRatio = this.platformService.isMobile 
+      ? Math.min(1.5, window.devicePixelRatio || 1) // Lower pixel ratio on mobile for better performance
+      : Math.min(2, window.devicePixelRatio || 1);
+    
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(this.container!.clientWidth, this.container!.clientHeight);
     this.container!.appendChild(this.renderer.domElement);
 
@@ -2666,7 +2683,9 @@ export class ThreeRendererService {
    * Load and downscale image to maximum dimension for performance optimization
    */
   private async loadAndDownscaleImage(url: string): Promise<THREE.Texture> {
-    const MAX_DIMENSION = PHOTO_CONSTANTS.MAX_TEXTURE_DIMENSION;
+    const MAX_DIMENSION = this.platformService.isMobile 
+      ? PHOTO_CONSTANTS.MAX_TEXTURE_DIMENSION_MOBILE 
+      : PHOTO_CONSTANTS.MAX_TEXTURE_DIMENSION;
     
     return new Promise<THREE.Texture>((resolve, reject) => {
       const img = new Image();

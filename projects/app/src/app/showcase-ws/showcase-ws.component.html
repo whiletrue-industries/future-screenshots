@@ -1,8 +1,19 @@
 <div class='container' [class.dragging]='isDragging()' [class.hovering]='isHoveringItem()' #container></div>
 
-<!-- QR Code (Only shown if additional contributions are allowed) -->
+<!-- Preloader - shown until layout has fully loaded and composed -->
+@if (isLayoutLoading()) {
+  <div class='preloader'>
+    <div class='spinner'></div>
+  </div>
+}
+
+<!-- QR Code (Only shown if additional contributions are allowed, not on mobile) -->
 @if (allowAdditionalContributions()) {
-  <app-qrcode [small]='qrSmall()' [url]='qrUrl()'></app-qrcode>
+  <app-qrcode 
+    [small]='qrSmall()' 
+    [url]='qrUrl()' 
+    (click)='toggleQrSize()'
+    class='hide-on-mobile qr-clickable'></app-qrcode>
 }
 
 <!-- Evaluation Sidebar -->
@@ -17,13 +28,25 @@
   (close)='onSidebarClose()'
   (metadataUpdated)='onMetadataUpdated($event)'
 ></app-evaluation-sidebar>
+
+<!-- Back Button -->
+<button 
+  class='back-button'
+  (click)='goBack()'
+  title='Back to Home'>
+  <svg viewBox='0 0 24 24' class='button-icon'>
+    <path d='M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z' fill='currentColor'/>
+  </svg>
+</button>
+
+<!-- Logo -->
 <div class='logo'>
 </div>
 
 <!-- Workspace Title -->
 @if (workspaceTitle()) {
-<div class='workspace-title'>
-  {{ workspaceTitle() }}
+<div class='workspace-title' #titleElement [class.needs-animation]='titleNeedsAnimation()'>
+  {{ workspaceTitle() }}@if (titleNeedsAnimation()) {   ❖   {{ workspaceTitle() }}}
 </div>
 }
 
@@ -66,7 +89,7 @@
     </div>
 
     <button 
-      class='zoom-button'
+      class='zoom-button hide-on-mobile'
       (click)='zoomIn()'
       title='Zoom In (+)'>
       <svg viewBox='0 0 24 24' class='button-icon'>
@@ -74,7 +97,7 @@
       </svg>
     </button>
     <button 
-      class='zoom-button'
+      class='zoom-button hide-on-mobile'
       (click)='zoomOut()'
       title='Zoom Out (-)'>
       <svg viewBox='0 0 24 24' class='button-icon'>
@@ -100,7 +123,7 @@
 
   @if (isAdmin()) {
     <button 
-      class='showcase-toggle'
+      class='showcase-toggle hide-on-mobile'
       [class.active]='enableRandomShowcase()'
       (click)='toggleRandomShowcase()'
       title='Toggle Random Showcase'>
