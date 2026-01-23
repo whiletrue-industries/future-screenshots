@@ -240,6 +240,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           this.applySearchFilter();
         }
         
+        // Apply search filter if query was provided in URL
+        if (this.searchText()) {
+          this.applySearchFilter();
+        }
+        
         // Set lastCreatedAt to the most recent item
         const latestItem = items[items.length - 1];
         this.lastCreatedAt = latestItem.created_at;
