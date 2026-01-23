@@ -432,6 +432,10 @@ export class ThreeRendererService {
   updateCameraTarget(newBounds: SceneBounds): void {
     this.bounds = { ...newBounds };
     if (this.autoFitEnabled) {
+      // Center camera on bounds
+      this.targetCamX = (newBounds.minX + newBounds.maxX) * 0.5;
+      this.targetCamY = (newBounds.minY + newBounds.maxY) * 0.5;
+      
       const targetCamZ = this.computeFitZWithMargin(
         this.bounds,
         THREE.MathUtils.degToRad(this.camera.fov),
@@ -457,20 +461,32 @@ export class ThreeRendererService {
         this.CAM_MARGIN
       );
       
+      // Calculate target camera center position
+      const targetCamX = (newBounds.minX + newBounds.maxX) * 0.5;
+      const targetCamY = (newBounds.minY + newBounds.maxY) * 0.5;
+      
+      const startCamX = this.targetCamX;
+      const startCamY = this.targetCamY;
       const startCamZ = this.targetCamZ;
       const finalTargetCamZ = targetCamZ;
       
       // If no change needed, resolve immediately
-      if (Math.abs(finalTargetCamZ - startCamZ) < 0.01) {
+      if (Math.abs(finalTargetCamZ - startCamZ) < 0.01 && 
+          Math.abs(targetCamX - startCamX) < 0.01 && 
+          Math.abs(targetCamY - startCamY) < 0.01) {
         resolve();
         return;
       }
       
       const tweenFn = this.makeTween(durationSec, (progress: number) => {
         const eased = this.easeOutCubic(progress);
+        this.targetCamX = this.lerp(startCamX, targetCamX, eased);
+        this.targetCamY = this.lerp(startCamY, targetCamY, eased);
         this.targetCamZ = this.lerp(startCamZ, finalTargetCamZ, eased);
         
         if (progress >= 1.0) {
+          this.targetCamX = targetCamX;
+          this.targetCamY = targetCamY;
           this.targetCamZ = finalTargetCamZ;
           resolve();
         }
