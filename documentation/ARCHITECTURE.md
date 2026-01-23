@@ -133,13 +133,12 @@ The application uses Angular standalone components organized by feature:
    - Smooth camera animations with damping
    - QR code for easy mobile access
    - Random showcase mode to highlight photos
-   - **Permalink support**: Navigate to specific items via `item-id` parameter
-     - Example: `/showcase-ws?workspace=XXX&api_key=YYY&item-id=ZZZ&layout=map`
-     - Camera automatically zooms and centers on the specified item
-   - **Layout aliases**: Friendly URL parameters for layout modes
-     - `layout=map` → SVG layout (interactive map)
-     - `layout=clusters` → Circle-packing layout
-     - `layout=themes` → Grid layout
+    - **Permalink support**: Navigate to specific items via `item-id` parameter
+       - Example: `/showcase-ws?workspace=XXX&api_key=YYY&item-id=ZZZ&layout=svg`
+       - Camera automatically zooms and centers on the specified item
+    - **Layout aliases**: Friendly URL parameters for layout modes
+       - `layout=clusters` → Circle-packing layout
+       - `layout=themes` → Grid layout
    - **Access control**: Drag-to-edit only for users with admin_key
      - Visitors can view and click but not drag items
      - Editors with admin_key can drag and edit all items

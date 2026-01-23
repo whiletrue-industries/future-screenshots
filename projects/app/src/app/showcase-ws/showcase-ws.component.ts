@@ -335,9 +335,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     // Map layout parameter aliases to actual layout names
     const layoutParam = qp['layout'];
     if (layoutParam) {
-      // Map friendly names to internal layout names
+      // Map friendly names to internal layout names (map removed)
       const layoutMap: { [key: string]: 'grid' | 'tsne' | 'svg' | 'circle-packing' } = {
-        'map': 'svg',
         'clusters': 'circle-packing',
         'themes': 'grid',
         'grid': 'grid',

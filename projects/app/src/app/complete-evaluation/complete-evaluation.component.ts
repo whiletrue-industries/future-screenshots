@@ -34,7 +34,7 @@ export class CompleteEvaluationComponent {
     // Add locale prefix if not English (English has no prefix, Dutch '/nl/', Hebrew '/he/', Arabic '/ar/' etc.)
     const localePrefix = locale === 'en' ? '' : `/${locale}`;
 
-    return `${localePrefix}/showcase-ws?workspace=${workspaceId}&api_key=${apiKey}&item-id=${itemId}&layout=map`;
+    return `${localePrefix}/showcase-ws?workspace=${workspaceId}&api_key=${apiKey}&item-id=${itemId}&layout=svg`;
   });
 
   constructor(public api: ApiService, private http: HttpClient, private route: ActivatedRoute) {

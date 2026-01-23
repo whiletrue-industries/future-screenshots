@@ -25,8 +25,8 @@ export class DirectToMapComponent {
     // Add locale prefix if not English (English has no prefix, Dutch '/nl/', Hebrew '/he/', Arabic '/ar/' etc.)
     const localePrefix = locale === 'en' ? '' : `/${locale}`;
     
-    // Link to showcase-ws with workspace, api_key, item-id, and default layout
-    return `${localePrefix}/showcase-ws?workspace=${workspaceId}&api_key=${apiKey}&item-id=${itemId}&layout=map`;
+      // Link to showcase-ws with workspace, api_key, item-id, and default layout
+      return `${localePrefix}/showcase-ws?workspace=${workspaceId}&api_key=${apiKey}&item-id=${itemId}&layout=svg`;
   });
 
   constructor(public api: ApiService) {}
