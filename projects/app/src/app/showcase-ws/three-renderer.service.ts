@@ -1907,7 +1907,8 @@ export class ThreeRendererService {
     canvas.addEventListener('touchstart', (event) => {
       if (event.touches.length === 1) {
         // Single touch - treat as mouse click
-        event.preventDefault(); // Prevent default touch behavior
+        // Prevent scrolling, zooming, and context menus during touch interaction
+        event.preventDefault();
         this.updateMousePositionFromTouch(event.touches[0]);
         const mouseEvent = new MouseEvent('mousedown', {
           clientX: event.touches[0].clientX,

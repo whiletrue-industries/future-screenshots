@@ -35,10 +35,10 @@ export class PlatformService {
       // Detect desktop: device without touch events
       this.isDesktop = !hasTouchEvents;
       
-      // Detect mobile: device with touch events and small screen
+      // Detect mobile: device with mobile user agent OR (touch events AND small screen)
       const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       const hasSmallScreen = window.innerWidth <= 768;
-      this.isMobile = (hasTouchEvents && hasSmallScreen) || isMobileDevice;
+      this.isMobile = isMobileDevice || (hasTouchEvents && hasSmallScreen);
     });
   }
 
