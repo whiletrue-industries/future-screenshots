@@ -2,7 +2,7 @@ import { AfterViewInit, Component, computed, effect, ElementRef, signal, ViewChi
 import { catchError, distinctUntilChanged, filter, forkJoin, from, interval, Observable, of, Subject, timer, takeUntil } from 'rxjs';
 import { PlatformService } from '../../platform.service';
 import { HttpClient } from '@angular/common/http';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { QrcodeComponent } from "./qrcode/qrcode.component";
 import { EvaluationSidebarComponent } from "./evaluation-sidebar/evaluation-sidebar.component";
 import { FisheyeSettings } from './settings-panel.component';
@@ -28,6 +28,7 @@ import e from 'express';
 })
 export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   @ViewChild('container', { static: true }) container!: ElementRef;
+  @ViewChild('titleElement') titleElement?: ElementRef;
   private photoRepository: PhotoDataRepository;
   private activatedRoute: ActivatedRoute;
   private destroy$ = new Subject<void>();
@@ -106,6 +107,15 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     return text;
   }
 
+  // Loading state for initial content
+  isLoading = signal(true);
+  
+  // Loading state for layout composition
+  isLayoutLoading = signal(true);
+
+  // Computed: whether title needs animation (is truncated)
+  titleNeedsAnimation = signal(false);
+
   // Check if currently dragging (for cursor style)
   isDragging = computed(() => this.rendererService.isDraggingItem());
   
@@ -126,6 +136,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   qrUrl = computed(() => 
     `https://mapfutur.es/${this.lang()}prescan?workspace=${this.workspace()}&api_key=${this.api_key()}&ws=true`
   );
+  
+  // Check if device is mobile
+  isMobile = computed(() => this.platform.isMobile);
 
   private onMessageFromChild = (event: MessageEvent) => {
     const data = event.data;
@@ -214,6 +227,18 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         this.searchIndex.clear();
         
         this.qrSmall.set(true);
+        this.isLoading.set(false); // Content is now loaded
+        
+        // Wait for layout to stabilize and camera animation to complete
+        // Using a timeout to allow the Three.js renderer to complete layout calculations
+        setTimeout(() => {
+          this.isLayoutLoading.set(false); // Layout composition is now complete
+        }, 2000); // 2 second delay for layout and camera animation to settle
+        
+        // Apply search filter if query was provided in URL
+        if (this.searchText()) {
+          this.applySearchFilter();
+        }
         
         // Apply search filter if query was provided in URL
         if (this.searchText()) {
@@ -341,6 +366,13 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   toggleRandomShowcase() {
     this.enableRandomShowcase.set(!this.enableRandomShowcase());
     this.photoRepository.setRandomShowcaseEnabled(this.enableRandomShowcase());
+  }
+
+  /**
+   * Toggle QR code size between small and large
+   */
+  toggleQrSize() {
+    this.qrSmall.set(!this.qrSmall());
   }
 
   /**
@@ -571,7 +603,23 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       window.addEventListener('message', this.onMessageFromChild);
       // Listen for hash changes to update z-index
       window.addEventListener('hashchange', () => this.updateActiveItemZIndex());
+      // Listen for resize to re-measure title
+      window.addEventListener('resize', () => this.measureTitle());
+      this.measureTitle();
       await this.initialize(this.container.nativeElement);
+    }
+  }
+
+  private measureTitle(): void {
+    if (this.titleElement) {
+      // Give the DOM a chance to render
+      setTimeout(() => {
+        const element = this.titleElement?.nativeElement;
+        if (element) {
+          const isTitleOverflowing = element.scrollWidth > element.clientWidth;
+          this.titleNeedsAnimation.set(isTitleOverflowing);
+        }
+      }, 0);
     }
   }
 
@@ -1126,6 +1174,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     });
     
     console.log('[SEARCH] Filter applied. Matches:', matchCount, 'Non-matches:', nonMatchCount);
+  }
+
+  /**
+   * Navigate back to the homepage
+   */
+  goBack(): void {
+    const router = inject(Router);
+    router.navigate(['/']);
   }
 
   /**

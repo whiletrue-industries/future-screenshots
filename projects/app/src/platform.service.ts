@@ -9,6 +9,7 @@ export class PlatformService {
   safari = false;
   ios = false;
   isDesktop = false;
+  isMobile = false;
 
   constructor(@Inject(PLATFORM_ID) private platformId: Object) {
     this.browser(() => {
@@ -33,6 +34,11 @@ export class PlatformService {
 
       // Detect desktop: device without touch events
       this.isDesktop = !hasTouchEvents;
+      
+      // Detect mobile: device with mobile user agent OR (touch events AND small screen)
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const hasSmallScreen = window.innerWidth <= 768;
+      this.isMobile = isMobileDevice || (hasTouchEvents && hasSmallScreen);
     });
   }
 
