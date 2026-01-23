@@ -889,18 +889,8 @@ export class PhotoDataRepository {
         minY: -svgCircleRadius,
         maxY: svgCircleRadius
       };
-    } else if (layoutName === 'circle-packing') {
-      // For cluster layouts: center camera at (0, 0) - the center of all clusters
-      const clusterRadius = 20000; // Same as svgCircleRadius for consistency
-      
-      bounds = {
-        minX: -clusterRadius,
-        maxX: clusterRadius,
-        minY: -clusterRadius,
-        maxY: clusterRadius
-      };
     } else {
-      // For other layouts: calculate bounds from actual photo positions
+      // For cluster and other layouts: calculate bounds from actual photo positions
       const positions = visiblePhotos.map(photo => ({
         x: photo.targetPosition.x,
         y: photo.targetPosition.y
