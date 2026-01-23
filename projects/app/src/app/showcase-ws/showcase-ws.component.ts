@@ -28,6 +28,7 @@ import e from 'express';
 })
 export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   @ViewChild('container', { static: true }) container!: ElementRef;
+  @ViewChild('titleElement') titleElement?: ElementRef;
   private photoRepository: PhotoDataRepository;
   private activatedRoute: ActivatedRoute;
   private destroy$ = new Subject<void>();
@@ -82,13 +83,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   isLayoutLoading = signal(true);
 
   // Computed: whether title needs animation (is truncated)
-  titleNeedsAnimation = computed(() => {
-    const title = this.workspaceTitle();
-    if (!title) return false;
-    // Check if title element would overflow by measuring text width
-    // Use a more conservative estimate: if title is longer than 40 characters, likely needs animation
-    return title.length > 40;
-  });
+  titleNeedsAnimation = signal(false);
 
   // Check if currently dragging (for cursor style)
   isDragging = computed(() => this.rendererService.isDraggingItem());
@@ -320,6 +315,13 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
+   * Toggle QR code size between small and large
+   */
+  toggleQrSize() {
+    this.qrSmall.set(!this.qrSmall());
+  }
+
+  /**
    * Toggle fisheye lens effect
    */
   toggleFisheyeEffect() {
@@ -547,7 +549,23 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       window.addEventListener('message', this.onMessageFromChild);
       // Listen for hash changes to update z-index
       window.addEventListener('hashchange', () => this.updateActiveItemZIndex());
+      // Listen for resize to re-measure title
+      window.addEventListener('resize', () => this.measureTitle());
+      this.measureTitle();
       await this.initialize(this.container.nativeElement);
+    }
+  }
+
+  private measureTitle(): void {
+    if (this.titleElement) {
+      // Give the DOM a chance to render
+      setTimeout(() => {
+        const element = this.titleElement?.nativeElement;
+        if (element) {
+          const isTitleOverflowing = element.scrollWidth > element.clientWidth;
+          this.titleNeedsAnimation.set(isTitleOverflowing);
+        }
+      }, 0);
     }
   }
 

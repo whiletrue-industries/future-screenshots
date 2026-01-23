@@ -9,7 +9,11 @@
 
 <!-- QR Code (Only shown if additional contributions are allowed, not on mobile) -->
 @if (allowAdditionalContributions()) {
-  <app-qrcode [small]='qrSmall()' [url]='qrUrl()' class='hide-on-mobile'></app-qrcode>
+  <app-qrcode 
+    [small]='qrSmall()' 
+    [url]='qrUrl()' 
+    (click)='toggleQrSize()'
+    class='hide-on-mobile qr-clickable'></app-qrcode>
 }
 
 <!-- Evaluation Sidebar -->
@@ -37,7 +41,7 @@
 
 <!-- Workspace Title -->
 @if (workspaceTitle()) {
-<div class='workspace-title' [class.needs-animation]='titleNeedsAnimation()'>
+<div class='workspace-title' #titleElement [class.needs-animation]='titleNeedsAnimation()'>
   {{ workspaceTitle() }}@if (titleNeedsAnimation()) {   ❖   {{ workspaceTitle() }}}
 </div>
 }

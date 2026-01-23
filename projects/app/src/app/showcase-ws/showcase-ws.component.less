@@ -112,20 +112,24 @@
         position: absolute;
         top: 20px;
         left: 50%;
+        transform: translateX(-50%);
         font-family: "Readex Pro", "Miriam Libre", "Source Sans 3", sans-serif;
         color: @color-gray;
         font-size: 16px;
         font-weight: 400;
         z-index: 99;
-        max-width: calc(100% - 520px);
+        max-width: calc(100% - 40px);
         text-align: center;
         white-space: nowrap;
-        overflow: visible;
-        text-overflow: clip;
-        padding-right: 20px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding: 0 20px;
         
         // Only animate if title needs animation (is truncated)
         &.needs-animation {
+            white-space: pre;
+            overflow: visible;
+            text-overflow: clip;
             animation: scrollTitle 20s linear infinite;
             animation-delay: 2s; // Start animation after 2 seconds
         }
@@ -133,7 +137,6 @@
         // Mobile responsive
         @media (max-width: 768px) {
             max-width: calc(100% - 40px);
-            padding-left: 20px;
             font-size: 14px;
             top: 10px;
             
