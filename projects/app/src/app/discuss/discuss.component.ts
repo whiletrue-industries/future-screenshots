@@ -45,7 +45,7 @@ export class DiscussComponent implements AfterViewInit {
   });
   completed = signal<boolean>(false);
   inputVisible = computed(() => {
-    return this.visible() && !this.completed() && this.typingComplete();
+    return this.visible() && !this.completed();
   });
   failed = signal<boolean>(false);
 
