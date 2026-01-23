@@ -889,8 +889,28 @@ export class PhotoDataRepository {
         minY: -svgCircleRadius,
         maxY: svgCircleRadius
       };
+    } else if (layoutName === 'circle-packing') {
+      // For cluster layouts: calculate bounds from positions but center camera at (0, 0)
+      const positions = visiblePhotos.map(photo => ({
+        x: photo.targetPosition.x,
+        y: photo.targetPosition.y
+      }));
+      const calculatedBounds = this.calculateBounds(positions);
+      
+      // Get the max extent to determine zoom level
+      const maxExtentX = Math.max(Math.abs(calculatedBounds.minX), Math.abs(calculatedBounds.maxX));
+      const maxExtentY = Math.max(Math.abs(calculatedBounds.minY), Math.abs(calculatedBounds.maxY));
+      const maxExtent = Math.max(maxExtentX, maxExtentY);
+      
+      // Create bounds centered at (0, 0) with the calculated extent
+      bounds = {
+        minX: -maxExtent,
+        maxX: maxExtent,
+        minY: -maxExtent,
+        maxY: maxExtent
+      };
     } else {
-      // For cluster and other layouts: calculate bounds from actual photo positions
+      // For other layouts: calculate bounds from actual photo positions
       const positions = visiblePhotos.map(photo => ({
         x: photo.targetPosition.x,
         y: photo.targetPosition.y
