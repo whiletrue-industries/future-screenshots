@@ -872,12 +872,41 @@ export class PhotoDataRepository {
       return;
     }
 
-    const positions = visiblePhotos.map(photo => ({
-      x: photo.targetPosition.x,
-      y: photo.targetPosition.y
-    }));
+    // Get layout name to determine camera positioning strategy
+    const layoutName = this.layoutStrategy?.getConfiguration().name;
 
-    const bounds = this.calculateBounds(positions);
+    let bounds: { minX: number; maxX: number; minY: number; maxY: number };
+
+    if (layoutName === 'svg-background') {
+      // For SVG layout: center camera at SVG center (offset to the left)
+      const svgCircleRadius = 20000; // Same as in showcase-ws.component.ts
+      const svgOffsetX = -svgCircleRadius * 1.6; // Same calculation as in switchToSvgLayout
+      
+      // Create bounds centered at SVG position
+      bounds = {
+        minX: svgOffsetX - svgCircleRadius,
+        maxX: svgOffsetX + svgCircleRadius,
+        minY: -svgCircleRadius,
+        maxY: svgCircleRadius
+      };
+    } else if (layoutName === 'circle-packing') {
+      // For cluster layouts: center camera at (0, 0) - the center of all clusters
+      const clusterRadius = 20000; // Same as svgCircleRadius for consistency
+      
+      bounds = {
+        minX: -clusterRadius,
+        maxX: clusterRadius,
+        minY: -clusterRadius,
+        maxY: clusterRadius
+      };
+    } else {
+      // For other layouts: calculate bounds from actual photo positions
+      const positions = visiblePhotos.map(photo => ({
+        x: photo.targetPosition.x,
+        y: photo.targetPosition.y
+      }));
+      bounds = this.calculateBounds(positions);
+    }
     
     if (animate) {
       // Use animated camera bounds update for layout changes
