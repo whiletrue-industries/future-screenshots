@@ -125,6 +125,13 @@ export const routes: Routes = [
         }
     },
     {
+        'path': 'c4aa-26-01-21',
+        'component': RedirectorComponent,
+        'data': {
+            'redirectTo': '/showcase-ws?workspace=0a698fad-7e49-428f-bceb-c9d51b3512e1&api_key=4c408712-b7c3-44bb-b0a2-d030d4826ed4',
+        }
+    },  
+    {
         'path': 'privacy-policy',
         'component': AboutComponent,
         'data': {
@@ -134,5 +141,5 @@ export const routes: Routes = [
     {
         'path': '',
         'component': HomeComponent
-    }
+    },
 ];
