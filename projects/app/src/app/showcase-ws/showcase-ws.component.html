@@ -5,9 +5,9 @@
   <app-qrcode [small]='qrSmall()' [url]='qrUrl()'></app-qrcode>
 }
 
-<!-- Evaluation Sidebar (Protected - Only for authenticated users) -->
+<!-- Evaluation Sidebar -->
 <app-evaluation-sidebar
-  [isOpen]='sidebarOpen() && isAdmin()'
+  [isOpen]='sidebarOpen() && canEditSelectedItem()'
   [itemId]='selectedItemId()'
   [itemKey]='selectedItemKey()'
   [workspaceId]='workspace()'

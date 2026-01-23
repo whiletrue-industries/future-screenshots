@@ -63,6 +63,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   
   // Check if user has admin access
   isAdmin = computed(() => this.admin_key() !== '' && this.admin_key() !== 'ADMIN_KEY_NOT_SET');
+  
+  // Check if user can edit the selected item (either admin or has item_key)
+  canEditSelectedItem = computed(() => {
+    return this.isAdmin() || (this.selectedItemKey() !== null && this.selectedItemKey() !== '');
+  });
   fisheyeSettings = signal<FisheyeSettings>({
     enabled: true,
     maxMagnification: 10.0,
