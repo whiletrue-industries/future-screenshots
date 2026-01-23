@@ -78,6 +78,7 @@ export class ThreeRendererService {
   // Drag and Drop
   private raycaster = new THREE.Raycaster();
   private mouse = new THREE.Vector2();
+  private hasUserInteracted = false; // Track if user has moved mouse/touched screen
   private isDragging = false;
   private draggedMesh: THREE.Mesh | null = null;
   private dragPlane = new THREE.Plane();
@@ -960,8 +961,8 @@ export class ThreeRendererService {
       viewportHeight: viewportHeight
     });
 
-    // Exit early if disabled
-    if (!this.fisheyeEnabled) {
+    // Exit early if disabled or user hasn't interacted yet
+    if (!this.fisheyeEnabled || !this.hasUserInteracted) {
       return;
     }
 
@@ -1965,6 +1966,7 @@ export class ThreeRendererService {
   private updateMousePosition(event: MouseEvent): void {
     if (!this.container) return;
     
+    this.hasUserInteracted = true; // User has moved mouse
     const rect = this.container.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -1978,6 +1980,7 @@ export class ThreeRendererService {
   private updateMousePositionFromTouch(touch: Touch): void {
     if (!this.container) return;
     
+    this.hasUserInteracted = true; // User has touched screen
     const rect = this.container.getBoundingClientRect();
     this.mouse.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;

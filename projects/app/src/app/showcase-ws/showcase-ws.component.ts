@@ -2,7 +2,7 @@ import { AfterViewInit, Component, computed, ElementRef, signal, ViewChild, inje
 import { catchError, distinctUntilChanged, filter, forkJoin, from, interval, Observable, of, Subject, timer, takeUntil } from 'rxjs';
 import { PlatformService } from '../../platform.service';
 import { HttpClient } from '@angular/common/http';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { QrcodeComponent } from "./qrcode/qrcode.component";
 import { EvaluationSidebarComponent } from "./evaluation-sidebar/evaluation-sidebar.component";
 import { FisheyeSettings } from './settings-panel.component';
@@ -73,6 +73,21 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     maxMagnification: 10.0,
     radius: 700,
     maxHeight: 40
+  });
+  
+  // Loading state for initial content
+  isLoading = signal(true);
+  
+  // Loading state for layout composition
+  isLayoutLoading = signal(true);
+
+  // Computed: whether title needs animation (is truncated)
+  titleNeedsAnimation = computed(() => {
+    const title = this.workspaceTitle();
+    if (!title) return false;
+    // Check if title element would overflow by measuring text width
+    // Use a more conservative estimate: if title is longer than 40 characters, likely needs animation
+    return title.length > 40;
   });
 
   // Check if currently dragging (for cursor style)
@@ -174,6 +189,13 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         await Promise.all(photoPromises);
         
         this.qrSmall.set(true);
+        this.isLoading.set(false); // Content is now loaded
+        
+        // Wait for layout to stabilize and camera animation to complete
+        // Using a timeout to allow the Three.js renderer to complete layout calculations
+        setTimeout(() => {
+          this.isLayoutLoading.set(false); // Layout composition is now complete
+        }, 2000); // 2 second delay for layout and camera animation to settle
         
         // Set lastCreatedAt to the most recent item
         const latestItem = items[items.length - 1];
@@ -977,6 +999,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   zoomOut(): void {
     this.rendererService.zoomAtCenter(1.5);
+  }
+
+  /**
+   * Navigate back to the homepage
+   */
+  goBack(): void {
+    const router = inject(Router);
+    router.navigate(['/']);
   }
 
   /**
