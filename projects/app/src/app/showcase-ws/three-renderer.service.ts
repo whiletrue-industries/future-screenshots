@@ -2250,6 +2250,11 @@ export class ThreeRendererService {
       this.previewHotspotInfo = null;
     }
 
+    // Remove renderer canvas from the DOM to avoid duplicate attachments on re-init
+    if (this.renderer && this.container?.contains(this.renderer.domElement)) {
+      this.container.removeChild(this.renderer.domElement);
+    }
+
     // Clear drag callbacks
     this.dragCallbacks.clear();
     this.isDragging = false;
@@ -2267,6 +2272,7 @@ export class ThreeRendererService {
     
     this.rafRunning = false;
     this.isInitialized = false;
+    this.container = null;
   }
 
   // Private methods

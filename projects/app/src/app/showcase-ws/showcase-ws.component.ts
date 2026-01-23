@@ -1044,6 +1044,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
 
   ngOnDestroy() {
+    this.rendererService.dispose();
     this.destroy$.next();
     this.destroy$.complete();
   }
