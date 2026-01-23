@@ -28,4 +28,28 @@ export class DirectToMapComponent {
   });
 
   constructor(public api: ApiService) {}
+
+      onShowOnMap(event: MouseEvent): void {
+        const url = this.showOnMapLink();
+        const isFramed = typeof window !== 'undefined' && window.self !== window.top;
+
+        if (isFramed && window.parent) {
+          event.preventDefault();
+          window.parent.postMessage({
+            type: 'show-on-map',
+            itemId: this.api.itemId(),
+            workspaceId: this.api.workspaceId(),
+            apiKey: this.api.api_key(),
+            source: 'sidebar-iframe'
+          }, '*');
+          return;
+        }
+
+        // Ensure navigation happens in the top-level browsing context
+        if (typeof window !== 'undefined' && window.top) {
+          window.top.location.href = url;
+        } else {
+          window.location.href = url;
+        }
+      }
 }

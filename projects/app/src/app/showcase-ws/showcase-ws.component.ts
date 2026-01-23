@@ -90,6 +90,18 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     `https://mapfutur.es/${this.lang()}prescan?workspace=${this.workspace()}&api_key=${this.api_key()}&ws=true`
   );
 
+  private onMessageFromChild = (event: MessageEvent) => {
+    const data = event.data;
+    if (!data || typeof data !== 'object') return;
+    if (data.type === 'show-on-map') {
+      const itemId = typeof data.itemId === 'string' ? data.itemId : null;
+      if (!itemId) return;
+      this.sidebarOpen.set(false);
+      this.selectedItemId.set(null);
+      this.focusOnItem(itemId);
+    }
+  };
+
   constructor(
     private route: ActivatedRoute,
     private changeDetectorRef: ChangeDetectorRef,
@@ -477,6 +489,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
   async ngAfterViewInit() {
     if (this.platform.browser()) {
+      window.addEventListener('message', this.onMessageFromChild);
       await this.initialize(this.container.nativeElement);
     }
   }
@@ -1046,6 +1059,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
 
   ngOnDestroy() {
+    if (this.platform.browser()) {
+      window.removeEventListener('message', this.onMessageFromChild);
+    }
     this.rendererService.dispose();
     this.destroy$.next();
     this.destroy$.complete();
