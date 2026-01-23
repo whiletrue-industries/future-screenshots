@@ -2290,6 +2290,17 @@ export class ThreeRendererService {
   private onKeyDown(event: KeyboardEvent): void {
     if (!this.userControlEnabled) return;
 
+    // Ignore keyboard shortcuts when user is typing in an input field
+    const target = event.target as HTMLElement;
+    if (target && (
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT' ||
+      target.isContentEditable
+    )) {
+      return;
+    }
+
     const panSpeed = 50; // pixels per key press
 
     switch (event.key) {
