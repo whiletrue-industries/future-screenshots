@@ -91,6 +91,12 @@ export class ThreeRendererService {
   private currentLayoutStrategy: any = null; // Store reference to current layout strategy
   private layoutStrategyRef: any = null; // Store reference for debug visualization
   
+  // Touch gesture tracking
+  private lastTouchDistance = 0;
+  private touchStartDistance = 0;
+  private touchPanStart = { x: 0, y: 0 };
+  private isTwoFingerGesture = false;
+  
   // SVG Container for hotspot detection
   private svgContainer: HTMLElement | null = null;
   
@@ -1891,10 +1897,11 @@ export class ThreeRendererService {
 
     // Touch events for mobile
     canvas.addEventListener('touchstart', (event) => {
+      event.preventDefault(); // Prevent default touch behavior
+      
       if (event.touches.length === 1) {
-        // Single touch - treat as mouse click
-        // Prevent scrolling, zooming, and context menus during touch interaction
-        event.preventDefault();
+        // Single touch - could be drag or tap
+        this.isTwoFingerGesture = false;
         this.updateMousePositionFromTouch(event.touches[0]);
         const mouseEvent = new MouseEvent('mousedown', {
           clientX: event.touches[0].clientX,
@@ -1902,14 +1909,39 @@ export class ThreeRendererService {
         });
         this.onMouseDown(mouseEvent);
       } else if (event.touches.length === 2) {
-        // Two-finger touch for pinch zoom (to be implemented)
-        event.preventDefault();
+        // Two-finger touch - pan and pinch zoom
+        this.isTwoFingerGesture = true;
+        
+        // Cancel any ongoing single-finger drag
+        if (this.isDragging) {
+          this.cleanupDragState();
+        }
+        
+        // Calculate initial distance for pinch zoom
+        const dx = event.touches[0].clientX - event.touches[1].clientX;
+        const dy = event.touches[0].clientY - event.touches[1].clientY;
+        this.lastTouchDistance = Math.sqrt(dx * dx + dy * dy);
+        this.touchStartDistance = this.lastTouchDistance;
+        
+        // Store initial pan position (midpoint between fingers)
+        this.touchPanStart.x = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+        this.touchPanStart.y = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+        
+        // Disable auto-fit when user starts gesturing
+        if (this.autoFitEnabled) {
+          this.autoFitEnabled = false;
+        }
+        
+        // Disable fisheye during gesture
+        this.disableFisheyeForZoom();
       }
-    }, { passive: false }); // Changed to false to allow preventDefault
+    }, { passive: false });
 
     canvas.addEventListener('touchmove', (event) => {
-      if (event.touches.length === 1) {
-        event.preventDefault(); // Prevent scrolling while dragging
+      event.preventDefault();
+      
+      if (event.touches.length === 1 && !this.isTwoFingerGesture) {
+        // Single touch - drag
         this.updateMousePositionFromTouch(event.touches[0]);
         const mouseEvent = new MouseEvent('mousemove', {
           clientX: event.touches[0].clientX,
@@ -1917,13 +1949,56 @@ export class ThreeRendererService {
         });
         this.onMouseMove(mouseEvent);
       } else if (event.touches.length === 2) {
-        // Prevent default for multi-touch
-        event.preventDefault();
+        // Two-finger gesture - pinch zoom and pan
+        this.isTwoFingerGesture = true;
+        
+        // Calculate current distance for pinch zoom
+        const dx = event.touches[0].clientX - event.touches[1].clientX;
+        const dy = event.touches[0].clientY - event.touches[1].clientY;
+        const currentDistance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Calculate zoom factor from pinch
+        if (this.lastTouchDistance > 0) {
+          // Invert factor so pinch-out zooms in (distance up -> factor < 1)
+          const zoomFactor = this.lastTouchDistance / currentDistance;
+          
+          // Apply zoom at the midpoint between fingers
+          const midX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+          const midY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+          this.zoomAtPoint(zoomFactor, midX, midY);
+        }
+        
+        // Calculate pan from midpoint movement
+        const currentMidX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+        const currentMidY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+        const panDeltaX = currentMidX - this.touchPanStart.x;
+        const panDeltaY = currentMidY - this.touchPanStart.y;
+        
+        // Apply pan
+        this.panCamera(panDeltaX, panDeltaY);
+        
+        // Update for next frame
+        this.lastTouchDistance = currentDistance;
+        this.touchPanStart.x = currentMidX;
+        this.touchPanStart.y = currentMidY;
       }
-    }, { passive: false }); // Changed to false to allow preventDefault
+    }, { passive: false });
 
-    canvas.addEventListener('touchend', () => {
-      this.onMouseUp();
+    canvas.addEventListener('touchend', (event) => {
+      if (event.touches.length === 0) {
+        // All fingers lifted
+        if (this.isTwoFingerGesture) {
+          // Re-enable fisheye after two-finger gesture
+          this.reEnableFisheyeAfterZoom();
+        }
+        this.isTwoFingerGesture = false;
+        this.lastTouchDistance = 0;
+        this.onMouseUp();
+      } else if (event.touches.length === 1) {
+        // One finger remaining - reset to single touch mode
+        this.isTwoFingerGesture = false;
+        this.lastTouchDistance = 0;
+      }
     });
 
     // Keyboard controls
@@ -2493,6 +2568,10 @@ export class ThreeRendererService {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(this.container!.clientWidth, this.container!.clientHeight);
+    
+    // Ensure canvas allows JavaScript to handle all touch events
+    this.renderer.domElement.style.touchAction = 'none';
+    
     this.container!.appendChild(this.renderer.domElement);
 
     // Set up drag and drop after canvas is in DOM

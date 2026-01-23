@@ -13,8 +13,8 @@
         width: 100%;
         height: 100%;
         cursor: default;
-        // Allow browser gestures for pinch-to-zoom and swipes on mobile
-        touch-action: pan-x pan-y pinch-zoom;
+        // Disable browser touch handling - let JavaScript handle all gestures
+        touch-action: none;
         pointer-events: auto; // Ensure canvas captures all pointer events
         
         // Grab cursor when hovering over items
