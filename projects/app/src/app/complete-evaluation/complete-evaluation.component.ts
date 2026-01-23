@@ -25,12 +25,16 @@ export class CompleteEvaluationComponent {
     const workspaceId = this.api.workspaceId();
     const itemId = this.api.itemId();
     const apiKey = this.api.api_key();
+    const locale = this.api.locale;
 
     if (!workspaceId || !itemId || !apiKey) {
       return '/';
     }
 
-    return `/showcase-ws?workspace=${workspaceId}&api_key=${apiKey}&item-id=${itemId}&layout=map`;
+    // Add locale prefix if not English (English has no prefix, Dutch '/nl/', Hebrew '/he/', Arabic '/ar/' etc.)
+    const localePrefix = locale === 'en' ? '' : `/${locale}`;
+
+    return `${localePrefix}/showcase-ws?workspace=${workspaceId}&api_key=${apiKey}&item-id=${itemId}&layout=map`;
   });
 
   constructor(public api: ApiService, private http: HttpClient, private route: ActivatedRoute) {

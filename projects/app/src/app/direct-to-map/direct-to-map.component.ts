@@ -16,13 +16,17 @@ export class DirectToMapComponent {
     const workspaceId = this.api.workspaceId();
     const itemId = this.api.itemId();
     const apiKey = this.api.api_key();
+    const locale = this.api.locale;
     
     if (!workspaceId || !itemId || !apiKey) {
       return '/';
     }
     
+    // Add locale prefix if not English (English has no prefix, Dutch '/nl/', Hebrew '/he/', Arabic '/ar/' etc.)
+    const localePrefix = locale === 'en' ? '' : `/${locale}`;
+    
     // Link to showcase-ws with workspace, api_key, item-id, and default layout
-    return `/showcase-ws?workspace=${workspaceId}&api_key=${apiKey}&item-id=${itemId}&layout=map`;
+    return `${localePrefix}/showcase-ws?workspace=${workspaceId}&api_key=${apiKey}&item-id=${itemId}&layout=map`;
   });
 
   constructor(public api: ApiService) {}
