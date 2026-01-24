@@ -40,13 +40,11 @@ export class DiscussComponent implements AfterViewInit {
   imageLoaded = signal<boolean>(false);
   hasText = signal<boolean>(false);
   typingComplete = signal<boolean>(false);
-  visible = computed(() => {
-    return this.hasText() && this.imageLoaded();
-  });
+  showChat = computed(() => this.imageLoaded() || this.hasText() || this.thinking());
+  imageExpanded = signal<boolean>(false);
+  imageCollapsed = computed(() => (this.hasText() || this.completed()) && !this.imageExpanded());
   completed = signal<boolean>(false);
-  inputVisible = computed(() => {
-    return this.visible() && !this.completed();
-  });
+  inputVisible = computed(() => this.showChat() && !this.completed());
   failed = signal<boolean>(false);
 
   @ViewChild(MessagesComponent) messagesComponent!: MessagesComponent;
@@ -95,6 +93,10 @@ export class DiscussComponent implements AfterViewInit {
         this.item.set(item);
       }
     });
+  }
+
+  toggleImage() {
+    this.imageExpanded.update((expanded) => !expanded);
   }
 
   addMessage(kind: 'ai' | 'human', text: string) {

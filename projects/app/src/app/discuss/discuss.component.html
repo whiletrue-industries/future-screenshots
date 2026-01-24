@@ -1,9 +1,14 @@
-<div class='image-overlay'>
-    <div class='image' [class.small]='visible()' [class.completed]='completed()'>
-        <img [src]="imageUrl()" #image/>
+<div class='flow-shell'>
+    <div class='image-overlay' [class.collapsed]="imageCollapsed()" [class.expanded]="imageExpanded()">
+        <div class="backdrop" (click)="toggleImage()"></div>
+        <button type="button" class="image-close" *ngIf="imageExpanded()" (click)="$event.stopPropagation(); toggleImage()" aria-label="Close image view">
+            X
+        </button>
+        <div class='image' [class.small]='imageCollapsed()' [class.completed]='completed()' (click)="toggleImage()">
+            <img [src]="imageUrl()" #image/>
+        </div>
     </div>
-</div>
-<div class='discuss' [class.visible]="visible()" [class.completed]="completed()">
+    <div class='discuss' [class.visible]="showChat()" [class.completed]="completed()">
     <app-messages #messagesComponent [bg]='!completed()'>
         @if (!thinking() && reply()) {
             <div class='message ai' ltr>
@@ -40,5 +45,6 @@
                 </clipPath>
             </defs>
         </svg>
+    </div>
     </div>
 </div>
