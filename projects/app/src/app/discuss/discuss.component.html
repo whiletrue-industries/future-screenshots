@@ -4,8 +4,14 @@
         <button type="button" class="image-close" *ngIf="imageExpanded()" (click)="$event.stopPropagation(); toggleImage()" aria-label="Close image view">
             X
         </button>
-        <div class='image' [class.small]='imageCollapsed()' [class.completed]='completed()' (click)="toggleImage()">
+        <div class='image' [class.small]='imageCollapsed()' [class.completed]='completed()' (click)="toggleImage()" [style.--tilt]="rotation() + 'deg'">
             <img [src]="imageUrl()" #image/>
+            @if (!completed() && prefer()) {
+                <div class="pin prefer"></div>
+            }
+            @if (!completed() && prevent()) {
+                <div class="pin prevent"></div>
+            }
         </div>
     </div>
     <div class='discuss' [class.visible]="showChat()" [class.completed]="completed()">

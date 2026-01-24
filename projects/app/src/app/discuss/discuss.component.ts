@@ -30,6 +30,25 @@ export class DiscussComponent implements AfterViewInit {
   item_id = signal<string>('');
   item_key = signal<string>('');
   item = signal<any>({});
+  prefer = computed(() => {
+    const ff = this.item()?.favorable_future || '';
+    return ff.indexOf('prefer') >= 0 || (ff.indexOf('prevent') >= 0 && ff.indexOf('mostly') >= 0);
+  });
+
+  prevent = computed(() => {
+    const ff = this.item()?.favorable_future || '';
+    return ff.indexOf('prevent') >= 0 || (ff.indexOf('prefer') >= 0 && ff.indexOf('mostly') >= 0);
+  });
+
+  preferred = computed(() => {
+    const ff = this.item()?.favorable_future || '';
+    return ff.indexOf('prefer') >= 0;
+  });
+
+  rotation = computed(() => {
+    const sign = this.preferred() ? -1 : 1;
+    return ((100 - (this.item()?.plausibility || 0)) / 100) * 32 * sign;
+  });
   imageUrl = computed<SafeUrl>(() => {
     return this.sanitizer.bypassSecurityTrustUrl(this.item().screenshot_url);
   });
