@@ -2507,16 +2507,35 @@ export class ThreeRendererService {
   }
 
   /**
-   * Remove SVG background
+   * Remove SVG background with fade-out animation
    */
   removeSvgBackground(): void {
     if (this.svgBackgroundPlane) {
-      this.scene.remove(this.svgBackgroundPlane);
-      this.svgBackgroundPlane.geometry.dispose();
-      if (this.svgBackgroundPlane.material instanceof THREE.Material) {
-        this.svgBackgroundPlane.material.dispose();
-      }
-      this.svgBackgroundPlane = undefined;
+      const material = this.svgBackgroundPlane.material as any;
+      const startOpacity = material.opacity ?? 1;
+      const start = performance.now();
+      const durationMs = 400;
+      
+      const animate = (now: number) => {
+        const t = Math.min(1, (now - start) / durationMs);
+        const eased = 1 - (t * (2 - t)); // easeOutQuad reverse (1 to 0)
+        material.opacity = startOpacity * eased;
+        material.needsUpdate = true;
+        
+        if (t < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          // Animation complete, now remove from scene
+          this.scene.remove(this.svgBackgroundPlane!);
+          this.svgBackgroundPlane!.geometry.dispose();
+          if (this.svgBackgroundPlane!.material instanceof THREE.Material) {
+            this.svgBackgroundPlane!.material.dispose();
+          }
+          this.svgBackgroundPlane = undefined;
+        }
+      };
+      
+      requestAnimationFrame(animate);
     }
     
     if (this.svgBackgroundTexture) {
