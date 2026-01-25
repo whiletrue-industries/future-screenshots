@@ -620,8 +620,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     // Press 'P' to toggle performance monitoring
     if (event.key === 'p' || event.key === 'P') {
       const currentMetrics = this.rendererService.getPerformanceMetrics();
-      const isEnabled = currentMetrics.fps > 0 || currentMetrics.visibleMeshes > 0;
-      this.rendererService.enablePerformanceMonitoring(!isEnabled);
+      this.rendererService.enablePerformanceMonitoring(!currentMetrics.isMonitoring);
     }
   }
 

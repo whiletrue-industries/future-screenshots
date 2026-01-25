@@ -154,6 +154,7 @@ export class ThreeRendererService {
   private readonly IDLE_CHECK_INTERVAL = 0.1; // Check for idle state every 100ms
   private visibleMeshCount = 0;
   private totalMeshCount = 0;
+  private cullingLogCounter = 0;
   
   // Performance monitoring
   private performanceMonitoring = false;
@@ -969,7 +970,8 @@ export class ThreeRendererService {
       fps: this.currentFps,
       visibleMeshes: this.visibleMeshCount,
       totalMeshes: this.totalMeshCount,
-      isIdle: this.isSceneIdle
+      isIdle: this.isSceneIdle,
+      isMonitoring: this.performanceMonitoring
     };
   }
 
@@ -3317,6 +3319,9 @@ export class ThreeRendererService {
       }
 
       if (mesh.geometry.boundingSphere) {
+        // Update mesh world matrix if needed
+        mesh.updateMatrixWorld();
+        
         // Transform bounding sphere to world space
         const worldSphere = mesh.geometry.boundingSphere.clone();
         worldSphere.applyMatrix4(mesh.matrixWorld);
@@ -3335,9 +3340,11 @@ export class ThreeRendererService {
       }
     }
 
-    // Log culling stats occasionally (every 100 frames) for debugging
-    if (Math.random() < 0.01) {
+    // Log culling stats every 100 frames for predictable debugging output
+    this.cullingLogCounter++;
+    if (this.performanceMonitoring && this.cullingLogCounter >= 100) {
       console.log(`[CULLING] Visible: ${this.visibleMeshCount}/${this.totalMeshCount} meshes`);
+      this.cullingLogCounter = 0;
     }
   }
 
