@@ -7,6 +7,10 @@
             </button>
         }
         <div class='image' [class.small]='imageCollapsed()' [class.completed]='completed()' (click)="toggleImage()" [style.--tilt]="rotation() + 'deg'">
+            @if (needsEvaluation()) {
+                <div class="string"></div>
+                <div class="clip"></div>
+            }
             <img [src]="imageUrl()" #image/>
             @if (!completed() && prefer()) {
                 <div class="pin prefer"></div>
@@ -29,7 +33,7 @@
             </div>
         }
         @if (completed()) {
-            <app-complete-evaluation class='spacer'></app-complete-evaluation>
+            <app-complete-evaluation class='spacer' [thinking]="completionThinking()"></app-complete-evaluation>
         }
     </app-messages>
     <div class='input' ltr [class.visible]='inputVisible()'>

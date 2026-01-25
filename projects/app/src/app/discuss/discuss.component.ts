@@ -30,6 +30,13 @@ export class DiscussComponent implements AfterViewInit {
   item_id = signal<string>('');
   item_key = signal<string>('');
   item = signal<any>({});
+  hasEvaluation = computed(() => {
+    const current = this.item();
+    const plausibility = current?.plausibility;
+    const favorable = current?.favorable_future;
+    return typeof plausibility === 'number' && favorable !== undefined && favorable !== null && favorable !== '';
+  });
+  needsEvaluation = computed(() => !this.hasEvaluation());
   prefer = computed(() => {
     const ff = this.item()?.favorable_future || '';
     return ff.indexOf('prefer') >= 0 || (ff.indexOf('prevent') >= 0 && ff.indexOf('mostly') >= 0);
@@ -46,6 +53,9 @@ export class DiscussComponent implements AfterViewInit {
   });
 
   rotation = computed(() => {
+    if (!this.hasEvaluation()) {
+      return 0;
+    }
     const sign = this.preferred() ? -1 : 1;
     return ((100 - (this.item()?.plausibility || 0)) / 100) * 32 * sign;
   });
@@ -63,6 +73,10 @@ export class DiscussComponent implements AfterViewInit {
   imageExpanded = signal<boolean>(false);
   imageCollapsed = computed(() => (this.hasText() || this.completed()) && !this.imageExpanded());
   completed = signal<boolean>(false);
+  completionThinking = computed(() => {
+    const messagesThinking = this.messagesComponent ? this.messagesComponent.thinking() : false;
+    return messagesThinking || this.thinking();
+  });
   inputVisible = computed(() => this.showChat() && !this.completed());
   failed = signal<boolean>(false);
 
