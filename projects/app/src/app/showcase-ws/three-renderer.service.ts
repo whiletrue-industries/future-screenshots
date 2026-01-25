@@ -3539,10 +3539,14 @@ export class ThreeRendererService {
       const fullWorldWidth = this.getVisibleWidthAtDepth(depth) * 2;
       const pxPerWorldUnit = this.container.clientWidth / Math.max(1, fullWorldWidth);
       const photoWidthPx = this.PHOTO_W * pxPerWorldUnit;
+      const photoHeightPx = this.PHOTO_H * pxPerWorldUnit;
+      const viewportW = this.container.clientWidth || 1;
+      const viewportH = this.container.clientHeight || 1;
+      const occupiesViewport = photoWidthPx >= viewportW * 0.3 || photoHeightPx >= viewportH * 0.3; // >=30% of viewport
 
       const photoId = this.findPhotoIdForMesh(mesh);
       const isPermalinkTarget = this.permalinkTargetId !== null && photoId === this.permalinkTargetId;
-      const eligibleForHighRes = isPermalinkTarget || this.fisheyeAffectedMeshes.has(mesh);
+      const eligibleForHighRes = isPermalinkTarget || this.fisheyeAffectedMeshes.has(mesh) || occupiesViewport;
 
       if (!eligibleForHighRes) {
         if (isHigh) {
