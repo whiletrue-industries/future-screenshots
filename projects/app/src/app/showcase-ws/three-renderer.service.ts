@@ -69,6 +69,7 @@ export class ThreeRendererService {
   private loadingTextures = new Map<string, Promise<THREE.Texture>>();
   private highResTextureCache = new Map<string, THREE.Texture>();
   private loadingHighResTextures = new Map<string, Promise<THREE.Texture>>();
+  private maxTextureSize = 4096; // WebGL max texture size (will be queried from context)
 
   // SVG Background
   private svgBackgroundPlane?: THREE.Mesh;
@@ -2703,6 +2704,22 @@ export class ThreeRendererService {
     this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(this.container!.clientWidth, this.container!.clientHeight);
     
+    // Query WebGL max texture size to prevent crashes on iOS Safari
+    const gl = this.renderer.getContext();
+    this.maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+    console.log('[THREE_RENDERER] WebGL MAX_TEXTURE_SIZE:', this.maxTextureSize);
+    
+    // Add WebGL error logging to catch issues without crashing
+    const canvas = this.renderer.domElement;
+    canvas.addEventListener('webglcontextlost', (event) => {
+      console.error('[THREE_RENDERER] WebGL context lost:', event);
+      event.preventDefault();
+    }, false);
+    
+    canvas.addEventListener('webglcontextrestored', () => {
+      console.log('[THREE_RENDERER] WebGL context restored');
+    }, false);
+    
     // Ensure canvas allows JavaScript to handle all touch events
     this.renderer.domElement.style.touchAction = 'none';
     
@@ -2879,18 +2896,19 @@ export class ThreeRendererService {
 
     // Start loading with image downscaling
     const loadPromise = this.loadAndDownscaleImage(url).then(texture => {
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.minFilter = THREE.LinearMipmapLinearFilter;
-      texture.magFilter = THREE.LinearFilter;
-      texture.anisotropy = this.ANISO;
-      texture.generateMipmaps = true;
-      texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
-      
-      this.textureCache.set(url, texture);
-      this.loadingTextures.delete(url);
-      
-      return texture;
+      try {
+        this.configureTexture(texture);
+        this.textureCache.set(url, texture);
+        this.loadingTextures.delete(url);
+        return texture;
+      } catch (error) {
+        console.error('[THREE_RENDERER] Error configuring texture:', url, error);
+        this.loadingTextures.delete(url);
+        texture.dispose();
+        throw error;
+      }
     }).catch(error => {
+      console.error('[THREE_RENDERER] Failed to load texture:', url, error);
       this.loadingTextures.delete(url);
       throw error;
     });
@@ -2903,6 +2921,11 @@ export class ThreeRendererService {
    * Load high-resolution texture without downscaling for showcase mode
    */
   async loadHighResTexture(url: string): Promise<THREE.Texture> {
+    // On mobile/Safari, skip high-res entirely to avoid texSubImage2D crashes
+    if (this.platformService.isMobile) {
+      return this.loadTexture(url);
+    }
+
     // Check high-res cache first
     if (this.highResTextureCache.has(url)) {
       return this.highResTextureCache.get(url)!;
@@ -2915,20 +2938,19 @@ export class ThreeRendererService {
 
     // Start loading without downscaling
     const loadPromise = this.loadFullResolutionImage(url).then(texture => {
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.minFilter = THREE.LinearMipmapLinearFilter;
-      texture.magFilter = THREE.LinearFilter;
-      texture.anisotropy = this.ANISO;
-      texture.generateMipmaps = true;
-      texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
-      
-      this.highResTextureCache.set(url, texture);
-      this.loadingHighResTextures.delete(url);
-      
-
-      return texture;
+      try {
+        this.configureTexture(texture);
+        this.highResTextureCache.set(url, texture);
+        this.loadingHighResTextures.delete(url);
+        return texture;
+      } catch (error) {
+        console.error('[THREE_RENDERER] Error configuring high-res texture:', url, error);
+        this.loadingHighResTextures.delete(url);
+        texture.dispose();
+        throw error;
+      }
     }).catch(error => {
-      console.error('Failed to load high-res texture:', url, error);
+      console.error('[THREE_RENDERER] Failed to load high-res texture:', url, error);
       this.loadingHighResTextures.delete(url);
       throw error;
     });
@@ -2947,10 +2969,97 @@ export class ThreeRendererService {
       
       img.onload = () => {
         try {
-          // Create texture directly from full-size image
-          const texture = new THREE.Texture(img);
-          texture.needsUpdate = true;
+          const { width: originalWidth, height: originalHeight } = img;
           
+          // Validate image dimensions
+          if (!originalWidth || !originalHeight || originalWidth <= 0 || originalHeight <= 0) {
+            reject(new Error(`Invalid image dimensions: ${originalWidth}x${originalHeight}`));
+            return;
+          }
+          
+          // Always downscale to max texture size on mobile for iOS Safari compatibility
+          // iOS Safari has strict WebGL memory limits and texture handling
+          if (originalWidth > this.maxTextureSize || originalHeight > this.maxTextureSize || this.platformService.isMobile) {
+            const mobileSafeMax = Math.min(this.maxTextureSize, 1024); // Aggressive cap for iOS Safari stability
+            const targetSize = this.platformService.isMobile 
+              ? mobileSafeMax
+              : this.maxTextureSize;
+            
+            console.warn(`[THREE_RENDERER] Processing image for high-res: ${originalWidth}x${originalHeight}, target max: ${targetSize}`);
+            
+            // Calculate new dimensions maintaining aspect ratio
+            const aspectRatio = originalWidth / originalHeight;
+            let newWidth: number;
+            let newHeight: number;
+            
+            if (originalWidth > originalHeight) {
+              newWidth = Math.min(targetSize, originalWidth);
+              newHeight = newWidth / aspectRatio;
+            } else {
+              newHeight = Math.min(targetSize, originalHeight);
+              newWidth = newHeight * aspectRatio;
+            }
+            
+            // Ensure dimensions are valid integers
+            newWidth = Math.max(1, Math.floor(newWidth));
+            newHeight = Math.max(1, Math.floor(newHeight));
+            
+            // Double-check against max texture size
+            if (newWidth > this.maxTextureSize || newHeight > this.maxTextureSize) {
+              reject(new Error(`Calculated dimensions exceed max texture size: ${newWidth}x${newHeight}`));
+              return;
+            }
+            
+            // Create canvas for downscaling
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d', { 
+              willReadFrequently: false,
+              alpha: true 
+            });
+            
+            if (!ctx) {
+              reject(new Error('Could not get 2D context from canvas'));
+              return;
+            }
+            
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+            
+            // Clear canvas first
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw downscaled image with error handling
+            try {
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            } catch (drawError) {
+              reject(new Error(`Failed to draw image to canvas: ${drawError}`));
+              return;
+            }
+            
+            // Verify canvas has valid data before creating texture
+            try {
+              const imageData = ctx.getImageData(0, 0, 1, 1); // Test read
+              if (!imageData || !imageData.data || imageData.data.length === 0) {
+                reject(new Error('Canvas has no valid image data'));
+                return;
+              }
+            } catch (dataError) {
+              reject(new Error(`Cannot read canvas data: ${dataError}`));
+              return;
+            }
+            
+            // Create texture from canvas
+            const texture = new THREE.CanvasTexture(canvas);
+            this.configureTexture(texture);
+            console.log(`[THREE_RENDERER] Created canvas texture: ${canvas.width}x${canvas.height}`);
+            resolve(texture);
+            return;
+          }
+          
+          // Create texture directly from image if within limits (desktop only)
+          const texture = new THREE.Texture(img);
+          this.configureTexture(texture);
+          console.log(`[THREE_RENDERER] Created direct texture: ${originalWidth}x${originalHeight}`);
 
           resolve(texture);
           
@@ -2965,6 +3074,28 @@ export class ThreeRendererService {
       
       img.src = url;
     });
+  }
+
+  private configureTexture(texture: THREE.Texture | null | undefined): void {
+    if (!texture) return;
+
+    const img: any = texture.image;
+    const width = img?.width ?? img?.naturalWidth ?? 0;
+    const height = img?.height ?? img?.naturalHeight ?? 0;
+    const isPOT = width > 0 && height > 0 && this.isPowerOfTwo(width) && this.isPowerOfTwo(height);
+    const isMobile = this.platformService.isMobile;
+
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.magFilter = THREE.LinearFilter;
+    texture.anisotropy = isMobile ? 1 : this.ANISO;
+    texture.generateMipmaps = isMobile ? false : isPOT;
+    texture.minFilter = isMobile ? THREE.LinearFilter : (isPOT ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter);
+    texture.needsUpdate = true;
+  }
+
+  private isPowerOfTwo(value: number): boolean {
+    return (value & (value - 1)) === 0 && value !== 0;
   }
 
   /**
@@ -2983,11 +3114,23 @@ export class ThreeRendererService {
         try {
           const { width: originalWidth, height: originalHeight } = img;
           
+          // Validate image dimensions
+          if (!originalWidth || !originalHeight || originalWidth <= 0 || originalHeight <= 0) {
+            reject(new Error(`Invalid image dimensions: ${originalWidth}x${originalHeight}`));
+            return;
+          }
+          
           // Check if downscaling is needed
           if (originalWidth <= MAX_DIMENSION && originalHeight <= MAX_DIMENSION) {
-            // No downscaling needed - create texture directly from image
+            // No downscaling needed but validate against max texture size
+            if (originalWidth > this.maxTextureSize || originalHeight > this.maxTextureSize) {
+              reject(new Error(`Image too large even for no-downscale path: ${originalWidth}x${originalHeight}`));
+              return;
+            }
+            
+            // Create texture directly from image
             const texture = new THREE.Texture(img);
-            texture.needsUpdate = true;
+            this.configureTexture(texture);
             resolve(texture);
             return;
           }
@@ -3005,24 +3148,45 @@ export class ThreeRendererService {
             newWidth = newHeight * aspectRatio;
           }
           
+          // Ensure dimensions are valid integers
+          newWidth = Math.max(1, Math.floor(newWidth));
+          newHeight = Math.max(1, Math.floor(newHeight));
+          
+          // Validate against WebGL max texture size
+          if (newWidth > this.maxTextureSize || newHeight > this.maxTextureSize) {
+            reject(new Error(`Calculated dimensions exceed max texture size: ${newWidth}x${newHeight}`));
+            return;
+          }
+          
           // Create canvas for downscaling
           const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
+          const ctx = canvas.getContext('2d', { 
+            willReadFrequently: false,
+            alpha: true 
+          });
           
           if (!ctx) {
             reject(new Error('Could not get 2D context from canvas'));
             return;
           }
           
-          canvas.width = Math.round(newWidth);
-          canvas.height = Math.round(newHeight);
+          canvas.width = newWidth;
+          canvas.height = newHeight;
           
-          // Draw downscaled image
-          ctx.drawImage(img, 0, 0, originalWidth, originalHeight, 0, 0, canvas.width, canvas.height);
+          // Clear canvas first
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          
+          // Draw downscaled image with error handling
+          try {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          } catch (drawError) {
+            reject(new Error(`Failed to draw image to canvas: ${drawError}`));
+            return;
+          }
           
           // Create texture from canvas
           const texture = new THREE.CanvasTexture(canvas);
-          texture.needsUpdate = true;
+          this.configureTexture(texture);
           
           resolve(texture);
           
