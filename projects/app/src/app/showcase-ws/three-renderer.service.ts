@@ -154,6 +154,14 @@ export class ThreeRendererService {
   private readonly IDLE_CHECK_INTERVAL = 0.1; // Check for idle state every 100ms
   private visibleMeshCount = 0;
   private totalMeshCount = 0;
+  
+  // Performance monitoring
+  private performanceMonitoring = false;
+  private frameCount = 0;
+  private lastFpsUpdate = 0;
+  private currentFps = 0;
+  private renderCount = 0;
+  private skippedFrames = 0;
   private fisheyeAnimationLock = false;   // True while we intentionally keep fisheye off during an animation
   private fisheyeAffectedMeshes = new Set<THREE.Mesh>();
   private fisheyeFocusPoint = new THREE.Vector3();
@@ -934,6 +942,35 @@ export class ThreeRendererService {
       // Reset all affected meshes to their original state
       this.resetAllFisheyeEffects();
     }
+  }
+
+  /**
+   * Enable or disable performance monitoring
+   * When enabled, logs FPS, render count, and culling stats every second
+   */
+  enablePerformanceMonitoring(enabled: boolean): void {
+    this.performanceMonitoring = enabled;
+    if (enabled) {
+      console.log('[PERF] Performance monitoring enabled');
+      this.frameCount = 0;
+      this.renderCount = 0;
+      this.skippedFrames = 0;
+      this.lastFpsUpdate = performance.now();
+    } else {
+      console.log('[PERF] Performance monitoring disabled');
+    }
+  }
+
+  /**
+   * Get current performance metrics
+   */
+  getPerformanceMetrics() {
+    return {
+      fps: this.currentFps,
+      visibleMeshes: this.visibleMeshCount,
+      totalMeshes: this.totalMeshCount,
+      isIdle: this.isSceneIdle
+    };
   }
 
   isFisheyeEnabled(): boolean {
@@ -2780,9 +2817,25 @@ export class ThreeRendererService {
         this.applyFisheyeEffect();
       }
 
+      // Performance monitoring
+      this.frameCount++;
+      const now = performance.now();
+      if (this.performanceMonitoring && now - this.lastFpsUpdate >= 1000) {
+        this.currentFps = this.frameCount;
+        const skippedPercent = ((this.skippedFrames / this.frameCount) * 100).toFixed(1);
+        console.log(`[PERF] FPS: ${this.currentFps} | Rendered: ${this.renderCount} | Skipped: ${this.skippedFrames} (${skippedPercent}%) | Visible/Total: ${this.visibleMeshCount}/${this.totalMeshCount}`);
+        this.frameCount = 0;
+        this.renderCount = 0;
+        this.skippedFrames = 0;
+        this.lastFpsUpdate = now;
+      }
+
       // Only render if scene is not idle or fisheye is active
       if (!this.isSceneIdle || this.fisheyeEnabled) {
         this.renderer.render(this.scene, this.camera);
+        if (this.performanceMonitoring) this.renderCount++;
+      } else {
+        if (this.performanceMonitoring) this.skippedFrames++;
       }
 
       // Run LOD checks - reduce frequency on mobile devices

@@ -606,8 +606,22 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       window.addEventListener('hashchange', () => this.updateActiveItemZIndex());
       // Listen for resize to re-measure title
       window.addEventListener('resize', () => this.measureTitle());
+      // Listen for keyboard shortcuts
+      window.addEventListener('keydown', this.onKeyDown.bind(this));
       this.measureTitle();
       await this.initialize(this.container.nativeElement);
+    }
+  }
+
+  /**
+   * Handle keyboard shortcuts
+   */
+  private onKeyDown(event: KeyboardEvent): void {
+    // Press 'P' to toggle performance monitoring
+    if (event.key === 'p' || event.key === 'P') {
+      const currentMetrics = this.rendererService.getPerformanceMetrics();
+      const isEnabled = currentMetrics.fps > 0 || currentMetrics.visibleMeshes > 0;
+      this.rendererService.enablePerformanceMonitoring(!isEnabled);
     }
   }
 
@@ -656,6 +670,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     const qp = this.activatedRoute.snapshot.queryParams;
     if (qp['fisheye'] === '0' || qp['fisheye'] === 'false') {
       this.rendererService.enableFisheyeEffect(false);
+    }
+    
+    // Enable performance monitoring via query parameter
+    if (qp['perf'] === '1' || qp['perf'] === 'true') {
+      this.rendererService.enablePerformanceMonitoring(true);
     }
     
     // Read optional fisheye configuration from query params
