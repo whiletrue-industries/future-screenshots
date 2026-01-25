@@ -400,25 +400,34 @@ export class PhotoDataRepository {
           );
         }
       } else {
-        // Hide photo and move to (0,0)
-        photo.setProperty('opacity', 0);
-        photo.setTargetPosition({ x: 0, y: 0, z: 0 });
-        // Animate to (0,0) and fade out simultaneously
-        if (photo.mesh) {
-          const actualCurrentPosition = {
-            x: photo.mesh.position.x,
-            y: photo.mesh.position.y,
-            z: photo.mesh.position.z
-          };
-          
-          return this.animateToPositionWithOpacityUpdate(
-            photo,
-            actualCurrentPosition,
-            { x: 0, y: 0, z: 0 },
-            currentOpacity,
-            0, // target opacity
-            ANIMATION_CONSTANTS.INVISIBLE_POSITION_TRANSITION_DURATION
-          );
+        // For SVG layout: keep photo in cluster position (don't hide, don't move)
+        // For other layouts: hide photo and move to (0,0)
+        if (toLayout === 'svg-background') {
+          // Keep existing position and visibility - no animation needed
+          photo.setProperty('opacity', 1);
+          // Don't change targetPosition - keep current cluster position
+          return Promise.resolve();
+        } else {
+          // Hide photo and move to (0,0)
+          photo.setProperty('opacity', 0);
+          photo.setTargetPosition({ x: 0, y: 0, z: 0 });
+          // Animate to (0,0) and fade out simultaneously
+          if (photo.mesh) {
+            const actualCurrentPosition = {
+              x: photo.mesh.position.x,
+              y: photo.mesh.position.y,
+              z: photo.mesh.position.z
+            };
+            
+            return this.animateToPositionWithOpacityUpdate(
+              photo,
+              actualCurrentPosition,
+              { x: 0, y: 0, z: 0 },
+              currentOpacity,
+              0, // target opacity
+              ANIMATION_CONSTANTS.INVISIBLE_POSITION_TRANSITION_DURATION
+            );
+          }
         }
       }
     });
@@ -878,17 +887,40 @@ export class PhotoDataRepository {
     let bounds: { minX: number; maxX: number; minY: number; maxY: number };
 
     if (layoutName === 'svg-background') {
-      // For SVG layout: center camera at SVG center (offset to the left)
+      // For SVG layout: include both SVG area and all photo positions
       const svgCircleRadius = 20000; // Same as in showcase-ws.component.ts
       const svgOffsetX = -svgCircleRadius * 1.6; // Same calculation as in switchToSvgLayout
       
-      // Create bounds centered at SVG position
-      bounds = {
+      // Start with SVG bounds
+      const svgBounds = {
         minX: svgOffsetX - svgCircleRadius,
         maxX: svgOffsetX + svgCircleRadius,
         minY: -svgCircleRadius,
         maxY: svgCircleRadius
       };
+      
+      // Calculate bounds from actual photo positions (includes cluster items)
+      const positions = visiblePhotos.map(photo => ({
+        x: photo.targetPosition.x,
+        y: photo.targetPosition.y
+      }));
+      const photoBounds = this.calculateBounds(positions);
+      
+      // Merge bounds to include both SVG and all photos
+      bounds = {
+        minX: Math.min(svgBounds.minX, photoBounds.minX),
+        maxX: Math.max(svgBounds.maxX, photoBounds.maxX),
+        minY: Math.min(svgBounds.minY, photoBounds.minY),
+        maxY: Math.max(svgBounds.maxY, photoBounds.maxY)
+      };
+      
+      // Add extra margin (20%) for comfortable dragging
+      const marginX = (bounds.maxX - bounds.minX) * 0.2;
+      const marginY = (bounds.maxY - bounds.minY) * 0.2;
+      bounds.minX -= marginX;
+      bounds.maxX += marginX;
+      bounds.minY -= marginY;
+      bounds.maxY += marginY;
     } else if (layoutName === 'circle-packing') {
       // For cluster layouts: calculate bounds from positions but center camera at (0, 0)
       const positions = visiblePhotos.map(photo => ({

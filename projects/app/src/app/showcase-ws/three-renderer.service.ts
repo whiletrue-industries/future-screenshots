@@ -599,10 +599,11 @@ export class ThreeRendererService {
     // "favor" -> positive rotation, "prevent" -> negative rotation
     const favorableFutureLower = favorableFuture.toLowerCase().trim();
     const isFavor = favorableFutureLower === 'favor' || favorableFutureLower === 'favorable' || 
-                    favorableFutureLower === 'prefer' || favorableFutureLower === 'preferred' ||
-                    favorableFutureLower === 'mostly prefer';
+            favorableFutureLower === 'prefer' || favorableFutureLower === 'preferred' ||
+            favorableFutureLower === 'mostly prefer' || favorableFutureLower === 'prefer-ish';
     const isPrevent = favorableFutureLower === 'prevent' || favorableFutureLower === 'prevented' || 
-                      favorableFutureLower === 'unfavorable';
+              favorableFutureLower === 'unfavorable' || favorableFutureLower === 'mostly prevent' ||
+              favorableFutureLower === 'prevent-ish';
     const isUncertain = favorableFutureLower === 'uncertain' || favorableFutureLower === 'unsure';
     
     if (isUncertain) {
@@ -648,9 +649,11 @@ export class ThreeRendererService {
     // Apply direction based on favorable_future
     const favorableFutureLower = favorableFuture.toLowerCase().trim();
     const isFavor = favorableFutureLower === 'favor' || favorableFutureLower === 'favorable' || 
-                    favorableFutureLower === 'prefer' || favorableFutureLower === 'preferred';
+            favorableFutureLower === 'prefer' || favorableFutureLower === 'preferred' ||
+            favorableFutureLower === 'mostly prefer' || favorableFutureLower === 'prefer-ish';
     const isPrevent = favorableFutureLower === 'prevent' || favorableFutureLower === 'prevented' || 
-                      favorableFutureLower === 'unfavorable';
+              favorableFutureLower === 'unfavorable' || favorableFutureLower === 'mostly prevent' ||
+              favorableFutureLower === 'prevent-ish';
     
     if (!isFavor && !isPrevent) {
       return this.getStableRandomRotation(photoData.id);
