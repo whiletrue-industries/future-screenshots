@@ -143,6 +143,17 @@ export class ThreeRendererService {
   private fisheyeEnabled = false;
   private fisheyeEnabledSignal = false; // Track original request to re-enable on zoom change
   private fisheyeResumeOnPointer = false; // Re-enable fisheye after animation + first pointer move
+  
+  // Performance optimizations
+  private frustum = new THREE.Frustum();
+  private frustumMatrix = new THREE.Matrix4();
+  private lastRenderTime = 0;
+  private isSceneIdle = false;
+  private idleCheckInterval = 0;
+  private readonly IDLE_THRESHOLD = 0.001; // Camera movement threshold for idle detection
+  private readonly IDLE_CHECK_INTERVAL = 0.1; // Check for idle state every 100ms
+  private visibleMeshCount = 0;
+  private totalMeshCount = 0;
   private fisheyeAnimationLock = false;   // True while we intentionally keep fisheye off during an animation
   private fisheyeAffectedMeshes = new Set<THREE.Mesh>();
   private fisheyeFocusPoint = new THREE.Vector3();
@@ -564,6 +575,14 @@ export class ThreeRendererService {
     this.targetCamY += (worldBefore.y - worldAfter.y);
 
     this.clampCameraToBounds();
+    this.wakeUpRenderLoop();
+  }
+
+  /**
+   * Wake up the render loop (used when scene becomes active)
+   */
+  private wakeUpRenderLoop(): void {
+    this.isSceneIdle = false;
   }
 
   /**
@@ -946,6 +965,8 @@ export class ThreeRendererService {
   // Animation system
   addTween(tweenFn: TweenFn): void {
     this.activeTweens.push(tweenFn);
+    // Wake up the render loop when adding a tween
+    this.isSceneIdle = false;
   }
 
   runTween(tweenFn: TweenFn): Promise<void> {
@@ -2711,6 +2732,10 @@ export class ThreeRendererService {
       // Camera damping for X, Y, Z
       this.clampCameraToBounds();
 
+      const oldCamX = this.camera.position.x;
+      const oldCamY = this.camera.position.y;
+      const oldCamZ = this.camera.position.z;
+
       this.camera.position.x = this.damp(
         this.camera.position.x,
         this.targetCamX,
@@ -2731,15 +2756,41 @@ export class ThreeRendererService {
       );
       this.camera.lookAt(this.targetCamX, this.targetCamY, 0);
 
+      // Check if scene is idle (camera stopped moving and no active tweens)
+      const cameraMoved = Math.abs(this.camera.position.x - oldCamX) > this.IDLE_THRESHOLD ||
+                          Math.abs(this.camera.position.y - oldCamY) > this.IDLE_THRESHOLD ||
+                          Math.abs(this.camera.position.z - oldCamZ) > this.IDLE_THRESHOLD;
+      
+      const hasActivity = cameraMoved || this.activeTweens.length > 0 || this.isDragging || this.isPanning;
+      
+      // Update frustum for culling only when camera moves or periodically
+      this.idleCheckInterval += dt;
+      if (hasActivity || this.idleCheckInterval >= this.IDLE_CHECK_INTERVAL) {
+        this.updateFrustum();
+        this.applyFrustumCulling();
+        this.idleCheckInterval = 0;
+        this.isSceneIdle = false;
+      } else if (!this.isSceneIdle) {
+        // Scene just became idle, do one final render
+        this.isSceneIdle = true;
+      }
+
       // Apply fisheye effect if enabled (continuously, not just on mouse move)
       if (this.fisheyeEnabled) {
         this.applyFisheyeEffect();
       }
 
-      this.renderer.render(this.scene, this.camera);
-      // Run LOD checks more frequently for responsive high-res loading on hover
+      // Only render if scene is not idle or fisheye is active
+      if (!this.isSceneIdle || this.fisheyeEnabled) {
+        this.renderer.render(this.scene, this.camera);
+      }
+
+      // Run LOD checks - reduce frequency on mobile devices
       this.lodAccumTime += dt;
-      const lodInterval = this.hoveredMesh ? 0.05 : 0.2; // 20Hz when hovering, 5Hz otherwise
+      const isMobile = this.platformService.isMobile;
+      // On mobile: skip LOD when no hover (mobile has no hover state)
+      // On desktop: more frequent when hovering
+      const lodInterval = isMobile ? 0.5 : (this.hoveredMesh ? 0.05 : 0.2);
       if (this.lodAccumTime >= lodInterval) {
         this.lodAccumTime = 0;
         this.runLodPass();
@@ -3184,7 +3235,62 @@ export class ThreeRendererService {
   }
 
   /**
+   * Update frustum for culling calculations
+   */
+  private updateFrustum(): void {
+    this.camera.updateMatrixWorld();
+    this.frustumMatrix.multiplyMatrices(
+      this.camera.projectionMatrix,
+      this.camera.matrixWorldInverse
+    );
+    this.frustum.setFromProjectionMatrix(this.frustumMatrix);
+  }
+
+  /**
+   * Apply frustum culling to hide off-screen meshes
+   * This significantly improves performance with large numbers of items
+   */
+  private applyFrustumCulling(): void {
+    this.visibleMeshCount = 0;
+    this.totalMeshCount = 0;
+
+    for (const child of this.root.children) {
+      const mesh = child as THREE.Mesh;
+      this.totalMeshCount++;
+
+      // Get the mesh's bounding sphere
+      if (!mesh.geometry.boundingSphere) {
+        mesh.geometry.computeBoundingSphere();
+      }
+
+      if (mesh.geometry.boundingSphere) {
+        // Transform bounding sphere to world space
+        const worldSphere = mesh.geometry.boundingSphere.clone();
+        worldSphere.applyMatrix4(mesh.matrixWorld);
+
+        // Check if the mesh is in the frustum
+        const isVisible = this.frustum.intersectsSphere(worldSphere);
+        
+        // Only update visibility if it changed to avoid unnecessary updates
+        if (mesh.visible !== isVisible) {
+          mesh.visible = isVisible;
+        }
+
+        if (isVisible) {
+          this.visibleMeshCount++;
+        }
+      }
+    }
+
+    // Log culling stats occasionally (every 100 frames) for debugging
+    if (Math.random() < 0.01) {
+      console.log(`[CULLING] Visible: ${this.visibleMeshCount}/${this.totalMeshCount} meshes`);
+    }
+  }
+
+  /**
    * Decide whether to upgrade/downgrade textures based on on-screen size.
+   * Only processes visible meshes to improve performance
    */
   private runLodPass(): void {
     if (!this.container) return;
@@ -3192,9 +3298,13 @@ export class ThreeRendererService {
     const UPGRADE_THRESHOLD = 1; // Upgrade immediately
     const DOWNGRADE_THRESHOLD = 0;
 
-    // Iterate over meshes
+    // Iterate over meshes - only process visible ones
     for (const child of this.root.children) {
       const mesh = child as THREE.Mesh;
+      
+      // Skip invisible meshes (culled by frustum)
+      if (!mesh.visible) continue;
+      
       const url = this.meshToUrl.get(mesh);
       if (!url) continue;
 
