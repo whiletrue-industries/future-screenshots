@@ -1058,7 +1058,6 @@ export class PhotoDataRepository {
     // Register the mesh for hover detection only (not draggable)
     // This enables cursor feedback and click detection without drag functionality
     this.renderer.enableHoverForMesh(photoData.mesh);
-    console.log('[PHOTO_REPOSITORY_HOVER] Enabled hover-only detection for photo:', photoData.id);
   }
 
   /**

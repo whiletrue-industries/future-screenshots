@@ -606,8 +606,21 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       window.addEventListener('hashchange', () => this.updateActiveItemZIndex());
       // Listen for resize to re-measure title
       window.addEventListener('resize', () => this.measureTitle());
+      // Listen for keyboard shortcuts
+      window.addEventListener('keydown', this.onKeyDown.bind(this));
       this.measureTitle();
       await this.initialize(this.container.nativeElement);
+    }
+  }
+
+  /**
+   * Handle keyboard shortcuts
+   */
+  private onKeyDown(event: KeyboardEvent): void {
+    // Press 'P' to toggle performance monitoring
+    if (event.key === 'p' || event.key === 'P') {
+      const currentMetrics = this.rendererService.getPerformanceMetrics();
+      this.rendererService.enablePerformanceMonitoring(!currentMetrics.isMonitoring);
     }
   }
 
@@ -656,6 +669,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     const qp = this.activatedRoute.snapshot.queryParams;
     if (qp['fisheye'] === '0' || qp['fisheye'] === 'false') {
       this.rendererService.enableFisheyeEffect(false);
+    }
+    
+    // Enable performance monitoring via query parameter
+    if (qp['perf'] === '1' || qp['perf'] === 'true') {
+      this.rendererService.enablePerformanceMonitoring(true);
     }
     
     // Read optional fisheye configuration from query params
@@ -1242,6 +1260,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   async focusOnItem(itemId: string, options?: { animateFromFull?: boolean; fromShowOnMap?: boolean }): Promise<void> {
     console.log('[SHOWCASE_WS] Focusing on item:', itemId);
+    // Mark this item as the permalink target to allow high-res loading when focused
+    this.rendererService.setPermalinkTarget(itemId);
     this.rendererService.setAutoFit(false);
     
     // Wait for photo to be loaded

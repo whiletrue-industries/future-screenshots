@@ -69,6 +69,7 @@ export class ThreeRendererService {
   private loadingTextures = new Map<string, Promise<THREE.Texture>>();
   private highResTextureCache = new Map<string, THREE.Texture>();
   private loadingHighResTextures = new Map<string, Promise<THREE.Texture>>();
+  private maxTextureSize = 4096; // WebGL max texture size (will be queried from context)
 
   // SVG Background
   private svgBackgroundPlane?: THREE.Mesh;
@@ -143,9 +144,30 @@ export class ThreeRendererService {
   private fisheyeEnabled = false;
   private fisheyeEnabledSignal = false; // Track original request to re-enable on zoom change
   private fisheyeResumeOnPointer = false; // Re-enable fisheye after animation + first pointer move
+  
+  // Performance optimizations
+  private frustum = new THREE.Frustum();
+  private frustumMatrix = new THREE.Matrix4();
+  private lastRenderTime = 0;
+  private isSceneIdle = false;
+  private idleCheckInterval = 0;
+  private readonly IDLE_THRESHOLD = 0.001; // Camera movement threshold for idle detection
+  private readonly IDLE_CHECK_INTERVAL = 0.1; // Check for idle state every 100ms
+  private visibleMeshCount = 0;
+  private totalMeshCount = 0;
+  private cullingLogCounter = 0;
+  
+  // Performance monitoring
+  private performanceMonitoring = false;
+  private frameCount = 0;
+  private lastFpsUpdate = 0;
+  private currentFps = 0;
+  private renderCount = 0;
+  private skippedFrames = 0;
   private fisheyeAnimationLock = false;   // True while we intentionally keep fisheye off during an animation
   private fisheyeAffectedMeshes = new Set<THREE.Mesh>();
   private fisheyeFocusPoint = new THREE.Vector3();
+  private permalinkTargetId: string | null = null;
   private meshOriginalStates = new Map<THREE.Mesh, { position: THREE.Vector3; scale: THREE.Vector3; renderOrder: number }>();
   
   // Hover state signal for cursor feedback
@@ -564,6 +586,14 @@ export class ThreeRendererService {
     this.targetCamY += (worldBefore.y - worldAfter.y);
 
     this.clampCameraToBounds();
+    this.wakeUpRenderLoop();
+  }
+
+  /**
+   * Wake up the render loop (used when scene becomes active)
+   */
+  private wakeUpRenderLoop(): void {
+    this.isSceneIdle = false;
   }
 
   /**
@@ -917,6 +947,36 @@ export class ThreeRendererService {
     }
   }
 
+  /**
+   * Enable or disable performance monitoring
+   * When enabled, logs FPS, render count, and culling stats every second
+   */
+  enablePerformanceMonitoring(enabled: boolean): void {
+    this.performanceMonitoring = enabled;
+    if (enabled) {
+      console.log('[PERF] Performance monitoring enabled');
+      this.frameCount = 0;
+      this.renderCount = 0;
+      this.skippedFrames = 0;
+      this.lastFpsUpdate = performance.now();
+    } else {
+      console.log('[PERF] Performance monitoring disabled');
+    }
+  }
+
+  /**
+   * Get current performance metrics
+   */
+  getPerformanceMetrics() {
+    return {
+      fps: this.currentFps,
+      visibleMeshes: this.visibleMeshCount,
+      totalMeshes: this.totalMeshCount,
+      isIdle: this.isSceneIdle,
+      isMonitoring: this.performanceMonitoring
+    };
+  }
+
   isFisheyeEnabled(): boolean {
     return this.fisheyeEnabled;
   }
@@ -946,6 +1006,8 @@ export class ThreeRendererService {
   // Animation system
   addTween(tweenFn: TweenFn): void {
     this.activeTweens.push(tweenFn);
+    // Wake up the render loop when adding a tween
+    this.isSceneIdle = false;
   }
 
   runTween(tweenFn: TweenFn): Promise<void> {
@@ -1376,6 +1438,10 @@ export class ThreeRendererService {
   setMeshPhotoId(mesh: THREE.Mesh, photoId: string): void {
     this.meshToPhotoId.set(mesh, photoId);
     this.photoIdToMesh.set(photoId, mesh);
+  }
+
+  setPermalinkTarget(photoId: string | null): void {
+    this.permalinkTargetId = photoId;
   }
 
   /**
@@ -2643,6 +2709,22 @@ export class ThreeRendererService {
     this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(this.container!.clientWidth, this.container!.clientHeight);
     
+    // Query WebGL max texture size to prevent crashes on iOS Safari
+    const gl = this.renderer.getContext();
+    this.maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+    console.log('[THREE_RENDERER] WebGL MAX_TEXTURE_SIZE:', this.maxTextureSize);
+    
+    // Add WebGL error logging to catch issues without crashing
+    const canvas = this.renderer.domElement;
+    canvas.addEventListener('webglcontextlost', (event) => {
+      console.error('[THREE_RENDERER] WebGL context lost:', event);
+      event.preventDefault();
+    }, false);
+    
+    canvas.addEventListener('webglcontextrestored', () => {
+      console.log('[THREE_RENDERER] WebGL context restored');
+    }, false);
+    
     // Ensure canvas allows JavaScript to handle all touch events
     this.renderer.domElement.style.touchAction = 'none';
     
@@ -2711,6 +2793,10 @@ export class ThreeRendererService {
       // Camera damping for X, Y, Z
       this.clampCameraToBounds();
 
+      const oldCamX = this.camera.position.x;
+      const oldCamY = this.camera.position.y;
+      const oldCamZ = this.camera.position.z;
+
       this.camera.position.x = this.damp(
         this.camera.position.x,
         this.targetCamX,
@@ -2731,15 +2817,57 @@ export class ThreeRendererService {
       );
       this.camera.lookAt(this.targetCamX, this.targetCamY, 0);
 
+      // Check if scene is idle (camera stopped moving and no active tweens)
+      const cameraMoved = Math.abs(this.camera.position.x - oldCamX) > this.IDLE_THRESHOLD ||
+                          Math.abs(this.camera.position.y - oldCamY) > this.IDLE_THRESHOLD ||
+                          Math.abs(this.camera.position.z - oldCamZ) > this.IDLE_THRESHOLD;
+      
+      const hasActivity = cameraMoved || this.activeTweens.length > 0 || this.isDragging || this.isPanning;
+      
+      // Update frustum for culling only when camera moves or periodically
+      this.idleCheckInterval += dt;
+      if (hasActivity || this.idleCheckInterval >= this.IDLE_CHECK_INTERVAL) {
+        this.updateFrustum();
+        this.applyFrustumCulling();
+        this.idleCheckInterval = 0;
+        this.isSceneIdle = false;
+      } else if (!this.isSceneIdle) {
+        // Scene just became idle, do one final render
+        this.isSceneIdle = true;
+      }
+
       // Apply fisheye effect if enabled (continuously, not just on mouse move)
       if (this.fisheyeEnabled) {
         this.applyFisheyeEffect();
       }
 
-      this.renderer.render(this.scene, this.camera);
-      // Run LOD checks more frequently for responsive high-res loading on hover
+      // Performance monitoring
+      this.frameCount++;
+      const now = performance.now();
+      if (this.performanceMonitoring && now - this.lastFpsUpdate >= 1000) {
+        this.currentFps = this.frameCount;
+        const skippedPercent = ((this.skippedFrames / this.frameCount) * 100).toFixed(1);
+        console.log(`[PERF] FPS: ${this.currentFps} | Rendered: ${this.renderCount} | Skipped: ${this.skippedFrames} (${skippedPercent}%) | Visible/Total: ${this.visibleMeshCount}/${this.totalMeshCount}`);
+        this.frameCount = 0;
+        this.renderCount = 0;
+        this.skippedFrames = 0;
+        this.lastFpsUpdate = now;
+      }
+
+      // Only render if scene is not idle or fisheye is active
+      if (!this.isSceneIdle || this.fisheyeEnabled) {
+        this.renderer.render(this.scene, this.camera);
+        if (this.performanceMonitoring) this.renderCount++;
+      } else {
+        if (this.performanceMonitoring) this.skippedFrames++;
+      }
+
+      // Run LOD checks - reduce frequency on mobile devices
       this.lodAccumTime += dt;
-      const lodInterval = this.hoveredMesh ? 0.05 : 0.2; // 20Hz when hovering, 5Hz otherwise
+      const isMobile = this.platformService.isMobile;
+      // On mobile: skip LOD when no hover (mobile has no hover state)
+      // On desktop: more frequent when hovering
+      const lodInterval = isMobile ? 0.5 : (this.hoveredMesh ? 0.05 : 0.2);
       if (this.lodAccumTime >= lodInterval) {
         this.lodAccumTime = 0;
         this.runLodPass();
@@ -2773,18 +2901,19 @@ export class ThreeRendererService {
 
     // Start loading with image downscaling
     const loadPromise = this.loadAndDownscaleImage(url).then(texture => {
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.minFilter = THREE.LinearMipmapLinearFilter;
-      texture.magFilter = THREE.LinearFilter;
-      texture.anisotropy = this.ANISO;
-      texture.generateMipmaps = true;
-      texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
-      
-      this.textureCache.set(url, texture);
-      this.loadingTextures.delete(url);
-      
-      return texture;
+      try {
+        this.configureTexture(texture);
+        this.textureCache.set(url, texture);
+        this.loadingTextures.delete(url);
+        return texture;
+      } catch (error) {
+        console.error('[THREE_RENDERER] Error configuring texture:', url, error);
+        this.loadingTextures.delete(url);
+        texture.dispose();
+        throw error;
+      }
     }).catch(error => {
+      console.error('[THREE_RENDERER] Failed to load texture:', url, error);
       this.loadingTextures.delete(url);
       throw error;
     });
@@ -2809,20 +2938,19 @@ export class ThreeRendererService {
 
     // Start loading without downscaling
     const loadPromise = this.loadFullResolutionImage(url).then(texture => {
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.minFilter = THREE.LinearMipmapLinearFilter;
-      texture.magFilter = THREE.LinearFilter;
-      texture.anisotropy = this.ANISO;
-      texture.generateMipmaps = true;
-      texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
-      
-      this.highResTextureCache.set(url, texture);
-      this.loadingHighResTextures.delete(url);
-      
-
-      return texture;
+      try {
+        this.configureTexture(texture);
+        this.highResTextureCache.set(url, texture);
+        this.loadingHighResTextures.delete(url);
+        return texture;
+      } catch (error) {
+        console.error('[THREE_RENDERER] Error configuring high-res texture:', url, error);
+        this.loadingHighResTextures.delete(url);
+        texture.dispose();
+        throw error;
+      }
     }).catch(error => {
-      console.error('Failed to load high-res texture:', url, error);
+      console.error('[THREE_RENDERER] Failed to load high-res texture:', url, error);
       this.loadingHighResTextures.delete(url);
       throw error;
     });
@@ -2841,10 +2969,97 @@ export class ThreeRendererService {
       
       img.onload = () => {
         try {
-          // Create texture directly from full-size image
-          const texture = new THREE.Texture(img);
-          texture.needsUpdate = true;
+          const { width: originalWidth, height: originalHeight } = img;
           
+          // Validate image dimensions
+          if (!originalWidth || !originalHeight || originalWidth <= 0 || originalHeight <= 0) {
+            reject(new Error(`Invalid image dimensions: ${originalWidth}x${originalHeight}`));
+            return;
+          }
+          
+          // Always downscale to max texture size on mobile for iOS Safari compatibility
+          // iOS Safari has strict WebGL memory limits and texture handling
+          if (originalWidth > this.maxTextureSize || originalHeight > this.maxTextureSize || this.platformService.isMobile) {
+            const mobileSafeMax = Math.min(this.maxTextureSize, 1024); // Aggressive cap for iOS Safari stability
+            const targetSize = this.platformService.isMobile 
+              ? mobileSafeMax
+              : this.maxTextureSize;
+            
+            console.warn(`[THREE_RENDERER] Processing image for high-res: ${originalWidth}x${originalHeight}, target max: ${targetSize}`);
+            
+            // Calculate new dimensions maintaining aspect ratio
+            const aspectRatio = originalWidth / originalHeight;
+            let newWidth: number;
+            let newHeight: number;
+            
+            if (originalWidth > originalHeight) {
+              newWidth = Math.min(targetSize, originalWidth);
+              newHeight = newWidth / aspectRatio;
+            } else {
+              newHeight = Math.min(targetSize, originalHeight);
+              newWidth = newHeight * aspectRatio;
+            }
+            
+            // Ensure dimensions are valid integers
+            newWidth = Math.max(1, Math.floor(newWidth));
+            newHeight = Math.max(1, Math.floor(newHeight));
+            
+            // Double-check against max texture size
+            if (newWidth > this.maxTextureSize || newHeight > this.maxTextureSize) {
+              reject(new Error(`Calculated dimensions exceed max texture size: ${newWidth}x${newHeight}`));
+              return;
+            }
+            
+            // Create canvas for downscaling
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d', { 
+              willReadFrequently: false,
+              alpha: true 
+            });
+            
+            if (!ctx) {
+              reject(new Error('Could not get 2D context from canvas'));
+              return;
+            }
+            
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+            
+            // Clear canvas first
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw downscaled image with error handling
+            try {
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            } catch (drawError) {
+              reject(new Error(`Failed to draw image to canvas: ${drawError}`));
+              return;
+            }
+            
+            // Verify canvas has valid data before creating texture
+            try {
+              const imageData = ctx.getImageData(0, 0, 1, 1); // Test read
+              if (!imageData || !imageData.data || imageData.data.length === 0) {
+                reject(new Error('Canvas has no valid image data'));
+                return;
+              }
+            } catch (dataError) {
+              reject(new Error(`Cannot read canvas data: ${dataError}`));
+              return;
+            }
+            
+            // Create texture from canvas
+            const texture = new THREE.CanvasTexture(canvas);
+            this.configureTexture(texture);
+            console.log(`[THREE_RENDERER] Created canvas texture: ${canvas.width}x${canvas.height}`);
+            resolve(texture);
+            return;
+          }
+          
+          // Create texture directly from image if within limits (desktop only)
+          const texture = new THREE.Texture(img);
+          this.configureTexture(texture);
+          console.log(`[THREE_RENDERER] Created direct texture: ${originalWidth}x${originalHeight}`);
 
           resolve(texture);
           
@@ -2859,6 +3074,28 @@ export class ThreeRendererService {
       
       img.src = url;
     });
+  }
+
+  private configureTexture(texture: THREE.Texture | null | undefined): void {
+    if (!texture) return;
+
+    const img: any = texture.image;
+    const width = img?.width ?? img?.naturalWidth ?? 0;
+    const height = img?.height ?? img?.naturalHeight ?? 0;
+    const isPOT = width > 0 && height > 0 && this.isPowerOfTwo(width) && this.isPowerOfTwo(height);
+    const isMobile = this.platformService.isMobile;
+
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.magFilter = THREE.LinearFilter;
+    texture.anisotropy = isMobile ? 1 : this.ANISO;
+    texture.generateMipmaps = isMobile ? false : isPOT;
+    texture.minFilter = isMobile ? THREE.LinearFilter : (isPOT ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter);
+    texture.needsUpdate = true;
+  }
+
+  private isPowerOfTwo(value: number): boolean {
+    return (value & (value - 1)) === 0 && value !== 0;
   }
 
   /**
@@ -2877,11 +3114,23 @@ export class ThreeRendererService {
         try {
           const { width: originalWidth, height: originalHeight } = img;
           
+          // Validate image dimensions
+          if (!originalWidth || !originalHeight || originalWidth <= 0 || originalHeight <= 0) {
+            reject(new Error(`Invalid image dimensions: ${originalWidth}x${originalHeight}`));
+            return;
+          }
+          
           // Check if downscaling is needed
           if (originalWidth <= MAX_DIMENSION && originalHeight <= MAX_DIMENSION) {
-            // No downscaling needed - create texture directly from image
+            // No downscaling needed but validate against max texture size
+            if (originalWidth > this.maxTextureSize || originalHeight > this.maxTextureSize) {
+              reject(new Error(`Image too large even for no-downscale path: ${originalWidth}x${originalHeight}`));
+              return;
+            }
+            
+            // Create texture directly from image
             const texture = new THREE.Texture(img);
-            texture.needsUpdate = true;
+            this.configureTexture(texture);
             resolve(texture);
             return;
           }
@@ -2899,24 +3148,45 @@ export class ThreeRendererService {
             newWidth = newHeight * aspectRatio;
           }
           
+          // Ensure dimensions are valid integers
+          newWidth = Math.max(1, Math.floor(newWidth));
+          newHeight = Math.max(1, Math.floor(newHeight));
+          
+          // Validate against WebGL max texture size
+          if (newWidth > this.maxTextureSize || newHeight > this.maxTextureSize) {
+            reject(new Error(`Calculated dimensions exceed max texture size: ${newWidth}x${newHeight}`));
+            return;
+          }
+          
           // Create canvas for downscaling
           const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
+          const ctx = canvas.getContext('2d', { 
+            willReadFrequently: false,
+            alpha: true 
+          });
           
           if (!ctx) {
             reject(new Error('Could not get 2D context from canvas'));
             return;
           }
           
-          canvas.width = Math.round(newWidth);
-          canvas.height = Math.round(newHeight);
+          canvas.width = newWidth;
+          canvas.height = newHeight;
           
-          // Draw downscaled image
-          ctx.drawImage(img, 0, 0, originalWidth, originalHeight, 0, 0, canvas.width, canvas.height);
+          // Clear canvas first
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          
+          // Draw downscaled image with error handling
+          try {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          } catch (drawError) {
+            reject(new Error(`Failed to draw image to canvas: ${drawError}`));
+            return;
+          }
           
           // Create texture from canvas
           const texture = new THREE.CanvasTexture(canvas);
-          texture.needsUpdate = true;
+          this.configureTexture(texture);
           
           resolve(texture);
           
@@ -3184,7 +3454,67 @@ export class ThreeRendererService {
   }
 
   /**
+   * Update frustum for culling calculations
+   */
+  private updateFrustum(): void {
+    this.camera.updateMatrixWorld();
+    this.frustumMatrix.multiplyMatrices(
+      this.camera.projectionMatrix,
+      this.camera.matrixWorldInverse
+    );
+    this.frustum.setFromProjectionMatrix(this.frustumMatrix);
+  }
+
+  /**
+   * Apply frustum culling to hide off-screen meshes
+   * This significantly improves performance with large numbers of items
+   */
+  private applyFrustumCulling(): void {
+    this.visibleMeshCount = 0;
+    this.totalMeshCount = 0;
+
+    for (const child of this.root.children) {
+      const mesh = child as THREE.Mesh;
+      this.totalMeshCount++;
+
+      // Get the mesh's bounding sphere
+      if (!mesh.geometry.boundingSphere) {
+        mesh.geometry.computeBoundingSphere();
+      }
+
+      if (mesh.geometry.boundingSphere) {
+        // Update mesh world matrix if needed
+        mesh.updateMatrixWorld();
+        
+        // Transform bounding sphere to world space
+        const worldSphere = mesh.geometry.boundingSphere.clone();
+        worldSphere.applyMatrix4(mesh.matrixWorld);
+
+        // Check if the mesh is in the frustum
+        const isVisible = this.frustum.intersectsSphere(worldSphere);
+        
+        // Only update visibility if it changed to avoid unnecessary updates
+        if (mesh.visible !== isVisible) {
+          mesh.visible = isVisible;
+        }
+
+        if (isVisible) {
+          this.visibleMeshCount++;
+        }
+      }
+    }
+
+    // Log culling stats every 100 frames for predictable debugging output
+    this.cullingLogCounter++;
+    if (this.performanceMonitoring && this.cullingLogCounter >= 100) {
+      console.log(`[CULLING] Visible: ${this.visibleMeshCount}/${this.totalMeshCount} meshes`);
+      this.cullingLogCounter = 0;
+    }
+  }
+
+  /**
    * Decide whether to upgrade/downgrade textures based on on-screen size.
+   * Only processes visible meshes to improve performance
    */
   private runLodPass(): void {
     if (!this.container) return;
@@ -3192,9 +3522,13 @@ export class ThreeRendererService {
     const UPGRADE_THRESHOLD = 1; // Upgrade immediately
     const DOWNGRADE_THRESHOLD = 0;
 
-    // Iterate over meshes
+    // Iterate over meshes - only process visible ones
     for (const child of this.root.children) {
       const mesh = child as THREE.Mesh;
+      
+      // Skip invisible meshes (culled by frustum)
+      if (!mesh.visible) continue;
+      
       const url = this.meshToUrl.get(mesh);
       if (!url) continue;
 
@@ -3205,16 +3539,31 @@ export class ThreeRendererService {
       const fullWorldWidth = this.getVisibleWidthAtDepth(depth) * 2;
       const pxPerWorldUnit = this.container.clientWidth / Math.max(1, fullWorldWidth);
       const photoWidthPx = this.PHOTO_W * pxPerWorldUnit;
+      const photoHeightPx = this.PHOTO_H * pxPerWorldUnit;
+      const viewportW = this.container.clientWidth || 1;
+      const viewportH = this.container.clientHeight || 1;
+      const occupiesViewport = photoWidthPx >= viewportW * 0.3 || photoHeightPx >= viewportH * 0.3; // >=30% of viewport
+
+      const photoId = this.findPhotoIdForMesh(mesh);
+      const isPermalinkTarget = this.permalinkTargetId !== null && photoId === this.permalinkTargetId;
+      const eligibleForHighRes = isPermalinkTarget || this.fisheyeAffectedMeshes.has(mesh) || occupiesViewport;
+
+      if (!eligibleForHighRes) {
+        if (isHigh) {
+          this.downgradeToLowResTexture(mesh, url)
+            .then(() => this.highResActive.delete(mesh))
+            .catch(() => {/* keep current */});
+        }
+        continue;
+      }
 
       if (!isHigh && photoWidthPx >= UPGRADE_THRESHOLD) {
-        // Upgrade to high-res (fire-and-forget)
         this.upgradeToHighResTexture(mesh, url)
           .then(() => {
             this.highResActive.add(mesh);
           })
           .catch(() => {/* keep low-res */});
       } else if (isHigh && photoWidthPx <= DOWNGRADE_THRESHOLD) {
-        // Downgrade to low-res (fire-and-forget)
         this.downgradeToLowResTexture(mesh, url)
           .then(() => {
             this.highResActive.delete(mesh);

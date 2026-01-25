@@ -1503,7 +1503,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     if (v.startsWith('bef')) return 'before';
     if (v.startsWith('dur')) return 'during';
     if (v.startsWith('aft') || v.startsWith('acher')) return 'after';
-    if (v.includes('unclear')) return 'unclear';
+    if (v.includes('unclear')) return 'during'; // Treat unclear as during
     return v;
   }
 
