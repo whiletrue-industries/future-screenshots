@@ -1254,6 +1254,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   async focusOnItem(itemId: string, options?: { animateFromFull?: boolean; fromShowOnMap?: boolean }): Promise<void> {
     console.log('[SHOWCASE_WS] Focusing on item:', itemId);
+    // Mark this item as the permalink target to allow high-res loading when focused
+    this.rendererService.setPermalinkTarget(itemId);
     
     // Wait for photo to be loaded
     let attempts = 0;

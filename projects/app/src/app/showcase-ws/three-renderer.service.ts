@@ -167,6 +167,7 @@ export class ThreeRendererService {
   private fisheyeAnimationLock = false;   // True while we intentionally keep fisheye off during an animation
   private fisheyeAffectedMeshes = new Set<THREE.Mesh>();
   private fisheyeFocusPoint = new THREE.Vector3();
+  private permalinkTargetId: string | null = null;
   private meshOriginalStates = new Map<THREE.Mesh, { position: THREE.Vector3; scale: THREE.Vector3; renderOrder: number }>();
   
   // Hover state signal for cursor feedback
@@ -1437,6 +1438,10 @@ export class ThreeRendererService {
   setMeshPhotoId(mesh: THREE.Mesh, photoId: string): void {
     this.meshToPhotoId.set(mesh, photoId);
     this.photoIdToMesh.set(photoId, mesh);
+  }
+
+  setPermalinkTarget(photoId: string | null): void {
+    this.permalinkTargetId = photoId;
   }
 
   /**
@@ -2921,11 +2926,6 @@ export class ThreeRendererService {
    * Load high-resolution texture without downscaling for showcase mode
    */
   async loadHighResTexture(url: string): Promise<THREE.Texture> {
-    // On mobile/Safari, skip high-res entirely to avoid texSubImage2D crashes
-    if (this.platformService.isMobile) {
-      return this.loadTexture(url);
-    }
-
     // Check high-res cache first
     if (this.highResTextureCache.has(url)) {
       return this.highResTextureCache.get(url)!;
@@ -3540,15 +3540,26 @@ export class ThreeRendererService {
       const pxPerWorldUnit = this.container.clientWidth / Math.max(1, fullWorldWidth);
       const photoWidthPx = this.PHOTO_W * pxPerWorldUnit;
 
+      const photoId = this.findPhotoIdForMesh(mesh);
+      const isPermalinkTarget = this.permalinkTargetId !== null && photoId === this.permalinkTargetId;
+      const eligibleForHighRes = isPermalinkTarget || this.fisheyeAffectedMeshes.has(mesh);
+
+      if (!eligibleForHighRes) {
+        if (isHigh) {
+          this.downgradeToLowResTexture(mesh, url)
+            .then(() => this.highResActive.delete(mesh))
+            .catch(() => {/* keep current */});
+        }
+        continue;
+      }
+
       if (!isHigh && photoWidthPx >= UPGRADE_THRESHOLD) {
-        // Upgrade to high-res (fire-and-forget)
         this.upgradeToHighResTexture(mesh, url)
           .then(() => {
             this.highResActive.add(mesh);
           })
           .catch(() => {/* keep low-res */});
       } else if (isHigh && photoWidthPx <= DOWNGRADE_THRESHOLD) {
-        // Downgrade to low-res (fire-and-forget)
         this.downgradeToLowResTexture(mesh, url)
           .then(() => {
             this.highResActive.delete(mesh);
