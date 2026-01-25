@@ -61,6 +61,17 @@ export class LightboxComponent implements OnDestroy {
       return;
     }
 
+    // Ignore keyboard shortcuts when user is typing in an input field
+    const target = event.target as HTMLElement;
+    if (target && (
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT' ||
+      target.isContentEditable
+    )) {
+      return;
+    }
+
     switch (event.key) {
       case 'Escape':
         this.onClose();

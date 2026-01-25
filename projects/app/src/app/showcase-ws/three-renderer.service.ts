@@ -91,6 +91,12 @@ export class ThreeRendererService {
   private currentLayoutStrategy: any = null; // Store reference to current layout strategy
   private layoutStrategyRef: any = null; // Store reference for debug visualization
   
+  // Touch gesture tracking
+  private lastTouchDistance = 0;
+  private touchStartDistance = 0;
+  private touchPanStart = { x: 0, y: 0 };
+  private isTwoFingerGesture = false;
+  
   // SVG Container for hotspot detection
   private svgContainer: HTMLElement | null = null;
   
@@ -432,6 +438,10 @@ export class ThreeRendererService {
   updateCameraTarget(newBounds: SceneBounds): void {
     this.bounds = { ...newBounds };
     if (this.autoFitEnabled) {
+      // Center camera on bounds
+      this.targetCamX = (newBounds.minX + newBounds.maxX) * 0.5;
+      this.targetCamY = (newBounds.minY + newBounds.maxY) * 0.5;
+      
       const targetCamZ = this.computeFitZWithMargin(
         this.bounds,
         THREE.MathUtils.degToRad(this.camera.fov),
@@ -457,20 +467,32 @@ export class ThreeRendererService {
         this.CAM_MARGIN
       );
       
+      // Calculate target camera center position
+      const targetCamX = (newBounds.minX + newBounds.maxX) * 0.5;
+      const targetCamY = (newBounds.minY + newBounds.maxY) * 0.5;
+      
+      const startCamX = this.targetCamX;
+      const startCamY = this.targetCamY;
       const startCamZ = this.targetCamZ;
       const finalTargetCamZ = targetCamZ;
       
       // If no change needed, resolve immediately
-      if (Math.abs(finalTargetCamZ - startCamZ) < 0.01) {
+      if (Math.abs(finalTargetCamZ - startCamZ) < 0.01 && 
+          Math.abs(targetCamX - startCamX) < 0.01 && 
+          Math.abs(targetCamY - startCamY) < 0.01) {
         resolve();
         return;
       }
       
       const tweenFn = this.makeTween(durationSec, (progress: number) => {
         const eased = this.easeOutCubic(progress);
+        this.targetCamX = this.lerp(startCamX, targetCamX, eased);
+        this.targetCamY = this.lerp(startCamY, targetCamY, eased);
         this.targetCamZ = this.lerp(startCamZ, finalTargetCamZ, eased);
         
         if (progress >= 1.0) {
+          this.targetCamX = targetCamX;
+          this.targetCamY = targetCamY;
           this.targetCamZ = finalTargetCamZ;
           resolve();
         }
@@ -540,6 +562,8 @@ export class ThreeRendererService {
     // Pan camera to keep cursor pointing at same world location
     this.targetCamX += (worldBefore.x - worldAfter.x);
     this.targetCamY += (worldBefore.y - worldAfter.y);
+
+    this.clampCameraToBounds();
   }
 
   /**
@@ -575,10 +599,11 @@ export class ThreeRendererService {
     // "favor" -> positive rotation, "prevent" -> negative rotation
     const favorableFutureLower = favorableFuture.toLowerCase().trim();
     const isFavor = favorableFutureLower === 'favor' || favorableFutureLower === 'favorable' || 
-                    favorableFutureLower === 'prefer' || favorableFutureLower === 'preferred' ||
-                    favorableFutureLower === 'mostly prefer';
+            favorableFutureLower === 'prefer' || favorableFutureLower === 'preferred' ||
+            favorableFutureLower === 'mostly prefer' || favorableFutureLower === 'prefer-ish';
     const isPrevent = favorableFutureLower === 'prevent' || favorableFutureLower === 'prevented' || 
-                      favorableFutureLower === 'unfavorable';
+              favorableFutureLower === 'unfavorable' || favorableFutureLower === 'mostly prevent' ||
+              favorableFutureLower === 'prevent-ish';
     const isUncertain = favorableFutureLower === 'uncertain' || favorableFutureLower === 'unsure';
     
     if (isUncertain) {
@@ -624,9 +649,11 @@ export class ThreeRendererService {
     // Apply direction based on favorable_future
     const favorableFutureLower = favorableFuture.toLowerCase().trim();
     const isFavor = favorableFutureLower === 'favor' || favorableFutureLower === 'favorable' || 
-                    favorableFutureLower === 'prefer' || favorableFutureLower === 'preferred';
+            favorableFutureLower === 'prefer' || favorableFutureLower === 'preferred' ||
+            favorableFutureLower === 'mostly prefer' || favorableFutureLower === 'prefer-ish';
     const isPrevent = favorableFutureLower === 'prevent' || favorableFutureLower === 'prevented' || 
-                      favorableFutureLower === 'unfavorable';
+              favorableFutureLower === 'unfavorable' || favorableFutureLower === 'mostly prevent' ||
+              favorableFutureLower === 'prevent-ish';
     
     if (!isFavor && !isPrevent) {
       return this.getStableRandomRotation(photoData.id);
@@ -686,6 +713,8 @@ export class ThreeRendererService {
     
     this.targetCamX -= worldDeltaX * panSensitivity;
     this.targetCamY += worldDeltaY * panSensitivity;
+
+    this.clampCameraToBounds();
   }
 
   /**
@@ -715,6 +744,54 @@ export class ThreeRendererService {
     const vFOV = THREE.MathUtils.degToRad(this.camera.fov);
     const height = 2 * Math.tan(vFOV / 2) * this.targetCamZ;
     return height / 2;
+  }
+
+  /**
+   * Keep the camera target inside scene bounds (with margin) without hard snaps.
+   * Uses a soft clamp (lerp toward clamped value) so the motion stays eased.
+   */
+  private clampCameraToBounds(): void {
+    if (!Number.isFinite(this.bounds.minX) || !Number.isFinite(this.bounds.maxX) ||
+        !Number.isFinite(this.bounds.minY) || !Number.isFinite(this.bounds.maxY)) {
+      return;
+    }
+
+    // Clamp zoom first to avoid negative widths/heights
+    this.targetCamZ = THREE.MathUtils.clamp(this.targetCamZ, this.minCamZ, this.maxCamZ);
+
+    const halfWidth = this.getVisibleWidth();
+    const halfHeight = this.getVisibleHeight();
+
+    // Allow a small overscroll then ease back to avoid jump-cuts
+    const softMargin = this.CAM_MARGIN * 0.5;
+    const minX = this.bounds.minX - this.CAM_MARGIN + halfWidth;
+    const maxX = this.bounds.maxX + this.CAM_MARGIN - halfWidth;
+    const minY = this.bounds.minY - this.CAM_MARGIN + halfHeight;
+    const maxY = this.bounds.maxY + this.CAM_MARGIN - halfHeight;
+
+    const desiredX = (minX > maxX)
+      ? (this.bounds.minX + this.bounds.maxX) * 0.5
+      : THREE.MathUtils.clamp(this.targetCamX, minX, maxX);
+    const desiredY = (minY > maxY)
+      ? (this.bounds.minY + this.bounds.maxY) * 0.5
+      : THREE.MathUtils.clamp(this.targetCamY, minY, maxY);
+
+    // If inside a soft window, keep current target; otherwise ease toward clamp
+    const softMinX = minX - softMargin;
+    const softMaxX = maxX + softMargin;
+    const softMinY = minY - softMargin;
+    const softMaxY = maxY + softMargin;
+
+    const outsideX = this.targetCamX < softMinX || this.targetCamX > softMaxX;
+    const outsideY = this.targetCamY < softMinY || this.targetCamY > softMaxY;
+
+    const ease = 0.25; // Higher = faster snap; lower = smoother
+    if (outsideX) {
+      this.targetCamX = this.lerp(this.targetCamX, desiredX, ease);
+    }
+    if (outsideY) {
+      this.targetCamY = this.lerp(this.targetCamY, desiredY, ease);
+    }
   }
 
   /**
@@ -1875,10 +1952,11 @@ export class ThreeRendererService {
 
     // Touch events for mobile
     canvas.addEventListener('touchstart', (event) => {
+      event.preventDefault(); // Prevent default touch behavior
+      
       if (event.touches.length === 1) {
-        // Single touch - treat as mouse click
-        // Prevent scrolling, zooming, and context menus during touch interaction
-        event.preventDefault();
+        // Single touch - could be drag or tap
+        this.isTwoFingerGesture = false;
         this.updateMousePositionFromTouch(event.touches[0]);
         const mouseEvent = new MouseEvent('mousedown', {
           clientX: event.touches[0].clientX,
@@ -1886,14 +1964,39 @@ export class ThreeRendererService {
         });
         this.onMouseDown(mouseEvent);
       } else if (event.touches.length === 2) {
-        // Two-finger touch for pinch zoom (to be implemented)
-        event.preventDefault();
+        // Two-finger touch - pan and pinch zoom
+        this.isTwoFingerGesture = true;
+        
+        // Cancel any ongoing single-finger drag
+        if (this.isDragging) {
+          this.cleanupDragState();
+        }
+        
+        // Calculate initial distance for pinch zoom
+        const dx = event.touches[0].clientX - event.touches[1].clientX;
+        const dy = event.touches[0].clientY - event.touches[1].clientY;
+        this.lastTouchDistance = Math.sqrt(dx * dx + dy * dy);
+        this.touchStartDistance = this.lastTouchDistance;
+        
+        // Store initial pan position (midpoint between fingers)
+        this.touchPanStart.x = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+        this.touchPanStart.y = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+        
+        // Disable auto-fit when user starts gesturing
+        if (this.autoFitEnabled) {
+          this.autoFitEnabled = false;
+        }
+        
+        // Disable fisheye during gesture
+        this.disableFisheyeForZoom();
       }
-    }, { passive: false }); // Changed to false to allow preventDefault
+    }, { passive: false });
 
     canvas.addEventListener('touchmove', (event) => {
-      if (event.touches.length === 1) {
-        event.preventDefault(); // Prevent scrolling while dragging
+      event.preventDefault();
+      
+      if (event.touches.length === 1 && !this.isTwoFingerGesture) {
+        // Single touch - drag
         this.updateMousePositionFromTouch(event.touches[0]);
         const mouseEvent = new MouseEvent('mousemove', {
           clientX: event.touches[0].clientX,
@@ -1901,13 +2004,56 @@ export class ThreeRendererService {
         });
         this.onMouseMove(mouseEvent);
       } else if (event.touches.length === 2) {
-        // Prevent default for multi-touch
-        event.preventDefault();
+        // Two-finger gesture - pinch zoom and pan
+        this.isTwoFingerGesture = true;
+        
+        // Calculate current distance for pinch zoom
+        const dx = event.touches[0].clientX - event.touches[1].clientX;
+        const dy = event.touches[0].clientY - event.touches[1].clientY;
+        const currentDistance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Calculate zoom factor from pinch
+        if (this.lastTouchDistance > 0) {
+          // Invert factor so pinch-out zooms in (distance up -> factor < 1)
+          const zoomFactor = this.lastTouchDistance / currentDistance;
+          
+          // Apply zoom at the midpoint between fingers
+          const midX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+          const midY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+          this.zoomAtPoint(zoomFactor, midX, midY);
+        }
+        
+        // Calculate pan from midpoint movement
+        const currentMidX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+        const currentMidY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+        const panDeltaX = currentMidX - this.touchPanStart.x;
+        const panDeltaY = currentMidY - this.touchPanStart.y;
+        
+        // Apply pan
+        this.panCamera(panDeltaX, panDeltaY);
+        
+        // Update for next frame
+        this.lastTouchDistance = currentDistance;
+        this.touchPanStart.x = currentMidX;
+        this.touchPanStart.y = currentMidY;
       }
-    }, { passive: false }); // Changed to false to allow preventDefault
+    }, { passive: false });
 
-    canvas.addEventListener('touchend', () => {
-      this.onMouseUp();
+    canvas.addEventListener('touchend', (event) => {
+      if (event.touches.length === 0) {
+        // All fingers lifted
+        if (this.isTwoFingerGesture) {
+          // Re-enable fisheye after two-finger gesture
+          this.reEnableFisheyeAfterZoom();
+        }
+        this.isTwoFingerGesture = false;
+        this.lastTouchDistance = 0;
+        this.onMouseUp();
+      } else if (event.touches.length === 1) {
+        // One finger remaining - reset to single touch mode
+        this.isTwoFingerGesture = false;
+        this.lastTouchDistance = 0;
+      }
     });
 
     // Keyboard controls
@@ -2303,6 +2449,17 @@ export class ThreeRendererService {
   private onKeyDown(event: KeyboardEvent): void {
     if (!this.userControlEnabled) return;
 
+    // Ignore keyboard shortcuts when user is typing in an input field
+    const target = event.target as HTMLElement;
+    if (target && (
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT' ||
+      target.isContentEditable
+    )) {
+      return;
+    }
+
     const panSpeed = 50; // pixels per key press
 
     switch (event.key) {
@@ -2353,16 +2510,35 @@ export class ThreeRendererService {
   }
 
   /**
-   * Remove SVG background
+   * Remove SVG background with fade-out animation
    */
   removeSvgBackground(): void {
     if (this.svgBackgroundPlane) {
-      this.scene.remove(this.svgBackgroundPlane);
-      this.svgBackgroundPlane.geometry.dispose();
-      if (this.svgBackgroundPlane.material instanceof THREE.Material) {
-        this.svgBackgroundPlane.material.dispose();
-      }
-      this.svgBackgroundPlane = undefined;
+      const material = this.svgBackgroundPlane.material as any;
+      const startOpacity = material.opacity ?? 1;
+      const start = performance.now();
+      const durationMs = 400;
+      
+      const animate = (now: number) => {
+        const t = Math.min(1, (now - start) / durationMs);
+        const eased = 1 - (t * (2 - t)); // easeOutQuad reverse (1 to 0)
+        material.opacity = startOpacity * eased;
+        material.needsUpdate = true;
+        
+        if (t < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          // Animation complete, now remove from scene
+          this.scene.remove(this.svgBackgroundPlane!);
+          this.svgBackgroundPlane!.geometry.dispose();
+          if (this.svgBackgroundPlane!.material instanceof THREE.Material) {
+            this.svgBackgroundPlane!.material.dispose();
+          }
+          this.svgBackgroundPlane = undefined;
+        }
+      };
+      
+      requestAnimationFrame(animate);
     }
     
     if (this.svgBackgroundTexture) {
@@ -2466,6 +2642,10 @@ export class ThreeRendererService {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(this.container!.clientWidth, this.container!.clientHeight);
+    
+    // Ensure canvas allows JavaScript to handle all touch events
+    this.renderer.domElement.style.touchAction = 'none';
+    
     this.container!.appendChild(this.renderer.domElement);
 
     // Set up drag and drop after canvas is in DOM
@@ -2529,6 +2709,8 @@ export class ThreeRendererService {
       this.activeTweens = this.activeTweens.filter((fn) => !fn(dt));
 
       // Camera damping for X, Y, Z
+      this.clampCameraToBounds();
+
       this.camera.position.x = this.damp(
         this.camera.position.x,
         this.targetCamX,

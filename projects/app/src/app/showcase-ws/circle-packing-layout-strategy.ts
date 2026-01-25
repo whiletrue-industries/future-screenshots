@@ -14,6 +14,7 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
   private readonly photoRadius: number;
   private readonly groupBuffer: number;
   private readonly photoBuffer: number;
+  private readonly useFanLayout: boolean;
   
   private photoGroups = new Map<string, PhotoData[]>();
   private groupPositions = new Map<string, { x: number; y: number; radius: number }>();
@@ -25,6 +26,7 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
     spacingY?: number;
     groupBuffer?: number;
     photoBuffer?: number;
+    useFanLayout?: boolean; // When false (mobile), use simple circle packing within groups
   } = {}) {
     super();
     
@@ -34,6 +36,7 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
     this.spacingY = options.spacingY ?? PHOTO_CONSTANTS.SPACING_Y;
     this.groupBuffer = options.groupBuffer ?? 2000; // Buffer between group circles
     this.photoBuffer = options.photoBuffer ?? 50;  // Buffer between photos within groups
+    this.useFanLayout = options.useFanLayout ?? true;
     
     // Calculate photo radius (use the larger dimension for circle packing)
     this.photoRadius = Math.sqrt(this.photoWidth ** 2 + this.photoHeight ** 2) / 2 + this.photoBuffer;
@@ -158,6 +161,24 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
       return null;
     }
     
+    // On mobile (when useFanLayout is false), place photos using simple circle packing inside the group
+    if (!this.useFanLayout) {
+      const positions = this.packPhotosInGroup(groupPhotos);
+      const p = positions[photoIndex] || { x: 0, y: 0 };
+      return {
+        x: groupPosition.x + p.x,
+        y: groupPosition.y + p.y,
+        metadata: {
+          groupId,
+          groupSize: groupPhotos.length,
+          photoIndex,
+          groupPosition: { x: groupPosition.x, y: groupPosition.y, radius: groupPosition.radius },
+          circlePackKey: `circle-pack-${groupId}-${photoIndex}`,
+          renderOrder: photoIndex // simple ordering; overlapping is minimal in packed layout
+        }
+      };
+    }
+
     // Arrange photos in fan/bow layout like playing cards held in hand
     const groupSize = groupPhotos.length;
     

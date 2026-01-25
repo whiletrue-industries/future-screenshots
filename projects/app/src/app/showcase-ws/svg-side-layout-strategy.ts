@@ -13,7 +13,7 @@ export class SvgSideLayoutStrategy extends LayoutStrategy {
   private readonly centerGapMargin = 2000; // extra margin to avoid overlap with SVG
   private lastComputedGap: number | null = null;
 
-  constructor(config?: { photoWidth?: number; photoHeight?: number; spacingX?: number; spacingY?: number; groupBuffer?: number; photoBuffer?: number; svgRadius?: number; }) {
+  constructor(config?: { photoWidth?: number; photoHeight?: number; spacingX?: number; spacingY?: number; groupBuffer?: number; photoBuffer?: number; svgRadius?: number; useFanLayout?: boolean; }) {
     super();
     this.inner = new CirclePackingLayoutStrategy({
       photoWidth: config?.photoWidth,
@@ -21,7 +21,8 @@ export class SvgSideLayoutStrategy extends LayoutStrategy {
       spacingX: config?.spacingX,
       spacingY: config?.spacingY,
       groupBuffer: config?.groupBuffer ?? 1500,
-      photoBuffer: config?.photoBuffer ?? 0
+      photoBuffer: config?.photoBuffer ?? 0,
+      useFanLayout: config?.useFanLayout ?? true
     });
     this.svgRadius = (config as any)?.svgRadius ?? 20000;
   }

@@ -88,9 +88,21 @@ npm start
 
 This will:
 - Compile the Angular application
-- Start a development server on `http://localhost:4200`
+- Start a development server on `http://localhost:4200` (or next free port)
 - Watch for file changes and automatically reload
 - Enable source maps for debugging
+
+In addition, the dev wrapper binds to `0.0.0.0` for LAN access and prints both URLs that include the test workspace and admin key, for example:
+
+```
+Local development URL:
+  http://localhost:<port>/showcase-ws?workspace=61358757-cf32-483f-847f-3e4eb3855408&api_key=e79d200e-b5e3-4043-9c4b-6deddb642fb0
+
+Mobile testing URL (tap on your phone):
+  http://<your-lan-ip>:<port>/showcase-ws?workspace=61358757-cf32-483f-847f-3e4eb3855408&api_key=e79d200e-b5e3-4043-9c4b-6deddb642fb0
+```
+
+Use this link on a phone connected to the same network.
 
 The application should automatically open in your default browser. If not, navigate to http://localhost:4200.
 

@@ -29,6 +29,7 @@ import e from 'express';
 export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   @ViewChild('container', { static: true }) container!: ElementRef;
   @ViewChild('titleElement') titleElement?: ElementRef;
+  private router = inject(Router);
   private photoRepository: PhotoDataRepository;
   private activatedRoute: ActivatedRoute;
   private destroy$ = new Subject<void>();
@@ -335,9 +336,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     // Map layout parameter aliases to actual layout names
     const layoutParam = qp['layout'];
     if (layoutParam) {
-      // Map friendly names to internal layout names
+      // Map friendly names to internal layout names (map removed)
       const layoutMap: { [key: string]: 'grid' | 'tsne' | 'svg' | 'circle-packing' } = {
-        'map': 'svg',
         'clusters': 'circle-packing',
         'themes': 'grid',
         'grid': 'grid',
@@ -445,7 +445,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           spacingX: PHOTO_CONSTANTS.SPACING_X,
           spacingY: PHOTO_CONSTANTS.SPACING_Y,
           groupBuffer: 1500,
-          photoBuffer: 0
+          photoBuffer: 0,
+          useFanLayout: !this.isMobile()
         });
 
     // Clear any lingering debug overlay when leaving auto-positioning mode
@@ -964,7 +965,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       this.svgSideStrategy = new SvgSideLayoutStrategy({
         photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
         photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
-        svgRadius: this.svgCircleRadius
+        svgRadius: this.svgCircleRadius,
+        useFanLayout: !this.isMobile()
       });
       const svgElement = this.svgBackgroundStrategy.getSvgElement();
       if (svgElement) {
@@ -1040,7 +1042,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         spacingX: PHOTO_CONSTANTS.SPACING_X,
         spacingY: PHOTO_CONSTANTS.SPACING_Y,
         groupBuffer: 1500,  // Ample buffer between groups
-        photoBuffer: 0   // Buffer between photos within groups
+        photoBuffer: 0,   // Buffer between photos within groups
+        useFanLayout: !this.isMobile()
       });
       
       // Remove SVG background if switching from SVG layout
@@ -1180,8 +1183,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Navigate back to the homepage
    */
   goBack(): void {
-    const router = inject(Router);
-    router.navigate(['/']);
+    this.router.navigate(['/'], { queryParamsHandling: 'preserve' });
   }
 
   /**
