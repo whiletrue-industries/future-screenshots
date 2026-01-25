@@ -1183,7 +1183,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Navigate back to the homepage
    */
   goBack(): void {
-    this.router.navigate(['/']);
+    this.router.navigate(['/'], { queryParamsHandling: 'preserve' });
   }
 
   /**
