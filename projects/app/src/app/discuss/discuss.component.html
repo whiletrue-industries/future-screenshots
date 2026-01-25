@@ -1,9 +1,11 @@
 <div class='flow-shell'>
     <div class='image-overlay' [class.collapsed]="imageCollapsed()" [class.expanded]="imageExpanded()">
         <div class="backdrop" (click)="toggleImage()"></div>
-        <button type="button" class="image-close" *ngIf="imageExpanded()" (click)="$event.stopPropagation(); toggleImage()" aria-label="Close image view">
-            X
-        </button>
+        @if (imageExpanded()) {
+            <button type="button" class="image-close" (click)="$event.stopPropagation(); toggleImage()" aria-label="Close image view">
+                X
+            </button>
+        }
         <div class='image' [class.small]='imageCollapsed()' [class.completed]='completed()' (click)="toggleImage()" [style.--tilt]="rotation() + 'deg'">
             <img [src]="imageUrl()" #image/>
             @if (!completed() && prefer()) {

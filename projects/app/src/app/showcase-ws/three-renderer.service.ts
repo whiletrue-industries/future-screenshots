@@ -562,6 +562,8 @@ export class ThreeRendererService {
     // Pan camera to keep cursor pointing at same world location
     this.targetCamX += (worldBefore.x - worldAfter.x);
     this.targetCamY += (worldBefore.y - worldAfter.y);
+
+    this.clampCameraToBounds();
   }
 
   /**
@@ -708,6 +710,8 @@ export class ThreeRendererService {
     
     this.targetCamX -= worldDeltaX * panSensitivity;
     this.targetCamY += worldDeltaY * panSensitivity;
+
+    this.clampCameraToBounds();
   }
 
   /**
@@ -737,6 +741,54 @@ export class ThreeRendererService {
     const vFOV = THREE.MathUtils.degToRad(this.camera.fov);
     const height = 2 * Math.tan(vFOV / 2) * this.targetCamZ;
     return height / 2;
+  }
+
+  /**
+   * Keep the camera target inside scene bounds (with margin) without hard snaps.
+   * Uses a soft clamp (lerp toward clamped value) so the motion stays eased.
+   */
+  private clampCameraToBounds(): void {
+    if (!Number.isFinite(this.bounds.minX) || !Number.isFinite(this.bounds.maxX) ||
+        !Number.isFinite(this.bounds.minY) || !Number.isFinite(this.bounds.maxY)) {
+      return;
+    }
+
+    // Clamp zoom first to avoid negative widths/heights
+    this.targetCamZ = THREE.MathUtils.clamp(this.targetCamZ, this.minCamZ, this.maxCamZ);
+
+    const halfWidth = this.getVisibleWidth();
+    const halfHeight = this.getVisibleHeight();
+
+    // Allow a small overscroll then ease back to avoid jump-cuts
+    const softMargin = this.CAM_MARGIN * 0.5;
+    const minX = this.bounds.minX - this.CAM_MARGIN + halfWidth;
+    const maxX = this.bounds.maxX + this.CAM_MARGIN - halfWidth;
+    const minY = this.bounds.minY - this.CAM_MARGIN + halfHeight;
+    const maxY = this.bounds.maxY + this.CAM_MARGIN - halfHeight;
+
+    const desiredX = (minX > maxX)
+      ? (this.bounds.minX + this.bounds.maxX) * 0.5
+      : THREE.MathUtils.clamp(this.targetCamX, minX, maxX);
+    const desiredY = (minY > maxY)
+      ? (this.bounds.minY + this.bounds.maxY) * 0.5
+      : THREE.MathUtils.clamp(this.targetCamY, minY, maxY);
+
+    // If inside a soft window, keep current target; otherwise ease toward clamp
+    const softMinX = minX - softMargin;
+    const softMaxX = maxX + softMargin;
+    const softMinY = minY - softMargin;
+    const softMaxY = maxY + softMargin;
+
+    const outsideX = this.targetCamX < softMinX || this.targetCamX > softMaxX;
+    const outsideY = this.targetCamY < softMinY || this.targetCamY > softMaxY;
+
+    const ease = 0.25; // Higher = faster snap; lower = smoother
+    if (outsideX) {
+      this.targetCamX = this.lerp(this.targetCamX, desiredX, ease);
+    }
+    if (outsideY) {
+      this.targetCamY = this.lerp(this.targetCamY, desiredY, ease);
+    }
   }
 
   /**
@@ -2635,6 +2687,8 @@ export class ThreeRendererService {
       this.activeTweens = this.activeTweens.filter((fn) => !fn(dt));
 
       // Camera damping for X, Y, Z
+      this.clampCameraToBounds();
+
       this.camera.position.x = this.damp(
         this.camera.position.x,
         this.targetCamX,
