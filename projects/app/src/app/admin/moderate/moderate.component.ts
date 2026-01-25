@@ -376,7 +376,7 @@ export class ModerateComponent {
             this.selectedItem.set(null);
           }
         },
-        error: (err) => console.error('Error deleting item', err)
+        error: (err) => console.error(`Error permanently deleting item ${itemId}:`, err)
       });
     } else {
       console.error('workspaceId or apiKey is null');
