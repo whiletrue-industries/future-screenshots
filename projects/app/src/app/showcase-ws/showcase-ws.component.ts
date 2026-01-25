@@ -29,6 +29,7 @@ import e from 'express';
 export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   @ViewChild('container', { static: true }) container!: ElementRef;
   @ViewChild('titleElement') titleElement?: ElementRef;
+  private router = inject(Router);
   private photoRepository: PhotoDataRepository;
   private activatedRoute: ActivatedRoute;
   private destroy$ = new Subject<void>();
@@ -1182,8 +1183,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Navigate back to the homepage
    */
   goBack(): void {
-    const router = inject(Router);
-    router.navigate(['/']);
+    this.router.navigate(['/']);
   }
 
   /**
