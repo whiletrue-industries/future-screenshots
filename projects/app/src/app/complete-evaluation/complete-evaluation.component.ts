@@ -18,7 +18,12 @@ import { CompletionImageComponent } from "../completion-image/completion-image.c
 export class CompleteEvaluationComponent {
 
   thinking = input<boolean>(false);
-  addAnotherRoute: string[] = ['/scan'];
+  addAnotherRoute = computed(() => {
+    const fromTemplateParam = this.route.snapshot.queryParamMap.get('template') === 'true';
+    const tags: string[] | undefined = this.api.item()?.tags;
+    const fromNoPaperTag = Array.isArray(tags) && tags.includes('no-paper');
+    return (fromTemplateParam || fromNoPaperTag) ? ['/canvas-creator'] : ['/scan'];
+  });
 
   // Compute the show-on-map URL for the current item
   showOnMapLink = computed(() => {
@@ -37,10 +42,7 @@ export class CompleteEvaluationComponent {
     return `${localePrefix}/showcase-ws?workspace=${workspaceId}&api_key=${apiKey}#${itemId}`;
   });
 
-  constructor(public api: ApiService, private http: HttpClient, private route: ActivatedRoute) {
-    const fromTemplateFlow = this.route.snapshot.queryParamMap.get('template') === 'true';
-    this.addAnotherRoute = fromTemplateFlow ? ['/canvas-creator'] : ['/scan'];
-  }
+  constructor(public api: ApiService, private http: HttpClient, private route: ActivatedRoute) {}
 
   onShowOnMap(event: MouseEvent): void {
     console.log('[COMPLETE_EVAL] onShowOnMap called');

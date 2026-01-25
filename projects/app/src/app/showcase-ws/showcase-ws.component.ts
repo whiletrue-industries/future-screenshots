@@ -780,6 +780,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           if (focusId && !focusId.includes('search=')) {
             console.log('[SHOWCASE_WS] Focusing on item from URL:', focusId);
             timer(500).subscribe(() => {
+              this.rendererService.setAutoFit(false);
               this.focusOnItem(focusId, { animateFromFull: true, fromShowOnMap: true });
             });
           }
@@ -1020,10 +1021,15 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         minY = centerY - rangeY * 0.75;
         maxY = centerY + rangeY * 0.75;
         
-        this.rendererService.fitCameraToBounds([
-          { x: minX, y: minY },
-          { x: maxX, y: maxY }
-        ]);
+        // Skip camera fit if a permalink focus is active/pending
+        const hashItemId = window.location.hash.slice(1);
+        const hasPermalinkFocus = (!!hashItemId && !hashItemId.includes('search=')) || !!this.focusItemId();
+        if (!hasPermalinkFocus) {
+          this.rendererService.fitCameraToBounds([
+            { x: minX, y: minY },
+            { x: maxX, y: maxY }
+          ]);
+        }
       } else {
         console.warn('❌ SVG element is null, cannot set background');
       }
@@ -1256,6 +1262,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     console.log('[SHOWCASE_WS] Focusing on item:', itemId);
     // Mark this item as the permalink target to allow high-res loading when focused
     this.rendererService.setPermalinkTarget(itemId);
+    this.rendererService.setAutoFit(false);
     
     // Wait for photo to be loaded
     let attempts = 0;

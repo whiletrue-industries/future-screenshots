@@ -1,4 +1,5 @@
 import { AfterViewInit, Component, computed, effect, ElementRef, signal, ViewChild, WritableSignal } from '@angular/core';
+import { NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { StateService } from '../../state.service';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -14,6 +15,7 @@ import { CompleteEvaluationComponent } from "../complete-evaluation/complete-eva
 @Component({
   standalone: true,
   imports: [
+    NgClass,
     FormsModule,
     MessagesComponent,
     LtrDirective,
@@ -30,6 +32,13 @@ export class DiscussComponent implements AfterViewInit {
   item_id = signal<string>('');
   item_key = signal<string>('');
   item = signal<any>({});
+  hasEvaluation = computed(() => {
+    const current = this.item();
+    const plausibility = current?.plausibility;
+    const favorable = current?.favorable_future;
+    return typeof plausibility === 'number' && favorable !== undefined && favorable !== null && favorable !== '';
+  });
+  needsEvaluation = computed(() => !this.hasEvaluation());
   prefer = computed(() => {
     const ff = this.item()?.favorable_future || '';
     return ff.indexOf('prefer') >= 0 || (ff.indexOf('prevent') >= 0 && ff.indexOf('mostly') >= 0);
@@ -45,10 +54,23 @@ export class DiscussComponent implements AfterViewInit {
     return ff.indexOf('prefer') >= 0;
   });
 
-  rotation = computed(() => {
-    const sign = this.preferred() ? -1 : 1;
-    return ((100 - (this.item()?.plausibility || 0)) / 100) * 32 * sign;
+  rotationClass = computed(() => {
+    if (!this.hasEvaluation()) {
+      return 'tilt-0';
+    }
+
+    const plausibility = this.item()?.plausibility ?? 0;
+    const rawTilt = ((100 - plausibility) / 100) * 32;
+    const snappedTilt = Math.min(32, Math.max(0, Math.round(rawTilt / 8) * 8));
+
+    if (snappedTilt === 0) {
+      return 'tilt-0';
+    }
+
+    const prefix = this.preferred() ? 'tilt-neg' : 'tilt-pos';
+    return `${prefix}-${snappedTilt}`;
   });
+
   imageUrl = computed<SafeUrl>(() => {
     return this.sanitizer.bypassSecurityTrustUrl(this.item().screenshot_url);
   });
@@ -62,8 +84,14 @@ export class DiscussComponent implements AfterViewInit {
   showChat = computed(() => this.imageLoaded() || this.hasText() || this.thinking());
   imageExpanded = signal<boolean>(false);
   imageCollapsed = computed(() => (this.hasText() || this.completed()) && !this.imageExpanded());
+  receivedDone = signal<boolean>(false);
   completed = signal<boolean>(false);
+  completionThinking = computed(() => {
+    const messagesThinking = this.messagesComponent ? this.messagesComponent.thinking() : false;
+    return messagesThinking || this.thinking();
+  });
   inputVisible = computed(() => this.showChat() && !this.completed());
+  showCompletionButtons = computed(() => this.completed() && !this.completionThinking());
   failed = signal<boolean>(false);
 
   @ViewChild(MessagesComponent) messagesComponent!: MessagesComponent;
@@ -82,6 +110,24 @@ export class DiscussComponent implements AfterViewInit {
     effect(() => {
       if (this.messagesComponent?.allTypingComplete()) {
         this.typingComplete.set(true);
+      }
+    });
+    // Watch for true completion: done status received + no thinking
+    effect(() => {
+      const receivedDone = this.receivedDone();
+      const thinking = this.thinking();
+      const messagesThinking = this.messagesComponent?.thinking();
+      
+      console.log('[COMPLETION CHECK]', {
+        receivedDone,
+        thinking,
+        messagesThinking,
+        completed: this.completed()
+      });
+      
+      if (receivedDone && !thinking && !messagesThinking) {
+        console.log('[COMPLETION] Setting completed to true');
+        this.completed.set(true);
       }
     });
   }
@@ -153,7 +199,9 @@ export class DiscussComponent implements AfterViewInit {
           return _msgs;
         });
       } else if (ret.kind === 'status' && ret.status === 'done') {
-        this.completed.set(true);
+        // Mark that we received done status
+        // An effect will set completed when all conditions are truly met
+        this.receivedDone.set(true);
       } else if (ret.kind === 'status' && ret.status === 'failed') {
         this.failed.set(true);
       } else if (ret.kind === 'text') {
@@ -170,7 +218,7 @@ export class DiscussComponent implements AfterViewInit {
         console.log('thinking done...');
         this.thinking.set(false);
         this.messagesComponent.thinking.set(false);
-      } else if (ret.kind === 'status' && ret.status) {
+      } else if (ret.kind === 'status' && ret.status && ret.status !== 'done' && ret.status !== 'failed') {
         this.thinking.set(false);
         this.messagesComponent.thinking.set(false);
         this.failed.set(false);

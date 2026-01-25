@@ -259,10 +259,19 @@ export class ApiService {
         }
       };
       eventSource.onerror = (error) => {
-        console.error('EVENTSOURCE ERROR', error);
-        eventSource.close(); //
-        observer.complete();
-        // observer.error(error);
+        // Treat stream errors as graceful completion so UI can unblock
+        const readyState = (eventSource as any)?.readyState;
+        if (readyState === EventSource.CLOSED || readyState === EventSource.CONNECTING) {
+          this.zone.run(() => {
+            observer.next({ kind: 'status', status: 'done', reason: 'stream-error' });
+            observer.complete();
+          });
+        } else {
+          this.zone.run(() => {
+            observer.error(error);
+          });
+        }
+        eventSource.close();
       };
       return () => {
         eventSource.close();

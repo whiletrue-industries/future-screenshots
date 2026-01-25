@@ -1,4 +1,5 @@
-<app-messages #messages ngSkipHydration>
+<div class="flow-shell">
+  <app-messages #messages ngSkipHydration>
     <div class='spacer'>
         @if (step() === 0) {
             <app-collect-properties-favorable (done)='completeStep($event)'></app-collect-properties-favorable>
@@ -17,3 +18,4 @@
         }
     </div>
 </app-messages>
+</div>
