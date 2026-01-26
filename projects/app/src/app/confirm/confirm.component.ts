@@ -41,9 +41,6 @@ export class ConfirmComponent {
         metadata.tags = ['no-paper'];
       }
       
-      // Debug log to check API credentials
-      console.log('[CONFIRM] Creating item with workspace:', this.api.workspaceId(), 'api_key:', this.api.api_key());
-      
       this.api.createItem(metadata).subscribe({
         next: (res: any) => {
           const params: any = {
