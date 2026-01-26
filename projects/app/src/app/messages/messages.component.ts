@@ -156,7 +156,10 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
       console.log('[Messages] Queue empty, stopping processor');
       // Set allTypingComplete when queue is empty
       // Use setTimeout to ensure signal update happens after DOM updates
-      setTimeout(() => this.allTypingComplete.set(true), 0);
+      setTimeout(() => {
+        console.log('[Messages] Setting allTypingComplete to true');
+        this.allTypingComplete.set(true);
+      }, 0);
       return;
     }
 
