@@ -80,7 +80,7 @@ export class DiscussComponent implements AfterViewInit {
   inputDisabled = signal<boolean>(true);
   imageLoaded = signal<boolean>(false);
   hasText = signal<boolean>(false);
-  typingComplete = signal<boolean>(false);
+  messagesComponentReady = signal<boolean>(false);
   showChat = computed(() => this.imageLoaded() || this.hasText() || this.thinking());
   imageExpanded = signal<boolean>(false);
   imageCollapsed = computed(() => (this.hasText() || this.completed()) && !this.imageExpanded());
@@ -90,8 +90,17 @@ export class DiscussComponent implements AfterViewInit {
     const messagesThinking = this.messagesComponent ? this.messagesComponent.thinking() : false;
     return messagesThinking || this.thinking();
   });
-  inputVisible = computed(() => this.showChat() && !this.completed());
-  showCompletionButtons = computed(() => this.completed() && !this.completionThinking());
+  typingComplete = computed(() => {
+    // Force re-evaluation by reading messagesComponentReady
+    if (!this.messagesComponentReady()) {
+      return false;
+    }
+    const result = this.messagesComponent ? this.messagesComponent.allTypingComplete() : false;
+    console.log('[TYPING-COMPUTED] typingComplete evaluated:', result);
+    return result;
+  });
+  inputVisible = computed(() => this.showChat() && (!this.completed() || !this.typingComplete()));
+  showCompletionButtons = computed(() => this.completed() && !this.completionThinking() && this.typingComplete());
   failed = signal<boolean>(false);
 
   @ViewChild(MessagesComponent) messagesComponent!: MessagesComponent;
@@ -106,34 +115,45 @@ export class DiscussComponent implements AfterViewInit {
         this.refreshItem();
       }
     });
-    // Watch for typing completion
-    effect(() => {
-      if (this.messagesComponent?.allTypingComplete()) {
-        this.typingComplete.set(true);
-      }
-    });
-    // Watch for true completion: done status received + no thinking
+    
+    // Watch for true completion: done status received + no thinking + typing complete
     effect(() => {
       const receivedDone = this.receivedDone();
       const thinking = this.thinking();
       const messagesThinking = this.messagesComponent?.thinking();
+      const typingComplete = this.typingComplete(); // This line ensures effect re-runs when typing completes
       
       console.log('[COMPLETION CHECK]', {
         receivedDone,
         thinking,
         messagesThinking,
+        typingComplete,
         completed: this.completed()
       });
       
-      if (receivedDone && !thinking && !messagesThinking) {
+      // All conditions must be true, and we must not already be completed
+      if (receivedDone && !thinking && !messagesThinking && typingComplete && !this.completed()) {
         console.log('[COMPLETION] Setting completed to true');
         this.completed.set(true);
       }
+    });
+    // Debug button visibility
+    effect(() => {
+      const show = this.showCompletionButtons();
+      console.log('[BUTTONS] showCompletionButtons:', show, {
+        completed: this.completed(),
+        completionThinking: this.completionThinking(),
+        typingComplete: this.typingComplete()
+      });
     });
   }
 
   ngAfterViewInit(): void {
     this.messages = this.messagesComponent.messages;
+    
+    // Signal that messagesComponent is ready, which will trigger typingComplete to re-evaluate
+    this.messagesComponentReady.set(true);
+    
     const item_id = this.item_id();
     if (item_id) {
       this.item_key.set(this.route.snapshot.queryParams['key']);
@@ -186,18 +206,22 @@ export class DiscussComponent implements AfterViewInit {
         const index = ret.idx;
         const text = ret.content;
         const kind = ret.role === 'assistant' ? 'ai' : 'human';
-        this.messages.update(msgs => {
-          const _msgs = msgs.slice();
-          if (_msgs.length > index) {
+        
+        // Check if we need to update an existing message or add a new one
+        const currentMessages = this.messages();
+        if (currentMessages.length > index) {
+          // Update existing message
+          this.messages.update(msgs => {
+            const _msgs = msgs.slice();
             _msgs[index].setText(text);
             _msgs[index].kind = kind;
-          }
-          else {
-            this.reply.set('');
-            _msgs.push(new Message(kind, text ));
-          }
-          return _msgs;
-        });
+            return _msgs;
+          });
+        } else {
+          // Add new message through the queue system
+          this.reply.set('');
+          this.addMessage(kind, text);
+        }
       } else if (ret.kind === 'status' && ret.status === 'done') {
         // Mark that we received done status
         // An effect will set completed when all conditions are truly met
