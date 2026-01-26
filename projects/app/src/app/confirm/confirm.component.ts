@@ -41,22 +41,39 @@ export class ConfirmComponent {
         metadata.tags = ['no-paper'];
       }
       
-      this.api.createItem(metadata).subscribe((res: any) => {
-        const params: any = {
-          'item-id': res.item_id,
-          'key': res.item_key
-        };
-        // Preserve template flag for no-paper flow
-        if (this.isTemplateFlow) {
-          params['template'] = 'true';
-        }
-        if (!this.api.automatic()) {
-          this.api.uploadImage(currentImage, res.item_id, res.item_key);
-          this.router.navigate(['/props'], { queryParams: params, queryParamsHandling: 'merge'});
-        } else {
-          this.api.uploadImageAuto(currentImage, res.item_id, res.item_key).subscribe(() => {
-            this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
-          });
+      // Debug log to check API credentials
+      console.log('[CONFIRM] Creating item with workspace:', this.api.workspaceId(), 'api_key:', this.api.api_key());
+      
+      this.api.createItem(metadata).subscribe({
+        next: (res: any) => {
+          const params: any = {
+            'item-id': res.item_id,
+            'key': res.item_key
+          };
+          // Preserve template flag for no-paper flow
+          if (this.isTemplateFlow) {
+            params['template'] = 'true';
+          }
+          if (!this.api.automatic()) {
+            this.api.uploadImage(currentImage, res.item_id, res.item_key);
+            this.router.navigate(['/props'], { queryParams: params, queryParamsHandling: 'merge'});
+          } else {
+            this.api.uploadImageAuto(currentImage, res.item_id, res.item_key).subscribe(() => {
+              this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
+            });
+          }
+        },
+        error: (error) => {
+          console.error('[CONFIRM] Failed to create item:', error);
+          console.error('[CONFIRM] Error status:', error.status);
+          console.error('[CONFIRM] Error details:', error.error);
+          
+          // Show user-friendly error message
+          if (error.status === 403) {
+            alert('Access denied. Please check that you have the correct API key with write permissions for this workspace.');
+          } else {
+            alert('Failed to create item. Please try again or contact support.');
+          }
         }
       });
     } else {
