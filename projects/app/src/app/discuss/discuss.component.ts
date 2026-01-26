@@ -77,7 +77,11 @@ export class DiscussComponent implements AfterViewInit {
 
   // State
   thinking = signal<boolean>(true);
-  inputDisabled = signal<boolean>(true);
+  inputDisabled = computed(() => 
+    this.thinking() || 
+    (this.messagesComponent?.thinking() ?? false) || 
+    this.completed()
+  );
   imageLoaded = signal<boolean>(false);
   hasText = signal<boolean>(false);
   messagesComponentReady = signal<boolean>(false);
@@ -99,7 +103,7 @@ export class DiscussComponent implements AfterViewInit {
     console.log('[TYPING-COMPUTED] typingComplete evaluated:', result);
     return result;
   });
-  inputVisible = computed(() => this.showChat() && (!this.completed() || !this.typingComplete()));
+  inputVisible = computed(() => this.showChat() && !this.completed());
   showCompletionButtons = computed(() => this.completed() && !this.completionThinking() && this.typingComplete());
   failed = signal<boolean>(false);
 
@@ -190,7 +194,6 @@ export class DiscussComponent implements AfterViewInit {
   }
 
   submitMessage() {
-    this.inputDisabled.set(true);
     this.thinking.set(true);
     this.messagesComponent.thinking.set(true);
     console.log('thinking...');
@@ -246,7 +249,6 @@ export class DiscussComponent implements AfterViewInit {
         this.thinking.set(false);
         this.messagesComponent.thinking.set(false);
         this.failed.set(false);
-        this.inputDisabled.set(false);
         if (this.reply()) {
           this.addMessage('ai', this.reply());
           this.reply.set('');  
