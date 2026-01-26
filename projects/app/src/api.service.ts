@@ -263,7 +263,8 @@ export class ApiService {
         const readyState = (eventSource as any)?.readyState;
         if (readyState === EventSource.CLOSED || readyState === EventSource.CONNECTING) {
           this.zone.run(() => {
-            observer.next({ kind: 'status', status: 'done', reason: 'stream-error' });
+            // Emit a distinct stream-error status so callers can treat it as recoverable
+            observer.next({ kind: 'status', status: 'stream-error' });
             observer.complete();
           });
         } else {
