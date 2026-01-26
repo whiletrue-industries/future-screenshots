@@ -90,8 +90,8 @@ export class DiscussComponent implements AfterViewInit {
     const messagesThinking = this.messagesComponent ? this.messagesComponent.thinking() : false;
     return messagesThinking || this.thinking();
   });
-  inputVisible = computed(() => this.showChat() && !this.completed());
-  showCompletionButtons = computed(() => this.completed() && !this.completionThinking());
+  inputVisible = computed(() => this.showChat() && (!this.completed() || !this.typingComplete()));
+  showCompletionButtons = computed(() => this.completed() && !this.completionThinking() && this.typingComplete());
   failed = signal<boolean>(false);
 
   @ViewChild(MessagesComponent) messagesComponent!: MessagesComponent;
@@ -108,27 +108,40 @@ export class DiscussComponent implements AfterViewInit {
     });
     // Watch for typing completion
     effect(() => {
-      if (this.messagesComponent?.allTypingComplete()) {
+      const allComplete = this.messagesComponent?.allTypingComplete();
+      if (allComplete) {
+        console.log('[TYPING] All typing complete, setting typingComplete to true');
         this.typingComplete.set(true);
       }
     });
-    // Watch for true completion: done status received + no thinking
+    // Watch for true completion: done status received + no thinking + typing complete
     effect(() => {
       const receivedDone = this.receivedDone();
       const thinking = this.thinking();
       const messagesThinking = this.messagesComponent?.thinking();
+      const typingComplete = this.typingComplete();
       
       console.log('[COMPLETION CHECK]', {
         receivedDone,
         thinking,
         messagesThinking,
+        typingComplete,
         completed: this.completed()
       });
       
-      if (receivedDone && !thinking && !messagesThinking) {
+      if (receivedDone && !thinking && !messagesThinking && typingComplete) {
         console.log('[COMPLETION] Setting completed to true');
         this.completed.set(true);
       }
+    });
+    // Debug button visibility
+    effect(() => {
+      const show = this.showCompletionButtons();
+      console.log('[BUTTONS] showCompletionButtons:', show, {
+        completed: this.completed(),
+        completionThinking: this.completionThinking(),
+        typingComplete: this.typingComplete()
+      });
     });
   }
 
