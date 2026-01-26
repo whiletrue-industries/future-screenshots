@@ -9,7 +9,6 @@
         <div class='image' [class.small]='imageCollapsed()' [class.completed]='completed()' [ngClass]="rotationClass()" (click)="toggleImage()">
             @if (needsEvaluation()) {
                 <div class="string"></div>
-                <div class="clip"></div>
             }
             <img [src]="imageUrl()" #image/>
             @if (!completed() && prefer()) {

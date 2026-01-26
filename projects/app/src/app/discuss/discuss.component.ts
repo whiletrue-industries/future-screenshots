@@ -77,7 +77,11 @@ export class DiscussComponent implements AfterViewInit {
 
   // State
   thinking = signal<boolean>(true);
-  inputDisabled = signal<boolean>(true);
+  inputDisabled = computed(() => 
+    this.thinking() || 
+    (this.messagesComponent?.thinking() ?? false) || 
+    this.completed()
+  );
   imageLoaded = signal<boolean>(false);
   hasText = signal<boolean>(false);
   messagesComponentReady = signal<boolean>(false);
@@ -99,7 +103,7 @@ export class DiscussComponent implements AfterViewInit {
     console.log('[TYPING-COMPUTED] typingComplete evaluated:', result);
     return result;
   });
-  inputVisible = computed(() => this.showChat() && (!this.completed() || !this.typingComplete()));
+  inputVisible = computed(() => this.showChat() && !this.completed());
   showCompletionButtons = computed(() => this.completed() && !this.completionThinking() && this.typingComplete());
   failed = signal<boolean>(false);
 
@@ -132,7 +136,8 @@ export class DiscussComponent implements AfterViewInit {
       });
       
       // All conditions must be true, and we must not already be completed
-      if (receivedDone && !thinking && !messagesThinking && typingComplete && !this.completed()) {
+      // Also ensure there is no pending reply stream before marking completed
+      if (receivedDone && !thinking && !messagesThinking && typingComplete && !this.reply() && !this.completed()) {
         console.log('[COMPLETION] Setting completed to true');
         this.completed.set(true);
       }
@@ -190,7 +195,6 @@ export class DiscussComponent implements AfterViewInit {
   }
 
   submitMessage() {
-    this.inputDisabled.set(true);
     this.thinking.set(true);
     this.messagesComponent.thinking.set(true);
     console.log('thinking...');
@@ -201,6 +205,20 @@ export class DiscussComponent implements AfterViewInit {
     this.inputMessage.set('');
     this.api.sendMessage(message || 'initial').subscribe((ret: any) => {
       // console.log('MESSAGE', ret);
+      // Log server response plus a snapshot of discussion state for debugging
+      console.log('[SERVER RET] kind=', ret?.kind, 'payload=', ret);
+      console.log('[DISCUSS STATE]', {
+        thinking: this.thinking(),
+        messagesThinking: this.messagesComponent?.thinking() ?? false,
+        typingComplete: this.typingComplete(),
+        reply: this.reply(),
+        replyLength: (this.reply() || '').length,
+        receivedDone: this.receivedDone(),
+        completed: this.completed(),
+        inputVisible: this.inputVisible(),
+        inputDisabled: this.inputDisabled(),
+        showCompletionButtons: this.showCompletionButtons()
+      });
       if (ret.kind === 'message') {
         this.hasText.set(true);
         const index = ret.idx;
@@ -223,9 +241,16 @@ export class DiscussComponent implements AfterViewInit {
           this.addMessage(kind, text);
         }
       } else if (ret.kind === 'status' && ret.status === 'done') {
-        // Mark that we received done status
-        // An effect will set completed when all conditions are truly met
+        // Normal done status: mark that we received done; an effect will set completed
         this.receivedDone.set(true);
+      } else if (ret.kind === 'status' && ret.status === 'stream-error') {
+        // Stream-errors are treated as recoverable: stop thinking but keep input available
+        console.warn('[SERVER RET] Stream error received, treating as recoverable', ret);
+        this.thinking.set(false);
+        this.messagesComponent.thinking.set(false);
+        // Optionally show a non-blocking notice in the console/UI; do not set `failed` so input remains active
+      } else if (ret.kind === 'status' && ret.status === 'failed') {
+        this.failed.set(true);
       } else if (ret.kind === 'status' && ret.status === 'failed') {
         this.failed.set(true);
       } else if (ret.kind === 'text') {
@@ -246,7 +271,6 @@ export class DiscussComponent implements AfterViewInit {
         this.thinking.set(false);
         this.messagesComponent.thinking.set(false);
         this.failed.set(false);
-        this.inputDisabled.set(false);
         if (this.reply()) {
           this.addMessage('ai', this.reply());
           this.reply.set('');  
