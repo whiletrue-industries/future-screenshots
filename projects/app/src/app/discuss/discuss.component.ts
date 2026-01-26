@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, computed, effect, ElementRef, signal, ViewChild, WritableSignal, afterNextRender } from '@angular/core';
+import { AfterViewInit, Component, computed, effect, ElementRef, signal, ViewChild, WritableSignal } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { StateService } from '../../state.service';
