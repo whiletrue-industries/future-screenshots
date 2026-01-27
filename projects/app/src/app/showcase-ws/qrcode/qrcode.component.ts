@@ -15,9 +15,10 @@ export class QrcodeComponent implements AfterViewInit {
   codeSize = signal(0);
   transform = computed(() => {
     const small = this.small();
-    const codeSize = this.codeSize();
     const scale = this.scale();
-    return `translate(${small ? 0 : scale * codeSize / 2}px, ${small ? 0 : -scale * codeSize / 2}px) scale(${scale})`;
+    // When large (not small), no translation needed - flex center handles positioning
+    // When small, no translation needed - positioned in corner
+    return `scale(${scale})`;
   });
   scale = computed(() => {
     const mainEl = this.mainEl();
