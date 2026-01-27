@@ -364,6 +364,14 @@
                           PUBLISH
                         }
                       </button>
+                      @if (selectedItem()._private_moderation === 0) {
+                        <button 
+                          class="permanently-delete-btn"
+                          (click)="permanentlyDelete(selectedItem()._id)"
+                          aria-label="Permanently delete this item">
+                          🗑️ PERMANENTLY DELETE
+                        </button>
+                      }
                     </div>
                   </article>
                   </div>

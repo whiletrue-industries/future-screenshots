@@ -101,4 +101,12 @@ export class AdminApiService {
     return this.http.put<any>(`${this.CHRONOMAPS_API_URL}/${workspaceId}`, request.metadata || {}, { headers, params });
   }
 
+  deleteItem(workspace: string, api_key: string, itemId: string): Observable<any> {
+    return this.http.delete<any>(`${this.CHRONOMAPS_API_URL}/${workspace}/${itemId}`, {
+      headers: {
+        'Authorization': `${api_key}`
+      },
+    });
+  }
+
 }
