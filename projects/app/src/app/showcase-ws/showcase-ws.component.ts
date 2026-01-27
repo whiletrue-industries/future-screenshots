@@ -83,6 +83,23 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   private searchIndex = new Map<string, string>();
 
   /**
+   * Determine which auth token to use (prefers admin when provided)
+   */
+  private resolveAuthToken(): string | null {
+    const adminKey = this.admin_key();
+    if (adminKey && adminKey !== 'ADMIN_KEY_NOT_SET') {
+      return adminKey;
+    }
+
+    const apiKey = this.api_key();
+    if (apiKey && apiKey !== 'API_KEY_NOT_SET') {
+      return apiKey;
+    }
+
+    return null;
+  }
+
+  /**
    * Build (and cache) lowercase searchable text for a photo by flattening all metadata values
    */
   private getSearchableText(photo: PhotoData): string {
@@ -230,6 +247,26 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         this.qrSmall.set(true);
         this.isLoading.set(false); // Content is now loaded
         
+        // Switch to the desired layout now that photos are loaded
+        // This ensures the layout strategy has content to work with
+        if (this.currentLayout() !== 'grid') {
+          try {
+            switch (this.currentLayout()) {
+              case 'circle-packing':
+                await this.switchToCirclePackingLayout();
+                break;
+              case 'tsne':
+                await this.switchToTsneLayout();
+                break;
+              case 'svg':
+                await this.switchToSvgLayout();
+                break;
+            }
+          } catch (error) {
+            console.error('Error switching initial layout:', error);
+          }
+        }
+        
         // Wait for layout to stabilize and camera animation to complete
         // Using a timeout to allow the Three.js renderer to complete layout calculations
         setTimeout(() => {
@@ -357,7 +394,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     }
     
     apiService.updateFromRoute(this.activatedRoute.snapshot);
-    apiService.api_key.set(this.admin_key());
+    const authToken = this.resolveAuthToken();
+    if (authToken) {
+      apiService.api_key.set(authToken);
+    }
   }
 
   /**
@@ -557,14 +597,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   private fetchWorkspaceData(): void {
     const workspaceId = this.workspace();
-    const apiKey = this.api_key() || this.admin_key();
+    const apiKey = this.resolveAuthToken();
     
-    if (!workspaceId || workspaceId === 'WORKSPACE_NOT_SET' || !apiKey || apiKey === 'API_KEY_NOT_SET') {
+    if (!workspaceId || workspaceId === 'WORKSPACE_NOT_SET' || !apiKey) {
       return;
     }
     
     const httpOptions = {
-      headers: { 'Authorization': `Bearer ${apiKey}` }
+      headers: { 'Authorization': apiKey }
     };
     
     this.http.get<any>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${workspaceId}`, httpOptions)
@@ -588,8 +628,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
   getItems(): Observable<any[]> {
     const httpOptions: { headers?: Record<string, string> } = {};
-    if (this.api_key()) {
-      httpOptions.headers = { 'Authorization': this.admin_key() || this.api_key()! };
+    const authToken = this.resolveAuthToken();
+    if (authToken) {
+      httpOptions.headers = { 'Authorization': authToken };
     }
     return this.http.get<any[]>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${this.workspace()}/items?page_size=10000`, httpOptions).pipe(
       catchError((error) => {
@@ -715,20 +756,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       }
     );
 
-    // Switch to the desired initial layout if it's not grid
-    if (this.currentLayout() !== 'grid') {
-      switch (this.currentLayout()) {
-        case 'circle-packing':
-          await this.switchToCirclePackingLayout();
-          break;
-        case 'tsne':
-          await this.switchToTsneLayout();
-          break;
-        case 'svg':
-          await this.switchToSvgLayout();
-          break;
-      }
-    }
+    // Note: Layout switching is deferred until first photos are loaded
+    // This ensures the layout strategy has content to work with
+    // and avoids issues with positioning calculations on empty layouts
 
     // Set up repository event subscriptions
     this.photoRepository.photoAdded$
