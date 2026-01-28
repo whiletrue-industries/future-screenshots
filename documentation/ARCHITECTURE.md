@@ -129,7 +129,10 @@ The application uses Angular standalone components organized by feature:
      - Zoom: Mouse wheel to zoom in/out (centered on cursor)
      - Keyboard: Arrow keys to pan, +/- to zoom, R to reset view
      - Touch: Pinch-to-zoom and two-finger pan on mobile
-   - Auto-fit mode: Automatically frames all photos in view
+   - Camera positioning:
+     - Initial view: Camera centered at origin (0, 0) to show circle-packing clusters
+     - Auto-fit disabled by default to preserve layout view
+     - Auto-fit only activates when explicitly requested (reset view button)
    - Smooth camera animations with damping
    - QR code for easy mobile access
    - Random showcase mode to highlight photos

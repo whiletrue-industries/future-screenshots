@@ -130,7 +130,7 @@ export class ThreeRendererService {
   private isPanning = false;
   private panStartMouse = new THREE.Vector2();
   private panStartCameraPos = new THREE.Vector3();
-  private autoFitEnabled = true; // When true, camera auto-fits to bounds
+  private autoFitEnabled = false; // When true, camera auto-fits to bounds (disabled by default to preserve initial layout view)
   private lastMousePos = new THREE.Vector2();
   private lastClientX: number | null = null;
   private lastClientY: number | null = null;

@@ -737,17 +737,19 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       }
     }
 
-    // Initialize PhotoDataRepository with default grid strategy first
-    const defaultGridStrategy = new GridLayoutStrategy({
+    // Initialize PhotoDataRepository with default circle-packing strategy first
+    const defaultCirclePackingStrategy = new CirclePackingLayoutStrategy({
       photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
       photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
       spacingX: PHOTO_CONSTANTS.SPACING_X,
       spacingY: PHOTO_CONSTANTS.SPACING_Y,
-      useRandomPositioning: true
+      groupBuffer: 1500,  // Ample buffer between groups
+      photoBuffer: 0,   // Buffer between photos within groups
+      useFanLayout: !this.isMobile()
     });
 
     await this.photoRepository.initialize(
-      defaultGridStrategy, 
+      defaultCirclePackingStrategy, 
       this.rendererService, 
       {
         enableRandomShowcase: this.enableRandomShowcase(),
@@ -1051,15 +1053,16 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         minY = centerY - rangeY * 0.75;
         maxY = centerY + rangeY * 0.75;
         
+        // Camera positioning disabled - preserve current view when switching layouts
         // Skip camera fit if a permalink focus is active/pending
-        const hashItemId = window.location.hash.slice(1);
-        const hasPermalinkFocus = (!!hashItemId && !hashItemId.includes('search=')) || !!this.focusItemId();
-        if (!hasPermalinkFocus) {
-          this.rendererService.fitCameraToBounds([
-            { x: minX, y: minY },
-            { x: maxX, y: maxY }
-          ]);
-        }
+        // const hashItemId = window.location.hash.slice(1);
+        // const hasPermalinkFocus = (!!hashItemId && !hashItemId.includes('search=')) || !!this.focusItemId();
+        // if (!hasPermalinkFocus) {
+        //   this.rendererService.fitCameraToBounds([
+        //     { x: minX, y: minY },
+        //     { x: maxX, y: maxY }
+        //   ]);
+        // }
       } else {
         console.warn('❌ SVG element is null, cannot set background');
       }
