@@ -1391,17 +1391,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       
       if (matches) {
         // Matching item: full opacity, normal z-index
-        if (index < 3) {
-          console.log('[FILTERS_DETAIL] Setting match opacity for photo:', photo.metadata.id);
-        }
         this.rendererService.setPhotoOpacity(photo.metadata.id, 1.0);
         this.rendererService.setPhotoZIndex(photo.metadata.id, 0);
         matchCount++;
       } else {
         // Non-matching item: 20% opacity, lower z-index
-        if (index < 3) {
-          console.log('[FILTERS_DETAIL] Setting non-match opacity for photo:', photo.metadata.id);
-        }
         this.rendererService.setPhotoOpacity(photo.metadata.id, 0.2);
         this.rendererService.setPhotoZIndex(photo.metadata.id, -100);
         nonMatchCount++;

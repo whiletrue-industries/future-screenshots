@@ -1436,6 +1436,7 @@ export class ThreeRendererService {
    * Set the photo ID for a mesh (for hotspot detection)
    */
   setMeshPhotoId(mesh: THREE.Mesh, photoId: string): void {
+    console.log('[RENDERER] setMeshPhotoId called for:', photoId, 'Total meshes in map:', this.photoIdToMesh.size);
     this.meshToPhotoId.set(mesh, photoId);
     this.photoIdToMesh.set(photoId, mesh);
   }
@@ -1960,8 +1961,8 @@ export class ThreeRendererService {
    */
   disableAllDragging(): void {
     this.dragCallbacks.clear();
-    this.meshToPhotoId.clear();
-    this.photoIdToMesh.clear();
+    // NOTE: Don't clear meshToPhotoId and photoIdToMesh maps - they're used for
+    // other features like filtering and search, not just dragging
     this.isDragging = false;
     this.draggedMesh = null;
   }
