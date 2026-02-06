@@ -139,10 +139,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   // Filter state (admin only)
   filtersBarOpen = signal<boolean>(false);
   currentFilters = signal<FiltersBarState>({
-    status: ['new', 'flagged', 'not-flagged', 'approved', 'highlighted'],
+    status: ['new', 'flagged', 'not-flagged', 'approved', 'highlighted', 'rejected'],
     author: 'all',
-    preference: ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'],
-    potential: ['100', '75', '50', '25', '0'],
+    preference: ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent', 'none'],
+    potential: ['100', '75', '50', '25', '0', 'none'],
     type: 'all',
     search: '',
     orderBy: 'date'
@@ -274,8 +274,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     effect(() => {
       const filters = this.currentFilters();
       const isAdminUser = this.isAdmin();
+      console.log('[SHOWCASE_FILTERS_EFFECT] Triggered - isAdmin:', isAdminUser, 'filters:', filters);
       // Only apply filters if admin mode is active and we have photos loaded
       if (isAdminUser && this.photoRepository && this.photoRepository.getAllPhotos().length > 0) {
+        console.log('[SHOWCASE_FILTERS_EFFECT] Applying filters...');
         setTimeout(() => this.applyFilters(), 50);
       }
     });
@@ -1340,6 +1342,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Handle filter changes from the filters bar
    */
   onFiltersChange(filters: FiltersBarState): void {
+    console.log('[SHOWCASE_FILTERS] Filters changed:', filters);
     this.currentFilters.set(filters);
   }
   
@@ -1396,7 +1399,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   private photoMatchesFilters(metadata: any, filters: FiltersBarState): boolean {
     // Status filter (based on _private_moderation)
-    if (filters.status.length > 0) {
+    // Only filter if not all statuses are selected (6 total statuses)
+    if (filters.status.length > 0 && filters.status.length < 6) {
       const moderation = metadata['_private_moderation'];
       const statusMatches = this.matchesStatusFilter(moderation, filters.status);
       if (!statusMatches) return false;
@@ -1409,6 +1413,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     }
     
     // Preference filter (favorable_future)
+    // Only filter if not all preferences are selected (6 total: 5 + none)
     if (filters.preference.length > 0 && filters.preference.length < 6) {
       const favorableFuture = metadata['favorable_future'] || metadata['_svgZoneFavorableFuture'];
       const preferenceMatches = this.matchesPreferenceFilter(favorableFuture, filters.preference);
@@ -1416,6 +1421,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     }
     
     // Potential filter (plausibility)
+    // Only filter if not all potentials are selected (6 total: 5 + none)
     if (filters.potential.length > 0 && filters.potential.length < 6) {
       const plausibility = metadata['plausibility'];
       const potentialMatches = this.matchesPotentialFilter(plausibility, filters.potential);
