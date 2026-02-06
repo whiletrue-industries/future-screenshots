@@ -5,6 +5,7 @@ import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
 import { QrcodeComponent } from "./qrcode/qrcode.component";
 import { EvaluationSidebarComponent } from "./evaluation-sidebar/evaluation-sidebar.component";
+import { FiltersBarComponent, FiltersBarState } from '../shared/filters-bar/filters-bar.component';
 import { FisheyeSettings } from './settings-panel.component';
 import { PhotoData, PhotoAnimationState, PhotoMetadata } from './photo-data';
 import { ThreeRendererService } from './three-renderer.service';
@@ -22,7 +23,7 @@ import e from 'express';
 
 @Component({
   selector: 'app-showcase-ws',
-  imports: [QrcodeComponent, EvaluationSidebarComponent],
+  imports: [QrcodeComponent, EvaluationSidebarComponent, FiltersBarComponent],
   templateUrl: './showcase-ws.component.html',
   styleUrl: './showcase-ws.component.less'
 })
@@ -70,6 +71,45 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   canEditSelectedItem = computed(() => {
     return this.isAdmin() || (this.selectedItemKey() !== null && this.selectedItemKey() !== '');
   });
+  
+  // Filter counts for filters bar (computed from all photos)
+  filterCounts = computed(() => {
+    const allPhotos = this.photoRepository.getAllPhotos();
+    const statusMap = new Map<string, number>();
+    const authorMap = new Map<string, number>();
+    const preferenceMap = new Map<string, number>();
+    const potentialMap = new Map<string, number>();
+    const typeMap = new Map<string, number>();
+    
+    allPhotos.forEach(photo => {
+      const metadata = photo.metadata;
+      
+      // Count status (based on _private_moderation)
+      const moderation = metadata['_private_moderation'];
+      let statusKey = 'pending';
+      if (moderation === 0) statusKey = 'banned';
+      else if (moderation === 1) statusKey = 'flagged';
+      else if (moderation === 3) statusKey = 'not-flagged';
+      else if (moderation === 4) statusKey = 'approved';
+      else if (moderation === 5) statusKey = 'highlighted';
+      statusMap.set(statusKey, (statusMap.get(statusKey) || 0) + 1);
+      
+      // Count author
+      const authorId = metadata['author_id'] || 'unknown';
+      authorMap.set(authorId, (authorMap.get(authorId) || 0) + 1);
+    });
+    
+    return {
+      status: statusMap,
+      author: authorMap,
+      preference: preferenceMap,
+      potential: potentialMap,
+      type: typeMap
+    };
+  });
+  
+  // Total photo count for filters bar
+  totalPhotoCount = computed(() => this.photoRepository.getAllPhotos().length);
   fisheyeSettings = signal<FisheyeSettings>({
     enabled: true,
     maxMagnification: 10.0,
@@ -81,6 +121,18 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   searchText = signal<string>('');
   searchActive = signal<boolean>(false);
   private searchIndex = new Map<string, string>();
+  
+  // Filter state (admin only)
+  filtersBarOpen = signal<boolean>(false);
+  currentFilters = signal<FiltersBarState>({
+    status: ['new', 'flagged', 'not-flagged', 'approved', 'highlighted'],
+    author: 'all',
+    preference: ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent'],
+    potential: ['100', '75', '50', '25', '0'],
+    type: 'all',
+    search: '',
+    orderBy: 'date'
+  });
 
   /**
    * Determine which auth token to use (prefers admin when provided)
@@ -198,6 +250,16 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       if (this.photoRepository.getAllPhotos().length > 0) {
         // Debounce the search application slightly to avoid excessive updates while typing
         setTimeout(() => this.applySearchFilter(), 50);
+      }
+    });
+    
+    // Filter effect - automatically applies filters when they change (admin only)
+    effect(() => {
+      const filters = this.currentFilters();
+      const isAdminUser = this.isAdmin();
+      // Only apply filters if admin mode is active and we have photos loaded
+      if (isAdminUser && this.photoRepository.getAllPhotos().length > 0) {
+        setTimeout(() => this.applyFilters(), 50);
       }
     });
     this.loop.pipe(
@@ -1245,6 +1307,187 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   goBack(): void {
     this.router.navigate(['/'], { queryParamsHandling: 'preserve' });
+  }
+  
+  /**
+   * Toggle the filters bar visibility
+   */
+  toggleFiltersBar(): void {
+    this.filtersBarOpen.set(!this.filtersBarOpen());
+  }
+  
+  /**
+   * Handle filter changes from the filters bar
+   */
+  onFiltersChange(filters: FiltersBarState): void {
+    this.currentFilters.set(filters);
+  }
+  
+  /**
+   * Apply filters to photos (admin only)
+   * Matching items: 100% opacity, normal z-index
+   * Non-matching items: 20% opacity, lower z-index
+   */
+  private applyFilters(): void {
+    if (!this.isAdmin()) {
+      // Not in admin mode - reset all items to default state
+      const allPhotos = this.photoRepository.getAllPhotos();
+      allPhotos.forEach(photo => {
+        this.rendererService.setPhotoOpacity(photo.metadata.id, 1.0);
+        this.rendererService.setPhotoZIndex(photo.metadata.id, 0);
+      });
+      return;
+    }
+    
+    const filters = this.currentFilters();
+    const allPhotos = this.photoRepository.getAllPhotos();
+    
+    console.log('[FILTERS] Applying filters:', filters, 'Photo count:', allPhotos.length);
+    
+    let matchCount = 0;
+    let nonMatchCount = 0;
+    
+    allPhotos.forEach(photo => {
+      const matches = this.photoMatchesFilters(photo.metadata, filters);
+      
+      if (matches) {
+        // Matching item: full opacity, normal z-index
+        this.rendererService.setPhotoOpacity(photo.metadata.id, 1.0);
+        this.rendererService.setPhotoZIndex(photo.metadata.id, 0);
+        matchCount++;
+      } else {
+        // Non-matching item: 20% opacity, lower z-index
+        this.rendererService.setPhotoOpacity(photo.metadata.id, 0.2);
+        this.rendererService.setPhotoZIndex(photo.metadata.id, -100);
+        nonMatchCount++;
+      }
+    });
+    
+    console.log('[FILTERS] Filter applied. Matches:', matchCount, 'Non-matches:', nonMatchCount);
+  }
+  
+  /**
+   * Check if a photo matches the current filters
+   */
+  private photoMatchesFilters(metadata: any, filters: FiltersBarState): boolean {
+    // Status filter (based on _private_moderation)
+    if (filters.status.length > 0) {
+      const moderation = metadata['_private_moderation'];
+      const statusMatches = this.matchesStatusFilter(moderation, filters.status);
+      if (!statusMatches) return false;
+    }
+    
+    // Author filter
+    if (filters.author !== 'all') {
+      const authorId = metadata['author_id'];
+      if (authorId !== filters.author) return false;
+    }
+    
+    // Preference filter (favorable_future)
+    if (filters.preference.length > 0 && filters.preference.length < 6) {
+      const favorableFuture = metadata['favorable_future'] || metadata['_svgZoneFavorableFuture'];
+      const preferenceMatches = this.matchesPreferenceFilter(favorableFuture, filters.preference);
+      if (!preferenceMatches) return false;
+    }
+    
+    // Potential filter (plausibility)
+    if (filters.potential.length > 0 && filters.potential.length < 6) {
+      const plausibility = metadata['plausibility'];
+      const potentialMatches = this.matchesPotentialFilter(plausibility, filters.potential);
+      if (!potentialMatches) return false;
+    }
+    
+    return true;
+  }
+  
+  /**
+   * Check if a moderation value matches the selected status filters
+   */
+  private matchesStatusFilter(moderation: number | undefined | null, selectedStatuses: string[]): boolean {
+    if (selectedStatuses.length === 0) return true;
+    
+    // Map status names to moderation values
+    const statusMap: { [key: string]: number | null } = {
+      'new': 2,
+      'flagged': 1,
+      'not-flagged': 3,
+      'approved': 4,
+      'highlighted': 5,
+      'rejected': 0
+    };
+    
+    // Check if moderation matches any selected status
+    for (const status of selectedStatuses) {
+      const expectedValue = statusMap[status];
+      if (expectedValue === null || expectedValue === undefined) continue;
+      
+      // Handle "new" status - includes undefined, null, or 2
+      if (status === 'new') {
+        if (moderation === undefined || moderation === null || moderation === 2) {
+          return true;
+        }
+      } else if (moderation === expectedValue) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
+  /**
+   * Check if a favorable_future value matches the selected preference filters
+   */
+  private matchesPreferenceFilter(favorableFuture: string | undefined | null, selectedPreferences: string[]): boolean {
+    if (selectedPreferences.length === 0 || selectedPreferences.length === 6) return true;
+    
+    if (!favorableFuture) {
+      return selectedPreferences.includes('none');
+    }
+    
+    const normalized = favorableFuture.toLowerCase().trim();
+    
+    // Map normalized values to filter options
+    const preferenceMap: { [key: string]: string } = {
+      'prefer': 'prefer',
+      'favor': 'prefer',
+      'favorable': 'prefer',
+      'preferred': 'prefer',
+      'mostly prefer': 'mostly prefer',
+      'uncertain': 'uncertain',
+      'mostly prevent': 'mostly prevent',
+      'prevent': 'prevent',
+      'unfavorable': 'prevent'
+    };
+    
+    const mappedValue = preferenceMap[normalized];
+    return mappedValue ? selectedPreferences.includes(mappedValue) : false;
+  }
+  
+  /**
+   * Check if a plausibility value matches the selected potential filters
+   */
+  private matchesPotentialFilter(plausibility: number | undefined | null, selectedPotentials: string[]): boolean {
+    if (selectedPotentials.length === 0 || selectedPotentials.length === 6) return true;
+    
+    if (typeof plausibility !== 'number' || !isFinite(plausibility)) {
+      return selectedPotentials.includes('none');
+    }
+    
+    // Map plausibility values to potential categories
+    let category: string;
+    if (plausibility >= 90) {
+      category = '100'; // Projected
+    } else if (plausibility >= 70) {
+      category = '75'; // Probable
+    } else if (plausibility >= 40) {
+      category = '50'; // Plausible
+    } else if (plausibility >= 10) {
+      category = '25'; // Possible
+    } else {
+      category = '0'; // Preposterous
+    }
+    
+    return selectedPotentials.includes(category);
   }
 
   /**
