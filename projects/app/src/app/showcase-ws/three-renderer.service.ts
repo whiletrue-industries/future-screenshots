@@ -1436,7 +1436,6 @@ export class ThreeRendererService {
    * Set the photo ID for a mesh (for hotspot detection)
    */
   setMeshPhotoId(mesh: THREE.Mesh, photoId: string): void {
-    console.log('[RENDERER] setMeshPhotoId called for:', photoId, 'Total meshes in map:', this.photoIdToMesh.size);
     this.meshToPhotoId.set(mesh, photoId);
     this.photoIdToMesh.set(photoId, mesh);
   }
@@ -2627,20 +2626,13 @@ export class ThreeRendererService {
    */
   setPhotoOpacity(photoId: string, opacity: number): void {
     const mesh = this.photoIdToMesh.get(photoId);
-    if (!mesh) {
-      console.log('[RENDERER] setPhotoOpacity - mesh not found for:', photoId);
-      console.log('[RENDERER] Available mesh IDs:', Array.from(this.photoIdToMesh.keys()).slice(0, 5));
-      return;
-    }
+    if (!mesh) return;
     
     if (mesh.material && 'opacity' in mesh.material) {
-      const oldOpacity = (mesh.material as any).opacity;
       (mesh.material as any).opacity = opacity;
       // Ensure transparency is enabled for opacity < 1
       (mesh.material as any).transparent = true;
       (mesh.material as any).needsUpdate = true;
-      const newOpacity = (mesh.material as any).opacity;
-      console.log('[RENDERER] Set opacity for', photoId, 'from', oldOpacity, 'to', newOpacity, '(requested:', opacity, ')');
     }
   }
 

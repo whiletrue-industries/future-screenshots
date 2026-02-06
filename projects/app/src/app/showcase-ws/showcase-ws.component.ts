@@ -274,10 +274,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     effect(() => {
       const filters = this.currentFilters();
       const isAdminUser = this.isAdmin();
-      console.log('[SHOWCASE_FILTERS_EFFECT] Triggered - isAdmin:', isAdminUser, 'filters:', filters);
       // Only apply filters if admin mode is active and we have photos loaded
       if (isAdminUser && this.photoRepository && this.photoRepository.getAllPhotos().length > 0) {
-        console.log('[SHOWCASE_FILTERS_EFFECT] Applying filters...');
         setTimeout(() => this.applyFilters(), 50);
       }
     });
@@ -1342,7 +1340,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Handle filter changes from the filters bar
    */
   onFiltersChange(filters: FiltersBarState): void {
-    console.log('[SHOWCASE_FILTERS] Filters changed:', filters);
     this.currentFilters.set(filters);
   }
   
@@ -1354,12 +1351,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   private applyFilters(): void {
     // Guard: Return early if repository not initialized
     if (!this.photoRepository) {
-      console.log('[FILTERS] Skipping - repository not initialized');
       return;
     }
     
     if (!this.isAdmin()) {
-      console.log('[FILTERS] Skipping - not in admin mode');
       // Not in admin mode - reset all items to default state
       const allPhotos = this.photoRepository.getAllPhotos();
       allPhotos.forEach(photo => {
@@ -1369,21 +1364,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       return;
     }
     
-    console.log('[FILTERS] Starting filter application in admin mode');
-    
     const filters = this.currentFilters();
     const allPhotos = this.photoRepository.getAllPhotos();
     
-    console.log('[FILTERS] Applying filters:', filters, 'Photo count:', allPhotos.length);
-    
-    let matchCount = 0;
-    let nonMatchCount = 0;
-    let skippedCount = 0;
-    
-    allPhotos.forEach((photo, index) => {
+    allPhotos.forEach(photo => {
       // Only filter photos that have meshes rendered
       if (!photo.mesh) {
-        skippedCount++;
         return;
       }
       
@@ -1393,16 +1379,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         // Matching item: full opacity, normal z-index
         this.rendererService.setPhotoOpacity(photo.metadata.id, 1.0);
         this.rendererService.setPhotoZIndex(photo.metadata.id, 0);
-        matchCount++;
       } else {
         // Non-matching item: 20% opacity, lower z-index
         this.rendererService.setPhotoOpacity(photo.metadata.id, 0.2);
         this.rendererService.setPhotoZIndex(photo.metadata.id, -100);
-        nonMatchCount++;
       }
     });
-    
-    console.log('[FILTERS] Filter applied. Matches:', matchCount, 'Non-matches:', nonMatchCount, 'Skipped (no mesh):', skippedCount);
   }
   
   /**
