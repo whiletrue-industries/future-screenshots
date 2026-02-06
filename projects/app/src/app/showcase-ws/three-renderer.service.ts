@@ -2626,12 +2626,17 @@ export class ThreeRendererService {
    */
   setPhotoOpacity(photoId: string, opacity: number): void {
     const mesh = this.photoIdToMesh.get(photoId);
-    if (!mesh) return;
+    if (!mesh) {
+      console.log('[RENDERER] setPhotoOpacity - mesh not found for:', photoId);
+      return;
+    }
     
     if (mesh.material && 'opacity' in mesh.material) {
       (mesh.material as any).opacity = opacity;
       // Ensure transparency is enabled for opacity < 1
       (mesh.material as any).transparent = true;
+      (mesh.material as any).needsUpdate = true;
+      console.log('[RENDERER] Set opacity for', photoId, 'to', opacity);
     }
   }
 

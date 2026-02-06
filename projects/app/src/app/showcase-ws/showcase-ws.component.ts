@@ -1354,10 +1354,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   private applyFilters(): void {
     // Guard: Return early if repository not initialized
     if (!this.photoRepository) {
+      console.log('[FILTERS] Skipping - repository not initialized');
       return;
     }
     
     if (!this.isAdmin()) {
+      console.log('[FILTERS] Skipping - not in admin mode');
       // Not in admin mode - reset all items to default state
       const allPhotos = this.photoRepository.getAllPhotos();
       allPhotos.forEach(photo => {
@@ -1367,6 +1369,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       return;
     }
     
+    console.log('[FILTERS] Starting filter application in admin mode');
+    
     const filters = this.currentFilters();
     const allPhotos = this.photoRepository.getAllPhotos();
     
@@ -1375,16 +1379,22 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     let matchCount = 0;
     let nonMatchCount = 0;
     
-    allPhotos.forEach(photo => {
+    allPhotos.forEach((photo, index) => {
       const matches = this.photoMatchesFilters(photo.metadata, filters);
       
       if (matches) {
         // Matching item: full opacity, normal z-index
+        if (index < 3) {
+          console.log('[FILTERS_DETAIL] Setting match opacity for photo:', photo.metadata.id);
+        }
         this.rendererService.setPhotoOpacity(photo.metadata.id, 1.0);
         this.rendererService.setPhotoZIndex(photo.metadata.id, 0);
         matchCount++;
       } else {
         // Non-matching item: 20% opacity, lower z-index
+        if (index < 3) {
+          console.log('[FILTERS_DETAIL] Setting non-match opacity for photo:', photo.metadata.id);
+        }
         this.rendererService.setPhotoOpacity(photo.metadata.id, 0.2);
         this.rendererService.setPhotoZIndex(photo.metadata.id, -100);
         nonMatchCount++;
