@@ -150,7 +150,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   private layoutChangeInProgress = false;
   private svgBackgroundStrategy: SvgBackgroundLayoutStrategy | null = null;
   private svgSideStrategy: SvgSideLayoutStrategy | null = null;
-  private readonly svgCircleRadius = 20000;
+  private readonly svgCircleRadius = 15000;
   qrUrl = computed(() => 
     `https://mapfutur.es/${this.lang()}prescan?workspace=${this.workspace()}&api_key=${this.api_key()}&ws=true`
   );
@@ -1018,6 +1018,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         useFanLayout: !this.isMobile()
       });
       const svgElement = this.svgBackgroundStrategy.getSvgElement();
+
       if (svgElement) {
         // Place SVG to the left of clusters; keep items untouched
         this.rendererService.setSvgBackground(svgElement, {
@@ -1040,7 +1041,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         let maxX = Math.max(svgMaxX, clusterMaxX);
         let minY = -this.svgCircleRadius;
         let maxY = this.svgCircleRadius;
-        
+
         // Add extra padding (50% expansion) to zoom out more
         const centerX = (minX + maxX) * 0.5;
         const centerY = (minY + maxY) * 0.5;
@@ -1050,7 +1051,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         maxX = centerX + rangeX * 0.75;
         minY = centerY - rangeY * 0.75;
         maxY = centerY + rangeY * 0.75;
-        
+
+        // Validate bounds to prevent NaN or Infinity
+        if (!isFinite(minX) || !isFinite(maxX) || !isFinite(minY) || !isFinite(maxY)) {
+          return;
+        }
+
         // Skip camera fit if a permalink focus is active/pending
         const hashItemId = window.location.hash.slice(1);
         const hasPermalinkFocus = (!!hashItemId && !hashItemId.includes('search=')) || !!this.focusItemId();
@@ -1066,6 +1072,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       
       // Apply auto-positioning only if enabled; otherwise keep circle packing positions intact
       this.photoRepository.setSvgAutoPositioningEnabled(this.enableSvgAutoPositioning());
+
       if (this.enableSvgAutoPositioning()) {
         await this.applySvgLayoutMode(true);
       }

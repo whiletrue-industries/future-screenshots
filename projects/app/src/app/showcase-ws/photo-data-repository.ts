@@ -481,8 +481,6 @@ export class PhotoDataRepository {
    */
   setDragEnabled(enabled: boolean): void {
     this.isDragEnabled = enabled;
-    console.log('[PHOTO_REPOSITORY_DRAG] Drag enabled set to:', enabled, 'Type:', typeof enabled);
-    console.log('[PHOTO_REPOSITORY_DRAG] isDragEnabled property is now:', this.isDragEnabled);
   }
 
   /**
@@ -1022,13 +1020,10 @@ export class PhotoDataRepository {
     
     // Check permission before enabling drag
     if (!this.isDragEnabled) {
-      console.log('[PHOTO_REPOSITORY_DRAG] Permission check: isDragEnabled is', this.isDragEnabled, '- Drag disabled by permissions, skipping drag setup for photo:', photoData.id);
       // Still enable hover detection for cursor feedback
       this.setupHoverDetectionForPhoto(photoData);
       return;
     }
-
-    console.log('[PHOTO_REPOSITORY_DRAG] Permission check: isDragEnabled is', this.isDragEnabled, '- Setting up interactive drag for photo:', photoData.id);
     const interactiveStrategy = this.layoutStrategy as any; // Cast to access drag methods
     
     // Store the layout strategy reference in the renderer for drag integration

@@ -80,11 +80,12 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
    * Positive = prefer, Negative = prevent. Max magnitude = 32°.
    */
   private calculateEvaluationRotationDeg(photo: PhotoData): number {
-    const plausibility = photo.metadata['plausibility'] as number | undefined;
-    const favorableFuture = photo.metadata['_svgZoneFavorableFuture'] as string | undefined
-      || photo.metadata['favorable_future'] as string | undefined;
+    const plausibility = photo.metadata['plausibility'] as number | undefined | null;
+    const favorableFuture = photo.metadata['_svgZoneFavorableFuture'] as string | undefined | null
+      || photo.metadata['favorable_future'] as string | undefined | null;
 
-    if (plausibility === undefined || favorableFuture === undefined) {
+    // Validate that both values are valid (not null, not undefined, and plausibility is a finite number)
+    if (typeof plausibility !== 'number' || !isFinite(plausibility) || !favorableFuture || typeof favorableFuture !== 'string') {
       return 0;
     }
 
@@ -94,7 +95,10 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     const isFavor = favorableLower === 'favor' || favorableLower === 'favorable'
       || favorableLower === 'prefer' || favorableLower === 'preferred';
 
-    return isFavor ? magnitude : -magnitude;
+    const result = isFavor ? magnitude : -magnitude;
+
+    // Validate the result
+    return isFinite(result) ? result : 0;
   }
 
   /**
@@ -281,12 +285,12 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
 
   async getPositionForPhoto(photoData: PhotoData, existingPhotos: PhotoData[], enableAutoPositioning: boolean = false): Promise<LayoutPosition | null> {
     this.validateInitialized();
-    
+
     // Track photo dimensions if available
     const photoWidth = photoData.metadata['width'] as number | undefined || this.PHOTO_WIDTH;
     const photoHeight = photoData.metadata['height'] as number | undefined || this.PHOTO_HEIGHT;
     this.photoSizes.set(photoData.id, { width: photoWidth, height: photoHeight });
-    
+
     // Check if this photo already has a stored position in current strategy
     const existingPosition = this.photoPositions.get(photoData.id);
     if (existingPosition) {
@@ -296,12 +300,12 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     // Priority 1: Check for saved manual layout coordinates (layout_x, layout_y) - user overrides auto positioning
     const layout_x = photoData.metadata['layout_x'];
     const layout_y = photoData.metadata['layout_y'];
-    
+
     if (typeof layout_x === 'number' && typeof layout_y === 'number') {
       // Convert normalized coordinates [-1,1] back to world coordinates using currentRadius
       const x = layout_x * this.options.circleRadius;
       const y = layout_y * this.options.circleRadius;
-      
+
       const restoredPosition: LayoutPosition = {
         x,
         y,
@@ -312,28 +316,22 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
           circleRadius: this.options.circleRadius
         }
       };
-      
+
       // Store the restored position in current strategy and save it
       this.photoPositions.set(photoData.id, restoredPosition);
       photoData.setProperty('svgLayoutPosition', restoredPosition);
-      
+
       return restoredPosition;
     }
-    
-    // Priority 2: Check for rejected status - hide rejected photos by returning null
-    const moderation = photoData.metadata['_private_moderation'] as number | undefined;
-    if (moderation === 0) { // Rejected
-      return null;
-    }
-    
-    // Priority 3: If auto-positioning is enabled, try to get position from metadata-hotspot matching
+
+    // Priority 2: If auto-positioning is enabled, try to get position from metadata-hotspot matching
     if (enableAutoPositioning) {
       const autoPosition = this.getAutoPositionFromMetadata(photoData);
       if (autoPosition) {
         // Apply SVG offset to match the rendered SVG position
         const x = autoPosition.auto_x * this.options.circleRadius + this.options.svgOffsetX;
         const y = autoPosition.auto_y * this.options.circleRadius + this.options.svgOffsetY;
-        
+
         const autoPositionData: LayoutPosition = {
           x,
           y,
@@ -346,17 +344,17 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
             svgOffsetY: this.options.svgOffsetY
           }
         };
-        
+
         this.photoPositions.set(photoData.id, autoPositionData);
         photoData.setProperty('svgLayoutPosition', autoPositionData);
         return autoPositionData;
       }
-      
+
       // If auto-positioning is enabled but this photo doesn't match any hotspot,
-      // return null to preserve its existing position (from circle-packing clusters)
-      return null;
+      // fall through to use proportional circular positioning
+      // (Don't return null - that would leave the photo without a position)
     }
-    
+
     // Priority 3: Check if photo has a saved SVG layout position from previous session
     const savedSvgPosition = photoData.getProperty<LayoutPosition>('svgLayoutPosition');
 
@@ -487,11 +485,21 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     const packingVariation = (photoIndex / totalInGroup - 0.5) * groupPackingFactor * this.options.radiusVariation * 0.3;
     
     const radius = this.options.circleRadius + radiusVariation + packingVariation;
-    
+
     // Calculate position
-    let x = this.options.centerX + Math.cos(angle) * radius;
+    let x = this.options.centerX + Math.cos(angle) * radius * 0.75;
     const y = this.options.centerY + Math.sin(angle) * radius;
-    x = x * 0.5 + Math.sign(x) * radius;
+
+    // Mirror left side to right: ") )" instead of "( )"
+    // Then bring the two semicircles closer together
+    if (x < this.options.centerX) {
+      // Left half: mirror across centerX, offset right by radius, shift left by radius, then shift left by 0.4r
+      const distanceFromCenter = this.options.centerX - x;
+      x = this.options.centerX + distanceFromCenter - 0.4 * this.options.circleRadius;
+    } else {
+      // Right half: shift left by radius, then shift right by 0.4r
+      x = x - this.options.circleRadius + 0.4 * this.options.circleRadius;
+    }
     
     return {
       x,
@@ -715,13 +723,12 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     const favorableFuture = this.normalizeFavorableFuture(metadata['favorable_future']);
     let transitionBarPosition = this.normalizeTransitionBar(metadata['transition_bar_position']);
     const plausibility = this.normalizePlausibility(plausibilityRaw);
-    
+
     // Default to 'during' if transition_bar_position is missing
     if (!transitionBarPosition && plausibility !== null && favorableFuture) {
       transitionBarPosition = 'during';
-      console.log('[AUTO-POSITION] No transition_bar_position for photo', photoData.id, ', defaulting to "during"');
     }
-    
+
     // Return null if metadata is missing
     if (plausibility === null || !favorableFuture || !transitionBarPosition) {
       return null;
@@ -770,7 +777,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         return position;
       }
     }
-    
+
     return null;
   }
 
