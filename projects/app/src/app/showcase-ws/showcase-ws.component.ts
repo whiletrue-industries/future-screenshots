@@ -1378,8 +1378,15 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     
     let matchCount = 0;
     let nonMatchCount = 0;
+    let skippedCount = 0;
     
     allPhotos.forEach((photo, index) => {
+      // Only filter photos that have meshes rendered
+      if (!photo.mesh) {
+        skippedCount++;
+        return;
+      }
+      
       const matches = this.photoMatchesFilters(photo.metadata, filters);
       
       if (matches) {
@@ -1401,7 +1408,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       }
     });
     
-    console.log('[FILTERS] Filter applied. Matches:', matchCount, 'Non-matches:', nonMatchCount);
+    console.log('[FILTERS] Filter applied. Matches:', matchCount, 'Non-matches:', nonMatchCount, 'Skipped (no mesh):', skippedCount);
   }
   
   /**

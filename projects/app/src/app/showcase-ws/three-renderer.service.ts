@@ -2628,15 +2628,18 @@ export class ThreeRendererService {
     const mesh = this.photoIdToMesh.get(photoId);
     if (!mesh) {
       console.log('[RENDERER] setPhotoOpacity - mesh not found for:', photoId);
+      console.log('[RENDERER] Available mesh IDs:', Array.from(this.photoIdToMesh.keys()).slice(0, 5));
       return;
     }
     
     if (mesh.material && 'opacity' in mesh.material) {
+      const oldOpacity = (mesh.material as any).opacity;
       (mesh.material as any).opacity = opacity;
       // Ensure transparency is enabled for opacity < 1
       (mesh.material as any).transparent = true;
       (mesh.material as any).needsUpdate = true;
-      console.log('[RENDERER] Set opacity for', photoId, 'to', opacity);
+      const newOpacity = (mesh.material as any).opacity;
+      console.log('[RENDERER] Set opacity for', photoId, 'from', oldOpacity, 'to', newOpacity, '(requested:', opacity, ')');
     }
   }
 
