@@ -2,7 +2,6 @@ import { Component, input, output, signal, effect, OnDestroy, AfterViewInit } fr
 import { FormsModule } from '@angular/forms';
 import { PlatformService } from '../../../platform.service';
 import { CommonModule } from '@angular/common';
-import { BrowserModule } from '@angular/platform-browser';
 
 export interface FiltersBarState {
   status: string[];
@@ -183,7 +182,7 @@ export class FilterHelpers {
 
 @Component({
   selector: 'app-filters-bar',
-  imports: [BrowserModule, CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './filters-bar.component.html',
   styleUrl: './filters-bar.component.less'
 })

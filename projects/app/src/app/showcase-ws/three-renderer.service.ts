@@ -1960,8 +1960,8 @@ export class ThreeRendererService {
    */
   disableAllDragging(): void {
     this.dragCallbacks.clear();
-    this.meshToPhotoId.clear();
-    this.photoIdToMesh.clear();
+    // NOTE: Don't clear meshToPhotoId and photoIdToMesh maps - they're used for
+    // other features like filtering and search, not just dragging
     this.isDragging = false;
     this.draggedMesh = null;
   }
@@ -2632,6 +2632,7 @@ export class ThreeRendererService {
       (mesh.material as any).opacity = opacity;
       // Ensure transparency is enabled for opacity < 1
       (mesh.material as any).transparent = true;
+      (mesh.material as any).needsUpdate = true;
     }
   }
 

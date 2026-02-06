@@ -50,11 +50,12 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
    * Lower score = more right in fan (-rotation)
    */
   private calculateEvaluationScore(photo: PhotoData): number {
-    const plausibility = photo.metadata['plausibility'] as number | undefined;
-    const favorableFuture = photo.metadata['_svgZoneFavorableFuture'] as string | undefined
-      || photo.metadata['favorable_future'] as string | undefined;
+    const plausibility = photo.metadata['plausibility'] as number | undefined | null;
+    const favorableFuture = photo.metadata['_svgZoneFavorableFuture'] as string | undefined | null
+      || photo.metadata['favorable_future'] as string | undefined | null;
 
-    if (!plausibility || !favorableFuture ) {
+    // Validate that both values are valid (not null, not undefined, and plausibility is a finite number)
+    if (typeof plausibility !== 'number' || !isFinite(plausibility) || !favorableFuture || typeof favorableFuture !== 'string') {
       return 0; // keep stable when missing data
     }
 
@@ -65,7 +66,10 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
 
     // Match rotation formula: rotation = (1 - plaus) * direction
     const rotationMagnitude = 1 - normalizedPlaus;
-    return isFavor ? rotationMagnitude : -rotationMagnitude;
+    const score = isFavor ? rotationMagnitude : -rotationMagnitude;
+
+    // Validate the result
+    return isFinite(score) ? score : 0;
   }
 
   /**
@@ -190,18 +194,24 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
     const rotationRange = minRotation + (maxRotation - minRotation) * sizeFactor;
     
     // Evaluate rotation purely from plausibility + favorable_future
-    const plausibility = photo.metadata['plausibility'] as number | undefined;
-    const favorableFuture = photo.metadata['_svgZoneFavorableFuture'] as string | undefined
-      || photo.metadata['favorable_future'] as string | undefined;
+    const plausibility = photo.metadata['plausibility'] as number | undefined | null;
+    const favorableFuture = photo.metadata['_svgZoneFavorableFuture'] as string | undefined | null
+      || photo.metadata['favorable_future'] as string | undefined | null;
 
     let evaluationRotationDeg = 0;
-    if (plausibility !== undefined && favorableFuture) {
+    // Check that both values are valid (not null, not undefined, and plausibility is a finite number)
+    if (typeof plausibility === 'number' && isFinite(plausibility) && favorableFuture && typeof favorableFuture === 'string') {
       const normalizedPlaus = plausibility / 100;
       const magnitude = (1 - normalizedPlaus) * 32; // degrees
       const favorableLower = favorableFuture.toLowerCase().trim();
       const isFavor = favorableLower === 'favor' || favorableLower === 'favorable' ||
                       favorableLower === 'prefer' || favorableLower === 'preferred';
       evaluationRotationDeg = isFavor ? magnitude : -magnitude;
+    }
+
+    // Validate evaluationRotationDeg to prevent NaN propagation
+    if (!isFinite(evaluationRotationDeg)) {
+      evaluationRotationDeg = 0;
     }
     
     // Fan spread uses sorted index: left = positive, right = negative
@@ -224,6 +234,23 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
     const tiebreaker = photoIndex * 0.01; // rightmost (high index) gets highest tiebreaker
     const renderOrder = Math.round((baseRenderOrder + tiebreaker) * 10) / 10; // preserve 1 decimal
     
+    // Validate positions to prevent NaN
+    if (!isFinite(worldX) || !isFinite(worldY)) {
+      // Use a fallback position at the origin
+      return {
+        x: 0,
+        y: 0,
+        metadata: {
+          groupId,
+          groupSize: groupPhotos.length,
+          photoIndex,
+          groupPosition: { x: groupPosition.x, y: groupPosition.y, radius: groupPosition.radius },
+          circlePackKey: `circle-pack-${groupId}-${photoIndex}`,
+          renderOrder: renderOrder
+        }
+      };
+    }
+
     return {
       x: worldX,
       y: worldY,
@@ -356,17 +383,28 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
 
     // Pack the group circles
     const packedGroups = this.packCircles(groupCircles, this.groupBuffer);
-    
+
     // Store group positions
     this.groupPositions.clear();
     for (const group of packedGroups) {
+      // Validate group position before storing
+      if (!isFinite(group.x) || !isFinite(group.y) || !isFinite(group.radius)) {
+        // Use a fallback position at origin for this group
+        this.groupPositions.set(group.id, {
+          x: 0,
+          y: 0,
+          radius: group.radius || 1000
+        });
+        continue;
+      }
+
       this.groupPositions.set(group.id, {
         x: group.x,
         y: group.y,
         radius: group.radius
       });
     }
-    
+
 
   }
 
@@ -444,11 +482,16 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
    * Find the best position for a new circle among existing circles
    */
   private findBestPosition(newCircle: Circle, existingCircles: Circle[], buffer: number): { x: number; y: number } {
+    // Validate inputs
+    if (!isFinite(newCircle.radius) || !isFinite(buffer)) {
+      return { x: 0, y: 0 };
+    }
+
     if (existingCircles.length === 0) {
       return { x: 0, y: 0 };
     }
-    
-    let bestPosition = { x: 0, y: 0 };
+
+    let bestPosition: { x: number; y: number } | null = null;
     let minDistanceFromOrigin = Infinity;
     
     // Try positions around each existing circle
@@ -492,7 +535,18 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
         }
       }
     }
-    
+
+    // If no valid position found, try a fallback strategy - place it far from origin
+    if (bestPosition === null) {
+      // Place the circle at a distance from the origin based on the number of existing circles
+      const fallbackAngle = (existingCircles.length * 2.39996322972865332) % (2 * Math.PI); // Golden angle
+      const fallbackDistance = (existingCircles.length + 1) * (newCircle.radius + buffer) * 1.5;
+      bestPosition = {
+        x: Math.cos(fallbackAngle) * fallbackDistance,
+        y: Math.sin(fallbackAngle) * fallbackDistance
+      };
+    }
+
     return bestPosition;
   }
 
