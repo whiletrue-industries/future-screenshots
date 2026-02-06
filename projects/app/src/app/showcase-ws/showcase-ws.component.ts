@@ -166,23 +166,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Determine which auth token to use (prefers admin when provided)
-   */
-  private resolveAuthToken(): string | null {
-    const adminKey = this.admin_key();
-    if (adminKey && adminKey !== 'ADMIN_KEY_NOT_SET') {
-      return adminKey;
-    }
-
-    const apiKey = this.api_key();
-    if (apiKey && apiKey !== 'API_KEY_NOT_SET') {
-      return apiKey;
-    }
-
-    return null;
-  }
-
-  /**
    * Build (and cache) lowercase searchable text for a photo by flattening all metadata values
    */
   private getSearchableText(photo: PhotoData): string {
