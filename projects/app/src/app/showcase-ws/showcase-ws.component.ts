@@ -196,6 +196,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   
   // Loading state for layout composition
   isLayoutLoading = signal(true);
+  
+  // View initialized flag (for lazy-loaded components)
+  viewInitialized = signal(false);
 
   // Computed: whether title needs animation (is truncated)
   titleNeedsAnimation = signal(false);
@@ -727,6 +730,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       window.addEventListener('keydown', this.onKeyDown.bind(this));
       this.measureTitle();
       await this.initialize(this.container.nativeElement);
+      
+      // Mark view as initialized (safe to render filters bar in lazy-loaded context)
+      this.viewInitialized.set(true);
     }
   }
 

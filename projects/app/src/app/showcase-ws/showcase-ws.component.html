@@ -30,7 +30,7 @@
 ></app-evaluation-sidebar>
 
 <!-- Filters Bar (Admin only) -->
-@if (isAdmin() && !isLoading()) {
+@if (isAdmin() && !isLoading() && viewInitialized()) {
   <div class='filters-bar-container' [class.open]='filtersBarOpen()'>
     <app-filters-bar
       [counts]='filterCounts()'
