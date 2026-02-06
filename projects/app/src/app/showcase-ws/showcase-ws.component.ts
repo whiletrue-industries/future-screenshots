@@ -74,6 +74,17 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   
   // Filter counts for filters bar (computed from all photos)
   filterCounts = computed(() => {
+    // Guard: Return empty counts if repository not initialized
+    if (!this.photoRepository) {
+      return {
+        status: new Map<string, number>(),
+        author: new Map<string, number>(),
+        preference: new Map<string, number>(),
+        potential: new Map<string, number>(),
+        type: new Map<string, number>()
+      };
+    }
+    
     const allPhotos = this.photoRepository.getAllPhotos();
     const statusMap = new Map<string, number>();
     const authorMap = new Map<string, number>();
@@ -109,7 +120,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   });
   
   // Total photo count for filters bar
-  totalPhotoCount = computed(() => this.photoRepository.getAllPhotos().length);
+  totalPhotoCount = computed(() => {
+    if (!this.photoRepository) return 0;
+    return this.photoRepository.getAllPhotos().length;
+  });
   fisheyeSettings = signal<FisheyeSettings>({
     enabled: true,
     maxMagnification: 10.0,
@@ -258,7 +272,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       const filters = this.currentFilters();
       const isAdminUser = this.isAdmin();
       // Only apply filters if admin mode is active and we have photos loaded
-      if (isAdminUser && this.photoRepository.getAllPhotos().length > 0) {
+      if (isAdminUser && this.photoRepository && this.photoRepository.getAllPhotos().length > 0) {
         setTimeout(() => this.applyFilters(), 50);
       }
     });
@@ -1329,6 +1343,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Non-matching items: 20% opacity, lower z-index
    */
   private applyFilters(): void {
+    // Guard: Return early if repository not initialized
+    if (!this.photoRepository) {
+      return;
+    }
+    
     if (!this.isAdmin()) {
       // Not in admin mode - reset all items to default state
       const allPhotos = this.photoRepository.getAllPhotos();
