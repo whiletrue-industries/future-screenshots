@@ -11,12 +11,14 @@
       <div class="cred-inline">
         <input 
           type="text" 
-          [(ngModel)]="workspaceId" 
+          [ngModel]="workspaceId() ?? ''" 
+          (ngModelChange)="workspaceId.set($event || null)" 
           placeholder="workspace"
           aria-label="Workspace ID" />
         <input 
           type="text" 
-          [(ngModel)]="apiKey" 
+          [ngModel]="apiKey() ?? ''" 
+          (ngModelChange)="apiKey.set($event || null)" 
           placeholder="api key"
           aria-label="API key" />
       </div>
@@ -24,263 +26,27 @@
     </div>
   </header>
 
-  <section class="filters-bar" aria-label="Filters">
-    <div class="filters-row">
-      <div class="filter-group custom-multiselect">
-        <label>Status:</label>
-        <div class="multiselect-container">
-          <button 
-            type="button"
-            class="multiselect-trigger" 
-            (click)="toggleStatusDropdown()">
-            <span class="multiselect-label">
-              @if (getSelectedStatusCount() === 0) {
-                Select status...
-              } @else if (getSelectedStatusCount() === 5) {
-                All statuses
-              } @else {
-                {{ getSelectedStatusCount() }} selected
-              }
-            </span>
-            <span class="multiselect-arrow">▼</span>
-          </button>
-          @if (statusDropdownOpen()) {
-            <div class="multiselect-dropdown" (click)="$event.stopPropagation()">
-              <label class="multiselect-option">
-                <input 
-                  type="checkbox" 
-                  [checked]="isStatusSelected('new')"
-                  (change)="toggleStatusFilter('new')" />
-                <span class="option-label">New</span>
-                <span class="option-count">{{ getCount(statusCounts(), 'pending') }}</span>
-              </label>
-              <label class="multiselect-option">
-                <input 
-                  type="checkbox" 
-                  [checked]="isStatusSelected('flagged')"
-                  (change)="toggleStatusFilter('flagged')" />
-                <span class="option-label">Flagged</span>
-                <span class="option-count">{{ getCount(statusCounts(), 'flagged') }}</span>
-              </label>
-              <label class="multiselect-option">
-                <input 
-                  type="checkbox" 
-                  [checked]="isStatusSelected('approved')"
-                  (change)="toggleStatusFilter('approved')" />
-                <span class="option-label">Approved</span>
-                <span class="option-count">{{ getCount(statusCounts(), 'approved') }}</span>
-              </label>
-              <label class="multiselect-option">
-                <input 
-                  type="checkbox" 
-                  [checked]="isStatusSelected('rejected')"
-                  (change)="toggleStatusFilter('rejected')" />
-                <span class="option-label">Rejected</span>
-                <span class="option-count">{{ getCount(statusCounts(), 'banned') }}</span>
-              </label>
-              <label class="multiselect-option">
-                <input 
-                  type="checkbox" 
-                  [checked]="isStatusSelected('highlighted')"
-                  (change)="toggleStatusFilter('highlighted')" />
-                <span class="option-label">Highlighted</span>
-                <span class="option-count">{{ getCount(statusCounts(), 'highlighted') }}</span>
-              </label>
-            </div>
-          }
-        </div>
-      </div>
+  <div class="filters-bar-row">
+    <app-filters-bar
+      [counts]="filterCounts()"
+      [totalCount]="allFetchedItems().length"
+      [filteredCount]="items().length"
+      [showViewToggle]="true"
+      [initialState]="filterState()"
+      (filtersChange)="onFiltersChange($event)"
+      (filtersCommit)="onFiltersCommit($event)"
+    ></app-filters-bar>
+    
+    <button class="multi-select-toggle" (click)="toggleMultiSelectMode()" aria-label="Toggle multi-edit mode">
+      <span class="icon">🗂</span>
+      <span>{{ multiSelectMode() ? 'Close multi-edit' : 'Multi-edit' }}</span>
+      @if (multiSelectMode() && selectedCount() > 0) {
+        <span class="multi-select-count">{{ selectedCount() }}</span>
+      }
+    </button>
+  </div>
 
-      <div class="filter-group">
-        <label for="filter-author">Author:</label>
-        <select id="filter-author" [(ngModel)]="filterAuthor">
-          <option value="all">all</option>
-          @for (author of getAuthorsSortedByCount(); track author) {
-            @if (author === 'unknown') {
-              <option value="unattributed">unattributed ({{ getCount(authorCounts(), author) }})</option>
-            } @else {
-              <option [value]="author">{{ getTruncatedAuthorId(author) }} ({{ getCount(authorCounts(), author) }})</option>
-            }
-          }
-        </select>
-      </div>
-
-      <div class="filter-group custom-multiselect">
-        <label>Preference:</label>
-        <div class="multiselect-container">
-          <button 
-            type="button"
-            class="multiselect-trigger" 
-            (click)="togglePreferenceDropdown()">
-            <span class="multiselect-label">
-              @if (getSelectedPreferenceCount() === 0) {
-                Select preference...
-              } @else if (getSelectedPreferenceCount() === preferenceOptions.length) {
-                All preferences
-              } @else {
-                {{ getSelectedPreferenceCount() }} selected
-              }
-            </span>
-            <span class="multiselect-arrow">▼</span>
-          </button>
-          @if (preferenceDropdownOpen()) {
-            <div class="multiselect-dropdown" (click)="$event.stopPropagation()">
-              <label class="multiselect-option">
-                <input 
-                  type="checkbox" 
-                  [checked]="isPreferenceSelected('prefer')"
-                  (change)="togglePreferenceFilter('prefer')" />
-                <span class="option-label">prefer</span>
-                <span class="option-count">{{ getCount(preferenceCounts(), 'prefer') }}</span>
-              </label>
-              <label class="multiselect-option">
-                <input 
-                  type="checkbox" 
-                  [checked]="isPreferenceSelected('mostly prefer')"
-                  (change)="togglePreferenceFilter('mostly prefer')" />
-                <span class="option-label">prefer-ish</span>
-                <span class="option-count">{{ getCount(preferenceCounts(), 'mostly prefer') }}</span>
-              </label>
-              <label class="multiselect-option">
-                <input 
-                  type="checkbox" 
-                  [checked]="isPreferenceSelected('uncertain')"
-                  (change)="togglePreferenceFilter('uncertain')" />
-                <span class="option-label">uncertain</span>
-                <span class="option-count">{{ getCount(preferenceCounts(), 'uncertain') }}</span>
-              </label>
-              <label class="multiselect-option">
-                <input 
-                  type="checkbox" 
-                  [checked]="isPreferenceSelected('mostly prevent')"
-                  (change)="togglePreferenceFilter('mostly prevent')" />
-                <span class="option-label">prevent-ish</span>
-                <span class="option-count">{{ getCount(preferenceCounts(), 'mostly prevent') }}</span>
-              </label>
-              <label class="multiselect-option">
-                <input 
-                  type="checkbox" 
-                  [checked]="isPreferenceSelected('prevent')"
-                  (change)="togglePreferenceFilter('prevent')" />
-                <span class="option-label">prevent</span>
-                <span class="option-count">{{ getCount(preferenceCounts(), 'prevent') }}</span>
-              </label>
-            </div>
-          }
-        </div>
-      </div>
-
-      <div class="filter-group custom-multiselect">
-        <label>Potential:</label>
-        <div class="multiselect-container">
-          <button 
-            type="button"
-            class="multiselect-trigger" 
-            (click)="togglePotentialDropdown()">
-            <span class="multiselect-label">
-              @if (getSelectedPotentialCount() === 0) {
-                Select potential...
-              } @else if (getSelectedPotentialCount() === potentialOptions.length) {
-                All potentials
-              } @else {
-                {{ getSelectedPotentialCount() }} selected
-              }
-            </span>
-            <span class="multiselect-arrow">▼</span>
-          </button>
-          @if (potentialDropdownOpen()) {
-            <div class="multiselect-dropdown" (click)="$event.stopPropagation()">
-              <label class="multiselect-option">
-                <input 
-                  type="checkbox" 
-                  [checked]="isPotentialSelected('100')"
-                  (change)="togglePotentialFilter('100')" />
-                <span class="option-label">Projected</span>
-                <span class="option-count">{{ getCount(potentialCounts(), '100') }}</span>
-              </label>
-              <label class="multiselect-option">
-                <input 
-                  type="checkbox" 
-                  [checked]="isPotentialSelected('75')"
-                  (change)="togglePotentialFilter('75')" />
-                <span class="option-label">Probable</span>
-                <span class="option-count">{{ getCount(potentialCounts(), '75') }}</span>
-              </label>
-              <label class="multiselect-option">
-                <input 
-                  type="checkbox" 
-                  [checked]="isPotentialSelected('50')"
-                  (change)="togglePotentialFilter('50')" />
-                <span class="option-label">Plausible</span>
-                <span class="option-count">{{ getCount(potentialCounts(), '50') }}</span>
-              </label>
-              <label class="multiselect-option">
-                <input 
-                  type="checkbox" 
-                  [checked]="isPotentialSelected('25')"
-                  (change)="togglePotentialFilter('25')" />
-                <span class="option-label">Possible</span>
-                <span class="option-count">{{ getCount(potentialCounts(), '25') }}</span>
-              </label>
-              <label class="multiselect-option">
-                <input 
-                  type="checkbox" 
-                  [checked]="isPotentialSelected('0')"
-                  (change)="togglePotentialFilter('0')" />
-                <span class="option-label">Preposterous</span>
-                <span class="option-count">{{ getCount(potentialCounts(), '0') }}</span>
-              </label>
-            </div>
-          }
-        </div>
-      </div>
-
-      <div class="filter-group">
-        <label for="filter-type">Type:</label>
-        <select id="filter-type" [(ngModel)]="filterType">
-          <option value="all">all</option>
-          <option value="sign_in_a_demonstration">🪧 Sign ({{ getCount(typeCounts(), 'sign_in_a_demonstration') }})</option>
-          <option value="social_media_post">📣 Social ({{ getCount(typeCounts(), 'social_media_post') }})</option>
-          <option value="chat_conversation">💬 Chat ({{ getCount(typeCounts(), 'chat_conversation') }})</option>
-          <option value="notification_alert">🔔 Alert ({{ getCount(typeCounts(), 'notification_alert') }})</option>
-          <option value="ai_agent_query">🤖 AI ({{ getCount(typeCounts(), 'ai_agent_query') }})</option>
-          <option value="review">⭐ Review ({{ getCount(typeCounts(), 'review') }})</option>
-          <option value="map_visualization">🗺️ Map ({{ getCount(typeCounts(), 'map_visualization') }})</option>
-          <option value="photograph">📸 Photo ({{ getCount(typeCounts(), 'photograph') }})</option>
-        </select>
-      </div>
-
-      <div class="filter-group search-group">
-        <label for="filter-search">Search:</label>
-        <input 
-          id="filter-search" 
-          type="text" 
-          [(ngModel)]="searchText" 
-          placeholder="any text" />
-      </div>
-
-      <div class="filter-group">
-        <label for="order-by">Order by:</label>
-        <select id="order-by" [(ngModel)]="orderBy">
-          <option value="date">Date</option>
-          <option value="status">Status</option>
-          <option value="author">Author</option>
-          <option value="confidence">AI Confidence</option>
-          <option value="type">Type</option>
-          <option value="preference">Preference</option>
-        </select>
-      </div>
-
-      <div class="filter-info">
-        <span class="count-display">{{ items().length }} / {{ allFetchedItems().length }}</span>
-        <button class="view-toggle-btn" (click)="toggleViewMode()" [attr.aria-label]="viewMode() === 'list' ? 'Switch to grid view' : 'Switch to list view'" [title]="viewMode() === 'list' ? 'Grid view' : 'List view'">
-          {{ viewMode() === 'list' ? '⊞' : '☰' }}
-        </button>
-      </div>
-    </div>
-  </section>
-
-  @if (items().length === 500 || page() > 0) {
+  @if (items().length >= 500 || page() > 0) {
     <section class="pagination-section" aria-label="Pagination">
       <button 
         class="pagination-btn" 
@@ -317,6 +83,15 @@
                 
                 <button class="nav-btn nav-prev" (click)="prevItem()" [disabled]="selectedItemIndex() <= 0" aria-label="Previous item">←</button>
                 <button class="nav-btn nav-next" (click)="nextItem()" [disabled]="selectedItemIndex() >= items().length - 1" aria-label="Next item">→</button>
+
+                <div class="lightbox-actions">
+                  <button class="image-action-btn" (click)="$event.stopPropagation(); openImageReplacementModal(selectedItem()?._id!)" aria-label="Replace image from lightbox">
+                    ✎ Replace
+                  </button>
+                  <button class="image-action-btn ghost" (click)="$event.stopPropagation(); openQrModal(selectedItem()?._id!)" aria-label="Open scanner QR for this image">
+                    📱 QR
+                  </button>
+                </div>
                 
                 <div class="lightbox-main">
                   <div class="lightbox-info-boxes">
@@ -401,6 +176,22 @@
 
                   <div class="lightbox-image-container">
                     <img [src]="selectedItem().screenshot_url" alt="Future scenario screenshot" id="lightbox-title" />
+                    <div 
+                      class="plausibility-scale"
+                      role="img"
+                      [attr.aria-label]="getIndicatorLabel(selectedItem())">
+                      @for (slot of Array(9); track $index; let idx = $index) {
+                        <span 
+                          class="scale-dot"
+                          [class.active]="getIndicatorSlot(selectedItem()) === idx + 1"
+                          [class.prefer]="isPreferDirection(selectedItem())"
+                          [class.prevent]="isPreventDirection(selectedItem())"
+                          [class.neutral]="isNeutralDirection(selectedItem())"
+                          [class.mostly-prefer]="isMostlyPrefer(selectedItem())"
+                          [class.mostly-prevent]="isMostlyPrevent(selectedItem())">
+                        </span>
+                      }
+                    </div>
                   </div>
                 </div>
 
@@ -423,6 +214,15 @@
                       <span class="user-count-link">{{ getUserItemCount('unknown') }} unattributed</span>
                     }
                   </button>
+                    </div>
+
+                    <div class="status-row">
+                      <label for="status-select">Status</label>
+                      <select id="status-select" [ngModel]="selectedItem()._private_moderation" (ngModelChange)="setStatusFromSidebar($event)" aria-label="Set item status">
+                        @for (option of STATUS_OPTIONS; track option.value) {
+                          <option [ngValue]="option.value">{{ option.label }}</option>
+                        }
+                      </select>
                     </div>
 
                     <div class="card-metadata">
@@ -523,9 +323,32 @@
                           </select>
                         </div>
                       </div>
+
+                      <div class="metadata-editor">
+                        <h3>Metadata</h3>
+                        <div class="metadata-grid">
+                          @for (entry of editableMetadata(); track entry[0]) {
+                            <label class="metadata-field">
+                              <span class="field-name">{{ entry[0] }}</span>
+                              <input 
+                                type="text" 
+                                [ngModel]="entry[1]"
+                                (ngModelChange)="updateMetadataField(entry[0], $event)"
+                                [attr.aria-label]="'Edit metadata field ' + entry[0]" />
+                            </label>
+                          }
+                        </div>
+                      </div>
+
+                      <div class="ai-regenerate">
+                        <p class="ai-regenerate-help">Regenerate AI fields from the current edits.</p>
+                        <button class="regenerate-btn" (click)="regenerateAiFieldsFromUserInput()" aria-label="Regenerate AI generated fields from current values">
+                          ♻️ Regenerate AI fields
+                        </button>
+                      </div>
                     </div>
 
-                    <div class="card-footer">
+                    <div class="card-footer pinned-footer">
                       <button 
                         class="publish-btn"
                         [class.published]="selectedItem()._private_moderation >= 4"
@@ -551,17 +374,82 @@
         }
         <div class="thumbnails-grid" role="list">
           @for (item of items(); track item._id) {
-            <div class="thumbnail-item" [attr.data-status]="LEVELS[item._private_moderation]" (click)="selectItem(item)" role="button" tabindex="0" [class.selected]="selectedItem()?._id === item._id">
-              <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
+            <div class="thumbnail-item" [attr.data-status]="LEVELS[item._private_moderation]" (click)="selectItem(item)" role="button" tabindex="0" [class.selected]="selectedItem()?._id === item._id" [class.select-mode]="multiSelectMode()" [class.bulk-selected]="isItemSelected(item._id)">
+              @if (multiSelectMode()) {
+                <label class="select-checkbox">
+                  <input 
+                    type="checkbox" 
+                    [checked]="isItemSelected(item._id)"
+                    (click)="$event.stopPropagation()"
+                    (change)="toggleItemSelection(item._id)"
+                    aria-label="Select item for bulk edit" />
+                </label>
+              }
+              <div class="thumbnail-image">
+                <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
+                <div 
+                  class="plausibility-scale"
+                  role="img"
+                  [attr.aria-label]="getIndicatorLabel(item)">
+                  @for (slot of Array(9); track $index; let idx = $index) {
+                    <span 
+                      class="scale-dot"
+                      [class.active]="getIndicatorSlot(item) === idx + 1"
+                      [class.prefer]="isPreferDirection(item)"
+                      [class.prevent]="isPreventDirection(item)"
+                      [class.neutral]="isNeutralDirection(item)"
+                      [class.mostly-prefer]="isMostlyPrefer(item)"
+                      [class.mostly-prevent]="isMostlyPrevent(item)">
+                    </span>
+                  }
+                </div>
+                <div class="thumbnail-actions">
+                  <button class="thumb-btn" (click)="$event.stopPropagation(); openImageReplacementModal(item._id)" aria-label="Replace image">
+                    ✎
+                  </button>
+                  <button class="thumb-btn ghost" (click)="$event.stopPropagation(); openQrModal(item._id)" aria-label="Open scanner QR for this image">
+                    QR
+                  </button>
+                </div>
+              </div>
             </div>
+          }
+
+          @if (replacingImageItemId() && currentReplacingImageUrl() && workspaceId() && apiKey()) {
+            <app-image-replacement-modal
+              [workspaceId]="workspaceId()!"
+              [apiKey]="apiKey()!"
+              [itemId]="replacingImageItemId()!"
+              [currentImageUrl]="currentReplacingImageUrl()!"
+              (closed)="closeImageReplacementModal()"
+              (imageReplaced)="onImageReplaced(replacingImageItemId()!, $event)"
+            />
+          }
+
+          @if (showQRModal() && qrItemId() && workspaceId() && apiKey()) {
+            <app-qr-code-modal
+              [workspaceId]="workspaceId()!"
+              [apiKey]="apiKey()!"
+              [itemId]="qrItemId()!"
+              (closed)="closeQrModal()"
+            />
           }
         </div>
       </div>
     } @else {
       <div class="items-grid" role="list">
         @for (item of items(); track item._id) {
-          <article class="item-card" [attr.data-status]="LEVELS[item._private_moderation]" role="listitem">
+          <article class="item-card" [attr.data-status]="LEVELS[item._private_moderation]" role="listitem" [class.select-mode]="multiSelectMode()" [class.bulk-selected]="isItemSelected(item._id)">
             <div class="card-header">
+              @if (multiSelectMode()) {
+                <label class="select-checkbox">
+                  <input 
+                    type="checkbox" 
+                    [checked]="isItemSelected(item._id)"
+                    (change)="toggleItemSelection(item._id)"
+                    aria-label="Select item for bulk edit" />
+                </label>
+              }
               <button class="user-info" (click)="filterByUser(item.author_id)" [title]="getEmail(item)">
                 @if (item.author_id && item.author_id !== 'unknown') {
                   <span class="user-count-link">{{ getUserItemCount(item.author_id) }} items</span>
@@ -574,7 +462,33 @@
 
             <div class="screenshot-container">
               @if (!isShowingDescription(item._id)) {
-              <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
+              <div class="screenshot-image-wrapper">
+                <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
+                <div 
+                  class="plausibility-scale"
+                  role="img"
+                  [attr.aria-label]="getIndicatorLabel(item)">
+                  @for (slot of Array(9); track $index; let idx = $index) {
+                    <span 
+                      class="scale-dot"
+                      [class.active]="getIndicatorSlot(item) === idx + 1"
+                      [class.prefer]="isPreferDirection(item)"
+                      [class.prevent]="isPreventDirection(item)"
+                      [class.neutral]="isNeutralDirection(item)"
+                      [class.mostly-prefer]="isMostlyPrefer(item)"
+                      [class.mostly-prevent]="isMostlyPrevent(item)">
+                    </span>
+                  }
+                </div>
+                <div class="screenshot-actions">
+                  <button class="image-action-btn" (click)="openImageReplacementModal(item._id)" aria-label="Replace image">
+                    ✎ Replace
+                  </button>
+                  <button class="image-action-btn ghost" (click)="openQrModal(item._id)" aria-label="Open scanner QR for this image">
+                    📱 QR
+                  </button>
+                </div>
+              </div>
               <button class="toggle-view-btn" (click)="toggleDescriptionView(item._id)" aria-label="Show description">
                 ℹ️
               </button>
@@ -750,3 +664,77 @@
     </div>
   }
 }
+
+  @if (multiSelectMode()) {
+    <div class="bulk-bar" role="region" aria-label="Bulk edit panel">
+      <div class="bulk-summary">
+        <strong>{{ selectedCount() }}</strong> selected
+        <button class="select-all-btn" (click)="selectAll()" [disabled]="items().length === 0" aria-label="Select all items">Select all</button>
+      </div>
+      <div class="bulk-controls">
+        <label>
+          Status
+          <select [ngModel]="bulkStatus()" (ngModelChange)="bulkStatus.set($event)">
+            <option [ngValue]="null">No change</option>
+            <option [ngValue]="0">Rejected</option>
+            <option [ngValue]="1">Flagged</option>
+            <option [ngValue]="2">Pending</option>
+            <option [ngValue]="3">Not Flagged</option>
+            <option [ngValue]="4">Approved</option>
+            <option [ngValue]="5">Highlighted</option>
+          </select>
+        </label>
+        <label>
+          Author
+          <input type="text" [ngModel]="bulkAuthor()" (ngModelChange)="bulkAuthor.set($event || '')" placeholder="author id" />
+        </label>
+        <label>
+          Plausibility
+          <select [ngModel]="bulkPlausibility()" (ngModelChange)="bulkPlausibility.set(parseNumber($event))">
+            <option [ngValue]="null">No change</option>
+            <option [ngValue]="100">Projected (100)</option>
+            <option [ngValue]="75">Probable (75)</option>
+            <option [ngValue]="50">Plausible (50)</option>
+            <option [ngValue]="25">Possible (25)</option>
+            <option [ngValue]="0">Preposterous (0)</option>
+          </select>
+        </label>
+        <label>
+          Favorable future
+          <select [ngModel]="bulkFavorable()" (ngModelChange)="bulkFavorable.set($event || null)">
+            <option [ngValue]="null">No change</option>
+            <option value="prefer">prefer</option>
+            <option value="mostly prefer">mostly prefer</option>
+            <option value="uncertain">uncertain</option>
+            <option value="mostly prevent">mostly prevent</option>
+            <option value="prevent">prevent</option>
+          </select>
+        </label>
+        <label>
+          Type
+          <select [ngModel]="bulkType()" (ngModelChange)="bulkType.set($event || null)">
+            <option [ngValue]="null">No change</option>
+            <option value="sign_in_a_demonstration">Sign</option>
+            <option value="social_media_post">Social</option>
+            <option value="chat_conversation">Chat</option>
+            <option value="notification_alert">Alert</option>
+            <option value="ai_agent_query">AI</option>
+            <option value="review">Review</option>
+            <option value="map_visualization">Map</option>
+            <option value="photograph">Photo</option>
+          </select>
+        </label>
+      </div>
+      <div class="bulk-actions">
+        <button class="bulk-btn" (click)="applyBulkChanges()" [disabled]="bulkSaving() || selectedCount() === 0">Apply to selected</button>
+        <button class="bulk-btn ghost" (click)="clearBulkSelection()" [disabled]="bulkSaving()">Clear selection</button>
+        <button class="bulk-btn ghost" (click)="toggleMultiSelectMode()" [disabled]="bulkSaving()">Exit</button>
+      </div>
+      @if (bulkError()) {
+        <div class="bulk-error">{{ bulkError() }}</div>
+      }
+      @if (bulkSaving()) {
+        <div class="bulk-progress">Applying changes...</div>
+      }
+    </div>
+  }

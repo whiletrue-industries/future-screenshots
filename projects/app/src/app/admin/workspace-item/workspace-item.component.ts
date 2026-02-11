@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 @Component({
@@ -8,10 +8,14 @@ import { RouterLink } from '@angular/router';
   ],
   templateUrl: './workspace-item.component.html',
   styleUrl: './workspace-item.component.less',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(document:click)': 'closeIngestMenu()'
+  }
 })
 export class WorkspaceItemComponent {
   workspace = input<any>();
+  ingestMenuOpen = signal(false);
   ingestSuffix = computed(() => {
     const w = this.workspace();
     if (w && w.id && w.keys) {
@@ -21,6 +25,19 @@ export class WorkspaceItemComponent {
   });
   ingestSuffixWorkshop = computed(() => {
     return this.ingestSuffix() + '&ws=true';
+  });
+  
+  ingestSuffixAutomatic = computed(() => {
+    return this.ingestSuffix() + '&automatic=true';
+  });
+  
+  mapLink = computed(() => {
+    const w = this.workspace();
+    if (w && w.id) {
+      // Using workspace id as tag, with default language (can be changed by user)
+      return `/?tag=${w.id}&lang=he`;
+    }
+    return '';
   });
 
   formattedDate = computed(() => {
@@ -49,4 +66,13 @@ export class WorkspaceItemComponent {
     if (city && country) return `${city}, ${country}`;
     return city || country;
   });
+  
+  toggleIngestMenu(event: Event) {
+    event.stopPropagation();
+    this.ingestMenuOpen.update(open => !open);
+  }
+  
+  closeIngestMenu() {
+    this.ingestMenuOpen.set(false);
+  }
 }

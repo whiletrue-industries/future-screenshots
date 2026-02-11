@@ -11,6 +11,7 @@ export interface WorkspaceMetadata {
 
   // Optional fields
   keywords?: string[];
+  active_templates?: string[]; // Array of template IDs to show in the template gallery
 
   // Auto-generated fields
   'context-label'?: string; // '{City}, {Month Name} {Year}'
