@@ -358,6 +358,31 @@ export class ModerateComponent {
     this.updateModeration(itemId, 2);
   }
 
+  permanentlyDelete(itemId: string) {
+    const confirmMessage = 'Are you sure you want to permanently delete this item? This action cannot be reversed.';
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    const workspaceId = this.workspaceId();
+    const apiKey = this.apiKey();
+    if (workspaceId && apiKey) {
+      this.api.deleteItem(workspaceId, apiKey, itemId).subscribe({
+        next: () => {
+          // Remove item from local state
+          this.allFetchedItems.set(this.allFetchedItems().filter(item => item._id !== itemId));
+          // Clear selection if deleted item was selected
+          if (this.selectedItem()?._id === itemId) {
+            this.selectedItem.set(null);
+          }
+        },
+        error: (err) => console.error(`Error permanently deleting item ${itemId}:`, err)
+      });
+    } else {
+      console.error('workspaceId or apiKey is null');
+    }
+  }
+
   setStatusFromSidebar(level: number) {
     const workspaceId = this.workspaceId();
     const apiKey = this.apiKey();
