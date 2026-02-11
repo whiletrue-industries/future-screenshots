@@ -1,0 +1,34 @@
+name: PR Build Check
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (LTS)
+        uses: actions/setup-node@v4
+        with:
+          # Angular 19 supports active LTS Node versions; pin to 20.x for stability
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Check build output
+        run: |
+          if [ ! -d "dist/app" ]; then
+            echo "Build failed: dist/app directory not found"
+            exit 1
+          fi
+          echo "Build successful!"

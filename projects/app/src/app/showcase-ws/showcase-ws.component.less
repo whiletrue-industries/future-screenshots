@@ -5,10 +5,123 @@
     height: 100%;
     display: flex;
     position: relative;
+    // Prevent overscroll and pull-to-refresh on mobile
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: auto;
 
     .container {
         width: 100%;
         height: 100%;
+        cursor: default;
+        // Disable browser touch handling - let JavaScript handle all gestures
+        touch-action: none;
+        pointer-events: auto; // Ensure canvas captures all pointer events
+        
+        // Grab cursor when hovering over items
+        &.hovering {
+            cursor: grab;
+        }
+        
+        // Grabbing cursor during active drag
+        &.hovering.dragging {
+            cursor: grabbing;
+        }
+    }
+
+    .preloader {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.3);
+        z-index: 2000;
+        pointer-events: none;
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(78, 2, 178, 0.2);
+            border-top: 4px solid #4E02B2;
+            border-right: 4px solid #4E02B2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    .logo-link {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        width: 176px; // 4x the button size
+        height: 176px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+
+        .logo-icon {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+    }
+
+    .home-button {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        width: 44px;
+        height: 44px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        transition: all 0.2s ease;
+        box-shadow: none;
+
+        .button-icon {
+            width: 24px;
+            height: 24px;
+            color: #4E02B2;
+        }
+
+        &:hover {
+            transform: scale(1.05);
+        }
+
+        &:active {
+            transform: scale(0.95);
+        }
+
+        // Mobile responsive
+        @media (max-width: 768px) {
+            top: 8px;
+            left: 8px;
+            width: 40px;
+            height: 40px;
+
+            .button-icon {
+                width: 20px;
+                height: 20px;
+            }
+        }
     }
 
     .logo {
@@ -20,106 +133,435 @@
         .background-image;
         background-image: url(../../../public/futures-map-logo.svg);
         background-size: contain;
+        
+        // Hide logo on mobile
+        @media (max-width: 768px) {
+            display: none;
+        }
     }
 
-    .controls-container {
+    .workspace-title {
         position: absolute;
-        bottom: 0;
-        right: 20px;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-family: "Readex Pro", "Miriam Libre", "Source Sans 3", sans-serif;
+        color: @color-gray;
+        font-size: 16px;
+        font-weight: 400;
+        z-index: 99;
+        max-width: calc(100% - 40px);
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding: 0 20px;
+        
+        // Only animate if title needs animation (is truncated)
+        &.needs-animation {
+            white-space: pre;
+            overflow: visible;
+            text-overflow: clip;
+            animation: scrollTitle 20s linear infinite;
+            animation-delay: 2s; // Start animation after 2 seconds
+        }
+        
+        // Mobile responsive
+        @media (max-width: 768px) {
+            max-width: calc(100% - 40px);
+            font-size: 14px;
+            top: 10px;
+            
+            // On mobile, when text is truncated, it will scroll on touch/tap
+            &:active {
+                overflow-x: auto;
+                overflow-y: hidden;
+                text-overflow: clip;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: thin; // Show thin scrollbar for accessibility
+                &::-webkit-scrollbar {
+                    height: 2px; // Thin scrollbar for Chrome/Safari
+                }
+                &::-webkit-scrollbar-thumb {
+                    background: rgba(0, 0, 0, 0.2);
+                    border-radius: 1px;
+                }
+            }
+        }
+    }
+
+    .layout-toggle-centered {
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1000;
         display: flex;
         flex-direction: row;
-        gap: 8px;
-        z-index: 1000;
+        gap: 16px;
+        align-items: center;
+        
+        // Mobile responsive
+        @media (max-width: 768px) {
+            bottom: 8px;
+            gap: 8px;
+        }
 
-        .control-tab {
+        .layout-toggle {
             position: relative;
-            background: white;
-            border-radius: 12px 12px 0 0;
-            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
-            overflow: hidden;
-
-            .tab-background {
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                z-index: 1;
+            background: rgba(185, 105, 255, 0.05);
+            border: 1px solid #F1E5F3;
+            border-radius: 28px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            padding: 4px;
+            backdrop-filter: blur(12px);
+            display: flex;
+            gap: 0;
+            
+            // Mobile responsive
+            @media (max-width: 768px) {
+                border-radius: 20px;
+                padding: 3px;
             }
 
-            .tab-buttons {
+            .toggle-buttons {
                 position: relative;
                 z-index: 2;
                 display: flex;
-                padding: 8px;
-                gap: 4px;
+                gap: 0;
             }
 
-            .tab-button {
-                width: 44px;
-                height: 44px;
+            .toggle-button {
+                flex: 1;
+                min-width: 141px;
+                height: 47px;
+                padding: 0 24px;
                 border: none;
                 background: transparent;
                 cursor: pointer;
-                border-radius: 8px;
+                border-radius: 23.5px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                color: #4E02B2;
+                font-size: 14px;
+                font-weight: 600;
+                opacity: 0.5;
+                position: relative;
+                
+                // Mobile responsive
+                @media (max-width: 768px) {
+                    min-width: 90px;
+                    height: 40px;
+                    padding: 0 12px;
+                    font-size: 12px;
+                    border-radius: 18px;
+                }
+
+                .button-content {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    pointer-events: none;
+                    white-space: nowrap;
+                }
+
+                .button-icon {
+                    width: 20px;
+                    height: 20px;
+                    flex-shrink: 0;
+                    opacity: 0.5;
+                    transition: opacity 0.3s ease;
+                    
+                    // Mobile responsive
+                    @media (max-width: 768px) {
+                        width: 16px;
+                        height: 16px;
+                    }
+                }
+
+                &.active .button-icon {
+                    opacity: 1;
+                }
+
+                .button-label {
+                    pointer-events: none;
+                }
+
+                &:hover {
+                    opacity: 0.7;
+                }
+
+                &.active {
+                    background: #FFFDF6;
+                    border: 1px solid #F1E5F3;
+                    opacity: 1;
+                    color: #4E02B2;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+                }
+
+                &.map-button {
+                    border-radius: 23.5px;
+                }
+
+                &.clusters-button {
+                    border-radius: 23.5px;
+                }
+            }
+        }
+
+        .svg-auto-toggle {
+            position: absolute;
+            bottom: 0;
+            left: -180px;
+
+            .svg-auto-button {
+                width: 52px;
+                height: 52px;
+                border: none;
+                background: white;
+                cursor: pointer;
+                border-radius: 12px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 transition: all 0.2s ease;
                 color: #666;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+
+                .button-icon {
+                    width: 28px;
+                    height: 28px;
+                }
 
                 &:hover {
                     color: #333;
-                    background: rgba(0, 0, 0, 0.05);
+                    transform: scale(1.05);
                 }
 
                 &.active {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                     color: white;
-                }
-
-                .button-icon {
-                    width: 24px;
-                    height: 24px;
-                    pointer-events: none;
+                    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
                 }
             }
         }
+    }
 
-        .layout-tab {
-            .selection-indicator {
-                position: absolute;
-                top: 8px;
-                left: 8px;
-                width: 44px;
-                height: 44px;
-                background: #ccc;
+    .zoom-controls {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        z-index: 1000;
+        transition: right 0.3s ease-out;
+        pointer-events: auto; // Ensure controls are interactive
+
+        &.sidebar-open {
+            right: 520px; // Sidebar width (500px) + margin (20px)
+        }
+        
+        // Show zoom controls on all screen sizes, including mobile
+        @media (max-width: 768px) {
+            top: 8px;
+            right: 8px;
+        }
+
+        .zoom-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .zoom-button {
+            width: 44px;
+            height: 44px;
+            border: none;
+            background: white;
+            cursor: pointer;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            color: #666;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+            &:hover {
+                color: #333;
+                background: rgba(0, 0, 0, 0.05);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            }
+
+            .button-icon {
+                width: 24px;
+                height: 24px;
+                pointer-events: none;
+            }
+        }
+
+        .showcase-toggle {
+            width: 44px;
+            height: 44px;
+            border: none;
+            background: white;
+            cursor: pointer;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            color: #666;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+            .button-icon {
+                width: 24px;
+                height: 24px;
+            }
+
+            &:hover {
+                color: #333;
+                transform: scale(1.05);
+                box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+            }
+
+            &.active {
+                background: #4CAF50;
+                color: white;
+                box-shadow: 0 3px 12px rgba(76, 175, 80, 0.4);
+            }
+        }
+
+        .search-section {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            position: relative;
+
+            .zoom-button.active {
+                background: #698CFF;
+                color: white;
+                box-shadow: 0 3px 12px rgba(105, 140, 255, 0.4);
+            }
+
+            .search-input-container {
+                display: flex;
+                align-items: center;
+                background: white;
                 border-radius: 8px;
-                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                z-index: 1;
-            }
-        }
-
-        .showcase-tab {
-            .showcase-indicator {
+                padding: 8px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+                animation: slideIn 0.2s ease;
+                gap: 4px;
+                width: 200px;
                 position: absolute;
+                right: 100%;
                 top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: transparent;
-                transition: background-color 0.3s ease;
-                border-radius: 12px 12px 0 0;
+                margin-right: 8px;
 
-                &.active {
-                    background: #4CAF50;
+                .search-input {
+                    border: none;
+                    outline: none;
+                    padding: 4px;
+                    font-size: 14px;
+                    flex: 1;
+                    background: transparent;
+                }
+
+                .search-clear {
+                    border: none;
+                    background: transparent;
+                    cursor: pointer;
+                    font-size: 20px;
+                    line-height: 1;
+                    padding: 0 4px;
+                    color: #666;
+                    transition: color 0.2s ease;
+
+                    &:hover {
+                        color: #333;
+                    }
                 }
             }
 
-            .showcase-button {
-                &.active {
-                    color: white;
+            @keyframes slideIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(-10px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
                 }
             }
         }
+        
+        .filter-toggle {
+            width: 44px;
+            height: 44px;
+            border: none;
+            background: white;
+            cursor: pointer;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            color: #666;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+            .button-icon {
+                width: 24px;
+                height: 24px;
+            }
+
+            &:hover {
+                color: #333;
+                transform: scale(1.05);
+                box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+            }
+
+            &.active {
+                background: #FF9800;
+                color: white;
+                box-shadow: 0 3px 12px rgba(255, 152, 0, 0.4);
+            }
+        }
+    }
+    
+    .filters-bar-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 999;
+        transform: translateY(-100%);
+        transition: transform 0.3s ease-out;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        pointer-events: auto;
+        
+        &.open {
+            transform: translateY(0);
+        }
+    }
+}
+
+// Animation for scrolling truncated titles - moves continuously right to left (negative direction)
+@keyframes scrollTitle {
+    0% {
+        transform: translateX(-50%);
+    }
+    100% {
+        transform: translateX(calc(-50% - 100%)); // Scroll completely to the left
+    }
+}
+
+// Utility class to hide elements on mobile
+.hide-on-mobile {
+    @media (max-width: 768px) {
+        display: none !important;
     }
 }

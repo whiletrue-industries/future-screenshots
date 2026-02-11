@@ -439,7 +439,7 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
       maxZoom: 8,
       minZoom: 2,
       zoomSnap: 0,
-      zoomControl: false,
+      zoomControl: this.platform.isDesktop,
       attributionControl: false
     });
     map.fitBounds(bounds);
@@ -450,14 +450,24 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
     });
     this.addTileLayer(map);
     timer(0).subscribe(() => {
-      if (this.doLoop) {
+      // Add mask layer only if doLoop is enabled and the mask SVG element exists
+      // This prevents errors when the mask isn't present in the DOM
+      if (this.doLoop && this.maskElement?.nativeElement) {
         const maskElement = this.maskElement.nativeElement.querySelector('svg');
-        this.maskLayer = this.L.svgOverlay(maskElement, bounds);
-        this.maskLayer?.addTo(map);
+        if (maskElement) {
+          this.maskLayer = this.L.svgOverlay(maskElement, bounds);
+          this.maskLayer?.addTo(map);
+        }
       }
-      const clusterLabelsElement = this.clusterLabelsElement.nativeElement.querySelector('svg');
-      this.clusterLabelsLayer = this.L.svgOverlay(clusterLabelsElement, bounds);
-      this.clusterLabelsLayer?.addTo(map);
+      // Add cluster labels layer only if the SVG element exists
+      // This ensures the overlay is only created when the required DOM element is available
+      if (this.clusterLabelsElement?.nativeElement) {
+        const clusterLabelsElement = this.clusterLabelsElement.nativeElement.querySelector('svg');
+        if (clusterLabelsElement) {
+          this.clusterLabelsLayer = this.L.svgOverlay(clusterLabelsElement, bounds);
+          this.clusterLabelsLayer?.addTo(map);
+        }
+      }
     });
     return map;
   }

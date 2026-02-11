@@ -316,6 +316,22 @@ export class ApiService {
 }
 ```
 
+### 3. Triggering AI Re‑analysis from the UI
+
+Moderators can now regenerate AI-generated metadata for a single item from the lightbox sidebar.
+
+- Button: "Regenerate AI fields" inside the item sidebar in Moderate view
+- Inputs used: `content_title`, `future_scenario_description`, `future_scenario_tagline`, `future_scenario_topics`
+- Topics source: derived from current `tags` when present, otherwise existing `future_scenario_topics`
+- Mechanism: frontend calls `AdminApiService.updateItem()` sending the user-edited fields and clears `embedding` and related certainty fields; the backend reprocesses and updates AI outputs
+
+Implementation entrypoint: [projects/app/src/app/admin/moderate/moderate.component.ts](projects/app/src/app/admin/moderate/moderate.component.ts) method `regenerateAiFieldsFromUserInput()`.
+
+Usage notes:
+- Ensure you have workspace ID and API key in the topbar inputs
+- Select an item, edit fields, then press "Regenerate AI fields"
+- Use the "Refresh" control if needed to see updated AI outputs across the grid
+
 ### 2. Define Data Models
 
 Create TypeScript interfaces for API data:
@@ -843,6 +859,85 @@ When extending the platform, ensure:
 - [ ] Multi-language support considered
 - [ ] Mobile-first design maintained
 - [ ] Performance optimizations applied
+
+## Example: Fisheye Lens Effect
+
+The fisheye lens effect demonstrates how to add interactive visual effects to the showcase:
+
+### Architecture
+
+**FisheyeEffectService** (`fisheye-effect.service.ts`)
+- Manages fisheye lens calculations
+- Stores configuration (radius, magnification, distortion)
+- Provides `calculateEffect()` method that returns scale, position offset, and render order based on distance from focus point
+- Uses smooth falloff function (ease-out cubic) for natural transitions
+
+**ThreeRendererService Integration** (`three-renderer.service.ts`)
+- Hooks into `onMouseMove()` to apply effect during normal mouse movement
+- Applies effect by modifying mesh scale, position, and renderOrder
+- Uses PhotoData's logical position to work with animations
+- Resets effect when mouse leaves canvas
+
+**Component Integration** (`showcase-ws.component.ts`)
+- Adds toggle button in UI controls
+- Supports query parameters for configuration
+- Provides `toggleFisheyeEffect()` method
+
+### Key Techniques
+
+**1. Working with PhotoData:**
+```typescript
+const photoData = this.meshToPhotoData.get(mesh);
+let logicalPosition: THREE.Vector3;
+
+if (photoData && photoData.currentPosition) {
+  // Use PhotoData's current position as logical position
+  logicalPosition = new THREE.Vector3(
+    photoData.currentPosition.x,
+    photoData.currentPosition.y,
+    photoData.currentPosition.z
+  );
+}
+```
+
+**2. Applying Visual Transformations:**
+```typescript
+const effect = this.fisheyeService.calculateEffect(logicalPosition, focusPoint);
+
+if (effect) {
+  // Apply scale (magnification)
+  mesh.scale.set(effect.scale, effect.scale, 1);
+  
+  // Apply position offset (radial displacement)
+  mesh.position.set(
+    logicalPosition.x + effect.positionOffset.x,
+    logicalPosition.y + effect.positionOffset.y,
+    logicalPosition.z
+  );
+  
+  // Apply render order (z-index)
+  mesh.renderOrder = effect.renderOrder;
+}
+```
+
+**3. Configuration via Query Parameters:**
+```typescript
+const qp = this.activatedRoute.snapshot.queryParams;
+if (qp['fisheye_radius']) {
+  const radius = parseFloat(qp['fisheye_radius']);
+  if (!isNaN(radius)) {
+    this.rendererService.setFisheyeConfig({ radius });
+  }
+}
+```
+
+### Best Practices
+
+- **Separation of concerns:** Keep effect calculations in a separate service
+- **Work with logical positions:** Use PhotoData positions to avoid conflicts with animations
+- **Smooth transitions:** Use easing functions for natural visual effects
+- **Performance:** Apply effects only during mouse movement, not every frame
+- **Configuration:** Allow customization via query parameters for flexibility
 
 ## Getting Help
 

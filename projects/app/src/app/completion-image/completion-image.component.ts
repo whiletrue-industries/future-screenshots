@@ -9,6 +9,12 @@ import { StateService } from '../../state.service';
   styleUrl: './completion-image.component.less'
 })
 export class CompletionImageComponent {
+  hasEvaluation = computed(() => {
+    const item = this.api.item();
+    const plausibility = item?.plausibility;
+    const favorable = item?.favorable_future;
+    return typeof plausibility === 'number' && favorable !== undefined && favorable !== null && favorable !== '';
+  });
 
   prefer = computed(() => {
     const ff = this.api.item()?.favorable_future || '';
@@ -26,6 +32,9 @@ export class CompletionImageComponent {
   });
 
   rotate = computed(() => {
+    if (!this.hasEvaluation()) {
+      return 0;
+    }
     const sign = this.preferred() ? -1 : 1;
     return (100 - (this.api.item()?.plausibility || 0)) / 100 * 32 * sign;
   });
