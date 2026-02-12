@@ -45,6 +45,12 @@ export class ApiService {
     return false;
   });
 
+  showNoPaperOption = computed(() => {
+    const workspace = this.workspace();
+    // Check if workspace has enable_no_paper setting, default to true if not set
+    return workspace?.enable_no_paper !== false;
+  });
+
   constructor(private http: HttpClient, private zone: NgZone, @Inject(LOCALE_ID) public locale_: string) {
     this.locale = locale_.split('-')[0]; // Use the first part of the locale, e.g., 'nl' from 'nl-NL'
     this.uploadImageInProgress.next(false);
@@ -203,8 +209,6 @@ export class ApiService {
       tap((data: any) => {
         console.log('Screenshot uploaded successfully', data.metadata);
         this.item.update((item: any) => {
-          // Merge AI metadata with current item
-          // Backend API preserves user-set favorable_future and plausibility values
           return Object.assign({}, item, data.metadata);
         });
       })
@@ -255,10 +259,20 @@ export class ApiService {
         }
       };
       eventSource.onerror = (error) => {
-        console.error('EVENTSOURCE ERROR', error);
-        eventSource.close(); //
-        observer.complete();
-        // observer.error(error);
+        // Treat stream errors as graceful completion so UI can unblock
+        const readyState = (eventSource as any)?.readyState;
+        if (readyState === EventSource.CLOSED || readyState === EventSource.CONNECTING) {
+          this.zone.run(() => {
+            // Emit a distinct stream-error status so callers can treat it as recoverable
+            observer.next({ kind: 'status', status: 'stream-error' });
+            observer.complete();
+          });
+        } else {
+          this.zone.run(() => {
+            observer.error(error);
+          });
+        }
+        eventSource.close();
       };
       return () => {
         eventSource.close();

@@ -21,8 +21,9 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
+          # Pin to active LTS for Angular 19 compatibility
           node-version: '20'
       - name: requirements
         run: |

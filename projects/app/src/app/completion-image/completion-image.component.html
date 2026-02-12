@@ -1,5 +1,7 @@
 <div class='container' [style.transform]='"rotate(" + rotate() + "deg)"' [class.prefer]='!!prefer()' [class.prevent]='!!prevent()' [class.preferred]='preferred()'>
-    <div class='line'></div>
+        @if (hasEvaluation()) {
+          <div class='line'></div>
+        }
     <img [src]="imageUrl()" alt="Confirmation Image">
     @if (prefer()) {
       <div class='prefer'></div>

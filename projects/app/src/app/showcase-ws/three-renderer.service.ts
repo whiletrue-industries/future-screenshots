@@ -1,7 +1,10 @@
 import * as THREE from 'three';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { signal, Signal } from '@angular/core';
 import { PhotoData, PhotoAnimationState } from './photo-data';
 import { PHOTO_CONSTANTS } from './photo-constants';
+import { FisheyeEffectService } from './fisheye-effect.service';
+import { PlatformService } from '../../platform.service';
 
 export interface ThreeRendererOptions {
   photoWidth?: number;   // default PHOTO_CONSTANTS.PHOTO_WIDTH
@@ -42,6 +45,7 @@ export class ThreeRendererService {
   private readonly CAM_DAMP: number;
   private readonly ANISO: number;
   private readonly BG: number;
+  private readonly FISHEYE_SCALE_DAMPING = 5; // Lower = slower/smoother animation
 
   // Three.js objects
   private container: HTMLElement | null = null;
@@ -65,23 +69,34 @@ export class ThreeRendererService {
   private loadingTextures = new Map<string, Promise<THREE.Texture>>();
   private highResTextureCache = new Map<string, THREE.Texture>();
   private loadingHighResTextures = new Map<string, Promise<THREE.Texture>>();
+  private maxTextureSize = 4096; // WebGL max texture size (will be queried from context)
 
   // SVG Background
   private svgBackgroundPlane?: THREE.Mesh;
   private svgBackgroundTexture?: THREE.Texture;
-  private svgBackgroundOptions?: { enabled: boolean; svgElement?: SVGSVGElement; scale?: number; offsetX?: number; offsetY?: number; radius?: number; };
+  private svgBackgroundOptions?: { enabled: boolean; svgElement?: SVGSVGElement; scale?: number; offsetX?: number; offsetY?: number; radius?: number; desiredOpacity?: number; };
 
   // Drag and Drop
   private raycaster = new THREE.Raycaster();
   private mouse = new THREE.Vector2();
+  private hasUserInteracted = false; // Track if user has moved mouse/touched screen
   private isDragging = false;
   private draggedMesh: THREE.Mesh | null = null;
   private dragPlane = new THREE.Plane();
   private dragOffset = new THREE.Vector3();
   private dragCallbacks = new Map<THREE.Mesh, (position: { x: number; y: number; z: number }) => void>();
+  private hoverOnlyMeshes = new Set<THREE.Mesh>();  // Meshes that should only have hover detection, not dragging
   private meshToPhotoId = new Map<THREE.Mesh, string>();
+  private photoIdToMesh = new Map<string, THREE.Mesh>(); // Reverse map from photoId to mesh
   private meshToPhotoData = new Map<THREE.Mesh, any>(); // Store PhotoData for drag callbacks
   private currentLayoutStrategy: any = null; // Store reference to current layout strategy
+  private layoutStrategyRef: any = null; // Store reference for debug visualization
+  
+  // Touch gesture tracking
+  private lastTouchDistance = 0;
+  private touchStartDistance = 0;
+  private touchPanStart = { x: 0, y: 0 };
+  private isTwoFingerGesture = false;
   
   // SVG Container for hotspot detection
   private svgContainer: HTMLElement | null = null;
@@ -89,21 +104,93 @@ export class ThreeRendererService {
   // Hotspot drop callback
   private onHotspotDropCallback?: (photoId: string, hotspotData: { [key: string]: string | number }, position: { x: number, y: number, z: number }) => Promise<void>;
 
+  // Click callbacks
+  private onPhotoClickCallback?: (photoId: string) => void;
+  private onBackgroundClickCallback?: () => void;
+  private mouseDownPosition = new THREE.Vector2();
+  private clickThreshold = 5; // pixels - max movement to be considered a click
+  private readonly FALLBACK_MOUSE_MOVEMENT = 1000; // Large fallback value when coordinates unavailable
+
   // Dragging Preview Widget
   private previewWidget: HTMLElement | null = null;
   private previewImage: HTMLImageElement | null = null;
   private previewHotspotInfo: HTMLElement | null = null;
   private hoveredMesh: THREE.Mesh | null = null;
   private currentMatchedHotspot: { [key: string]: string | number } | null = null;
+  
+  // Store fisheye state before dragging
+  private wasFisheyeEnabled = false;
+
+  // Camera Controls (Zoom & Pan)
+  private userControlEnabled = true;
+  private targetCamX = 0;
+  private targetCamY = 0;
+  private minCamZ = 300;
+  private maxCamZ = 50000;
+  private isPanning = false;
+  private panStartMouse = new THREE.Vector2();
+  private panStartCameraPos = new THREE.Vector3();
+  private autoFitEnabled = true; // When true, camera auto-fits to bounds
+  private lastMousePos = new THREE.Vector2();
+  private lastClientX: number | null = null;
+  private lastClientY: number | null = null;
+  private meshToUrl = new Map<THREE.Mesh, string>();
+  private highResActive = new Set<THREE.Mesh>();
+  private lodAccumTime = 0;
+  private maxExtentZoomLevel = 1.0; // Track the furthest extent (largest view) - used as baseline for fisheye zoom calculations
+
+  // Fisheye Effect
+  private fisheyeService: FisheyeEffectService;
+  private fisheyeEnabled = false;
+  private fisheyeEnabledSignal = false; // Track original request to re-enable on zoom change
+  private fisheyeResumeOnPointer = false; // Re-enable fisheye after animation + first pointer move
+  
+  // Performance optimizations
+  private frustum = new THREE.Frustum();
+  private frustumMatrix = new THREE.Matrix4();
+  private lastRenderTime = 0;
+  private isSceneIdle = false;
+  private idleCheckInterval = 0;
+  private readonly IDLE_THRESHOLD = 0.001; // Camera movement threshold for idle detection
+  private readonly IDLE_CHECK_INTERVAL = 0.1; // Check for idle state every 100ms
+  private visibleMeshCount = 0;
+  private totalMeshCount = 0;
+  private cullingLogCounter = 0;
+  
+  // Performance monitoring
+  private performanceMonitoring = false;
+  private frameCount = 0;
+  private lastFpsUpdate = 0;
+  private currentFps = 0;
+  private renderCount = 0;
+  private skippedFrames = 0;
+  private fisheyeAnimationLock = false;   // True while we intentionally keep fisheye off during an animation
+  private fisheyeAffectedMeshes = new Set<THREE.Mesh>();
+  private fisheyeFocusPoint = new THREE.Vector3();
+  private permalinkTargetId: string | null = null;
+  private meshOriginalStates = new Map<THREE.Mesh, { position: THREE.Vector3; scale: THREE.Vector3; renderOrder: number }>();
+  
+  // Hover state signal for cursor feedback
+  private hoveredItemSignal = signal(false);
+
+  // Settings Panel Controls
+  private rotationSpeedMultiplier = 1.0;
+  private panSensitivityMultiplier = 1.0;
+  private dofStrength = 0;
+  private dofPass: any = null; // Post-processing pass for depth of field (if implemented)
+  
+  private platformService = inject(PlatformService);
 
   constructor() {
+    this.fisheyeService = new FisheyeEffectService();
     const opts: ThreeRendererOptions = {};
     this.PHOTO_W = opts.photoWidth ?? PHOTO_CONSTANTS.PHOTO_WIDTH;
     this.PHOTO_H = opts.photoHeight ?? PHOTO_CONSTANTS.PHOTO_HEIGHT;
     this.FOV_DEG = opts.fovDeg ?? 45;
     this.CAM_MARGIN = opts.cameraMargin ?? 300;
     this.CAM_DAMP = opts.cameraDamp ?? 0.1 * 10000;
-    this.ANISO = opts.anisotropy ?? 4;
+    // Reduce anisotropic filtering on mobile for better performance
+    this.ANISO = opts.anisotropy ?? (this.platformService.isMobile ? 2 : 4);
     this.BG = opts.background ?? 0xFFFDF6;
   }
 
@@ -144,8 +231,20 @@ export class ThreeRendererService {
     const pos = photoData.currentPosition;
     mesh.position.set(pos.x, pos.y, pos.z);
     
+    // Set renderOrder from metadata (preferred photos on top of prevent photos)
+    const metadataRenderOrder = photoData.metadata['renderOrder'] as number | undefined;
+    mesh.renderOrder = metadataRenderOrder !== undefined ? metadataRenderOrder : 0;
+    
+    // Apply rotation based on metadata
+    const rotation = this.calculatePhotoRotation(photoData);
+    mesh.rotation.z = rotation;
+    
     this.root.add(mesh);
     photoData.setMesh(mesh);
+    // Track PhotoData for hover/fisheye so positions stay current after layout changes
+    this.meshToPhotoData.set(mesh, photoData);
+    // Track URL for LOD decisions
+    this.meshToUrl.set(mesh, photoData.url);
     
     return mesh;
   }
@@ -155,6 +254,15 @@ export class ThreeRendererService {
 
     const pos = photoData.currentPosition;
     photoData.mesh.position.set(pos.x, pos.y, pos.z);
+    
+    // Update renderOrder from metadata (preferred photos on top of prevent photos)
+    const metadataRenderOrder = photoData.metadata['renderOrder'] as number | undefined;
+    photoData.mesh.renderOrder = metadataRenderOrder !== undefined ? metadataRenderOrder : 0;
+    
+    // Update rotation based on current metadata
+    const rotation = this.calculatePhotoRotation(photoData);
+    photoData.mesh.rotation.z = rotation;
+    console.log('[UPDATE_MESH] Photo:', photoData.id, 'mesh.rotation.z updated to', photoData.mesh.rotation.z, 'radians (', THREE.MathUtils.radToDeg(photoData.mesh.rotation.z).toFixed(1), '°)');
   }
 
   removePhotoMesh(photoData: PhotoData): void {
@@ -167,6 +275,16 @@ export class ThreeRendererService {
     if (photoData.mesh.material instanceof THREE.Material) {
       photoData.mesh.material.dispose();
     }
+    this.meshToPhotoData.delete(photoData.mesh);
+    this.meshToUrl.delete(photoData.mesh);
+    const photoId = this.meshToPhotoId.get(photoData.mesh);
+    if (photoId) {
+      this.photoIdToMesh.delete(photoId);
+    }
+    this.meshToPhotoId.delete(photoData.mesh);
+    this.dragCallbacks.delete(photoData.mesh);
+    this.highResActive.delete(photoData.mesh);
+    this.fisheyeAffectedMeshes.delete(photoData.mesh);
     
     photoData.setMesh(null);
   }
@@ -223,6 +341,8 @@ export class ThreeRendererService {
 
   removeMesh(mesh: THREE.Mesh): void {
     this.root.remove(mesh);
+    this.meshToUrl.delete(mesh);
+    this.highResActive.delete(mesh);
     
     // Clean up drag callback
     this.disableDragForMesh(mesh);
@@ -339,18 +459,29 @@ export class ThreeRendererService {
   // Camera management
   updateCameraTarget(newBounds: SceneBounds): void {
     this.bounds = { ...newBounds };
-    const targetCamZ = this.computeFitZWithMargin(
-      this.bounds,
-      THREE.MathUtils.degToRad(this.camera.fov),
-      this.container!.clientWidth / this.container!.clientHeight,
-      this.CAM_MARGIN
-    );
-    this.targetCamZ = targetCamZ;
+    if (this.autoFitEnabled) {
+      // Center camera on bounds
+      this.targetCamX = (newBounds.minX + newBounds.maxX) * 0.5;
+      this.targetCamY = (newBounds.minY + newBounds.maxY) * 0.5;
+      
+      const targetCamZ = this.computeFitZWithMargin(
+        this.bounds,
+        THREE.MathUtils.degToRad(this.camera.fov),
+        this.container!.clientWidth / this.container!.clientHeight,
+        this.CAM_MARGIN
+      );
+      this.targetCamZ = targetCamZ;
+    }
   }
 
   animateCameraTarget(newBounds: SceneBounds, durationSec: number): Promise<void> {
     return new Promise((resolve) => {
       this.bounds = { ...newBounds };
+      if (!this.autoFitEnabled) {
+        resolve();
+        return;
+      }
+      
       const targetCamZ = this.computeFitZWithMargin(
         this.bounds,
         THREE.MathUtils.degToRad(this.camera.fov),
@@ -358,20 +489,32 @@ export class ThreeRendererService {
         this.CAM_MARGIN
       );
       
+      // Calculate target camera center position
+      const targetCamX = (newBounds.minX + newBounds.maxX) * 0.5;
+      const targetCamY = (newBounds.minY + newBounds.maxY) * 0.5;
+      
+      const startCamX = this.targetCamX;
+      const startCamY = this.targetCamY;
       const startCamZ = this.targetCamZ;
       const finalTargetCamZ = targetCamZ;
       
       // If no change needed, resolve immediately
-      if (Math.abs(finalTargetCamZ - startCamZ) < 0.01) {
+      if (Math.abs(finalTargetCamZ - startCamZ) < 0.01 && 
+          Math.abs(targetCamX - startCamX) < 0.01 && 
+          Math.abs(targetCamY - startCamY) < 0.01) {
         resolve();
         return;
       }
       
       const tweenFn = this.makeTween(durationSec, (progress: number) => {
         const eased = this.easeOutCubic(progress);
+        this.targetCamX = this.lerp(startCamX, targetCamX, eased);
+        this.targetCamY = this.lerp(startCamY, targetCamY, eased);
         this.targetCamZ = this.lerp(startCamZ, finalTargetCamZ, eased);
         
         if (progress >= 1.0) {
+          this.targetCamX = targetCamX;
+          this.targetCamY = targetCamY;
           this.targetCamZ = finalTargetCamZ;
           resolve();
         }
@@ -381,17 +524,490 @@ export class ThreeRendererService {
     });
   }
 
+  /**
+   * Enable or disable user camera controls
+   */
+  setUserControlEnabled(enabled: boolean): void {
+    this.userControlEnabled = enabled;
+  }
+
+  /**
+   * Enable or disable auto-fit mode
+   * When enabled, camera automatically fits all content
+   * When disabled, user controls the camera with zoom/pan
+   */
+  setAutoFit(enabled: boolean): void {
+    this.autoFitEnabled = enabled;
+    if (enabled) {
+      // Re-calculate target position to fit bounds
+      this.updateCameraTarget(this.bounds);
+    }
+  }
+
+  /**
+   * Reset camera view to fit all content
+   */
+  resetCameraView(animated = true): void {
+    this.autoFitEnabled = true;
+    this.targetCamX = 0;
+    this.targetCamY = 0;
+    
+    if (animated) {
+      this.animateCameraTarget(this.bounds, 0.5);
+    } else {
+      this.updateCameraTarget(this.bounds);
+    }
+  }
+
+
+  /**
+   * Zoom camera by a factor at a specific screen point
+   * Simple and direct: anchor to cursor position
+   */
+  zoomAtPoint(factor: number, screenX: number, screenY: number): void {
+    if (!this.userControlEnabled || this.autoFitEnabled) return;
+
+    const rect = this.container!.getBoundingClientRect();
+    const ndcX = ((screenX - rect.left) / rect.width) * 2 - 1;
+    const ndcY = -((screenY - rect.top) / rect.height) * 2 + 1;
+
+    // Where does this screen point hit the world plane NOW?
+    const worldBefore = this.projectScreenToWorld(ndcX, ndcY, this.targetCamX, this.targetCamY, this.targetCamZ);
+    
+    // Apply zoom
+    const newZ = THREE.MathUtils.clamp(this.targetCamZ * factor, this.minCamZ, this.maxCamZ);
+    this.targetCamZ = newZ;
+    
+    // Where does this screen point hit the world plane AFTER zoom?
+    const worldAfter = this.projectScreenToWorld(ndcX, ndcY, this.targetCamX, this.targetCamY, this.targetCamZ);
+    
+    // Pan camera to keep cursor pointing at same world location
+    this.targetCamX += (worldBefore.x - worldAfter.x);
+    this.targetCamY += (worldBefore.y - worldAfter.y);
+
+    this.clampCameraToBounds();
+    this.wakeUpRenderLoop();
+  }
+
+  /**
+   * Wake up the render loop (used when scene becomes active)
+   */
+  private wakeUpRenderLoop(): void {
+    this.isSceneIdle = false;
+  }
+
+  /**
+   * Calculate rotation angle for a photo based on plausibility and favorable_future metadata
+   * Returns rotation in radians
+   */
+  private calculatePhotoRotation(photoData: PhotoData): number {
+    const metadata = photoData.metadata;
+    
+    const plausibility = metadata['plausibility'];
+    const favorableFuture = metadata['_svgZoneFavorableFuture'] as string | undefined || metadata['favorable_future'];
+    
+    // If either value is missing, use stable random rotation
+    if (plausibility === undefined || plausibility === null || !favorableFuture) {
+      // Suppress verbose logging - this is expected for items without evaluation data yet
+      return this.getStableRandomRotation(photoData.id);
+    }
+    
+    // Normalize plausibility to 0-1 range (0=preposterous, 100=projected)
+    // Expected values: 0, 25, 50, 75, 100
+    const normalizedPlausibility = plausibility / 100;
+    
+    // Maximum rotation at extremes (32 degrees in radians)
+    const maxRotationDeg = 32;
+    const maxRotationRad = THREE.MathUtils.degToRad(maxRotationDeg);
+    
+    // Calculate base rotation based on plausibility
+    // At plausibility=0 (preposterous): full rotation
+    // At plausibility=100 (projected): no rotation
+    const rotationMagnitude = (1 - normalizedPlausibility) * maxRotationRad;
+    
+    // Apply direction based on favorable_future
+    // "favor" -> positive rotation, "prevent" -> negative rotation
+    const favorableFutureLower = favorableFuture.toLowerCase().trim();
+    const isFavor = favorableFutureLower === 'favor' || favorableFutureLower === 'favorable' || 
+            favorableFutureLower === 'prefer' || favorableFutureLower === 'preferred' ||
+            favorableFutureLower === 'mostly prefer' || favorableFutureLower === 'prefer-ish';
+    const isPrevent = favorableFutureLower === 'prevent' || favorableFutureLower === 'prevented' || 
+              favorableFutureLower === 'unfavorable' || favorableFutureLower === 'mostly prevent' ||
+              favorableFutureLower === 'prevent-ish';
+    const isUncertain = favorableFutureLower === 'uncertain' || favorableFutureLower === 'unsure';
+    
+    if (isUncertain) {
+      // Uncertain items should have no rotation (neutral)
+      return 0;
+    }
+    
+    if (!isFavor && !isPrevent) {
+      // Unknown favorable_future value, don't rotate
+      console.warn('[ROTATION] Unknown favorable_future value:', favorableFuture, 'for photo:', photoData.id);
+      return this.getStableRandomRotation(photoData.id);
+    }
+    
+    const finalRotation = isFavor ? rotationMagnitude : -rotationMagnitude;
+
+    return finalRotation;
+  }
+
+  /**
+   * Calculate evaluation rotation (based on plausibility/favorable_future, ignoring cluster rotation)
+   * Used when fisheye is active to override cluster rotation
+   */
+  private calculateEvaluationRotation(photoData: PhotoData): number {
+    const metadata = photoData.metadata;
+    const plausibility = metadata['plausibility'];
+    const favorableFuture = metadata['_svgZoneFavorableFuture'] as string | undefined || metadata['favorable_future'];
+    
+    // If either value is missing, use stable random rotation
+    if (plausibility === undefined || plausibility === null || !favorableFuture) {
+      return this.getStableRandomRotation(photoData.id);
+    }
+    
+    // Normalize plausibility to 0-1 range (0=preposterous, 100=projected)
+    const normalizedPlausibility = plausibility / 100;
+    
+    // Maximum rotation at extremes (32 degrees in radians)
+    const maxRotationDeg = 32;
+    const maxRotationRad = THREE.MathUtils.degToRad(maxRotationDeg);
+    
+    // Calculate base rotation based on plausibility
+    const rotationMagnitude = (1 - normalizedPlausibility) * maxRotationRad;
+    
+    // Apply direction based on favorable_future
+    const favorableFutureLower = favorableFuture.toLowerCase().trim();
+    const isFavor = favorableFutureLower === 'favor' || favorableFutureLower === 'favorable' || 
+            favorableFutureLower === 'prefer' || favorableFutureLower === 'preferred' ||
+            favorableFutureLower === 'mostly prefer' || favorableFutureLower === 'prefer-ish';
+    const isPrevent = favorableFutureLower === 'prevent' || favorableFutureLower === 'prevented' || 
+              favorableFutureLower === 'unfavorable' || favorableFutureLower === 'mostly prevent' ||
+              favorableFutureLower === 'prevent-ish';
+    
+    if (!isFavor && !isPrevent) {
+      return this.getStableRandomRotation(photoData.id);
+    }
+    
+    return isFavor ? rotationMagnitude : -rotationMagnitude;
+  }
+
+  /**
+   * Get a stable random rotation offset for natural layout
+   * Returns -1°, 0°, or +1° in radians, consistent for the same photo ID
+   */
+  private getStableRandomRotation(photoId: string): number {
+    // Simple hash of photo ID to get consistent random value
+    let hash = 0;
+    for (let i = 0; i < photoId.length; i++) {
+      hash = ((hash << 5) - hash) + photoId.charCodeAt(i);
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    
+    // Map hash to -1, 0, or +1 degrees
+    const offset = (Math.abs(hash) % 3) - 1; // Results in -1, 0, or 1
+    return THREE.MathUtils.degToRad(offset);
+  }
+
+  /**
+   * Project a screen coordinate to world space at Z=0 plane
+   * camX, camY, camZ: camera position
+   * ndcX, ndcY: normalized device coordinates
+   */
+  private projectScreenToWorld(ndcX: number, ndcY: number, camX: number, camY: number, camZ: number): THREE.Vector3 {
+    // Field of view
+    const vFOV = THREE.MathUtils.degToRad(this.camera.fov);
+    const height = 2 * Math.tan(vFOV / 2) * camZ;
+    const width = height * this.camera.aspect;
+    
+    // World position on Z=0 plane
+    const worldX = camX + (ndcX * width / 2);
+    const worldY = camY + (ndcY * height / 2);
+    
+    return new THREE.Vector3(worldX, worldY, 0);
+  }
+
+  /**
+   * Pan camera by pixel amount
+   */
+  panCamera(deltaX: number, deltaY: number): void {
+    if (!this.userControlEnabled || this.autoFitEnabled) return;
+
+    const rect = this.container!.getBoundingClientRect();
+    // Convert pixel deltas to world space
+    const worldDeltaX = (deltaX / rect.width) * 2 * this.getVisibleWidth();
+    const worldDeltaY = (deltaY / rect.height) * 2 * this.getVisibleHeight();
+    
+    // Apply pan sensitivity multiplier if set
+    const panSensitivity = this.panSensitivityMultiplier;
+    
+    this.targetCamX -= worldDeltaX * panSensitivity;
+    this.targetCamY += worldDeltaY * panSensitivity;
+
+    this.clampCameraToBounds();
+  }
+
+  /**
+   * Get visible world width at current zoom level
+   */
+  private getVisibleWidth(): number {
+    const vFOV = THREE.MathUtils.degToRad(this.camera.fov);
+    const height = 2 * Math.tan(vFOV / 2) * this.targetCamZ;
+    const width = height * this.camera.aspect;
+    return width / 2;
+  }
+
+  /**
+   * Get visible half-width in world units at a specific depth from camera
+   */
+  private getVisibleWidthAtDepth(depth: number): number {
+    const vFOV = THREE.MathUtils.degToRad(this.camera.fov);
+    const height = 2 * Math.tan(vFOV / 2) * depth;
+    const width = height * this.camera.aspect;
+    return width / 2;
+  }
+
+  /**
+   * Get visible world height at current zoom level
+   */
+  private getVisibleHeight(): number {
+    const vFOV = THREE.MathUtils.degToRad(this.camera.fov);
+    const height = 2 * Math.tan(vFOV / 2) * this.targetCamZ;
+    return height / 2;
+  }
+
+  /**
+   * Keep the camera target inside scene bounds (with margin) without hard snaps.
+   * Uses a soft clamp (lerp toward clamped value) so the motion stays eased.
+   */
+  private clampCameraToBounds(): void {
+    if (!Number.isFinite(this.bounds.minX) || !Number.isFinite(this.bounds.maxX) ||
+        !Number.isFinite(this.bounds.minY) || !Number.isFinite(this.bounds.maxY)) {
+      return;
+    }
+
+    // Clamp zoom first to avoid negative widths/heights
+    this.targetCamZ = THREE.MathUtils.clamp(this.targetCamZ, this.minCamZ, this.maxCamZ);
+
+    const halfWidth = this.getVisibleWidth();
+    const halfHeight = this.getVisibleHeight();
+
+    // Allow a small overscroll then ease back to avoid jump-cuts
+    const softMargin = this.CAM_MARGIN * 0.5;
+    const minX = this.bounds.minX - this.CAM_MARGIN + halfWidth;
+    const maxX = this.bounds.maxX + this.CAM_MARGIN - halfWidth;
+    const minY = this.bounds.minY - this.CAM_MARGIN + halfHeight;
+    const maxY = this.bounds.maxY + this.CAM_MARGIN - halfHeight;
+
+    const desiredX = (minX > maxX)
+      ? (this.bounds.minX + this.bounds.maxX) * 0.5
+      : THREE.MathUtils.clamp(this.targetCamX, minX, maxX);
+    const desiredY = (minY > maxY)
+      ? (this.bounds.minY + this.bounds.maxY) * 0.5
+      : THREE.MathUtils.clamp(this.targetCamY, minY, maxY);
+
+    // If inside a soft window, keep current target; otherwise ease toward clamp
+    const softMinX = minX - softMargin;
+    const softMaxX = maxX + softMargin;
+    const softMinY = minY - softMargin;
+    const softMaxY = maxY + softMargin;
+
+    const outsideX = this.targetCamX < softMinX || this.targetCamX > softMaxX;
+    const outsideY = this.targetCamY < softMinY || this.targetCamY > softMaxY;
+
+    const ease = 0.25; // Higher = faster snap; lower = smoother
+    if (outsideX) {
+      this.targetCamX = this.lerp(this.targetCamX, desiredX, ease);
+    }
+    if (outsideY) {
+      this.targetCamY = this.lerp(this.targetCamY, desiredY, ease);
+    }
+  }
+
+  /**
+   * Convert screen coordinates to world coordinates at a given depth
+   * Used for non-zoom operations (drag detection, hotspot finding)
+   */
+  private screenToWorld(x: number, y: number, depth: number): THREE.Vector3 {
+    const vector = new THREE.Vector3(x, y, 0.5);
+    vector.unproject(this.camera);
+    
+    const dir = vector.sub(this.camera.position).normalize();
+    const distance = (depth - this.camera.position.z) / dir.z;
+    
+    return this.camera.position.clone().add(dir.multiplyScalar(distance));
+  }
+
   getCameraSpawnZ(): number {
     return this.camera.position.z - this.zSpawn;
+  }
+
+  /**
+   * Get the current target camera Z (zoom distance).
+   */
+  getTargetCameraZ(): number {
+    return this.targetCamZ;
+  }
+
+  /**
+   * Focus on item from "show on map" click with smooth flyTo animation:
+   * Smoothly pan to item position and zoom so item height fills 50% of screen
+   */
+  async focusOnItemFromShowOnMap(x: number, y: number, photoData?: PhotoData): Promise<void> {
+    console.log('[SHOW_ON_MAP] Starting flyTo at position:', { x, y });
+    
+    // Disable fisheye for entire animation
+    this.disableFisheyeForZoom();
+    this.fisheyeAnimationLock = true;
+    this.fisheyeResumeOnPointer = false;
+
+    let targetZoomZ = this.targetCamZ * 0.25; // Fallback
+    
+    // Calculate target zoom based on item height filling 50% of screen
+    if (photoData && photoData.mesh) {
+      const bbox = new THREE.Box3().setFromObject(photoData.mesh);
+      const itemWidth = bbox.max.x - bbox.min.x;
+      const itemHeight = bbox.max.y - bbox.min.y;
+      
+      console.log('[SHOW_ON_MAP] Item dimensions: width=', itemWidth.toFixed(2), 'height=', itemHeight.toFixed(2));
+      
+      // At distance Z, visible height = 2 * Z * tan(FOV/2)
+      // We want: itemHeight = 0.5 * visibleHeight
+      // So: Z = itemHeight / (2 * 0.5 * tan(FOV/2)) = itemHeight / tan(FOV/2)
+      const fovRad = THREE.MathUtils.degToRad(this.FOV_DEG);
+      targetZoomZ = itemHeight / Math.tan(fovRad / 2);
+      
+      console.log('[SHOW_ON_MAP] Calculated targetZ for 50% screen height:', targetZoomZ.toFixed(2));
+    } else {
+      console.log('[SHOW_ON_MAP] No photoData provided, using default zoom');
+    }
+
+    // Clamp to valid range
+    targetZoomZ = THREE.MathUtils.clamp(targetZoomZ, this.minCamZ, this.maxCamZ);
+    console.log('[SHOW_ON_MAP] Final targetZ (clamped):', targetZoomZ.toFixed(2));
+
+    // Single unified animation: pan + zoom together (1.25 seconds with smooth easing)
+    await this.animateCameraToZoomLevel(x, y, targetZoomZ, 1.25);
+    console.log('[SHOW_ON_MAP] FlyTo complete');
+  }
+
+  /**
+   * Animate camera to a specific zoom level while keeping fisheye disabled
+   * Fisheye will only re-enable if the camera zooms back out beyond the target level
+   */
+  private animateCameraToZoomLevel(x: number, y: number, targetZ: number, durationSec: number): Promise<void> {
+    return new Promise((resolve) => {
+      const startX = this.targetCamX;
+      const startY = this.targetCamY;
+      const startZ = this.targetCamZ;
+      const clampedZ = THREE.MathUtils.clamp(targetZ, this.minCamZ, this.maxCamZ);
+
+      console.log('[ZOOM_LEVEL_ANIM] Starting animation: start Z=', startZ.toFixed(2), 'target Z=', clampedZ.toFixed(2), 'duration=', durationSec);
+
+      if (durationSec <= 0.01) {
+        this.targetCamX = x;
+        this.targetCamY = y;
+        this.targetCamZ = clampedZ;
+        resolve();
+        return;
+      }
+
+      const tweenFn = this.makeTween(durationSec, (progress: number) => {
+        const eased = this.easeInOutCubic(progress);
+        this.targetCamX = this.lerp(startX, x, eased);
+        this.targetCamY = this.lerp(startY, y, eased);
+        this.targetCamZ = this.lerp(startZ, clampedZ, eased);
+
+        if (progress >= 1.0) {
+          this.targetCamX = x;
+          this.targetCamY = y;
+          this.targetCamZ = clampedZ;
+          this.fisheyeResumeOnPointer = this.fisheyeEnabledSignal;
+          resolve();
+        }
+      });
+
+      this.addTween(tweenFn);
+    });
   }
 
   getCurrentBounds(): Readonly<SceneBounds> {
     return { ...this.bounds };
   }
 
+  // Fisheye Effect API
+  enableFisheyeEffect(enabled: boolean): void {
+    console.log('[RENDERER] enableFisheyeEffect called with:', enabled);
+    this.fisheyeEnabled = enabled;
+    this.fisheyeEnabledSignal = enabled; // Track original request
+    console.log('[RENDERER] fisheyeEnabled is now:', this.fisheyeEnabled, 'fisheyeEnabledSignal:', this.fisheyeEnabledSignal);
+    if (!enabled) {
+      // Reset all affected meshes to their original state
+      this.resetAllFisheyeEffects();
+    }
+  }
+
+  /**
+   * Enable or disable performance monitoring
+   * When enabled, logs FPS, render count, and culling stats every second
+   */
+  enablePerformanceMonitoring(enabled: boolean): void {
+    this.performanceMonitoring = enabled;
+    if (enabled) {
+      console.log('[PERF] Performance monitoring enabled');
+      this.frameCount = 0;
+      this.renderCount = 0;
+      this.skippedFrames = 0;
+      this.lastFpsUpdate = performance.now();
+    } else {
+      console.log('[PERF] Performance monitoring disabled');
+    }
+  }
+
+  /**
+   * Get current performance metrics
+   */
+  getPerformanceMetrics() {
+    return {
+      fps: this.currentFps,
+      visibleMeshes: this.visibleMeshCount,
+      totalMeshes: this.totalMeshCount,
+      isIdle: this.isSceneIdle,
+      isMonitoring: this.performanceMonitoring
+    };
+  }
+
+  isFisheyeEnabled(): boolean {
+    return this.fisheyeEnabled;
+  }
+
+  isDraggingItem(): boolean {
+    return this.isDragging;
+  }
+
+  isHoveringItem(): Signal<boolean> {
+    return this.hoveredItemSignal;
+  }
+
+  setFisheyeConfig(config: { radius?: number; magnification?: number; distortion?: number; zoomRelative?: number; maxHeight?: number; viewportHeight?: number; cameraZ?: number; fov?: number }): void {
+    // Pass all config parameters to fisheye service
+    // Also pass current camera state for zoom-agnostic calculations
+    this.fisheyeService.setConfig({
+      ...config,
+      cameraZ: config.cameraZ ?? this.targetCamZ,
+      fov: config.fov ?? this.FOV_DEG
+    });
+  }
+
+  getFisheyeConfig() {
+    return this.fisheyeService.getConfig();
+  }
+
   // Animation system
   addTween(tweenFn: TweenFn): void {
     this.activeTweens.push(tweenFn);
+    // Wake up the render loop when adding a tween
+    this.isSceneIdle = false;
   }
 
   runTween(tweenFn: TweenFn): Promise<void> {
@@ -451,10 +1067,290 @@ export class ThreeRendererService {
     return THREE.MathUtils.lerp(current, target, 1 - Math.exp(-lambda * deltaTime));
   }
 
+  // Fisheye Effect Helper Methods
+  
+  /**
+   * Disable fisheye immediately on zoom and re-enable once zoom completes
+   */
+  private disableFisheyeForZoom(): void {
+    // Disable fisheye immediately
+    if (this.fisheyeEnabled) {
+      console.log('[FISHEYE] Disabling for zoom animation');
+      this.fisheyeEnabled = false;
+      // Reset all affected meshes to their original non-fisheye scale/position
+      this.resetAllFisheyeEffects();
+    }
+  }
+
+  /**
+   * Re-enable fisheye after zoom action completes
+   */
+  private reEnableFisheyeAfterZoom(): void {
+    if (this.fisheyeEnabledSignal) {
+      console.log('[FISHEYE] Re-enabling after zoom');
+      this.fisheyeEnabled = true;
+      this.fisheyeResumeOnPointer = false;
+    }
+  }
+  
+  private applyFisheyeEffect(): void {
+    const viewportHeight = this.container?.clientHeight ?? window.innerHeight;
+
+    this.fisheyeService.setConfig({
+      cameraZ: this.targetCamZ,
+      fov: this.FOV_DEG,
+      viewportHeight: viewportHeight
+    });
+
+    // Exit early if disabled or user hasn't interacted yet
+    if (!this.fisheyeEnabled || !this.hasUserInteracted) {
+      return;
+    }
+
+    // Get the world position of the mouse cursor
+    const worldPos = this.screenToWorld(this.mouse.x, this.mouse.y, 0);
+    this.fisheyeFocusPoint.set(worldPos.x, worldPos.y, 0);
+
+    // Clear previously affected meshes
+    const previouslyAffected = new Set(this.fisheyeAffectedMeshes);
+    this.fisheyeAffectedMeshes.clear();
+
+    // Apply fisheye effect to all meshes in the scene
+    const config = this.fisheyeService.getConfig();
+
+    // If current zoom already makes photos taller than the fisheye maxHeight, skip fisheye
+    if (config.maxHeight !== undefined && viewportHeight > 0) {
+      const vFOV = (this.FOV_DEG * Math.PI) / 180;
+      const visibleHeightWorld = 2 * Math.tan(vFOV / 2) * this.targetCamZ;
+      const pxPerWorldUnit = viewportHeight / Math.max(1, visibleHeightWorld);
+      const photoHeightPx = this.PHOTO_H * pxPerWorldUnit;
+      const photoHeightVh = (photoHeightPx / viewportHeight) * 100;
+      if (photoHeightVh >= config.maxHeight) {
+        return; // Disable fisheye when zoomed in beyond fisheye extent
+      }
+    }
+
+    const effectRadiusSquared = config.radius * config.radius; // Use squared distance to avoid sqrt
+    
+    this.root.children.forEach((child) => {
+      const mesh = child as THREE.Mesh;
+      if (!mesh.isMesh) return;
+
+      // Get the logical position from PhotoData (if available)
+      const photoData = this.meshToPhotoData.get(mesh);
+      
+      // Skip hidden items (animationState === 'hidden')
+      if (photoData && photoData.animationState === 'hidden') return;
+
+      let logicalPosition = mesh.position.clone();
+      let meshHeight = this.PHOTO_H;
+      
+      if (photoData) {
+        // Use current position from PhotoData for fisheye calculations
+        logicalPosition = new THREE.Vector3(
+          photoData.currentPosition.x,
+          photoData.currentPosition.y,
+          photoData.currentPosition.z
+        );
+        if (photoData.height) {
+          meshHeight = photoData.height;
+        }
+      } else {
+        // Fallback to mesh's current position if no PhotoData
+        // Store original state if not already stored
+        if (!this.meshOriginalStates.has(mesh)) {
+          this.meshOriginalStates.set(mesh, {
+            position: mesh.position.clone(),
+            scale: mesh.scale.clone(),
+            renderOrder: mesh.renderOrder
+          });
+        }
+        logicalPosition = this.meshOriginalStates.get(mesh)!.position.clone();
+      }
+
+      // Early culling: check squared distance to avoid sqrt calculation
+      const dx = logicalPosition.x - this.fisheyeFocusPoint.x;
+      const dy = logicalPosition.y - this.fisheyeFocusPoint.y;
+      const distanceSquared = dx * dx + dy * dy;
+      
+      // Skip meshes that are clearly outside the effect radius
+      if (distanceSquared > effectRadiusSquared) {
+        // Reset if previously affected
+        if (previouslyAffected.has(mesh)) {
+          mesh.scale.set(1, 1, 1);
+          mesh.position.copy(logicalPosition);
+          
+          // Reset renderOrder to metadata-based value
+          if (photoData) {
+            const metadataRenderOrder = photoData.metadata['renderOrder'] as number | undefined;
+            mesh.renderOrder = metadataRenderOrder !== undefined ? metadataRenderOrder : 0;
+          } else {
+            mesh.renderOrder = 0;
+          }
+          
+          // Restore original rotation (cluster rotation)
+          if (mesh.userData['originalRotation'] !== undefined) {
+            mesh.rotation.z = mesh.userData['originalRotation'];
+            mesh.userData['originalRotation'] = undefined;
+          }
+          
+          // Remove shadow if dragging
+          if (this.draggedMesh === mesh && mesh.userData['shadowMesh']) {
+            this.scene.remove(mesh.userData['shadowMesh']);
+            mesh.userData['shadowMesh'] = null;
+          }
+        }
+        return;
+      }
+
+      const effect = this.fisheyeService.calculateEffect(
+        logicalPosition, 
+        this.fisheyeFocusPoint,
+        meshHeight,
+        viewportHeight
+      );
+
+      if (effect) {
+        // Mesh is within fisheye radius - apply effect
+        this.fisheyeAffectedMeshes.add(mesh);
+
+        // Override cluster rotation with evaluation rotation when in fisheye
+        // Store original rotation if not already stored
+        if (!mesh.userData['originalRotation']) {
+          mesh.userData['originalRotation'] = mesh.rotation.z;
+        }
+        
+        // Calculate evaluation rotation for fisheye override
+        if (photoData) {
+          const evaluationRotation = this.calculateEvaluationRotation(photoData);
+          mesh.rotation.z = evaluationRotation;
+        }
+
+        // Apply scale (magnification)
+        let targetScale = effect.scale;
+        
+        // If dragging, scale back to 1.0 and add drop shadow
+        if (this.isDragging && this.draggedMesh === mesh) {
+          targetScale = 1.0;
+          
+          // Add or update drop shadow
+          if (!mesh.userData['shadowMesh']) {
+            // Create a shadow mesh
+            const shadowGeometry = new THREE.PlaneGeometry(1, 1);
+            const shadowMaterial = new THREE.MeshBasicMaterial({
+              color: 0x000000,
+              transparent: true,
+              opacity: 0.3,
+              depthWrite: false
+            });
+            const shadowMesh = new THREE.Mesh(shadowGeometry, shadowMaterial);
+            shadowMesh.scale.set(mesh.scale.x, mesh.scale.y, 1);
+            shadowMesh.position.set(
+              mesh.position.x + 20,
+              mesh.position.y - 30,
+              mesh.position.z - 1
+            );
+            shadowMesh.renderOrder = effect.renderOrder - 1;
+            this.scene.add(shadowMesh);
+            mesh.userData['shadowMesh'] = shadowMesh;
+          } else {
+            // Update shadow position and scale
+            const shadowMesh = mesh.userData['shadowMesh'] as THREE.Mesh;
+            shadowMesh.position.set(
+              logicalPosition.x + effect.positionOffset.x + 20,
+              logicalPosition.y + effect.positionOffset.y - 30,
+              logicalPosition.z - 1
+            );
+            shadowMesh.scale.set(targetScale, targetScale, 1);
+            shadowMesh.renderOrder = effect.renderOrder - 1;
+          }
+        } else {
+          // Not dragging - remove shadow if it exists
+          if (mesh.userData['shadowMesh']) {
+            this.scene.remove(mesh.userData['shadowMesh']);
+            mesh.userData['shadowMesh'] = null;
+          }
+        }
+
+        // Apply scale with damping for smooth animation
+        const currentScale = mesh.scale.x;
+        const dampedScale = this.damp(currentScale, targetScale, this.FISHEYE_SCALE_DAMPING, 0.016); // 0.016s ≈ 60fps frame
+        mesh.scale.set(dampedScale, dampedScale, 1);
+
+        // Apply position offset (radial displacement from logical position)
+        mesh.position.set(
+          logicalPosition.x + effect.positionOffset.x,
+          logicalPosition.y + effect.positionOffset.y,
+          logicalPosition.z
+        );
+
+        // Apply render order (z-index)
+        mesh.renderOrder = effect.renderOrder;
+      } else {
+        // Mesh is outside fisheye radius - reset to logical position
+        if (previouslyAffected.has(mesh)) {
+          mesh.scale.set(1, 1, 1);
+          mesh.position.copy(logicalPosition);
+          
+          // Reset renderOrder to metadata-based value
+          if (photoData) {
+            const metadataRenderOrder = photoData.metadata['renderOrder'] as number | undefined;
+            mesh.renderOrder = metadataRenderOrder !== undefined ? metadataRenderOrder : 0;
+          } else {
+            mesh.renderOrder = 0;
+          }
+          
+          // Restore original rotation (cluster rotation)
+          if (mesh.userData['originalRotation'] !== undefined) {
+            mesh.rotation.z = mesh.userData['originalRotation'];
+            mesh.userData['originalRotation'] = undefined;
+          }
+          
+          // Remove shadow
+          if (mesh.userData['shadowMesh']) {
+            this.scene.remove(mesh.userData['shadowMesh']);
+            mesh.userData['shadowMesh'] = null;
+          }
+        }
+      }
+    });
+  }
+
+  private resetAllFisheyeEffects(): void {
+    console.log('[FISHEYE] Resetting', this.fisheyeAffectedMeshes.size, 'meshes');
+    // Reset all affected meshes to their original positions
+    this.fisheyeAffectedMeshes.forEach((mesh) => {
+      const photoData = this.meshToPhotoData.get(mesh);
+      if (photoData && photoData.currentPosition) {
+        // Reset to PhotoData's current position
+        mesh.position.set(
+          photoData.currentPosition.x,
+          photoData.currentPosition.y,
+          photoData.currentPosition.z
+        );
+      } else if (this.meshOriginalStates.has(mesh)) {
+        // Fallback to stored original position
+        const originalState = this.meshOriginalStates.get(mesh)!;
+        mesh.position.copy(originalState.position);
+      }
+      
+      // Reset scale and render order
+      mesh.scale.set(1, 1, 1);
+      mesh.renderOrder = 0;
+      
+      // Restore original rotation (cluster rotation)
+      if (mesh.userData['originalRotation'] !== undefined) {
+        mesh.rotation.z = mesh.userData['originalRotation'];
+        mesh.userData['originalRotation'] = undefined;
+      }
+    });
+    this.fisheyeAffectedMeshes.clear();
+  }
+
   /**
    * Enable or update SVG background
    */
-  setSvgBackground(svgElement: SVGSVGElement, options?: { scale?: number; offsetX?: number; offsetY?: number; radius?: number; }): void {
+  setSvgBackground(svgElement: SVGSVGElement, options?: { scale?: number; offsetX?: number; offsetY?: number; radius?: number; desiredOpacity?: number; }): void {
     // Remove existing background if present
     if (this.svgBackgroundPlane) {
       this.scene.remove(this.svgBackgroundPlane);
@@ -482,13 +1378,41 @@ export class ThreeRendererService {
       scale: options?.scale ?? 1,
       offsetX: options?.offsetX ?? 0,
       offsetY: options?.offsetY ?? 0,
-      radius: options?.radius
-    };
+      radius: options?.radius,
+      desiredOpacity: options?.desiredOpacity ?? 1
+    } as any;
     
     // Create DOM container for SVG hotspot detection
     this.createSvgDomContainer(svgElement);
     
-    this.setupSvgBackground(this.svgBackgroundOptions);
+    this.setupSvgBackground(this.svgBackgroundOptions!);
+  }
+
+  /**
+   * Clean up drag state (used when drag is cancelled or interrupted)
+   */
+  private cleanupDragState(): void {
+    if (this.isDragging && this.draggedMesh) {
+      console.log('[DRAG] Cleaning up drag state');
+      
+      // Re-enable fisheye if it was enabled before dragging
+      if (this.wasFisheyeEnabled) {
+        this.fisheyeEnabled = true;
+      }
+      
+      // Clear drag state
+      this.isDragging = false;
+      this.draggedMesh = null;
+      this.hoveredMesh = null;
+      
+      // Hide preview widget
+      this.hidePreviewWidget();
+      
+      // Reset cursor
+      if (this.container) {
+        this.container.style.cursor = 'default';
+      }
+    }
   }
 
   /**
@@ -496,6 +1420,16 @@ export class ThreeRendererService {
    */
   enableDragForMesh(mesh: THREE.Mesh, callback: (position: { x: number; y: number; z: number }) => void) {
     this.dragCallbacks.set(mesh, callback);
+    // Remove from hover-only set if it was there
+    this.hoverOnlyMeshes.delete(mesh);
+  }
+
+  /**
+   * Enable hover detection for a mesh without enabling drag functionality
+   * This allows cursor feedback and click detection without allowing dragging
+   */
+  enableHoverForMesh(mesh: THREE.Mesh) {
+    this.hoverOnlyMeshes.add(mesh);
   }
 
   /**
@@ -503,6 +1437,11 @@ export class ThreeRendererService {
    */
   setMeshPhotoId(mesh: THREE.Mesh, photoId: string): void {
     this.meshToPhotoId.set(mesh, photoId);
+    this.photoIdToMesh.set(photoId, mesh);
+  }
+
+  setPermalinkTarget(photoId: string | null): void {
+    this.permalinkTargetId = photoId;
   }
 
   /**
@@ -517,6 +1456,27 @@ export class ThreeRendererService {
    */
   setHotspotDropCallback(callback: (photoId: string, hotspotData: { [key: string]: string | number }, position: { x: number, y: number, z: number }) => Promise<void>): void {
     this.onHotspotDropCallback = callback;
+  }
+
+  /**
+   * Set the photo click callback
+   */
+  setPhotoClickCallback(callback: (photoId: string) => void): void {
+    this.onPhotoClickCallback = callback;
+  }
+
+  /**
+   * Set the background click callback
+   */
+  setBackgroundClickCallback(callback: () => void): void {
+    this.onBackgroundClickCallback = callback;
+  }
+
+  /**
+   * Set layout strategy reference for debug visualization
+   */
+  setLayoutStrategyReference(strategy: any): void {
+    this.layoutStrategyRef = strategy;
   }
 
   /**
@@ -569,64 +1529,29 @@ export class ThreeRendererService {
     this.container.appendChild(this.svgContainer);
   }
 
+  private animateMaterialOpacity(material: THREE.Material, targetOpacity: number, durationMs = 600): void {
+    const startOpacity = (material as any).opacity ?? 1;
+    const start = performance.now();
+    const animate = (now: number) => {
+      const t = Math.min(1, (now - start) / durationMs);
+      const eased = t * (2 - t); // easeOutQuad
+      (material as any).opacity = startOpacity + (targetOpacity - startOpacity) * eased;
+      material.needsUpdate = true;
+      if (t < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+    requestAnimationFrame(animate);
+  }
+
   /**
    * Create dragging preview widget
    */
   private createPreviewWidget(): void {
-    if (!this.container) {
-      return;
-    }
-
-    // Create main widget container
-    this.previewWidget = document.createElement('div');
-    this.previewWidget.style.position = 'absolute';
-    this.previewWidget.style.top = '50%';
-    this.previewWidget.style.transform = 'translateY(-50%)';
-    this.previewWidget.style.height = '50vh';
-    this.previewWidget.style.width = 'auto';
-    this.previewWidget.style.aspectRatio = '530/1000'; // Actual photo proportions (530x1000)
-    this.previewWidget.style.backgroundColor = 'transparent';
-    this.previewWidget.style.borderRadius = '12px';
-    this.previewWidget.style.padding = '0';
-    this.previewWidget.style.pointerEvents = 'none';
-    this.previewWidget.style.zIndex = '1000';
-    this.previewWidget.style.display = 'none';
-    this.previewWidget.style.transition = 'opacity 0.2s ease-in-out, left 0.3s ease-in-out';
-    this.previewWidget.style.fontFamily = 'Arial, sans-serif';
-    this.previewWidget.style.fontSize = '14px';
-    this.previewWidget.style.color = 'white';
-    this.previewWidget.style.filter = 'drop-shadow(0 8px 32px rgba(0, 0, 0, 0.3))';
-
-    // Create image element
-    this.previewImage = document.createElement('img');
-    this.previewImage.style.width = '100%';
-    this.previewImage.style.height = '100%';
-    this.previewImage.style.objectFit = 'contain'; // Changed from 'cover' to 'contain' to prevent cropping
-    this.previewImage.style.borderRadius = '12px';
-    this.previewImage.style.display = 'block';
-
-    // Create hotspot info element
-    this.previewHotspotInfo = document.createElement('div');
-    this.previewHotspotInfo.style.display = 'none';
-    this.previewHotspotInfo.style.position = 'absolute';
-    this.previewHotspotInfo.style.bottom = '10px';
-    this.previewHotspotInfo.style.left = '50%';
-    this.previewHotspotInfo.style.transform = 'translateX(-50%)';
-    this.previewHotspotInfo.style.padding = '8px 12px';
-    this.previewHotspotInfo.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-    this.previewHotspotInfo.style.borderRadius = '20px';
-    this.previewHotspotInfo.style.fontWeight = 'bold';
-    this.previewHotspotInfo.style.fontSize = '12px';
-    this.previewHotspotInfo.style.whiteSpace = 'nowrap';
-    this.previewHotspotInfo.style.maxWidth = '90%';
-    this.previewHotspotInfo.style.textAlign = 'center';
-    this.previewHotspotInfo.style.overflow = 'hidden';
-    this.previewHotspotInfo.style.textOverflow = 'ellipsis';
-
-    // Assemble widget
-    this.previewWidget.appendChild(this.previewImage);
-    this.previewWidget.appendChild(this.previewHotspotInfo);
-    this.container.appendChild(this.previewWidget);
+    // Preview widget disabled per request
+    this.previewWidget = null;
+    this.previewImage = null;
+    this.previewHotspotInfo = null;
   }
 
   /**
@@ -677,7 +1602,7 @@ export class ThreeRendererService {
   }
 
   /**
-   * Update preview widget with hotspot info
+   * Update preview widget with hotspot info and apply rotation preview
    */
   private updatePreviewWidgetHotspot(hotspotData: { [key: string]: string | number } | null): void {
     if (!this.previewHotspotInfo) return;
@@ -686,8 +1611,28 @@ export class ThreeRendererService {
       const displayText = this.formatHotspotDisplay(hotspotData);
       this.previewHotspotInfo.innerHTML = displayText;
       this.previewHotspotInfo.style.display = 'block';
+      
+      // Apply rotation preview to dragged mesh based on hotspot zone
+      if (this.draggedMesh) {
+        const photoData = this.meshToPhotoData.get(this.draggedMesh);
+        if (photoData) {
+          // Store original rotation if not already stored
+          if (this.draggedMesh.userData['previewOriginalRotation'] === undefined) {
+            this.draggedMesh.userData['previewOriginalRotation'] = this.draggedMesh.rotation.z;
+          }
+          
+          // Calculate new rotation based on hotspot zone
+          const newRotation = this.calculatePreviewRotation(photoData, hotspotData);
+          this.draggedMesh.rotation.z = newRotation;
+        }
+      }
     } else {
       this.previewHotspotInfo.style.display = 'none';
+      
+      // Restore original rotation when not hovering any hotspot
+      if (this.draggedMesh && this.draggedMesh.userData['previewOriginalRotation'] !== undefined) {
+        this.draggedMesh.rotation.z = this.draggedMesh.userData['previewOriginalRotation'];
+      }
     }
 
     this.currentMatchedHotspot = hotspotData;
@@ -748,6 +1693,27 @@ export class ThreeRendererService {
       // No hotspot, just hide normally
       this.hidePreviewWidget();
     }
+  }
+
+  /**
+   * Calculate preview rotation when hovering over a hotspot zone
+   */
+  private calculatePreviewRotation(photoData: PhotoData, hotspotData: { [key: string]: string | number }): number {
+    const plausibility = photoData.metadata['plausibility'] as number | undefined;
+    const favorableFuture = hotspotData['favorable_future'] as string | undefined;
+    
+    if (plausibility === undefined || !favorableFuture) {
+      return this.draggedMesh?.userData['previewOriginalRotation'] || 0;
+    }
+    
+    const normalizedPlaus = plausibility / 100;
+    const magnitude = (1 - normalizedPlaus) * 32;
+    const favorableLower = favorableFuture.toLowerCase().trim();
+    const isFavor = favorableLower === 'favor' || favorableLower === 'favorable'
+      || favorableLower === 'prefer' || favorableLower === 'preferred';
+    
+    const degrees = isFavor ? magnitude : -magnitude;
+    return THREE.MathUtils.degToRad(degrees);
   }
 
   /**
@@ -934,6 +1900,37 @@ export class ThreeRendererService {
   }
 
   /**
+   * Check if a position is outside the SVG area (for drag out detection)
+   */
+  private isPositionOutOfCanvas(position: THREE.Vector3): boolean {
+    // In SVG mode, check if position is outside SVG bounds
+    if (!this.svgBackgroundOptions?.radius) return false;
+    
+    const svgOffsetX = this.svgBackgroundOptions.offsetX ?? 0;
+    const svgOffsetY = this.svgBackgroundOptions.offsetY ?? 0;
+    const radius = this.svgBackgroundOptions.radius;
+    
+    // Check if position is outside the SVG circle bounds
+    const relX = position.x - svgOffsetX;
+    const relY = position.y - svgOffsetY;
+    const distance = Math.sqrt(relX * relX + relY * relY);
+    
+    // Consider it "out of canvas" if it's outside the SVG radius
+    const isOutside = distance > radius;
+    
+    console.log('[DRAG-OUT-CHECK]', {
+      position: { x: position.x, y: position.y },
+      svgOffset: { x: svgOffsetX, y: svgOffsetY },
+      relativePos: { x: relX, y: relY },
+      distance,
+      radius,
+      isOutside
+    });
+    
+    return isOutside;
+  }
+
+  /**
    * Check for hotspot collision when a photo is dropped
    * Uses the core findHotspotAtMeshPosition method
    */
@@ -963,12 +1960,10 @@ export class ThreeRendererService {
    */
   disableAllDragging(): void {
     this.dragCallbacks.clear();
-    this.meshToPhotoId.clear();
+    // NOTE: Don't clear meshToPhotoId and photoIdToMesh maps - they're used for
+    // other features like filtering and search, not just dragging
     this.isDragging = false;
     this.draggedMesh = null;
-    if (this.renderer?.domElement) {
-      this.renderer.domElement.style.cursor = 'default';
-    }
   }
 
   private setupDragAndDrop(): void {
@@ -979,52 +1974,185 @@ export class ThreeRendererService {
 
     const canvas = this.renderer.domElement;
 
-
-    // Mouse down - start dragging
+    // Mouse down - start dragging or panning
     canvas.addEventListener('mousedown', (event) => {
-
       this.updateMousePosition(event);
-      this.onMouseDown();
+      this.onMouseDown(event);
     });
 
-    // Mouse move - drag
+    // Mouse move - drag or pan
     canvas.addEventListener('mousemove', (event) => {
       this.updateMousePosition(event);
-      this.onMouseMove();
+      this.onMouseMove(event);
     });
 
-    // Mouse up - stop dragging
-    canvas.addEventListener('mouseup', () => {
+    // Mouse up - stop dragging or panning
+    canvas.addEventListener('mouseup', (event) => {
+      this.updateMousePosition(event);
       this.onMouseUp();
+    });
+
+    // Mouse leave - reset fisheye effect and cleanup drag state
+    canvas.addEventListener('mouseleave', () => {
+      // Clean up drag state if dragging when leaving canvas
+      if (this.isDragging) {
+        console.log('[DRAG] Mouse left canvas while dragging, cleaning up drag state');
+        this.cleanupDragState();
+      }
+      
+      // Only reset if fisheye is enabled and there are affected meshes
+      if (this.fisheyeEnabled && this.fisheyeAffectedMeshes.size > 0) {
+        this.resetAllFisheyeEffects();
+      }
+    });
+
+    // Mouse wheel - zoom
+    canvas.addEventListener('wheel', (event) => {
+      this.onMouseWheel(event);
+    }, { passive: false });
+
+    // Double-click - zoom in/out
+    canvas.addEventListener('dblclick', (event) => {
+      this.onDoubleClick(event);
     });
 
     // Touch events for mobile
     canvas.addEventListener('touchstart', (event) => {
+      event.preventDefault(); // Prevent default touch behavior
+      
       if (event.touches.length === 1) {
+        // Single touch - could be drag or tap
+        this.isTwoFingerGesture = false;
         this.updateMousePositionFromTouch(event.touches[0]);
-        this.onMouseDown();
+        const mouseEvent = new MouseEvent('mousedown', {
+          clientX: event.touches[0].clientX,
+          clientY: event.touches[0].clientY
+        });
+        this.onMouseDown(mouseEvent);
+      } else if (event.touches.length === 2) {
+        // Two-finger touch - pan and pinch zoom
+        this.isTwoFingerGesture = true;
+        
+        // Cancel any ongoing single-finger drag
+        if (this.isDragging) {
+          this.cleanupDragState();
+        }
+        
+        // Calculate initial distance for pinch zoom
+        const dx = event.touches[0].clientX - event.touches[1].clientX;
+        const dy = event.touches[0].clientY - event.touches[1].clientY;
+        this.lastTouchDistance = Math.sqrt(dx * dx + dy * dy);
+        this.touchStartDistance = this.lastTouchDistance;
+        
+        // Store initial pan position (midpoint between fingers)
+        this.touchPanStart.x = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+        this.touchPanStart.y = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+        
+        // Disable auto-fit when user starts gesturing
+        if (this.autoFitEnabled) {
+          this.autoFitEnabled = false;
+        }
+        
+        // Disable fisheye during gesture
+        this.disableFisheyeForZoom();
       }
-    });
+    }, { passive: false });
 
     canvas.addEventListener('touchmove', (event) => {
-      if (event.touches.length === 1) {
-        event.preventDefault();
+      event.preventDefault();
+      
+      if (event.touches.length === 1 && !this.isTwoFingerGesture) {
+        // Single touch - drag
         this.updateMousePositionFromTouch(event.touches[0]);
-        this.onMouseMove();
+        const mouseEvent = new MouseEvent('mousemove', {
+          clientX: event.touches[0].clientX,
+          clientY: event.touches[0].clientY
+        });
+        this.onMouseMove(mouseEvent);
+      } else if (event.touches.length === 2) {
+        // Two-finger gesture - pinch zoom and pan
+        this.isTwoFingerGesture = true;
+        
+        // Calculate current distance for pinch zoom
+        const dx = event.touches[0].clientX - event.touches[1].clientX;
+        const dy = event.touches[0].clientY - event.touches[1].clientY;
+        const currentDistance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Calculate zoom factor from pinch
+        if (this.lastTouchDistance > 0) {
+          // Invert factor so pinch-out zooms in (distance up -> factor < 1)
+          const zoomFactor = this.lastTouchDistance / currentDistance;
+          
+          // Apply zoom at the midpoint between fingers
+          const midX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+          const midY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+          this.zoomAtPoint(zoomFactor, midX, midY);
+        }
+        
+        // Calculate pan from midpoint movement
+        const currentMidX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+        const currentMidY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+        const panDeltaX = currentMidX - this.touchPanStart.x;
+        const panDeltaY = currentMidY - this.touchPanStart.y;
+        
+        // Apply pan
+        this.panCamera(panDeltaX, panDeltaY);
+        
+        // Update for next frame
+        this.lastTouchDistance = currentDistance;
+        this.touchPanStart.x = currentMidX;
+        this.touchPanStart.y = currentMidY;
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (event) => {
+      if (event.touches.length === 0) {
+        // All fingers lifted
+        if (this.isTwoFingerGesture) {
+          // Re-enable fisheye after two-finger gesture
+          this.reEnableFisheyeAfterZoom();
+        }
+        this.isTwoFingerGesture = false;
+        this.lastTouchDistance = 0;
+        this.onMouseUp();
+      } else if (event.touches.length === 1) {
+        // One finger remaining - reset to single touch mode
+        this.isTwoFingerGesture = false;
+        this.lastTouchDistance = 0;
       }
     });
 
-    canvas.addEventListener('touchend', () => {
-      this.onMouseUp();
+    // Keyboard controls
+    window.addEventListener('keydown', (event) => {
+      this.onKeyDown(event);
+    });
+
+    // Window-level mouseup as fallback (handles release outside canvas)
+    window.addEventListener('mouseup', () => {
+      if (this.isDragging) {
+        console.log('[DRAG] Window mouseup detected while dragging, cleaning up drag state');
+        this.cleanupDragState();
+      }
+    });
+
+    // Window-level touchend as fallback (handles release outside canvas)
+    window.addEventListener('touchend', () => {
+      if (this.isDragging) {
+        console.log('[DRAG] Window touchend detected while dragging, cleaning up drag state');
+        this.cleanupDragState();
+      }
     });
   }
 
   private updateMousePosition(event: MouseEvent): void {
     if (!this.container) return;
     
+    this.hasUserInteracted = true; // User has moved mouse
     const rect = this.container.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    this.lastClientX = event.clientX;
+    this.lastClientY = event.clientY;
     
     // Update preview widget position based on mouse screen coordinates
     this.updatePreviewWidgetPosition(event.clientX - rect.left, event.clientY - rect.top);
@@ -1033,25 +2161,40 @@ export class ThreeRendererService {
   private updateMousePositionFromTouch(touch: Touch): void {
     if (!this.container) return;
     
+    this.hasUserInteracted = true; // User has touched screen
     const rect = this.container.getBoundingClientRect();
     this.mouse.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
+    this.lastClientX = touch.clientX;
+    this.lastClientY = touch.clientY;
     
     // Update preview widget position based on touch screen coordinates  
     this.updatePreviewWidgetPosition(touch.clientX - rect.left, touch.clientY - rect.top);
   }
 
-  private onMouseDown(): void {
+  private onMouseDown(event: MouseEvent): void {
+    // Store mouse down position for click detection
+    this.mouseDownPosition.set(event.clientX, event.clientY);
+    
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(this.root.children, false);
 
     if (intersects.length > 0) {
       const intersectedMesh = intersects[0].object as THREE.Mesh;
       
-      // Check if this mesh is draggable
-      if (this.dragCallbacks.has(intersectedMesh)) {
+      // Check if this mesh is draggable (has drag callback AND not marked as hover-only)
+      const canDrag = this.dragCallbacks.has(intersectedMesh) && !this.hoverOnlyMeshes.has(intersectedMesh);
+      if (canDrag) {
         this.isDragging = true;
         this.draggedMesh = intersectedMesh;
+        
+        // Store fisheye state and temporarily disable while dragging
+        this.wasFisheyeEnabled = this.fisheyeEnabled;
+        if (this.fisheyeEnabled) {
+          this.fisheyeEnabled = false;
+          // Reset any fisheye effects
+          this.resetAllFisheyeEffects();
+        }
         
         // Set up drag plane parallel to camera
         const cameraDirection = new THREE.Vector3();
@@ -1079,11 +2222,29 @@ export class ThreeRendererService {
             this.currentLayoutStrategy.onPhotoDragStart(photoData, startPosition);
           }
         }
+        return; // Don't start panning if dragging a photo
       }
+    }
+
+    // Start panning if not dragging a photo and user controls are enabled
+    if (this.userControlEnabled && !this.autoFitEnabled) {
+      this.isPanning = true;
+      this.panStartMouse.set(event.clientX, event.clientY);
+      this.panStartCameraPos.set(this.targetCamX, this.targetCamY, this.targetCamZ);
+      this.renderer.domElement.style.cursor = 'grabbing';
     }
   }
 
-  private onMouseMove(): void {
+  private onMouseMove(event: MouseEvent): void {
+    // If fisheye was paused for an animation, resume on the first pointer move afterward
+    if (!this.fisheyeAnimationLock && this.fisheyeResumeOnPointer) {
+      console.log('[FISHEYE] Resuming on mouse move');
+      this.fisheyeResumeOnPointer = false;
+      if (this.fisheyeEnabledSignal) {
+        this.fisheyeEnabled = true;
+      }
+    }
+
     if (this.isDragging && this.draggedMesh) {
       this.raycaster.setFromCamera(this.mouse, this.camera);
       
@@ -1123,36 +2284,82 @@ export class ThreeRendererService {
           }
         }
       }
+    } else if (this.isPanning) {
+      // Handle camera panning
+      const deltaX = event.clientX - this.panStartMouse.x;
+      const deltaY = event.clientY - this.panStartMouse.y;
+      this.panCamera(deltaX, deltaY);
+      this.panStartMouse.set(event.clientX, event.clientY);
     } else {
       // Check for hover effects
       this.raycaster.setFromCamera(this.mouse, this.camera);
       const intersects = this.raycaster.intersectObjects(this.root.children, false);
       
-      if (intersects.length > 0 && this.dragCallbacks.has(intersects[0].object as THREE.Mesh)) {
+      if (intersects.length > 0) {
         const mesh = intersects[0].object as THREE.Mesh;
-        this.renderer.domElement.style.cursor = 'grab';
+        const isDraggable = this.dragCallbacks.has(mesh) && !this.hoverOnlyMeshes.has(mesh);
+        const isHoverOnly = this.hoverOnlyMeshes.has(mesh);
         
-        // Show preview widget on hover
-        if (this.hoveredMesh !== mesh) {
-          this.hoveredMesh = mesh;
-          this.showPreviewWidget(mesh);
+        if (isDraggable || isHoverOnly) {
+          // Set cursor based on whether the mesh is draggable or just hoverable
+          if (this.container) {
+            this.container.style.cursor = isDraggable ? 'grab' : 'pointer';
+          }
+          
+          // Show preview widget on hover
+          if (this.hoveredMesh !== mesh) {
+            this.hoveredMesh = mesh;
+            this.hoveredItemSignal.set(true);
+            this.showPreviewWidget(mesh);
+          }
         }
       } else {
-        this.renderer.domElement.style.cursor = 'default';
-        
         // Hide preview widget when not hovering
         if (this.hoveredMesh) {
           this.hoveredMesh = null;
+          this.hoveredItemSignal.set(false);
           this.hidePreviewWidget();
         }
       }
+
+      // Apply fisheye effect during normal mouse movement
+      this.applyFisheyeEffect();
     }
   }
 
   private onMouseUp(): void {
+    // Calculate mouse movement since mousedown (with null checks)
+    const mouseMovement = (this.lastClientX !== null && this.lastClientY !== null) ? Math.sqrt(
+      (this.lastClientX - this.mouseDownPosition.x) * (this.lastClientX - this.mouseDownPosition.x) +
+      (this.lastClientY - this.mouseDownPosition.y) * (this.lastClientY - this.mouseDownPosition.y)
+    ) : this.FALLBACK_MOUSE_MOVEMENT; // Fallback if coordinates unavailable
+    const isClick = mouseMovement < this.clickThreshold;
+    
     if (this.isDragging && this.draggedMesh) {
       const draggedMesh = this.draggedMesh; // Store reference before clearing
+      
+      // Clear preview rotation data
+      if (draggedMesh.userData['previewOriginalRotation'] !== undefined) {
+        delete draggedMesh.userData['previewOriginalRotation'];
+      }
+      
       this.isDragging = false;
+      
+      // If this was a click (no actual dragging), treat it as a photo click
+      if (isClick) {
+        const photoId = this.findPhotoIdForMesh(draggedMesh);
+        if (photoId && this.onPhotoClickCallback) {
+          console.log('[CLICK] Photo clicked (was about to drag but moved < threshold):', photoId);
+          
+          // Re-enable fisheye if it was enabled before dragging
+          if (this.wasFisheyeEnabled) {
+            this.fisheyeEnabled = true;
+          }
+          
+          this.onPhotoClickCallback(photoId);
+          return; // Exit early, don't process drag logic
+        }
+      }
       
       // Animate preview widget drop with current matched hotspot
       this.animatePreviewWidgetDrop(this.currentMatchedHotspot);
@@ -1176,28 +2383,228 @@ export class ThreeRendererService {
       if (this.isInteractiveLayout()) {
         const photoId = this.findPhotoIdForMesh(draggedMesh);
         if (photoId) {
-          this.checkHotspotCollision(draggedMesh, photoId);
+          // Check if item is outside canvas bounds
+          const isOutOfBounds = this.isPositionOutOfCanvas(draggedMesh.position);
+          
+          if (isOutOfBounds) {
+            // Item dragged out of canvas - remove evaluation metadata
+            const photoData = this.meshToPhotoData.get(draggedMesh);
+            if (photoData) {
+              console.log('[DRAG-OUT] Photo', photoId, 'dragged out of canvas, clearing evaluation metadata');
+              
+              // Update photo metadata locally to clear evaluation fields
+              photoData.updateMetadata({
+                plausibility: undefined,
+                favorable_future: undefined,
+                _svgZoneFavorableFuture: undefined
+              });
+              
+              // Update rotation to 0°
+              draggedMesh.rotation.z = 0;
+              
+              // Trigger async callback to save to API (fire and forget)
+              if (this.onHotspotDropCallback) {
+                const position = { x: draggedMesh.position.x, y: draggedMesh.position.y, z: draggedMesh.position.z };
+                // Use empty object for cleared metadata (callback will handle undefined values)
+                this.onHotspotDropCallback(photoId, {}, position).catch(error => {
+                  console.error('[DRAG-OUT] Error saving cleared metadata:', error);
+                });
+              }
+            }
+          } else {
+            // Check for hotspot collision only if within bounds
+            this.checkHotspotCollision(draggedMesh, photoId);
+          }
         }
       }
       
       this.draggedMesh = null;
       this.hoveredMesh = null; // Clear hovered mesh on drop
+      console.log('[CURSOR] Drop event, setting hover signal to false');
+      this.hoveredItemSignal.set(false);
       this.currentMatchedHotspot = null; // Clear matched hotspot
-      this.renderer.domElement.style.cursor = 'default';
+      
+      // Re-enable fisheye if it was enabled before dragging
+      if (this.wasFisheyeEnabled) {
+        this.fisheyeEnabled = true;
+      }
+    } else if (this.isPanning) {
+      // Stop panning
+      this.isPanning = false;
+    } else if (isClick && !this.isDragging) {
+      // Handle click events (not drag or pan)
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+      const intersects = this.raycaster.intersectObjects(this.root.children, false);
+      
+      if (intersects.length > 0) {
+        const mesh = intersects[0].object as THREE.Mesh;
+        const photoId = this.findPhotoIdForMesh(mesh);
+        
+        if (photoId && this.onPhotoClickCallback) {
+          // Clicked on a photo
+          console.log('[CLICK] Photo clicked:', photoId);
+          this.onPhotoClickCallback(photoId);
+        } else if (!photoId && this.onBackgroundClickCallback) {
+          // Clicked on background
+          console.log('[CLICK] Background clicked');
+          this.onBackgroundClickCallback();
+        }
+      } else if (this.onBackgroundClickCallback) {
+        // Clicked on empty area (no mesh intersected)
+        console.log('[CLICK] Background clicked');
+        this.onBackgroundClickCallback();
+      }
+    }
+  }
+
+  private onMouseWheel(event: WheelEvent): void {
+    if (!this.userControlEnabled) return;
+
+    event.preventDefault();
+
+    // Disable auto-fit when user starts zooming
+    if (this.autoFitEnabled) {
+      this.autoFitEnabled = false;
+    }
+
+    // Disable fisheye immediately on zoom
+    this.disableFisheyeForZoom();
+
+    // Detect trackpad vs mouse wheel using deltaMode
+    // deltaMode 0 = pixels (trackpad), 1 = lines (mouse wheel), 2 = pages
+    const isTrackpad = event.deltaMode === 0;
+    
+    // Soften trackpad zoom significantly
+    const baseDelta = event.deltaY;
+    const adjustedDelta = isTrackpad ? baseDelta * 0.01 : baseDelta;
+    
+    // Calculate zoom factor based on adjusted delta (150% larger step than before)
+    const zoomStep = 1.125; // 12.5% step vs previous 5%
+    const zoomFactor = adjustedDelta > 0 ? zoomStep : 1 / zoomStep;
+
+    // Zoom at the cursor position
+    this.zoomAtPoint(zoomFactor, event.clientX, event.clientY);
+
+    // Re-enable fisheye now that zoom is complete
+    this.reEnableFisheyeAfterZoom();
+  }
+
+  private async onDoubleClick(event: MouseEvent): Promise<void> {
+    if (!this.userControlEnabled) return;
+
+    event.preventDefault();
+
+    // Disable auto-fit when user starts zooming
+    if (this.autoFitEnabled) {
+      this.autoFitEnabled = false;
+    }
+
+    // Disable fisheye immediately on zoom
+    this.disableFisheyeForZoom();
+
+    // Shift+double-click zooms out, normal double-click zooms in (faster step)
+    const zoomFactor = event.shiftKey ? 2.2 : 0.45;
+
+    // Zoom at the cursor position with smooth animation
+    await this.animatedZoomAtPoint(zoomFactor, event.clientX, event.clientY, 0.4);
+
+    // Re-enable fisheye now that zoom animation is queued
+    this.reEnableFisheyeAfterZoom();
+  }
+
+  private onKeyDown(event: KeyboardEvent): void {
+    if (!this.userControlEnabled) return;
+
+    // Ignore keyboard shortcuts when user is typing in an input field
+    const target = event.target as HTMLElement;
+    if (target && (
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT' ||
+      target.isContentEditable
+    )) {
+      return;
+    }
+
+    const panSpeed = 50; // pixels per key press
+
+    switch (event.key) {
+      case 'ArrowUp':
+        event.preventDefault();
+        if (this.autoFitEnabled) this.autoFitEnabled = false;
+        this.panCamera(0, panSpeed);
+        break;
+      case 'ArrowDown':
+        event.preventDefault();
+        if (this.autoFitEnabled) this.autoFitEnabled = false;
+        this.panCamera(0, -panSpeed);
+        break;
+      case 'ArrowLeft':
+        event.preventDefault();
+        if (this.autoFitEnabled) this.autoFitEnabled = false;
+        this.panCamera(panSpeed, 0);
+        break;
+      case 'ArrowRight':
+        event.preventDefault();
+        if (this.autoFitEnabled) this.autoFitEnabled = false;
+        this.panCamera(-panSpeed, 0);
+        break;
+      case '+':
+      case '=':
+        event.preventDefault();
+        if (this.autoFitEnabled) this.autoFitEnabled = false;
+        // Zoom in at center of screen
+        const centerX = this.container!.clientWidth / 2;
+        const centerY = this.container!.clientHeight / 2;
+        this.zoomAtPoint(0.9, centerX, centerY);
+        break;
+      case '-':
+      case '_':
+        event.preventDefault();
+        if (this.autoFitEnabled) this.autoFitEnabled = false;
+        // Zoom out at center of screen
+        const centerX2 = this.container!.clientWidth / 2;
+        const centerY2 = this.container!.clientHeight / 2;
+        this.zoomAtPoint(1.1, centerX2, centerY2);
+        break;
+      case 'r':
+      case 'R':
+        event.preventDefault();
+        this.resetCameraView(true);
+        break;
     }
   }
 
   /**
-   * Remove SVG background
+   * Remove SVG background with fade-out animation
    */
   removeSvgBackground(): void {
     if (this.svgBackgroundPlane) {
-      this.scene.remove(this.svgBackgroundPlane);
-      this.svgBackgroundPlane.geometry.dispose();
-      if (this.svgBackgroundPlane.material instanceof THREE.Material) {
-        this.svgBackgroundPlane.material.dispose();
-      }
-      this.svgBackgroundPlane = undefined;
+      const material = this.svgBackgroundPlane.material as any;
+      const startOpacity = material.opacity ?? 1;
+      const start = performance.now();
+      const durationMs = 400;
+      
+      const animate = (now: number) => {
+        const t = Math.min(1, (now - start) / durationMs);
+        const eased = 1 - (t * (2 - t)); // easeOutQuad reverse (1 to 0)
+        material.opacity = startOpacity * eased;
+        material.needsUpdate = true;
+        
+        if (t < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          // Animation complete, now remove from scene
+          this.scene.remove(this.svgBackgroundPlane!);
+          this.svgBackgroundPlane!.geometry.dispose();
+          if (this.svgBackgroundPlane!.material instanceof THREE.Material) {
+            this.svgBackgroundPlane!.material.dispose();
+          }
+          this.svgBackgroundPlane = undefined;
+        }
+      };
+      
+      requestAnimationFrame(animate);
     }
     
     if (this.svgBackgroundTexture) {
@@ -1212,6 +2619,31 @@ export class ThreeRendererService {
     }
     
     this.svgBackgroundOptions = undefined;
+  }
+
+  /**
+   * Set opacity for a specific photo
+   */
+  setPhotoOpacity(photoId: string, opacity: number): void {
+    const mesh = this.photoIdToMesh.get(photoId);
+    if (!mesh) return;
+    
+    if (mesh.material && 'opacity' in mesh.material) {
+      (mesh.material as any).opacity = opacity;
+      // Ensure transparency is enabled for opacity < 1
+      (mesh.material as any).transparent = true;
+      (mesh.material as any).needsUpdate = true;
+    }
+  }
+
+  /**
+   * Set z-index (renderOrder) for a specific photo
+   */
+  setPhotoZIndex(photoId: string, zIndex: number): void {
+    const mesh = this.photoIdToMesh.get(photoId);
+    if (!mesh) return;
+    
+    mesh.renderOrder = zIndex;
   }
 
   // Cleanup
@@ -1241,28 +2673,62 @@ export class ThreeRendererService {
       this.previewHotspotInfo = null;
     }
 
+    // Remove renderer canvas from the DOM to avoid duplicate attachments on re-init
+    if (this.renderer && this.container?.contains(this.renderer.domElement)) {
+      this.container.removeChild(this.renderer.domElement);
+    }
+
     // Clear drag callbacks
     this.dragCallbacks.clear();
     this.isDragging = false;
     this.draggedMesh = null;
     this.hoveredMesh = null;
+    console.log('[CURSOR] Pointer left canvas, setting hover signal to false');
+    this.hoveredItemSignal.set(false);
     this.currentMatchedHotspot = null;
 
     // Dispose Three.js objects
     this.renderer?.dispose();
     this.scene?.clear();
+    this.meshToUrl.clear();
+    this.highResActive.clear();
     
     this.rafRunning = false;
     this.isInitialized = false;
+    this.container = null;
   }
 
   // Private methods
   private async initializeThreeJS(): Promise<void> {
-    // Renderer
+    // Renderer - optimize pixel ratio for mobile
+    const pixelRatio = this.platformService.isMobile 
+      ? Math.min(1.5, window.devicePixelRatio || 1) // Lower pixel ratio on mobile for better performance
+      : Math.min(2, window.devicePixelRatio || 1);
+    
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(this.container!.clientWidth, this.container!.clientHeight);
+    
+    // Query WebGL max texture size to prevent crashes on iOS Safari
+    const gl = this.renderer.getContext();
+    this.maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+    console.log('[THREE_RENDERER] WebGL MAX_TEXTURE_SIZE:', this.maxTextureSize);
+    
+    // Add WebGL error logging to catch issues without crashing
+    const canvas = this.renderer.domElement;
+    canvas.addEventListener('webglcontextlost', (event) => {
+      console.error('[THREE_RENDERER] WebGL context lost:', event);
+      event.preventDefault();
+    }, false);
+    
+    canvas.addEventListener('webglcontextrestored', () => {
+      console.log('[THREE_RENDERER] WebGL context restored');
+    }, false);
+    
+    // Ensure canvas allows JavaScript to handle all touch events
+    this.renderer.domElement.style.touchAction = 'none';
+    
     this.container!.appendChild(this.renderer.domElement);
 
     // Set up drag and drop after canvas is in DOM
@@ -1325,16 +2791,88 @@ export class ThreeRendererService {
       // Update tweens
       this.activeTweens = this.activeTweens.filter((fn) => !fn(dt));
 
-      // Camera damping
+      // Camera damping for X, Y, Z
+      this.clampCameraToBounds();
+
+      const oldCamX = this.camera.position.x;
+      const oldCamY = this.camera.position.y;
+      const oldCamZ = this.camera.position.z;
+
+      this.camera.position.x = this.damp(
+        this.camera.position.x,
+        this.targetCamX,
+        this.CAM_DAMP,
+        dt
+      );
+      this.camera.position.y = this.damp(
+        this.camera.position.y,
+        this.targetCamY,
+        this.CAM_DAMP,
+        dt
+      );
       this.camera.position.z = this.damp(
         this.camera.position.z, 
         this.targetCamZ, 
         this.CAM_DAMP, 
         dt
       );
-      this.camera.lookAt(0, 0, 0);
+      this.camera.lookAt(this.targetCamX, this.targetCamY, 0);
 
-      this.renderer.render(this.scene, this.camera);
+      // Check if scene is idle (camera stopped moving and no active tweens)
+      const cameraMoved = Math.abs(this.camera.position.x - oldCamX) > this.IDLE_THRESHOLD ||
+                          Math.abs(this.camera.position.y - oldCamY) > this.IDLE_THRESHOLD ||
+                          Math.abs(this.camera.position.z - oldCamZ) > this.IDLE_THRESHOLD;
+      
+      const hasActivity = cameraMoved || this.activeTweens.length > 0 || this.isDragging || this.isPanning;
+      
+      // Update frustum for culling only when camera moves or periodically
+      this.idleCheckInterval += dt;
+      if (hasActivity || this.idleCheckInterval >= this.IDLE_CHECK_INTERVAL) {
+        this.updateFrustum();
+        this.applyFrustumCulling();
+        this.idleCheckInterval = 0;
+        this.isSceneIdle = false;
+      } else if (!this.isSceneIdle) {
+        // Scene just became idle, do one final render
+        this.isSceneIdle = true;
+      }
+
+      // Apply fisheye effect if enabled (continuously, not just on mouse move)
+      if (this.fisheyeEnabled) {
+        this.applyFisheyeEffect();
+      }
+
+      // Performance monitoring
+      this.frameCount++;
+      const now = performance.now();
+      if (this.performanceMonitoring && now - this.lastFpsUpdate >= 1000) {
+        this.currentFps = this.frameCount;
+        const skippedPercent = ((this.skippedFrames / this.frameCount) * 100).toFixed(1);
+        console.log(`[PERF] FPS: ${this.currentFps} | Rendered: ${this.renderCount} | Skipped: ${this.skippedFrames} (${skippedPercent}%) | Visible/Total: ${this.visibleMeshCount}/${this.totalMeshCount}`);
+        this.frameCount = 0;
+        this.renderCount = 0;
+        this.skippedFrames = 0;
+        this.lastFpsUpdate = now;
+      }
+
+      // Only render if scene is not idle or fisheye is active
+      if (!this.isSceneIdle || this.fisheyeEnabled) {
+        this.renderer.render(this.scene, this.camera);
+        if (this.performanceMonitoring) this.renderCount++;
+      } else {
+        if (this.performanceMonitoring) this.skippedFrames++;
+      }
+
+      // Run LOD checks - reduce frequency on mobile devices
+      this.lodAccumTime += dt;
+      const isMobile = this.platformService.isMobile;
+      // On mobile: skip LOD when no hover (mobile has no hover state)
+      // On desktop: more frequent when hovering
+      const lodInterval = isMobile ? 0.5 : (this.hoveredMesh ? 0.05 : 0.2);
+      if (this.lodAccumTime >= lodInterval) {
+        this.lodAccumTime = 0;
+        this.runLodPass();
+      }
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
@@ -1364,18 +2902,19 @@ export class ThreeRendererService {
 
     // Start loading with image downscaling
     const loadPromise = this.loadAndDownscaleImage(url).then(texture => {
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.minFilter = THREE.LinearMipmapLinearFilter;
-      texture.magFilter = THREE.LinearFilter;
-      texture.anisotropy = this.ANISO;
-      texture.generateMipmaps = true;
-      texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
-      
-      this.textureCache.set(url, texture);
-      this.loadingTextures.delete(url);
-      
-      return texture;
+      try {
+        this.configureTexture(texture);
+        this.textureCache.set(url, texture);
+        this.loadingTextures.delete(url);
+        return texture;
+      } catch (error) {
+        console.error('[THREE_RENDERER] Error configuring texture:', url, error);
+        this.loadingTextures.delete(url);
+        texture.dispose();
+        throw error;
+      }
     }).catch(error => {
+      console.error('[THREE_RENDERER] Failed to load texture:', url, error);
       this.loadingTextures.delete(url);
       throw error;
     });
@@ -1400,20 +2939,19 @@ export class ThreeRendererService {
 
     // Start loading without downscaling
     const loadPromise = this.loadFullResolutionImage(url).then(texture => {
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.minFilter = THREE.LinearMipmapLinearFilter;
-      texture.magFilter = THREE.LinearFilter;
-      texture.anisotropy = this.ANISO;
-      texture.generateMipmaps = true;
-      texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
-      
-      this.highResTextureCache.set(url, texture);
-      this.loadingHighResTextures.delete(url);
-      
-
-      return texture;
+      try {
+        this.configureTexture(texture);
+        this.highResTextureCache.set(url, texture);
+        this.loadingHighResTextures.delete(url);
+        return texture;
+      } catch (error) {
+        console.error('[THREE_RENDERER] Error configuring high-res texture:', url, error);
+        this.loadingHighResTextures.delete(url);
+        texture.dispose();
+        throw error;
+      }
     }).catch(error => {
-      console.error('Failed to load high-res texture:', url, error);
+      console.error('[THREE_RENDERER] Failed to load high-res texture:', url, error);
       this.loadingHighResTextures.delete(url);
       throw error;
     });
@@ -1432,10 +2970,97 @@ export class ThreeRendererService {
       
       img.onload = () => {
         try {
-          // Create texture directly from full-size image
-          const texture = new THREE.Texture(img);
-          texture.needsUpdate = true;
+          const { width: originalWidth, height: originalHeight } = img;
           
+          // Validate image dimensions
+          if (!originalWidth || !originalHeight || originalWidth <= 0 || originalHeight <= 0) {
+            reject(new Error(`Invalid image dimensions: ${originalWidth}x${originalHeight}`));
+            return;
+          }
+          
+          // Always downscale to max texture size on mobile for iOS Safari compatibility
+          // iOS Safari has strict WebGL memory limits and texture handling
+          if (originalWidth > this.maxTextureSize || originalHeight > this.maxTextureSize || this.platformService.isMobile) {
+            const mobileSafeMax = Math.min(this.maxTextureSize, 1024); // Aggressive cap for iOS Safari stability
+            const targetSize = this.platformService.isMobile 
+              ? mobileSafeMax
+              : this.maxTextureSize;
+            
+            console.warn(`[THREE_RENDERER] Processing image for high-res: ${originalWidth}x${originalHeight}, target max: ${targetSize}`);
+            
+            // Calculate new dimensions maintaining aspect ratio
+            const aspectRatio = originalWidth / originalHeight;
+            let newWidth: number;
+            let newHeight: number;
+            
+            if (originalWidth > originalHeight) {
+              newWidth = Math.min(targetSize, originalWidth);
+              newHeight = newWidth / aspectRatio;
+            } else {
+              newHeight = Math.min(targetSize, originalHeight);
+              newWidth = newHeight * aspectRatio;
+            }
+            
+            // Ensure dimensions are valid integers
+            newWidth = Math.max(1, Math.floor(newWidth));
+            newHeight = Math.max(1, Math.floor(newHeight));
+            
+            // Double-check against max texture size
+            if (newWidth > this.maxTextureSize || newHeight > this.maxTextureSize) {
+              reject(new Error(`Calculated dimensions exceed max texture size: ${newWidth}x${newHeight}`));
+              return;
+            }
+            
+            // Create canvas for downscaling
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d', { 
+              willReadFrequently: false,
+              alpha: true 
+            });
+            
+            if (!ctx) {
+              reject(new Error('Could not get 2D context from canvas'));
+              return;
+            }
+            
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+            
+            // Clear canvas first
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw downscaled image with error handling
+            try {
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            } catch (drawError) {
+              reject(new Error(`Failed to draw image to canvas: ${drawError}`));
+              return;
+            }
+            
+            // Verify canvas has valid data before creating texture
+            try {
+              const imageData = ctx.getImageData(0, 0, 1, 1); // Test read
+              if (!imageData || !imageData.data || imageData.data.length === 0) {
+                reject(new Error('Canvas has no valid image data'));
+                return;
+              }
+            } catch (dataError) {
+              reject(new Error(`Cannot read canvas data: ${dataError}`));
+              return;
+            }
+            
+            // Create texture from canvas
+            const texture = new THREE.CanvasTexture(canvas);
+            this.configureTexture(texture);
+            console.log(`[THREE_RENDERER] Created canvas texture: ${canvas.width}x${canvas.height}`);
+            resolve(texture);
+            return;
+          }
+          
+          // Create texture directly from image if within limits (desktop only)
+          const texture = new THREE.Texture(img);
+          this.configureTexture(texture);
+          console.log(`[THREE_RENDERER] Created direct texture: ${originalWidth}x${originalHeight}`);
 
           resolve(texture);
           
@@ -1452,11 +3077,35 @@ export class ThreeRendererService {
     });
   }
 
+  private configureTexture(texture: THREE.Texture | null | undefined): void {
+    if (!texture) return;
+
+    const img: any = texture.image;
+    const width = img?.width ?? img?.naturalWidth ?? 0;
+    const height = img?.height ?? img?.naturalHeight ?? 0;
+    const isPOT = width > 0 && height > 0 && this.isPowerOfTwo(width) && this.isPowerOfTwo(height);
+    const isMobile = this.platformService.isMobile;
+
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.magFilter = THREE.LinearFilter;
+    texture.anisotropy = isMobile ? 1 : this.ANISO;
+    texture.generateMipmaps = isMobile ? false : isPOT;
+    texture.minFilter = isMobile ? THREE.LinearFilter : (isPOT ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter);
+    texture.needsUpdate = true;
+  }
+
+  private isPowerOfTwo(value: number): boolean {
+    return (value & (value - 1)) === 0 && value !== 0;
+  }
+
   /**
    * Load and downscale image to maximum dimension for performance optimization
    */
   private async loadAndDownscaleImage(url: string): Promise<THREE.Texture> {
-    const MAX_DIMENSION = PHOTO_CONSTANTS.MAX_TEXTURE_DIMENSION;
+    const MAX_DIMENSION = this.platformService.isMobile 
+      ? PHOTO_CONSTANTS.MAX_TEXTURE_DIMENSION_MOBILE 
+      : PHOTO_CONSTANTS.MAX_TEXTURE_DIMENSION;
     
     return new Promise<THREE.Texture>((resolve, reject) => {
       const img = new Image();
@@ -1466,11 +3115,23 @@ export class ThreeRendererService {
         try {
           const { width: originalWidth, height: originalHeight } = img;
           
+          // Validate image dimensions
+          if (!originalWidth || !originalHeight || originalWidth <= 0 || originalHeight <= 0) {
+            reject(new Error(`Invalid image dimensions: ${originalWidth}x${originalHeight}`));
+            return;
+          }
+          
           // Check if downscaling is needed
           if (originalWidth <= MAX_DIMENSION && originalHeight <= MAX_DIMENSION) {
-            // No downscaling needed - create texture directly from image
+            // No downscaling needed but validate against max texture size
+            if (originalWidth > this.maxTextureSize || originalHeight > this.maxTextureSize) {
+              reject(new Error(`Image too large even for no-downscale path: ${originalWidth}x${originalHeight}`));
+              return;
+            }
+            
+            // Create texture directly from image
             const texture = new THREE.Texture(img);
-            texture.needsUpdate = true;
+            this.configureTexture(texture);
             resolve(texture);
             return;
           }
@@ -1488,24 +3149,45 @@ export class ThreeRendererService {
             newWidth = newHeight * aspectRatio;
           }
           
+          // Ensure dimensions are valid integers
+          newWidth = Math.max(1, Math.floor(newWidth));
+          newHeight = Math.max(1, Math.floor(newHeight));
+          
+          // Validate against WebGL max texture size
+          if (newWidth > this.maxTextureSize || newHeight > this.maxTextureSize) {
+            reject(new Error(`Calculated dimensions exceed max texture size: ${newWidth}x${newHeight}`));
+            return;
+          }
+          
           // Create canvas for downscaling
           const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
+          const ctx = canvas.getContext('2d', { 
+            willReadFrequently: false,
+            alpha: true 
+          });
           
           if (!ctx) {
             reject(new Error('Could not get 2D context from canvas'));
             return;
           }
           
-          canvas.width = Math.round(newWidth);
-          canvas.height = Math.round(newHeight);
+          canvas.width = newWidth;
+          canvas.height = newHeight;
           
-          // Draw downscaled image
-          ctx.drawImage(img, 0, 0, originalWidth, originalHeight, 0, 0, canvas.width, canvas.height);
+          // Clear canvas first
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          
+          // Draw downscaled image with error handling
+          try {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          } catch (drawError) {
+            reject(new Error(`Failed to draw image to canvas: ${drawError}`));
+            return;
+          }
           
           // Create texture from canvas
           const texture = new THREE.CanvasTexture(canvas);
-          texture.needsUpdate = true;
+          this.configureTexture(texture);
           
           resolve(texture);
           
@@ -1542,15 +3224,20 @@ export class ThreeRendererService {
     const svgWidth = parseInt(svgWidthAttr || '0') || this.container!.clientWidth;
     const svgHeight = parseInt(svgHeightAttr || '0') || this.container!.clientHeight;
     
-    canvas.width = svgWidth;
-    canvas.height = svgHeight;
+    // Render at high resolution (4000x4000)
+    const targetResolution = 4000;
+    const dpiScaleX = targetResolution / svgWidth;
+    const dpiScaleY = targetResolution / svgHeight;
+    canvas.width = targetResolution;
+    canvas.height = targetResolution;
     
     // Create an image from SVG data
     const img = new Image();
     img.onload = () => {
-      // Clear canvas and draw SVG
+      // Clear canvas and draw SVG at high resolution
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      ctx.scale(dpiScaleX, dpiScaleY); // Scale up the drawing context
+      ctx.drawImage(img, 0, 0, svgWidth, svgHeight);
       
       // Create texture from canvas
       this.svgBackgroundTexture = new THREE.CanvasTexture(canvas);
@@ -1561,16 +3248,24 @@ export class ThreeRendererService {
       const backgroundRadius = svgOptions.radius || 20000;
       const geometry = new THREE.PlaneGeometry(backgroundRadius * 2, backgroundRadius * 2);
       
+      // Use desired opacity if set (defaults to 1.0), otherwise use 1.0
+      const desiredOpacity = (svgOptions as any).desiredOpacity ?? 1.0;
+      
       const material = new THREE.MeshBasicMaterial({
         map: this.svgBackgroundTexture,
         transparent: true,
-        opacity: 0.8 // Make background more visible
+        opacity: 0,
+        depthWrite: false // Transparent background shouldn't write to depth buffer
       });
       
       this.svgBackgroundPlane = new THREE.Mesh(geometry, material);
       
-      // Position the plane just behind the photos at z = -0.01
-      this.svgBackgroundPlane.position.set(0, 0, -0.01);
+      // Position the plane far behind the photos at z = -1
+      // This ensures it's always behind photos which are at z = 0
+      this.svgBackgroundPlane.position.set(0, 0, -1);
+      
+      // Set renderOrder to ensure background is rendered first (lower values render first)
+      this.svgBackgroundPlane.renderOrder = -1000;
       
       // Apply any offset transformations
       if (svgOptions.offsetX) this.svgBackgroundPlane.position.x += svgOptions.offsetX;
@@ -1579,6 +3274,8 @@ export class ThreeRendererService {
       
       // Add to scene
       this.scene.add(this.svgBackgroundPlane);
+      // Fade in to preserve original SVG element opacities while bringing the plane into view
+      this.animateMaterialOpacity(material, desiredOpacity, 650);
     };
     
     img.onerror = (error) => {
@@ -1591,7 +3288,7 @@ export class ThreeRendererService {
     img.src = url;
   }
 
-  private computeFitZWithMargin(
+  computeFitZWithMargin(
     bounds: SceneBounds,
     fovY: number,
     aspect: number,
@@ -1624,4 +3321,436 @@ export class ThreeRendererService {
   private clamp01(t: number): number {
     return Math.max(0, Math.min(1, t));
   }
+
+  /**
+   * Zoom at the viewport center with smooth animation (used by UI buttons)
+   */
+  zoomAtCenter(factor: number): Promise<void> {
+    if (!this.container) return Promise.resolve();
+    if (this.autoFitEnabled) this.autoFitEnabled = false;
+    this.disableFisheyeForZoom();
+    const rect = this.container.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    return this.animatedZoomAtPoint(factor, cx, cy, 0.3).then(() => {
+      this.reEnableFisheyeAfterZoom();
+    });
+  }
+
+  /**
+   * Focus camera on a specific position with zoom
+   * @param x World space X coordinate of the target position
+   * @param y World space Y coordinate of the target position
+   * @param targetZ Camera Z distance (zoom level). Must be between minCamZ (300) and maxCamZ (50000).
+   *                Smaller values = more zoomed in. Default is 800.
+   */
+  focusOnPosition(x: number, y: number, targetZ: number = 800): void {
+    // Disable auto-fit mode
+    this.autoFitEnabled = false;
+    
+    // Set target camera position
+    this.targetCamX = x;
+    this.targetCamY = y;
+    this.targetCamZ = THREE.MathUtils.clamp(targetZ, this.minCamZ, this.maxCamZ);
+    
+    console.log('[THREE_RENDERER] Focusing on position:', { x, y, targetZ: this.targetCamZ });
+  }
+
+      /**
+       * Smoothly focus the camera on a position over the given duration.
+   * Monitors zoom level and disables fisheye once it passes the full extent threshold.
+   */
+  focusOnPositionAnimated(x: number, y: number, targetZ: number = 800, durationSec: number = 1): Promise<void> {
+    return new Promise((resolve) => {
+      // Disable auto-fit during manual focus
+      this.autoFitEnabled = false;
+
+      const startX = this.targetCamX;
+      const startY = this.targetCamY;
+      const startZ = this.targetCamZ;
+
+      const clampedZ = THREE.MathUtils.clamp(targetZ, this.minCamZ, this.maxCamZ);
+
+      // If duration is tiny, snap immediately
+      if (durationSec <= 0.01) {
+        this.targetCamX = x;
+        this.targetCamY = y;
+        this.targetCamZ = clampedZ;
+        resolve();
+        return;
+      }
+
+      // Calculate the point where fisheye becomes ineffective (zoomed in significantly)
+      // Use 70% progress through the zoom as the threshold for disabling fisheye
+      const fisheyeDisableThreshold = 0.7;
+      let fisheyeDisabled = false;
+
+      const tweenFn = this.makeTween(durationSec, (progress: number) => {
+        const eased = this.easeOutCubic(progress);
+        this.targetCamX = this.lerp(startX, x, eased);
+        this.targetCamY = this.lerp(startY, y, eased);
+        this.targetCamZ = this.lerp(startZ, clampedZ, eased);
+
+        // Disable fisheye once we pass the threshold during zoom-in
+        if (!fisheyeDisabled && progress >= fisheyeDisableThreshold) {
+          fisheyeDisabled = true;
+          this.disableFisheyeForZoom();
+          this.fisheyeAnimationLock = true;
+          this.fisheyeResumeOnPointer = this.fisheyeEnabledSignal;
+        }
+
+        if (progress >= 1.0) {
+          this.targetCamX = x;
+          this.targetCamY = y;
+          this.targetCamZ = clampedZ;
+          console.log('[ZOOM_LEVEL_ANIM] Animation complete. Final Z=', this.targetCamZ.toFixed(2));
+          // Fisheye stays locked off; will re-enable only on manual zoom out past this level
+          this.fisheyeResumeOnPointer = this.fisheyeEnabledSignal;
+          console.log('[ZOOM_LEVEL_ANIM] Fisheye resumeOnPointer set to:', this.fisheyeResumeOnPointer);
+          resolve();
+        }
+      });
+
+      this.addTween(tweenFn);
+    });
+  }
+
+  /**
+   * Zoom at a point with smooth animation
+   * Maintains cursor position as exact anchor throughout animation
+   */
+  private animatedZoomAtPoint(factor: number, screenX: number, screenY: number, durationSec: number): Promise<void> {
+    if (!this.userControlEnabled || this.autoFitEnabled) return Promise.resolve();
+
+    const startZ = this.targetCamZ;
+    const startCamX = this.targetCamX;
+    const startCamY = this.targetCamY;
+
+    // Calculate new camera Z
+    const targetZ = THREE.MathUtils.clamp(
+      startZ * factor,
+      this.minCamZ,
+      this.maxCamZ
+    );
+
+    // Convert screen coordinates to NDC
+    const rect = this.container!.getBoundingClientRect();
+    const ndcX = ((screenX - rect.left) / rect.width) * 2 - 1;
+    const ndcY = -((screenY - rect.top) / rect.height) * 2 + 1;
+
+    // Calculate world position at start and target Z
+    const beforeZoom = this.projectScreenToWorld(ndcX, ndcY, startCamX, startCamY, startZ);
+    const afterZoom = this.projectScreenToWorld(ndcX, ndcY, startCamX, startCamY, targetZ);
+
+    // Pre-compute where the camera needs to be
+    const targetCamX = startCamX + (beforeZoom.x - afterZoom.x);
+    const targetCamY = startCamY + (beforeZoom.y - afterZoom.y);
+
+    // Animate smoothly
+    return this.runTween(this.makeTween(durationSec, (progress) => {
+      this.targetCamZ = THREE.MathUtils.lerp(startZ, targetZ, progress);
+      this.targetCamX = THREE.MathUtils.lerp(startCamX, targetCamX, progress);
+      this.targetCamY = THREE.MathUtils.lerp(startCamY, targetCamY, progress);
+    }));
+  }
+
+  /**
+   * Update frustum for culling calculations
+   */
+  private updateFrustum(): void {
+    this.camera.updateMatrixWorld();
+    this.frustumMatrix.multiplyMatrices(
+      this.camera.projectionMatrix,
+      this.camera.matrixWorldInverse
+    );
+    this.frustum.setFromProjectionMatrix(this.frustumMatrix);
+  }
+
+  /**
+   * Apply frustum culling to hide off-screen meshes
+   * This significantly improves performance with large numbers of items
+   */
+  private applyFrustumCulling(): void {
+    this.visibleMeshCount = 0;
+    this.totalMeshCount = 0;
+
+    for (const child of this.root.children) {
+      const mesh = child as THREE.Mesh;
+      this.totalMeshCount++;
+
+      // Get the mesh's bounding sphere
+      if (!mesh.geometry.boundingSphere) {
+        mesh.geometry.computeBoundingSphere();
+      }
+
+      if (mesh.geometry.boundingSphere) {
+        // Update mesh world matrix if needed
+        mesh.updateMatrixWorld();
+        
+        // Transform bounding sphere to world space
+        const worldSphere = mesh.geometry.boundingSphere.clone();
+        worldSphere.applyMatrix4(mesh.matrixWorld);
+
+        // Check if the mesh is in the frustum
+        const isVisible = this.frustum.intersectsSphere(worldSphere);
+        
+        // Only update visibility if it changed to avoid unnecessary updates
+        if (mesh.visible !== isVisible) {
+          mesh.visible = isVisible;
+        }
+
+        if (isVisible) {
+          this.visibleMeshCount++;
+        }
+      }
+    }
+
+    // Log culling stats every 100 frames for predictable debugging output
+    this.cullingLogCounter++;
+    if (this.performanceMonitoring && this.cullingLogCounter >= 100) {
+      console.log(`[CULLING] Visible: ${this.visibleMeshCount}/${this.totalMeshCount} meshes`);
+      this.cullingLogCounter = 0;
+    }
+  }
+
+  /**
+   * Decide whether to upgrade/downgrade textures based on on-screen size.
+   * Only processes visible meshes to improve performance
+   */
+  private runLodPass(): void {
+    if (!this.container) return;
+    // Hysteresis thresholds (in pixels) - upgrade immediately on any hover
+    const UPGRADE_THRESHOLD = 1; // Upgrade immediately
+    const DOWNGRADE_THRESHOLD = 0;
+
+    // Iterate over meshes - only process visible ones
+    for (const child of this.root.children) {
+      const mesh = child as THREE.Mesh;
+      
+      // Skip invisible meshes (culled by frustum)
+      if (!mesh.visible) continue;
+      
+      const url = this.meshToUrl.get(mesh);
+      if (!url) continue;
+
+      const isHigh = this.highResActive.has(mesh);
+
+      // Compute projected width for this mesh based on its depth
+      const depth = Math.max(0.001, Math.abs(mesh.position.z - this.camera.position.z));
+      const fullWorldWidth = this.getVisibleWidthAtDepth(depth) * 2;
+      const pxPerWorldUnit = this.container.clientWidth / Math.max(1, fullWorldWidth);
+      const photoWidthPx = this.PHOTO_W * pxPerWorldUnit;
+      const photoHeightPx = this.PHOTO_H * pxPerWorldUnit;
+      const viewportW = this.container.clientWidth || 1;
+      const viewportH = this.container.clientHeight || 1;
+      const occupiesViewport = photoWidthPx >= viewportW * 0.3 || photoHeightPx >= viewportH * 0.3; // >=30% of viewport
+
+      const photoId = this.findPhotoIdForMesh(mesh);
+      const isPermalinkTarget = this.permalinkTargetId !== null && photoId === this.permalinkTargetId;
+      const eligibleForHighRes = isPermalinkTarget || this.fisheyeAffectedMeshes.has(mesh) || occupiesViewport;
+
+      if (!eligibleForHighRes) {
+        if (isHigh) {
+          this.downgradeToLowResTexture(mesh, url)
+            .then(() => this.highResActive.delete(mesh))
+            .catch(() => {/* keep current */});
+        }
+        continue;
+      }
+
+      if (!isHigh && photoWidthPx >= UPGRADE_THRESHOLD) {
+        this.upgradeToHighResTexture(mesh, url)
+          .then(() => {
+            this.highResActive.add(mesh);
+          })
+          .catch(() => {/* keep low-res */});
+      } else if (isHigh && photoWidthPx <= DOWNGRADE_THRESHOLD) {
+        this.downgradeToLowResTexture(mesh, url)
+          .then(() => {
+            this.highResActive.delete(mesh);
+          })
+          .catch(() => {/* keep current */});
+      }
+    }
+  }
+
+  /**
+   * Update camera field of view (for settings panel)
+   */
+  updateCameraFov(fov: number): void {
+    if (this.camera && (this.camera as any).isPerspectiveCamera) {
+      (this.camera as any).fov = fov;
+      (this.camera as any).updateProjectionMatrix();
+      console.log(`📹 Camera FOV updated to ${fov}°`);
+    }
+  }
+
+  /**
+   * Get current zoom level as a multiplier (e.g., 1.0 = 100% zoom, 2.0 = 200% zoom)
+   */
+  getCurrentZoomLevel(): number {
+    // Zoom is inversely related to camera Z position
+    // Lower Z = more zoomed in, higher Z = more zoomed out
+    // Return zoom as a ratio: maxExtentZoomLevel / currentZoom
+    // maxExtentZoomLevel is set to the furthest extent (largest view composition)
+    const maxExtentCamZ = (1200 / this.maxExtentZoomLevel);
+    return maxExtentCamZ / this.targetCamZ;
+  }
+
+  /**
+   * Fit camera to view specific bounds (used for SVG layout with calculated positions)
+   * Calculates camera position to show all positions with padding, allowing unlimited zoom out
+   */
+  fitCameraToBounds(positions: Array<{ x: number; y: number; z?: number }>): Promise<void> {
+    if (positions.length === 0) return Promise.resolve();
+
+    // Calculate bounds from positions
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+
+    for (const pos of positions) {
+      minX = Math.min(minX, pos.x);
+      maxX = Math.max(maxX, pos.x);
+      minY = Math.min(minY, pos.y);
+      maxY = Math.max(maxY, pos.y);
+    }
+
+    // Add minimal padding (5% of bounds) with small floor
+    const padX = Math.max((maxX - minX) * 0.05, 200);
+    const padY = Math.max((maxY - minY) * 0.05, 200);
+
+    minX -= padX;
+    maxX += padX;
+    minY -= padY;
+    maxY += padY;
+
+    // Update bounds
+    this.bounds = {
+      minX,
+      maxX,
+      minY,
+      maxY
+    };
+
+    // Center camera on these bounds
+    this.targetCamX = (minX + maxX) * 0.5;
+    this.targetCamY = (minY + maxY) * 0.5;
+
+    // Calculate camera Z to fit these bounds (no clamping to minCamZ/maxCamZ)
+    const targetCamZ = this.computeFitZWithMargin(
+      this.bounds,
+      THREE.MathUtils.degToRad(this.camera.fov),
+      this.container!.clientWidth / this.container!.clientHeight,
+      this.CAM_MARGIN
+    );
+
+    // Update max extent zoom level if this view is larger than previous
+    // This becomes the baseline for fisheye zoom calculations
+    const baselineZ = 1200;
+    const zoomLevelAtThisExtent = baselineZ / targetCamZ;
+    if (zoomLevelAtThisExtent < this.maxExtentZoomLevel) {
+      this.maxExtentZoomLevel = zoomLevelAtThisExtent;
+    }
+
+    // Animate to this target Z without clamping
+    const startCamZ = this.targetCamZ;
+    if (Math.abs(targetCamZ - startCamZ) < 0.01) {
+      return Promise.resolve(); // Already at target
+    }
+
+    return this.runTween(this.makeTween(0.5, (progress) => {
+      this.targetCamZ = THREE.MathUtils.lerp(startCamZ, targetCamZ, progress);
+    }));
+  }
+
+  /**
+   * Fit camera to positions while also including an SVG background radius footprint.
+   */
+  fitCameraToBoundsIncludingSvg(
+    positions: Array<{ x: number; y: number; z?: number }>,
+    svgRadius: number,
+    svgOffsetX = 0,
+    svgOffsetY = 0
+  ): Promise<void> {
+    if (!positions.length && !svgRadius) {
+      return Promise.resolve();
+    }
+
+    const merged = [...positions];
+    if (svgRadius > 0) {
+      merged.push({ x: svgOffsetX + svgRadius, y: svgOffsetY + svgRadius });
+      merged.push({ x: svgOffsetX - svgRadius, y: svgOffsetY - svgRadius });
+      merged.push({ x: svgOffsetX + svgRadius, y: svgOffsetY - svgRadius });
+      merged.push({ x: svgOffsetX - svgRadius, y: svgOffsetY + svgRadius });
+    }
+
+    return this.fitCameraToBounds(merged);
+  }
+
+  /**
+   * Update camera zoom level (for settings panel)
+   */
+  updateCameraZoom(zoom: number): void {
+    if (this.camera) {
+      this.camera.zoom = zoom;
+      (this.camera as any).updateProjectionMatrix?.();
+      console.log(`🔍 Camera zoom updated to ${zoom}x`);
+    }
+  }
+
+  /**
+   * Set rotation speed multiplier for interactive controls (1 = normal, 2 = double speed)
+   */
+  setRotationSpeed(speed: number): void {
+    // Store the speed value for use in camera rotation calculations
+    this.rotationSpeedMultiplier = speed;
+    console.log(`🔄 Rotation speed set to ${speed}x`);
+  }
+
+  /**
+   * Set pan sensitivity multiplier for interactive controls (1 = normal, 2 = twice as sensitive)
+   */
+  setPanSensitivity(sensitivity: number): void {
+    // Store the sensitivity value for use in pan calculations
+    this.panSensitivityMultiplier = sensitivity;
+    console.log(`👆 Pan sensitivity set to ${sensitivity}x`);
+  }
+
+  /**
+   * Set depth of field effect strength (0-100)
+   * 0 = disabled, 100 = maximum blur
+   */
+  setDepthOfField(strength: number): void {
+    // Enable post-processing with DOF
+    if (!this.dofPass) {
+      // Create DOF pass if not exists (would need THREE.js post-processing)
+      this.dofStrength = strength;
+      console.log(`🎬 Depth of field set to ${strength}%`);
+      return;
+    }
+    
+    this.dofStrength = strength;
+    // Apply DOF effect to the renderer
+    if (strength > 0) {
+      const focusDistance = 5000; // Focus on center of scene
+      const bokehScale = (strength / 100) * 15; // 0 to 15 pixels blur radius
+      this.dofPass.uniforms.focalDepth.value = focusDistance;
+      this.dofPass.uniforms.bokeh.value = true;
+      this.dofPass.uniforms.maxblur.value = bokehScale;
+    }
+    
+    console.log(`🎬 Depth of field set to ${strength}%`);
+  }
+
+  /**
+   * Disable depth of field effect
+   */
+  disableDepthOfField(): void {
+    this.dofStrength = 0;
+    if (this.dofPass) {
+      this.dofPass.uniforms.bokeh.value = false;
+    }
+    console.log(`🎬 Depth of field disabled`);
+  }
 }
+

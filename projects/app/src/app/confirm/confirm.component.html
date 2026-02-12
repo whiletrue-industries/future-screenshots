@@ -79,12 +79,21 @@
   </div>
 </div>
 <div class="confirm-buttons" ltr>
-  <a [routerLink]="['/scan']" queryParamsHandling="merge" class="again">
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="25" viewBox="0 0 24 25" fill="none">
-      <path d="M11 18.5H14.75C16.1424 18.5 17.4777 17.9469 18.4623 16.9623C19.4469 15.9777 20 14.6424 20 13.25C20 11.8576 19.4469 10.5223 18.4623 9.53769C17.4777 8.55312 16.1424 8 14.75 8H5M7.5 4.5L4 8L7.5 11.5" stroke="#EDECEC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    <span i18n>scan again</span>
-  </a>
+  @if (isTemplateFlow) {
+    <a [routerLink]="['/canvas-creator']" queryParamsHandling="merge" class="again">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="25" viewBox="0 0 24 25" fill="none">
+        <path d="M11 18.5H14.75C16.1424 18.5 17.4777 17.9469 18.4623 16.9623C19.4469 15.9777 20 14.6424 20 13.25C20 11.8576 19.4469 10.5223 18.4623 9.53769C17.4777 8.55312 16.1424 8 14.75 8H5M7.5 4.5L4 8L7.5 11.5" stroke="#EDECEC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span i18n>re-edit</span>
+    </a>
+  } @else {
+    <a [routerLink]="['/scan']" queryParamsHandling="merge" class="again">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="25" viewBox="0 0 24 25" fill="none">
+        <path d="M11 18.5H14.75C16.1424 18.5 17.4777 17.9469 18.4623 16.9623C19.4469 15.9777 20 14.6424 20 13.25C20 11.8576 19.4469 10.5223 18.4623 9.53769C17.4777 8.55312 16.1424 8 14.75 8H5M7.5 4.5L4 8L7.5 11.5" stroke="#EDECEC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span i18n>scan again</span>
+    </a>
+  }
   @if (!api.currentlyUploadingImage()) {
     <a (click)='upload()' class="confirm">
       <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 25 25" fill="none">

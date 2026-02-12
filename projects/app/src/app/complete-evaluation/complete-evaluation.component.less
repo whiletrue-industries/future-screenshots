@@ -20,8 +20,11 @@
     .buttons {
         padding: 12px 16px; 
         width: 100%;
+        max-width: 520px;
         position: fixed;
         bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
         z-index: 1;
         background-color: @color-creme;
         border-top: 1px solid @color-light-gray;
@@ -29,10 +32,9 @@
         flex-flow: column;
         gap: 8px;
         transition: transform 0.3s ease-in-out;
-        transform: translateY(0);
 
         &.hide {
-            transform: translateY(100%);
+            transform: translateX(-50%) translateY(100%);
         }
     }
 }

@@ -9,6 +9,7 @@ import { DiscussComponent } from "../discuss/discuss.component";
 
 export class Message {
 
+  fullText: string;
   _text = signal<string>('');
   _ = computed(() => {
     let text = this._text();
@@ -16,11 +17,17 @@ export class Message {
   });
   
   constructor(public kind: 'human' | 'ai', public text: string, public part?: boolean) {
+    this.fullText = text;
     this._text.set(text);
   }
 
   setText(text: string) {
+    this.fullText = text;
     this._text.set(text);
+  }
+
+  resetDisplayed() {
+    this._text.set('');
   }
 };
 
@@ -40,6 +47,7 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
 
   messages = signal<Message[]>([]);
   thinking = signal(false);
+  allTypingComplete = signal(false);
   @ViewChild('messagesEl') messagesEl!: ElementRef;
   @ViewChild('spacer') spacerEl!: ElementRef;
   scroller = new Subject<() => void>();
@@ -51,6 +59,31 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
   @ViewChild('thinkingEl') thinkingEl!: ElementRef<HTMLDivElement>;
 
   _ = marked;
+
+  private typingIntervals = new Set<number>();
+  private messageQueue: Message[] = [];
+  private isProcessingQueue = false;
+
+  private scrollIfOutOfView() {
+    const container = this.messagesEl?.nativeElement as HTMLElement | undefined;
+    if (!container) {
+      return;
+    }
+    const lastMessage = container.querySelector('.message:last-of-type') as HTMLElement | null;
+    if (!lastMessage) {
+      return;
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    const messageRect = lastMessage.getBoundingClientRect();
+    const outOfView = messageRect.bottom > containerRect.bottom || messageRect.top < containerRect.top;
+
+    if (outOfView) {
+      this.scroller.next(() => {
+        lastMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+    }
+  }
 
   constructor(private platform: PlatformService, private ref: DestroyRef) {
     this.platform.browser(() => {
@@ -69,7 +102,7 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
       });
     });
     this.scroller.pipe(
-      debounceTime(100),
+      debounceTime(30),
     ).subscribe((fn) => {
       fn();
     });
@@ -96,6 +129,8 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy() {
     this.loadingAnim?.destroy();
+    this.typingIntervals.forEach(handle => clearInterval(handle));
+    this.typingIntervals.clear();
   }
 
   clear() {
@@ -104,8 +139,96 @@ export class MessagesComponent implements AfterViewInit, OnDestroy {
   }
 
   addMessage(message: Message) {
+    console.log('[Messages] addMessage called - queuing:', message.kind, message.fullText.substring(0, 30));
+    // Add to queue but don't add to DOM yet
+    this.messageQueue.push(message);
+    // Start processing if not already processing
+    if (!this.isProcessingQueue) {
+      // Reset allTypingComplete when starting to process new messages
+      this.allTypingComplete.set(false);
+      this.processQueue();
+    }
+  }
+
+  private async processQueue() {
+    if (this.messageQueue.length === 0) {
+      this.isProcessingQueue = false;
+      console.log('[Messages] Queue empty, stopping processor');
+      // Set allTypingComplete when queue is empty
+      // Use setTimeout to ensure signal update happens after DOM updates
+      setTimeout(() => {
+        console.log('[Messages] Setting allTypingComplete to true');
+        this.allTypingComplete.set(true);
+      }, 0);
+      return;
+    }
+
+    this.isProcessingQueue = true;
+    const message = this.messageQueue.shift()!;
+    
+    console.log('[Messages] Processing message:', message.kind, 'at', Date.now());
+    
+    // Add message to DOM
     this.messages.update((messages) => [...messages, message]);
-    // console.log('addMessage', message);
+    
+    if (!this.platform.browser()) {
+      message.setText(message.fullText);
+      this.processQueue(); // Process next
+      return;
+    }
+    
+    // Type the message
+    await this.startTypewriter(message);
+    
+    console.log('[Messages] Finished typing, processing next message');
+    
+    // Process next message
+    this.processQueue();
+  }
+
+  private startTypewriter(message: Message): Promise<void> {
+    // TYPEWRITER DISABLED - Show full text immediately
+    const full = message.fullText || '';
+    message.setText(full);
+    this.scrollIfOutOfView();
+    // Since typewriter is disabled, mark typing as complete immediately
+    return Promise.resolve();
+    
+    /* TODO: Re-enable typewriter effect later
+    if (!full.length) {
+      message.setText(full);
+      return Promise.resolve();
+    }
+
+    message.resetDisplayed();
+    const startTime = Date.now();
+    console.log('[Typewriter] Started for:', message.kind, 'length:', full.length, 'time:', startTime);
+
+    // Per-character interval tuned to be faster overall; long texts cap at ~1.2s
+    // Moderate typing speed; short messages quick, longer ones still readable and under ~1.2s
+    const perChar = Math.max(10, Math.min(22, 220 / Math.max(full.length, 1)));
+    console.log('[Typewriter] perChar interval:', perChar, 'ms');
+    let idx = 0;
+
+    return new Promise<void>((resolve) => {
+      const handle = window.setInterval(() => {
+        idx += 1;
+        if (idx >= full.length) {
+          message.setText(full);
+          clearInterval(handle);
+          this.typingIntervals.delete(handle);
+          const endTime = Date.now();
+          console.log('[Typewriter] Completed for:', message.kind, 'duration:', endTime - startTime, 'ms');
+          resolve();
+          return;
+        } else {
+          message.setText(full.slice(0, idx));
+          this.scrollIfOutOfView();
+        }
+      }, perChar);
+      this.typingIntervals.add(handle);
+    });
+    */
   }
 
   setScrollParams(messages: Message[]) {

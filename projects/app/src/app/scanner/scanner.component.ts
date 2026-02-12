@@ -38,6 +38,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
 
   COUNTDOWN_INITIAL = 30;
   FRAME_COUNT_DARKER = 100;
+  TIMEOUT_DURATION = 5000; // 5 seconds in milliseconds
+  DEFAULT_CORNER_MARGIN = 0.15; // 15% margin for default corner points
   countDown = this.COUNTDOWN_INITIAL;
   scanState = null;
   stream: MediaStream | null = null;
@@ -65,6 +67,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   points = signal<{x: number, y: number}[]>([]);
   cameraClicked = signal<boolean>(false);
   displayCameraButton = signal<boolean>(false);
+  scanStartTime: number = 0;
+  timeoutReached = signal<boolean>(false);
 
   constructor(
     private el: ElementRef, 
@@ -262,6 +266,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     console.log('SAMPLE RATIO', sampleRatio);
 
     let count = 0;
+    this.scanStartTime = Date.now();
     interval(33).pipe(
       takeUntilDestroyed(this.destroyRef),
       takeUntil(this.stopScannerSubject),
@@ -314,7 +319,19 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       })
     ).subscribe((shape: {valid: boolean, snap: boolean, blurry: boolean, cornerPoints: CornerPoints} | null) => {
       this.setPoints(shape?.snap ? shape?.cornerPoints || null : null);
-      let frame = null;
+
+      // Check if timeout has elapsed and no valid edges found yet
+      if (this.shouldShowTimeoutButton(shape)) {
+        this.timeoutReached.set(true);
+        this.displayCameraButton.set(true);
+        this.displayMsgSubject.next($localize`Edges not detected. You can submit anyway.`);
+      }
+      
+      // Hide camera button and reset timeout if valid edges are found after timeout
+      if (shape?.valid && this.timeoutReached()) {
+        this.timeoutReached.set(false);
+        this.displayCameraButton.set(false);
+      }
 
       if (shape?.cornerPoints) {
         shape.cornerPoints.topLeftCorner.x *= sampleRatio;
@@ -338,28 +355,21 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
           this.displayCameraButton.set(true);
         }
         if (this.cameraClicked()) {
-          this.countDown = -1;
-          frame = scanner.extractPaper(this.canvasEl.nativeElement, 1060, 2000, shape.cornerPoints);        
-          console.log('Extraction result:', frame);
-          this.stream?.getTracks().forEach((track) => {
-            if (track.readyState == 'live') {
-                track.stop();
-            }
-          });
-          this.videoEl.nativeElement.pause();
-          this.stream = null;
-          // Convert the result to a JPEG image
-          frame.toBlob((blob: Blob) => {
-            if (blob) {
-              this.state.setImage(blob);
-              this.router.navigate(['/confirm'], { 
-                queryParamsHandling: 'merge'
-              });
-            }
-          }, 'image/jpeg', 0.95);
+          this.extractAndNavigate(scanner, shape.cornerPoints);
         }
       } else {
         this.countDown = this.COUNTDOWN_INITIAL;
+      }
+
+      // Handle camera click when timeout was reached (use default corners)
+      if (this.cameraClicked() && this.timeoutReached()) {
+        const defaultCornerPoints = {
+          topLeftCorner: { x: videoWidth * this.DEFAULT_CORNER_MARGIN, y: videoHeight * this.DEFAULT_CORNER_MARGIN },
+          topRightCorner: { x: videoWidth * (1 - this.DEFAULT_CORNER_MARGIN), y: videoHeight * this.DEFAULT_CORNER_MARGIN },
+          bottomLeftCorner: { x: videoWidth * this.DEFAULT_CORNER_MARGIN, y: videoHeight * (1 - this.DEFAULT_CORNER_MARGIN) },
+          bottomRightCorner: { x: videoWidth * (1 - this.DEFAULT_CORNER_MARGIN), y: videoHeight * (1 - this.DEFAULT_CORNER_MARGIN) }
+        };
+        this.extractAndNavigate(scanner, defaultCornerPoints);
       }
     });
   }
@@ -368,10 +378,10 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     let points: CornerPoints;
     if (!cornerPoints) {
       points = {
-        topLeftCorner: { x: this.displayWidth()*0.15, y: this.displayHeight()*0.15 },
-        topRightCorner: { x: this.displayWidth()*0.85, y: this.displayHeight()*0.15 },
-        bottomLeftCorner: { x: this.displayWidth()*0.15, y: this.displayHeight()*0.85 },
-        bottomRightCorner: { x: this.displayWidth()*0.85, y: this.displayHeight()*0.85 }
+        topLeftCorner: { x: this.displayWidth()*this.DEFAULT_CORNER_MARGIN, y: this.displayHeight()*this.DEFAULT_CORNER_MARGIN },
+        topRightCorner: { x: this.displayWidth()*(1-this.DEFAULT_CORNER_MARGIN), y: this.displayHeight()*this.DEFAULT_CORNER_MARGIN },
+        bottomLeftCorner: { x: this.displayWidth()*this.DEFAULT_CORNER_MARGIN, y: this.displayHeight()*(1-this.DEFAULT_CORNER_MARGIN) },
+        bottomRightCorner: { x: this.displayWidth()*(1-this.DEFAULT_CORNER_MARGIN), y: this.displayHeight()*(1-this.DEFAULT_CORNER_MARGIN) }
       };
     } else {
       points = cornerPoints;
@@ -382,6 +392,33 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       { x: points.bottomRightCorner.x, y: points.bottomRightCorner.y },
       { x: points.bottomLeftCorner.x, y: points.bottomLeftCorner.y }
     ]);
+  }
+
+  extractAndNavigate(scanner: any, cornerPoints: CornerPoints) {
+    this.countDown = -1;
+    const frame = scanner.extractPaper(this.canvasEl.nativeElement, 1060, 2000, cornerPoints);
+    console.log('Extraction result:', frame);
+    this.stream?.getTracks().forEach((track) => {
+      if (track.readyState == 'live') {
+          track.stop();
+      }
+    });
+    this.videoEl.nativeElement.pause();
+    this.stream = null;
+    // Convert the result to a JPEG image
+    frame.toBlob((blob: Blob) => {
+      if (blob) {
+        this.state.setImage(blob);
+        this.router.navigate(['/confirm'], { queryParamsHandling: 'merge' });
+      }
+    }, 'image/jpeg', 0.95);
+  }
+
+  shouldShowTimeoutButton(shape: {valid: boolean} | null): boolean {
+    const elapsedTime = Date.now() - this.scanStartTime;
+    return elapsedTime >= this.TIMEOUT_DURATION && 
+           !shape?.valid && 
+           !this.timeoutReached();
   }
 
   ngOnDestroy() {
@@ -404,6 +441,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   restartScanner() {
     this.stopScanner();
     this.countDown = this.COUNTDOWN_INITIAL;
+    this.timeoutReached.set(false);
+    this.scanStartTime = 0;
     console.log('RESTARTING SCANNER');
     timer(500).subscribe(() => {
       this.startScanner();

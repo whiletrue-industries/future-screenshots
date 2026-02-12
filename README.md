@@ -1,8 +1,23 @@
-# Futurescreenshots
+# Future Screenshots (Chronomaps)
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.2.1.
+Future Screenshots is an AI-powered participatory mapping platform that enables users to capture, scan, and discuss their visions for the future of specific locations.
 
-## Development server
+## Documentation
+
+- **[User Guide](documentation/USER_GUIDE.md)** - How to use the platform and navigate showcase views
+- **[Architecture](documentation/ARCHITECTURE.md)** - System design and components
+- **[Development Environment](documentation/DEVELOPMENT_ENV.md)** - Setup and development workflow
+- **[Coding Standards](documentation/CODING_STANDARDS.md)** - Code style and best practices
+- **[Design System](documentation/DESIGN_SYSTEM.md)** - UI/UX guidelines
+- **[Extending](documentation/EXTENDING.md)** - Adding new features
+- **[Testing](documentation/TESTING.md)** - Testing strategies
+- **[DevOps](documentation/DEVOPS.md)** - Deployment and operations
+
+## Quick Start
+
+This project uses [Angular CLI](https://github.com/angular/angular-cli) version 19.2.1.
+
+### Development server
 
 To start a local development server, run:
 
@@ -11,6 +26,15 @@ ng serve
 ```
 
 Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+
+### Testing Credentials
+
+For local development, use these testing credentials in URL parameters:
+- Workspace ID: `61358757-cf32-483f-847f-3e4eb3855408`
+- API Key (collaborator): `212aa064-4d02-4edb-8f0b-9f649d026fb2`
+- API Key (admin): `e79d200e-b5e3-4043-9c4b-6deddb642fb0`
+
+Example URL: `http://localhost:4200/showcase-ws?workspace=61358757-cf32-483f-847f-3e4eb3855408&api_key=212aa064-4d02-4edb-8f0b-9f649d026fb2`
 
 ## Code scaffolding
 

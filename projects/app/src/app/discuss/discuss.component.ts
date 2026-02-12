@@ -1,4 +1,5 @@
 import { AfterViewInit, Component, computed, effect, ElementRef, signal, ViewChild, WritableSignal } from '@angular/core';
+import { NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { StateService } from '../../state.service';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -14,6 +15,7 @@ import { CompleteEvaluationComponent } from "../complete-evaluation/complete-eva
 @Component({
   standalone: true,
   imports: [
+    NgClass,
     FormsModule,
     MessagesComponent,
     LtrDirective,
@@ -30,22 +32,79 @@ export class DiscussComponent implements AfterViewInit {
   item_id = signal<string>('');
   item_key = signal<string>('');
   item = signal<any>({});
+  hasEvaluation = computed(() => {
+    const current = this.item();
+    const plausibility = current?.plausibility;
+    const favorable = current?.favorable_future;
+    return typeof plausibility === 'number' && favorable !== undefined && favorable !== null && favorable !== '';
+  });
+  needsEvaluation = computed(() => !this.hasEvaluation());
+  prefer = computed(() => {
+    const ff = this.item()?.favorable_future || '';
+    return ff.indexOf('prefer') >= 0 || (ff.indexOf('prevent') >= 0 && ff.indexOf('mostly') >= 0);
+  });
+
+  prevent = computed(() => {
+    const ff = this.item()?.favorable_future || '';
+    return ff.indexOf('prevent') >= 0 || (ff.indexOf('prefer') >= 0 && ff.indexOf('mostly') >= 0);
+  });
+
+  preferred = computed(() => {
+    const ff = this.item()?.favorable_future || '';
+    return ff.indexOf('prefer') >= 0;
+  });
+
+  rotationClass = computed(() => {
+    if (!this.hasEvaluation()) {
+      return 'tilt-0';
+    }
+
+    const plausibility = this.item()?.plausibility ?? 0;
+    const rawTilt = ((100 - plausibility) / 100) * 32;
+    const snappedTilt = Math.min(32, Math.max(0, Math.round(rawTilt / 8) * 8));
+
+    if (snappedTilt === 0) {
+      return 'tilt-0';
+    }
+
+    const prefix = this.preferred() ? 'tilt-neg' : 'tilt-pos';
+    return `${prefix}-${snappedTilt}`;
+  });
+
   imageUrl = computed<SafeUrl>(() => {
     return this.sanitizer.bypassSecurityTrustUrl(this.item().screenshot_url);
   });
 
   // State
   thinking = signal<boolean>(true);
-  inputDisabled = signal<boolean>(true);
+  inputDisabled = computed(() => 
+    this.thinking() || 
+    (this.messagesComponent?.thinking() ?? false) || 
+    this.completed()
+  );
   imageLoaded = signal<boolean>(false);
   hasText = signal<boolean>(false);
-  visible = computed(() => {
-    return this.hasText() && this.imageLoaded();
-  });
+  messagesComponentReady = signal<boolean>(false);
+  showChat = computed(() => this.imageLoaded() || this.hasText() || this.thinking());
+  imageExpanded = signal<boolean>(false);
+  imageCollapsed = computed(() => (this.hasText() || this.completed()) && !this.imageExpanded());
+  receivedDone = signal<boolean>(false);
   completed = signal<boolean>(false);
-  inputVisible = computed(() => {
-    return this.visible() && !this.completed();
+  completionThinking = computed(() => {
+    const messagesThinking = this.messagesComponent ? this.messagesComponent.thinking() : false;
+    return messagesThinking || this.thinking();
   });
+  typingComplete = computed(() => {
+    // Force re-evaluation by reading messagesComponentReady
+    if (!this.messagesComponentReady()) {
+      return false;
+    }
+    const result = this.messagesComponent ? this.messagesComponent.allTypingComplete() : false;
+    console.log('[TYPING-COMPUTED] typingComplete evaluated:', result);
+    return result;
+  });
+  inputVisible = computed(() => this.showChat() && !this.completed());
+  showCompletionButtons = computed(() => this.completed() && !this.completionThinking() && this.typingComplete());
   failed = signal<boolean>(false);
 
   @ViewChild(MessagesComponent) messagesComponent!: MessagesComponent;
@@ -60,10 +119,46 @@ export class DiscussComponent implements AfterViewInit {
         this.refreshItem();
       }
     });
+    
+    // Watch for true completion: done status received + no thinking + typing complete
+    effect(() => {
+      const receivedDone = this.receivedDone();
+      const thinking = this.thinking();
+      const messagesThinking = this.messagesComponent?.thinking();
+      const typingComplete = this.typingComplete(); // This line ensures effect re-runs when typing completes
+      
+      console.log('[COMPLETION CHECK]', {
+        receivedDone,
+        thinking,
+        messagesThinking,
+        typingComplete,
+        completed: this.completed()
+      });
+      
+      // All conditions must be true, and we must not already be completed
+      // Also ensure there is no pending reply stream before marking completed
+      if (receivedDone && !thinking && !messagesThinking && typingComplete && !this.reply() && !this.completed()) {
+        console.log('[COMPLETION] Setting completed to true');
+        this.completed.set(true);
+      }
+    });
+    // Debug button visibility
+    effect(() => {
+      const show = this.showCompletionButtons();
+      console.log('[BUTTONS] showCompletionButtons:', show, {
+        completed: this.completed(),
+        completionThinking: this.completionThinking(),
+        typingComplete: this.typingComplete()
+      });
+    });
   }
 
   ngAfterViewInit(): void {
     this.messages = this.messagesComponent.messages;
+    
+    // Signal that messagesComponent is ready, which will trigger typingComplete to re-evaluate
+    this.messagesComponentReady.set(true);
+    
     const item_id = this.item_id();
     if (item_id) {
       this.item_key.set(this.route.snapshot.queryParams['key']);
@@ -90,13 +185,16 @@ export class DiscussComponent implements AfterViewInit {
     });
   }
 
+  toggleImage() {
+    this.imageExpanded.update((expanded) => !expanded);
+  }
+
   addMessage(kind: 'ai' | 'human', text: string) {
     const message = new Message(kind, text);
     this.messagesComponent.addMessage(message);
   }
 
   submitMessage() {
-    this.inputDisabled.set(true);
     this.thinking.set(true);
     this.messagesComponent.thinking.set(true);
     console.log('thinking...');
@@ -107,25 +205,52 @@ export class DiscussComponent implements AfterViewInit {
     this.inputMessage.set('');
     this.api.sendMessage(message || 'initial').subscribe((ret: any) => {
       // console.log('MESSAGE', ret);
+      // Log server response plus a snapshot of discussion state for debugging
+      console.log('[SERVER RET] kind=', ret?.kind, 'payload=', ret);
+      console.log('[DISCUSS STATE]', {
+        thinking: this.thinking(),
+        messagesThinking: this.messagesComponent?.thinking() ?? false,
+        typingComplete: this.typingComplete(),
+        reply: this.reply(),
+        replyLength: (this.reply() || '').length,
+        receivedDone: this.receivedDone(),
+        completed: this.completed(),
+        inputVisible: this.inputVisible(),
+        inputDisabled: this.inputDisabled(),
+        showCompletionButtons: this.showCompletionButtons()
+      });
       if (ret.kind === 'message') {
         this.hasText.set(true);
         const index = ret.idx;
         const text = ret.content;
         const kind = ret.role === 'assistant' ? 'ai' : 'human';
-        this.messages.update(msgs => {
-          const _msgs = msgs.slice();
-          if (_msgs.length > index) {
+        
+        // Check if we need to update an existing message or add a new one
+        const currentMessages = this.messages();
+        if (currentMessages.length > index) {
+          // Update existing message
+          this.messages.update(msgs => {
+            const _msgs = msgs.slice();
             _msgs[index].setText(text);
             _msgs[index].kind = kind;
-          }
-          else {
-            this.reply.set('');
-            _msgs.push(new Message(kind, text ));
-          }
-          return _msgs;
-        });
+            return _msgs;
+          });
+        } else {
+          // Add new message through the queue system
+          this.reply.set('');
+          this.addMessage(kind, text);
+        }
       } else if (ret.kind === 'status' && ret.status === 'done') {
-        this.completed.set(true);
+        // Normal done status: mark that we received done; an effect will set completed
+        this.receivedDone.set(true);
+      } else if (ret.kind === 'status' && ret.status === 'stream-error') {
+        // Stream-errors are treated as recoverable: stop thinking but keep input available
+        console.warn('[SERVER RET] Stream error received, treating as recoverable', ret);
+        this.thinking.set(false);
+        this.messagesComponent.thinking.set(false);
+        // Optionally show a non-blocking notice in the console/UI; do not set `failed` so input remains active
+      } else if (ret.kind === 'status' && ret.status === 'failed') {
+        this.failed.set(true);
       } else if (ret.kind === 'status' && ret.status === 'failed') {
         this.failed.set(true);
       } else if (ret.kind === 'text') {
@@ -142,11 +267,10 @@ export class DiscussComponent implements AfterViewInit {
         console.log('thinking done...');
         this.thinking.set(false);
         this.messagesComponent.thinking.set(false);
-      } else if (ret.kind === 'status' && ret.status) {
+      } else if (ret.kind === 'status' && ret.status && ret.status !== 'done' && ret.status !== 'failed') {
         this.thinking.set(false);
         this.messagesComponent.thinking.set(false);
         this.failed.set(false);
-        this.inputDisabled.set(false);
         if (this.reply()) {
           this.addMessage('ai', this.reply());
           this.reply.set('');  

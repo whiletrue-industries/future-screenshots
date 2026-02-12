@@ -119,7 +119,36 @@ The application uses Angular standalone components organized by feature:
 
 9. **Showcase WS** (`/showcase-ws`)
    - 3D immersive visualization using Three.js
-   - Custom camera controls and scene rendering
+   - Multiple layout strategies:
+     - Grid: Random positioning in a grid
+     - TSNE: AI-powered clustering based on image similarity
+     - SVG: Interactive placement on custom background with hotspots
+     - Circle Packing: Clustered circular arrangement by group
+   - User camera controls:
+     - Pan: Click and drag to move around the canvas
+     - Zoom: Mouse wheel to zoom in/out (centered on cursor)
+     - Keyboard: Arrow keys to pan, +/- to zoom, R to reset view
+     - Touch: Pinch-to-zoom and two-finger pan on mobile
+   - Auto-fit mode: Automatically frames all photos in view
+   - Smooth camera animations with damping
+   - QR code for easy mobile access
+   - Random showcase mode to highlight photos
+    - **Permalink support**: Navigate to specific items via `item-id` parameter
+       - Example: `/showcase-ws?workspace=XXX&api_key=YYY&item-id=ZZZ&layout=svg`
+       - Camera automatically zooms and centers on the specified item
+    - **Layout aliases**: Friendly URL parameters for layout modes
+       - `layout=clusters` → Circle-packing layout
+       - `layout=themes` → Grid layout
+   - **Access control**: Drag-to-edit only for users with admin_key
+     - Visitors can view and click but not drag items
+     - Editors with admin_key can drag and edit all items
+          - SVG layout strategy:
+             - Uses a per-hotspot deterministic slot grid (hex-like staggered) clipped to each `#hit > path`.
+             - Slot order is a seeded shuffle for even coverage across the shape.
+             - Placement selects the first slot that does not overlap other photos; otherwise applies a minimal nudge constrained to the path to resolve overlaps.
+             - Path inclusion prefers `SVGGeometryElement.isPointInFill` when available; falls back to hotspot bounding box.
+             - Excludes positions that would overlap header UI regions.
+             - Slots are cached per hotspot to improve performance.
 
 #### Admin Components
 
@@ -191,9 +220,15 @@ The application uses Angular standalone components organized by feature:
 
 **ThreeRendererService** (`projects/app/src/app/showcase-ws/three-renderer.service.ts`)
 - Three.js scene management
-- Camera controls
+- Camera controls with zoom and pan
+  - Mouse wheel zoom (centered on cursor)
+  - Click-and-drag panning
+  - Keyboard navigation (arrows, +/-, R for reset)
+  - Touch support for mobile devices
+  - Auto-fit mode with manual override
 - 3D visualization rendering
 - Animation loop management
+- Photo mesh creation and texture management
 
 **ShowcaseApiService** (`projects/app/src/app/showcase/showcase-api.service.ts`)
 - Public API for showcase data
@@ -264,11 +299,64 @@ Items returned → Visualization
    └─ 3D Scene (Three.js)
 ```
 
+### Showcase Camera Controls
+
+The Showcase WS component provides interactive camera controls for navigating the 3D visualization:
+
+**Camera Modes:**
+- **Auto-fit Mode**: Camera automatically positions to show all photos (default behavior)
+- **Manual Mode**: User controls camera with zoom and pan (activated on first interaction)
+
+**Input Methods:**
+
+*Mouse Controls:*
+- **Pan**: Click and drag on empty space (not on photos)
+- **Zoom**: Mouse wheel scroll (zoom centered on cursor position)
+- **Photo Drag**: Click and drag photos (only in SVG layout mode)
+
+*Keyboard Controls:*
+- **Arrow Keys**: Pan camera in respective direction
+- **+ / =**: Zoom in (centered on viewport)
+- **- / _**: Zoom out (centered on viewport)
+- **R**: Reset view to auto-fit mode
+
+*Touch Controls (Mobile):*
+- **Pan**: Two-finger drag
+- **Zoom**: Pinch gesture (to be enhanced)
+- **Photo Drag**: Single finger drag on photos (SVG layout only)
+
+**Technical Implementation:**
+- Camera position smoothly interpolates to target using damping (easing)
+- Zoom is constrained between minCamZ (300) and maxCamZ (50,000) units
+- Pan converts pixel deltas to world space coordinates
+- Cursor-centered zoom maintains the point under cursor during zoom
+- Separate event handling for photo dragging vs canvas panning
+- Reset button in UI returns to auto-fit mode with smooth animation
+
 ## API Protocols and Interfaces
 
 ### Backend API Endpoints
 
 Base URL: Configured via environment/workspace settings
+
+#### Access Control
+
+The showcase supports three levels of access:
+
+1. **Visitors** (no admin_key)
+   - Can view items in the showcase
+   - Can click items to view details in sidebar
+   - Cannot drag items or edit evaluations
+   - Read-only mode
+
+2. **Editors** (with admin_key) 
+   - Can drag items in interactive layouts (SVG)
+   - Can click items to edit evaluations in sidebar
+   - Full editing permissions for all items
+
+3. **Authors** (with item_key)
+   - Can edit their own items via special edit link
+   - Edit link includes item-specific key for authentication
 
 #### Workspace Management
 

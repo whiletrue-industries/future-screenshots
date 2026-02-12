@@ -8,6 +8,23 @@
     padding: 12px 16px;
     min-height: 72px;
     .font-sans;
+    position: relative;
+    
+    &:hover {
+        background: #FFF8FA;
+        border-color: @color-light-purple;
+        
+        .title-text {
+            color: @color-light-purple;
+        }
+    }
+}
+
+.workspace-link {
+    display: contents;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
 }
 
 .row {
@@ -20,7 +37,10 @@
 .cell { color: @color-purple; }
 .date { color: @color-gray; }
 .title { font-weight: 600; display: flex; flex-direction: column; gap: 4px; }
-.title-text { color: @color-purple; }
+.title-text { 
+    color: @color-purple; 
+    transition: color 0.15s ease;
+}
 .meta { color: @color-gray; font-size: 12px; }
 
 .date-chip {
@@ -37,31 +57,90 @@
 
 .actions {
     display: flex;
-    gap: 8px;
+    gap: 6px;
+    justify-content: flex-end;
 }
 
-.icon-btn {
-    width: 34px;
-    height: 34px;
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 10px;
     border-radius: 10px;
     border: 1px solid #E7CBFF;
     background: white;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
     color: @color-purple;
     text-decoration: none;
-    font-size: 16px;
-    transition: transform 0.1s ease, box-shadow 0.1s ease;
-
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    position: relative;
+    white-space: nowrap;
+    
+    .icon {
+        font-size: 14px;
+    }
+    
+    .label {
+        font-weight: 600;
+    }
+    
     &:hover {
+        background: #F8F4FF;
         transform: translateY(-1px);
-        box-shadow: 0 2px 6px fade(@color-purple, 10%);
+        box-shadow: 0 2px 4px fade(@color-purple, 8%);
+    }
+    
+    &.ingest-btn {
+        &.active {
+            background: @color-light-purple;
+            color: white;
+            border-color: @color-light-purple;
+        }
     }
 }
 
-.links.compact {
-    margin-top: 6px;
-    display: flex; gap: 12px; align-items: center;
-    a { color: @color-purple; text-decoration: none; }
+.ingest-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 200px;
+    background: white;
+    border: 1px solid #E7CBFF;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px fade(@color-purple, 15%);
+    overflow: hidden;
+    z-index: 100;
+    
+    .menu-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        color: @color-purple;
+        text-decoration: none;
+        transition: background 0.15s ease;
+        
+        .menu-icon {
+            font-size: 18px;
+            width: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .menu-label {
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        &:hover {
+            background: #F8F4FF;
+        }
+        
+        &:not(:last-child) {
+            border-bottom: 1px solid #F1E5F3;
+        }
+    }
 }

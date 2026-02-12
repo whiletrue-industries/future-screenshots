@@ -1,5 +1,5 @@
-import { Component, input } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Component, computed, input } from '@angular/core';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
 import { HttpClient } from '@angular/common/http';
 import { map, switchMap } from 'rxjs/operators';
@@ -18,8 +18,59 @@ import { CompletionImageComponent } from "../completion-image/completion-image.c
 export class CompleteEvaluationComponent {
 
   thinking = input<boolean>(false);
+  addAnotherRoute = computed(() => {
+    const fromTemplateParam = this.route.snapshot.queryParamMap.get('template') === 'true';
+    const tags: string[] | undefined = this.api.item()?.tags;
+    const fromNoPaperTag = Array.isArray(tags) && tags.includes('no-paper');
+    return (fromTemplateParam || fromNoPaperTag) ? ['/canvas-creator'] : ['/scan'];
+  });
 
-  constructor(public api: ApiService, private http: HttpClient) {}
+  // Compute the show-on-map URL for the current item
+  showOnMapLink = computed(() => {
+    const workspaceId = this.api.workspaceId();
+    const itemId = this.api.itemId();
+    const apiKey = this.api.api_key();
+    const locale = this.api.locale;
+
+    if (!workspaceId || !itemId || !apiKey) {
+      return '/';
+    }
+
+    // Add locale prefix if not English (English has no prefix, Dutch '/nl/', Hebrew '/he/', Arabic '/ar/' etc.)
+    const localePrefix = locale === 'en' ? '' : `/${locale}`;
+
+    return `${localePrefix}/showcase-ws?workspace=${workspaceId}&api_key=${apiKey}#${itemId}`;
+  });
+
+  constructor(public api: ApiService, private http: HttpClient, private route: ActivatedRoute) {}
+
+  onShowOnMap(event: MouseEvent): void {
+    console.log('[COMPLETE_EVAL] onShowOnMap called');
+    const url = this.showOnMapLink();
+    const isFramed = typeof window !== 'undefined' && window.self !== window.top;
+    console.log('[COMPLETE_EVAL] isFramed:', isFramed, 'url:', url);
+
+    if (isFramed && window.parent) {
+      console.log('[COMPLETE_EVAL] Posting show-on-map message to parent window');
+      event.preventDefault();
+      window.parent.postMessage({
+        type: 'show-on-map',
+        itemId: this.api.itemId(),
+        workspaceId: this.api.workspaceId(),
+        apiKey: this.api.api_key(),
+        source: 'sidebar-iframe'
+      }, '*');
+      console.log('[COMPLETE_EVAL] Message posted');
+      return;
+    }
+
+    console.log('[COMPLETE_EVAL] Not in frame, navigating to:', url);
+    if (typeof window !== 'undefined' && window.top) {
+      window.top.location.href = url;
+    } else {
+      window.location.href = url;
+    }
+  }
 
   downloadImage() {
     const item = this.api.item();

@@ -1,9 +1,25 @@
-<div class='image-overlay'>
-    <div class='image' [class.small]='visible()' [class.completed]='completed()'>
-        <img [src]="imageUrl()" #image/>
+<div class='flow-shell'>
+    <div class='image-overlay' [class.collapsed]="imageCollapsed()" [class.expanded]="imageExpanded()">
+        <div class="backdrop" (click)="toggleImage()"></div>
+        @if (imageExpanded()) {
+            <button type="button" class="image-close" (click)="$event.stopPropagation(); toggleImage()" aria-label="Close image view">
+                X
+            </button>
+        }
+        <div class='image' [class.small]='imageCollapsed()' [class.completed]='completed()' [ngClass]="rotationClass()" (click)="toggleImage()">
+            @if (needsEvaluation()) {
+                <div class="string"></div>
+            }
+            <img [src]="imageUrl()" #image/>
+            @if (!completed() && prefer()) {
+                <div class="pin prefer"></div>
+            }
+            @if (!completed() && prevent()) {
+                <div class="pin prevent"></div>
+            }
+        </div>
     </div>
-</div>
-<div class='discuss' [class.visible]="visible()" [class.completed]="completed()">
+    <div class='discuss' [class.visible]="showChat()" [class.completed]="completed()">
     <app-messages #messagesComponent [bg]='!completed()'>
         @if (!thinking() && reply()) {
             <div class='message ai' ltr>
@@ -15,8 +31,8 @@
                 <div class='message-text'>Something went wrong... please refresh the page or try again in a few minutes.</div>
             </div>
         }
-        @if (completed()) {
-            <app-complete-evaluation class='spacer'></app-complete-evaluation>
+        @if (showCompletionButtons()) {
+            <app-complete-evaluation class='spacer' [thinking]="completionThinking()"></app-complete-evaluation>
         }
     </app-messages>
     <div class='input' ltr [class.visible]='inputVisible()'>
@@ -29,8 +45,8 @@
             placeholder="in your own words..."
             i18n-placeholder
         ></textarea>
-        <svg width="40" height="40" viewBox="0 0 41 41" fill="none" xmlns="http://www.w3.org/2000/svg" class='submit' (click)="submitMessage()">
-            <rect x="0.75" y="0.5" width="40" height="40" rx="20" [attr.fill]='inputDisabled() ? "#ccc" : "#4E02B2"'/>
+        <svg width="40" height="40" viewBox="0 0 41 41" fill="none" xmlns="http://www.w3.org/2000/svg" class='submit' [class.disabled]="inputDisabled()" (click)="submitMessage()">
+            <rect x="0.75" y="0.5" width="40" height="40" rx="20"/>
             <g clip-path="url(#clip0_1016_4900)">
                 <path d="M20.75 28.5V12.5M20.75 12.5L26.75 18.5M20.75 12.5L14.75 18.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </g>
@@ -40,5 +56,6 @@
                 </clipPath>
             </defs>
         </svg>
+    </div>
     </div>
 </div>
