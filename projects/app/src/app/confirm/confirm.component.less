@@ -17,6 +17,7 @@
         gap: 12px;
         min-height: 65px;
         border-bottom: 1px solid @color-accent;
+        overflow-x: scroll;
     }
 
     .dropdown-wrapper {
@@ -110,17 +111,34 @@
 
     .tags-input-container {
         position: relative;
-        width: 100%;
-        display: flex;
-        flex-flow: column;
-        gap: 4px;
+
     }
 
-    .tags-chips {
+    .tags-input-wrapper {
+        position: relative;
+        width: 100%;
+    }
+
+    .tags-input-with-chips {
+        box-sizing: border-box;
+        width: 100%;
+        min-height: 34px;
+        padding: 4px;
+        border: 1px solid @color-accent;
+        border-radius: 8px;
+        background-color: @color-darker-purple;
         display: flex;
-        flex-flow: row wrap;
+        align-items: center;
         gap: 4px;
-        min-height: 24px;
+        transition: all 0.2s;
+
+        &:focus-within {
+            border-color: @color-light-purple;
+        }
+
+        &:hover {
+            border-color: @color-light-purple;
+        }
     }
 
     .tag-chip {
@@ -135,6 +153,7 @@
         font-size: 12px;
         font-weight: 600;
         white-space: nowrap;
+        flex-shrink: 0;
 
         .tag-remove {
             background: none;
@@ -157,37 +176,22 @@
         }
     }
 
-    .tags-input-wrapper {
-        position: relative;
-        width: 100%;
-    }
-
     .tags-input {
-        box-sizing: border-box;
-        width: 100%;
-        padding: 8px 10px;
-        border: 1px solid @color-accent;
-        border-radius: 8px;
-        background-color: @color-darker-purple;
+        flex: 1 1 auto;
+        min-width: 120px;
+        border: none;
+        background: transparent;
         color: @color-dark-pink;
         .font-sans;
         font-style: normal;
         font-weight: 500;
         font-size: 13px;
         line-height: 16px;
-        transition: all 0.2s;
+        padding: 4px;
+        outline: none;
 
         &::placeholder {
             color: rgba(217, 177, 255, 0.5);
-        }
-
-        &:focus {
-            outline: none;
-            border-color: @color-light-purple;
-        }
-
-        &:hover {
-            border-color: @color-light-purple;
         }
     }
 

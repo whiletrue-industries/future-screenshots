@@ -209,7 +209,14 @@ export class ApiService {
       tap((data: any) => {
         console.log('Screenshot uploaded successfully', data.metadata);
         this.item.update((item: any) => {
-          return Object.assign({}, item, data.metadata);
+          // Preserve user-set tags when merging AI metadata
+          const userTags = item.tags;
+          const merged = Object.assign({}, item, data.metadata);
+          // If user had tags, restore them (don't let AI overwrite)
+          if (userTags && Array.isArray(userTags) && userTags.length > 0) {
+            merged.tags = userTags;
+          }
+          return merged;
         });
       })
     );

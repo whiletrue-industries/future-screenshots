@@ -60,7 +60,25 @@ export class ConfirmComponent {
 
   onTagInputChange(value: string): void {
     this.state.batchTagsInput.set(value);
-    this.showSuggestions = true;
+    this.showSuggestions = value.trim().length > 0;
+  }
+
+  onTagInputKeyDown(event: KeyboardEvent, value: string): void {
+    // Handle comma or enter key to add tag
+    if (event.key === ',' || event.key === 'Enter') {
+      event.preventDefault();
+      const tag = value.trim().replace(/,$/g, ''); // Remove trailing comma if present
+      if (tag) {
+        this.addTag(tag);
+      }
+    }
+    // Handle backspace on empty input to remove last tag
+    else if (event.key === 'Backspace' && !value) {
+      const tags = this.state.batchTags();
+      if (tags.length > 0) {
+        this.removeTag(tags[tags.length - 1]);
+      }
+    }
   }
 
   addTag(tag: string): void {
