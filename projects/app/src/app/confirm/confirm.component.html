@@ -52,11 +52,11 @@
               placeholder="Type to add tags..."
               [value]="state.batchTagsInput()"
               (input)="onTagInputChange(tagInput.value)"
-              (keydown)="onTagInputKeyDown($event, tagInput.value)"
+              (keydown)="onKeyDown($event)"
               (blur)="hideSuggestions()"
               aria-label="Tags input field">
           </div>
-          @if (showSuggestions && filteredTags().length > 0) {
+          @if (showSuggestions() && filteredTags().length > 0) {
             <div class="tags-suggestions">
               @for (tag of filteredTags(); track tag) {
                 <button 

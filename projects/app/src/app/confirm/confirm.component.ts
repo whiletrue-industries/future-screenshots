@@ -1,4 +1,4 @@
-import { Component, computed } from '@angular/core';
+import { Component, computed, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { StateService } from '../../state.service';
 import { ApiService } from '../../api.service';
@@ -34,6 +34,7 @@ export class ConfirmComponent {
   ];
 
   availableTags = computed(() => this.api.getAvailableTags());
+  showSuggestions = signal(false);
   
   filteredTags = computed(() => {
     const input = this.state.batchTagsInput().toLowerCase().trim();
@@ -48,8 +49,6 @@ export class ConfirmComponent {
     );
   });
 
-  showSuggestions = false;
-
   constructor(public state: StateService, private router: Router, public api: ApiService, private route: ActivatedRoute) { 
     this.api.updateFromRoute(this.route.snapshot);
     this.isTemplateFlow = this.route.snapshot.queryParamMap.get('template') === 'true';
@@ -60,25 +59,31 @@ export class ConfirmComponent {
 
   onTagInputChange(value: string): void {
     this.state.batchTagsInput.set(value);
-    this.showSuggestions = value.trim().length > 0;
+    this.showSuggestions.set(value.trim().length > 0);
   }
 
-  onTagInputKeyDown(event: KeyboardEvent, value: string): void {
-    // Handle comma or enter key to add tag
-    if (event.key === ',' || event.key === 'Enter') {
+  onKeyDown(event: KeyboardEvent): void {
+    const currentInput = this.state.batchTagsInput();
+    
+    // Check for Enter or Comma to add tag
+    if (event.key === 'Enter' || event.key === ',') {
       event.preventDefault();
-      const tag = value.trim().replace(/,$/g, ''); // Remove trailing comma if present
+      const tag = currentInput.trim().replace(/,$/g, '');
       if (tag) {
         this.addTag(tag);
       }
     }
-    // Handle backspace on empty input to remove last tag
-    else if (event.key === 'Backspace' && !value) {
+    // Check for Backspace to remove last tag when input is empty
+    else if (event.key === 'Backspace' && !currentInput && this.state.batchTags().length > 0) {
+      event.preventDefault();
       const tags = this.state.batchTags();
-      if (tags.length > 0) {
-        this.removeTag(tags[tags.length - 1]);
-      }
+      this.removeTag(tags[tags.length - 1]);
     }
+  }
+
+  handleSuggestionClick(tag: string, event: MouseEvent): void {
+    event.preventDefault();
+    this.onSuggestionSelect(tag);
   }
 
   addTag(tag: string): void {
@@ -87,7 +92,7 @@ export class ConfirmComponent {
       const newTags = [...this.state.batchTags(), trimmedTag];
       this.state.batchTags.set(newTags);
       this.state.batchTagsInput.set('');
-      this.showSuggestions = false;
+      this.showSuggestions.set(false);
     }
   }
 
@@ -102,7 +107,7 @@ export class ConfirmComponent {
 
   hideSuggestions(): void {
     setTimeout(() => {
-      this.showSuggestions = false;
+      this.showSuggestions.set(false);
     }, 200);
   }
 
@@ -131,6 +136,7 @@ export class ConfirmComponent {
       
       // Add tags - merge batch tags with template tags
       const tags = this.state.batchTags();
+      console.log('[CONFIRM] Current batch tags:', tags);
       if (this.isTemplateFlow) {
         // For template flow, combine no-paper tag with any batch tags
         metadata.tags = ['no-paper', ...tags];
@@ -138,9 +144,12 @@ export class ConfirmComponent {
         // For regular flow, just use batch tags
         metadata.tags = tags;
       }
+      console.log('[CONFIRM] Metadata.tags being sent:', metadata.tags);
+      console.log('[CONFIRM] Full metadata:', metadata);
       
       this.api.createItem(metadata).subscribe({
         next: (res: any) => {
+          console.log('[CONFIRM] Item created successfully:', res);
           const params: any = {
             'item-id': res.item_id,
             'key': res.item_key
@@ -154,6 +163,10 @@ export class ConfirmComponent {
             this.router.navigate(['/props'], { queryParams: params, queryParamsHandling: 'merge'});
           } else {
             this.api.uploadImageAuto(currentImage, res.item_id, res.item_key).subscribe(() => {
+              console.log('[CONFIRM] Upload complete, clearing tags for next scan');
+              // Clear tags after successful upload so next scan starts fresh
+              this.state.batchTags.set([]);
+              this.state.batchTagsInput.set('');
               this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
             });
           }

@@ -127,9 +127,13 @@ export class ApiService {
     const headers: any = {
       'Authorization': this.api_key(),
     };
+    console.log('[API] createItem with metadata:', metadata);
     return this.http.post(`${this.CHRONOMAPS_API_URL}/${this.workspaceId()}`, metadata, { headers }).pipe(
       map((response: any) => {
-        const item = Object.assign({}, metadata, response);
+        console.log('[API] createItem response:', response);
+        // Merge with response first, then override with user metadata to preserve user-set values
+        const item = Object.assign({}, response, metadata);
+        console.log('[API] final item in signal:', item);
         this.item.set(item);
         return item;
       })
@@ -148,7 +152,13 @@ export class ApiService {
     return this.http.post(this.COMPLETE_FLOW_URL, metadata, { params }).pipe(
       map(() => {
         this.item.update((item: any) => {
-          return Object.assign({}, item, metadata);
+          // Preserve existing tags if not explicitly provided in metadata
+          const existingTags = item.tags;
+          const merged = Object.assign({}, item, metadata);
+          if (existingTags && Array.isArray(existingTags) && existingTags.length > 0 && !metadata.tags) {
+            merged.tags = existingTags;
+          }
+          return merged;
         });
         return true;
       })
@@ -165,6 +175,15 @@ export class ApiService {
     }
     return this.http.put(`${this.CHRONOMAPS_API_URL}/${this.workspaceId()}/${item_id}`, metadata, { headers, params }).pipe(
       map(() => {
+        // Preserve tags in local state even if not sending them
+        this.item.update((item: any) => {
+          const existingTags = item.tags;
+          const merged = Object.assign({}, item, metadata);
+          if (existingTags && Array.isArray(existingTags) && existingTags.length > 0 && !metadata.tags) {
+            merged.tags = existingTags;
+          }
+          return merged;
+        });
         return true;
       })
     );
@@ -173,6 +192,18 @@ export class ApiService {
   uploadImage(image: Blob, item_id: string, item_key: string): void {
     this.uploadImageInProgress.next(true);
     this.startDiscussion(image, item_id, item_key).pipe(
+      tap(() => {
+        // After AI processing, save the item with preserved tags back to database
+        const currentItem = this.item();
+        if (currentItem && currentItem.tags && currentItem.tags.length > 0) {
+          console.log('[API] Saving item with preserved tags:', currentItem.tags);
+          // Send tags to database via updateItem to persist them
+          this.updateItem({ tags: currentItem.tags }, item_id, item_key).subscribe(
+            () => console.log('[API] Tags saved to database successfully'),
+            (err) => console.error('[API] Failed to save tags to database:', err)
+          );
+        }
+      }),
       switchMap((ret: any) => {
         this.uploadImageInProgress.next(false);
         return this.sendInitMessageNoStream(item_id, item_key);
@@ -186,6 +217,16 @@ export class ApiService {
     this.startDiscussion(image, item_id, item_key).pipe(
       tap(() => {
         this.uploadImageInProgress.next(false);
+        // After AI processing, save the item with preserved tags back to database
+        const currentItem = this.item();
+        if (currentItem && currentItem.tags && currentItem.tags.length > 0) {
+          console.log('[API] Saving item with preserved tags:', currentItem.tags);
+          // Send tags to database via updateItem to persist them
+          this.updateItem({ tags: currentItem.tags }, item_id, item_key).subscribe(
+            () => console.log('[API] Tags saved to database successfully'),
+            (err) => console.error('[API] Failed to save tags to database:', err)
+          );
+        }
       })
     ).subscribe(() => {
       console.log('Auto upload image complete');
@@ -207,15 +248,20 @@ export class ApiService {
     }
     return this.http.post(this.SCREENSHOT_HANDLER_URL, formData, { params }).pipe(
       tap((data: any) => {
-        console.log('Screenshot uploaded successfully', data.metadata);
+        console.log('[API] Screenshot uploaded successfully');
+        console.log('[API] AI metadata returned:', data.metadata);
         this.item.update((item: any) => {
+          console.log('[API] Current item before merge:', item);
           // Preserve user-set tags when merging AI metadata
           const userTags = item.tags;
+          console.log('[API] User tags to preserve:', userTags);
           const merged = Object.assign({}, item, data.metadata);
           // If user had tags, restore them (don't let AI overwrite)
           if (userTags && Array.isArray(userTags) && userTags.length > 0) {
+            console.log('[API] Restoring user tags after AI processing');
             merged.tags = userTags;
           }
+          console.log('[API] Final item after preserving tags:', merged);
           return merged;
         });
       })
