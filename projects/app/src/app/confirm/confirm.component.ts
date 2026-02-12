@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, computed } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { StateService } from '../../state.service';
 import { ApiService } from '../../api.service';
@@ -32,11 +32,58 @@ export class ConfirmComponent {
     { label: $localize`Preposterous`, value: 0 }
   ];
 
+  availableTags = computed(() => this.api.getAvailableTags());
+  
+  filteredTags = computed(() => {
+    const input = this.state.batchTagsInput().toLowerCase().trim();
+    if (!input) {
+      return this.availableTags();
+    }
+    
+    const currentTags = this.state.batchTags();
+    return this.availableTags().filter(tag => 
+      tag.toLowerCase().includes(input) && 
+      !currentTags.includes(tag)
+    );
+  });
+
+  showSuggestions = false;
+
   constructor(public state: StateService, private router: Router, public api: ApiService, private route: ActivatedRoute) { 
     this.api.updateFromRoute(this.route.snapshot);
     if (!this.state.currentImageUrl()) {
       this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
     }
+  }
+
+  onTagInputChange(value: string): void {
+    this.state.batchTagsInput.set(value);
+    this.showSuggestions = true;
+  }
+
+  addTag(tag: string): void {
+    const trimmedTag = tag.trim();
+    if (trimmedTag && !this.state.batchTags().includes(trimmedTag)) {
+      const newTags = [...this.state.batchTags(), trimmedTag];
+      this.state.batchTags.set(newTags);
+      this.state.batchTagsInput.set('');
+      this.showSuggestions = false;
+    }
+  }
+
+  removeTag(tag: string): void {
+    const newTags = this.state.batchTags().filter(t => t !== tag);
+    this.state.batchTags.set(newTags);
+  }
+
+  onSuggestionSelect(tag: string): void {
+    this.addTag(tag);
+  }
+
+  hideSuggestions(): void {
+    setTimeout(() => {
+      this.showSuggestions = false;
+    }, 200);
   }
 
   upload() {
@@ -54,6 +101,12 @@ export class ConfirmComponent {
       const pot = this.state.batchPotential();
       if (pot !== null) {
         metadata['plausibility'] = pot;
+      }
+
+      // Add tags if any exist
+      const tags = this.state.batchTags();
+      if (tags.length > 0) {
+        metadata['tags'] = tags;
       }
 
       this.api.createItem(metadata).subscribe((res: any) => {

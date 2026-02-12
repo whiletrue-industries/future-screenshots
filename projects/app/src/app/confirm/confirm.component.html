@@ -28,6 +28,49 @@
         </svg>
       </div>
     </div>
+    <div class="tags-wrapper">
+      <label class="tags-label" i18n>TAGS:</label>
+      <div class="tags-input-container">
+        <div class="tags-chips">
+          @for (tag of state.batchTags(); track tag) {
+            <span class="tag-chip">
+              {{ tag }}
+              <button 
+                type="button"
+                class="tag-remove"
+                (click)="removeTag(tag)"
+                aria-label="Remove tag">
+                ✕
+              </button>
+            </span>
+          }
+        </div>
+        <div class="tags-input-wrapper">
+          <input 
+            #tagInput
+            type="text"
+            class="tags-input"
+            placeholder="Type to add tags..."
+            [value]="state.batchTagsInput()"
+            (input)="onTagInputChange(tagInput.value)"
+            (blur)="hideSuggestions()"
+            aria-label="Tags input field">
+          @if (showSuggestions && filteredTags().length > 0) {
+            <div class="tags-suggestions">
+              @for (tag of filteredTags(); track tag) {
+                <button 
+                  type="button"
+                  class="tag-suggestion"
+                  (click)="onSuggestionSelect(tag)"
+                  (mousedown)="$event.preventDefault()">
+                  {{ tag }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
   </div>
 }
 <div class='img'>

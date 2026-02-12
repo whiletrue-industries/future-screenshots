@@ -265,4 +265,24 @@ export class ApiService {
       };
     });    
   }
+
+  getAvailableTags(): string[] {
+    const workspace = this.workspace();
+    if (!workspace || !workspace.items) {
+      return [];
+    }
+    
+    const tagsSet = new Set<string>();
+    workspace.items.forEach((item: any) => {
+      if (Array.isArray(item.tags)) {
+        item.tags.forEach((tag: string) => {
+          if (typeof tag === 'string' && tag.trim()) {
+            tagsSet.add(tag.trim());
+          }
+        });
+      }
+    });
+    
+    return Array.from(tagsSet).sort();
+  }
 }

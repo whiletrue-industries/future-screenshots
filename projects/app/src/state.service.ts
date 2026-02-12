@@ -1,4 +1,4 @@
-import { computed, Injectable, signal } from '@angular/core';
+import { computed, effect, Injectable, signal } from '@angular/core';
 
 @Injectable({
   providedIn: 'root'
@@ -12,8 +12,26 @@ export class StateService {
   authenticated = signal<boolean>(false);
   batchPreference = signal<string>('');
   batchPotential = signal<number | null>(null);
+  batchTags = signal<string[]>([]);
+  batchTagsInput = signal<string>('');
 
-  constructor() { }
+  constructor() {
+    // Restore tags from localStorage on init
+    const savedTags = localStorage.getItem('batchTags');
+    if (savedTags) {
+      try {
+        this.batchTags.set(JSON.parse(savedTags));
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
+
+    // Watch for changes to batchTags and persist to localStorage
+    effect(() => {
+      const tags = this.batchTags();
+      localStorage.setItem('batchTags', JSON.stringify(tags));
+    });
+  }
 
   setImage(image: Blob) {
     this.currentImage.set(image);
