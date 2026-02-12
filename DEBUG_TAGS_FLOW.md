@@ -1,4 +1,4 @@
-# Tags Debugging Guide
+# Tags Debugging Guide & URL Parameter Documentation
 
 ## Complete Fix - Tags Now Fully Working! ✅
 
@@ -169,6 +169,142 @@ If the save succeeds ([API] Tags saved to database successfully), the issue is i
 | Tags cleared between scans | confirm.component.ts upload() | Clear batchTags after successful auto upload |
 
 All fixes ensure tags flow correctly from **Confirm Screen → API → Database → Admin Display**
+
+---
+
+## URL Tag Parameters
+
+You can pre-populate tags via URL query parameters. This is useful for automating workflows or providing context-specific tags.
+
+### Basic Syntax
+
+```
+/scan?tags=tag1,tag2,tag3
+```
+
+### Combined with Existing Parameters
+
+```
+/scan?workspace=61358757-cf32-483f-847f-3e4eb3855408&api_key=212aa064-4d02-4edb-8f0b-9f649d026fb2&tags=sustainability,climate-action
+```
+
+### With Template Flow
+
+```
+/scan?template=true&tags=climate,sustainability
+```
+When `template=true`, the "no-paper" tag is automatically added as the first tag.
+
+### Bi-Directional Sync (Loading → Confirm Screen)
+
+**URL → Scanner Component:** Tags from URL are loaded at the start
+- `scanner.component.ts` parses URL tags when component initializes
+- Tags are added to `state.batchTags` (overrides localStorage)
+- Example: `/scan?tags=a,b,c` → Sets tags: `["a", "b", "c"]`
+
+**Confirm Component → URL:** Tags update the URL as you edit them
+- When you add/remove tags in the confirm screen, the URL updates automatically
+- Uses `window.history.replaceState()` so it doesn't create new history entries
+- Example: Add tag → URL becomes `/confirm?tags=climate,sustainability,new-tag`
+- Preserves all other query params (workspace, api_key, template, etc.)
+
+### Behavior
+
+- **Multiple tags:** Comma-separated, whitespace trimmed automatically
+- **Case normalization:** All tags converted to lowercase
+- **Override behavior:** URL tags override localStorage (fresh start)
+- **Template flow:** Automatically prepends "no-paper" tag if not already included
+- **Invalid tags:** Empty or whitespace-only tags are filtered out
+- **URL persistence:** Tags stay in URL throughout the workflow for reproducibility and sharing
+- **Smart clearing after upload:**
+  - If tags were provided via URL or modified by user → **Persist for next scan**
+  - If no URL tags and no modifications → Clear for fresh start
+  - Tags from URL remain in URL after navigation (via `queryParamsHandling: 'preserve'`)
+  - Modified tags stay in localStorage and URL for next session
+
+### Examples
+
+**Example 1: Simple tags**
+```
+http://localhost:4200/scan?tags=climate-change,urban-planning,future-food
+```
+→ Scanner loads tags: `["climate-change", "urban-planning", "future-food"]`
+→ Proceed to confirm screen, edit tags, and URL updates automatically
+
+**Example 2: With credentials**
+```
+http://localhost:4200/scan?workspace=61358757-cf32-483f-847f-3e4eb3855408&api_key=212aa064-4d02-4edb-8f0b-9f649d026fb2&tags=ai,ethics,governance
+```
+→ Sets workspace & API key, then sets tags: `["ai", "ethics", "governance"]`
+→ Tag edits update URL while keeping workspace and api_key params
+
+**Example 3: Template flow with tags**
+```
+http://localhost:4200/scan?template=true&tags=scenario-planning,innovation
+```
+→ Sets tags: `["no-paper", "scenario-planning", "innovation"]`(no-paper is auto-added)
+→ URL becomes `/confirm?template=true&tags=no-paper,scenario-planning,innovation` as you proceed
+
+**Example 4: Handling spaces and case**
+```
+http://localhost:4200/scan?tags=Climate Change,Urban Planning
+```
+→ Sets tags: `["climate change", "urban planning"]` (spaces preserved, case lowercased)
+→ URL stays in sync as you add/remove tags
+
+### Console Output
+
+When tags are loaded from URL (scanner):
+```
+[SCANNER] URL tags loaded: ['tag1', 'tag2', 'tag3']
+```
+
+When tags are synced in confirm screen:
+```
+[CONFIRM] Tags synced to URL: ['tag1', 'tag2', 'tag3']
+```
+
+### Use Cases
+
+1. **Reproducible Workflows:** Share a URL with specific tags pre-loaded
+2. **Batch Processing:** Automate tag assignment for similar content
+3. **Context Preservation:** Keep tags throughout the entire workflow
+4. **Mobile Links:** Use `scripts/dev-with-mobile-link.js` to share QR code with pre-set tags
+5. **API Integration:** Construct URLs programmatically with desired tags
+6. **Workflow Automation:** Set tags once, scan multiple images with same context
+7. **Team Collaboration:** Share URL with teammates so they use consistent tags
+
+### Persistence Behavior Examples
+
+**Scenario 1: URL tags, no modifications**
+```
+/scan?tags=climate,sustainability
+→ Take photo → Confirm (don't change tags) → Upload
+→ Returns to /scan?tags=climate,sustainability (tags persist for next scan)
+```
+
+**Scenario 2: URL tags + user modifications**
+```
+/scan?tags=climate,sustainability
+→ Take photo → Confirm → Add "governance" tag → Upload
+→ Returns to /scan?tags=climate,sustainability,governance (modified tags persist)
+```
+
+**Scenario 3: No URL tags, user adds tags**
+```
+/scan (no tags param)
+→ Take photo → Confirm → Add "test" tag → Upload
+→ Returns to /scan?tags=test (user tags persist)
+```
+
+**Scenario 4: No URL tags, no user tags**
+```
+/scan (no tags param)
+→ Take photo → Confirm (no tags added) → Upload
+→ Returns to /scan (clean slate for next scan)
+```
+
+
 
 
 

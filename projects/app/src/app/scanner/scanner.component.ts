@@ -80,6 +80,28 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     private api: ApiService,
   ) {
     this.api.updateFromRoute(this.route.snapshot);
+    
+    // Parse tags from URL query parameters
+    const tagsParam = this.route.snapshot.queryParamMap.get('tags');
+    const isTemplateFlow = this.route.snapshot.queryParamMap.get('template') === 'true';
+    
+    if (tagsParam) {
+      // Parse comma-separated tags, normalize to lowercase, trim whitespace
+      const urlTags = tagsParam
+        .split(',')
+        .map(tag => tag.trim().toLowerCase())
+        .filter(tag => tag.length > 0);
+      
+      // If in template flow, add 'no-paper' tag
+      if (isTemplateFlow && !urlTags.includes('no-paper')) {
+        urlTags.unshift('no-paper');
+      }
+      
+      // Override localStorage with URL tags
+      this.state.batchTags.set(urlTags);
+      console.log('[SCANNER] URL tags loaded:', urlTags);
+    }
+    
     this.displayMsgSubject.pipe(
       takeUntilDestroyed(),
       distinctUntilChanged(),
