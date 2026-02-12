@@ -289,16 +289,20 @@ export class ModerateComponent {
             data.forEach((item: any) => {
               item.screenshot_url = this.fix_url(item.screenshot_url);
               item.favorable_future = this.fix_favorable_future(item.favorable_future);
-              // Parse tags from future_scenario_topics object
-              item.tags = [];
+              // Preserve tags from API response, merge with future_scenario_topics if present
+              const apiTags = item.tags || [];
+              const topicsBasedTags = [];
               if (item.future_scenario_topics) {
                 // future_scenario_topics is an object, extract values
                 if (typeof item.future_scenario_topics === 'object' && !Array.isArray(item.future_scenario_topics)) {
-                  item.tags = Object.values(item.future_scenario_topics).filter((t: any) => t);
+                  topicsBasedTags.push(...Object.values(item.future_scenario_topics).filter((t: any) => t));
                 } else if (Array.isArray(item.future_scenario_topics)) {
-                  item.tags = item.future_scenario_topics;
+                  topicsBasedTags.push(...item.future_scenario_topics);
                 }
               }
+              // Merge API tags with topics-based tags, removing duplicates
+              const mergedTags = [...new Set([...apiTags, ...topicsBasedTags])];
+              item.tags = mergedTags;
             });
             
             // Store all fetched items
@@ -727,6 +731,7 @@ export class ModerateComponent {
       });
       
       const updateData: any = {
+        tags: item.tags, // Save tags array directly to database
         future_scenario_topics: topics,
         // Clear embedding to trigger re-analysis
         embedding: null,
