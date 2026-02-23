@@ -17,7 +17,6 @@ import { FormsModule } from '@angular/forms';
 })
 export class ConfirmComponent {
   isTemplateFlow = false;
-  initialUrlTags: string[] = []; // Store initial tags from URL
 
   preferenceOptions = [
     { label: $localize`Preferred`, value: 'prefer' },
@@ -53,40 +52,10 @@ export class ConfirmComponent {
   constructor(public state: StateService, private router: Router, public api: ApiService, private route: ActivatedRoute) { 
     this.api.updateFromRoute(this.route.snapshot);
     this.isTemplateFlow = this.route.snapshot.queryParamMap.get('template') === 'true';
-    
-    // Store initial tags from URL to detect if user has modified them
-    const urlTagsParam = this.route.snapshot.queryParamMap.get('tags');
-    if (urlTagsParam) {
-      this.initialUrlTags = urlTagsParam.split(',').map(t => t.trim().toLowerCase()).filter(t => t);
-    }
-    
+        
     if (!this.state.currentImageUrl()) {
       this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
     }
-
-    // Sync tags to URL query parameters whenever they change
-    effect(() => {
-      const tags = this.state.batchTags();
-      const currentParams = this.route.snapshot.queryParams;
-      
-      // Build new query params, preserving existing ones
-      const newParams = { ...currentParams };
-      
-      if (tags.length > 0) {
-        // Convert tags to comma-separated string for URL
-        newParams['tags'] = tags.join(',');
-      } else {
-        // Remove tags param if no tags
-        delete newParams['tags'];
-      }
-      
-      // Update URL without navigation (preserves history)
-      const queryString = new URLSearchParams(newParams).toString();
-      const newUrl = queryString ? `${this.router.url.split('?')[0]}?${queryString}` : this.router.url.split('?')[0];
-      window.history.replaceState({ path: newUrl }, '', newUrl);
-      
-      console.log('[CONFIRM] Tags synced to URL:', tags);
-    });
   }
 
   onTagInputChange(value: string): void {
