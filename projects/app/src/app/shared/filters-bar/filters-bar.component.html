@@ -266,17 +266,19 @@
         placeholder="any text" />
     </div>
 
-    <div class="filter-group">
-      <label for="order-by">Order by:</label>
-      <select id="order-by" [ngModel]="orderBy()" (ngModelChange)="onOrderByChange($event)">
-        <option value="date">Date</option>
-        <option value="status">Status</option>
-        <option value="author">Author</option>
-        <option value="confidence">AI Confidence</option>
-        <option value="type">Type</option>
-        <option value="preference">Preference</option>
-      </select>
-    </div>
+    @if (showOrderBy()) {
+      <div class="filter-group">
+        <label for="order-by">Order by:</label>
+        <select id="order-by" [ngModel]="orderBy()" (ngModelChange)="onOrderByChange($event)">
+          <option value="date">Date</option>
+          <option value="status">Status</option>
+          <option value="author">Author</option>
+          <option value="confidence">AI Confidence</option>
+          <option value="type">Type</option>
+          <option value="preference">Preference</option>
+        </select>
+      </div>
+    }
 
     <div class="filter-info">
       <span class="count-display">{{ filteredCount() }} / {{ totalCount() }}</span>
