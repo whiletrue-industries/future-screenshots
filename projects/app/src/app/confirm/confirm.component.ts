@@ -52,7 +52,7 @@ export class ConfirmComponent {
   constructor(public state: StateService, private router: Router, public api: ApiService, private route: ActivatedRoute) { 
     this.api.updateFromRoute(this.route.snapshot);
     this.isTemplateFlow = this.route.snapshot.queryParamMap.get('template') === 'true';
-        
+
     if (!this.state.currentImageUrl()) {
       this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
     }
@@ -164,22 +164,7 @@ export class ConfirmComponent {
             this.router.navigate(['/props'], { queryParams: params, queryParamsHandling: 'merge'});
           } else {
             this.api.uploadImageAuto(currentImage, res.item_id, res.item_key).subscribe(() => {
-              console.log('[CONFIRM] Upload complete');
-              
-              // Only clear tags if they haven't been modified from the initial URL tags
-              const currentTags = this.state.batchTags();
-              const tagsWereModified = JSON.stringify(currentTags.sort()) !== JSON.stringify(this.initialUrlTags.sort());
-              
-              if (!tagsWereModified && this.initialUrlTags.length === 0) {
-                // No URL tags and no modifications - clear for fresh start
-                console.log('[CONFIRM] No URL tags set, clearing tags for next scan');
-                this.state.batchTags.set([]);
-                this.state.batchTagsInput.set('');
-              } else {
-                // Tags were from URL or modified by user - persist them
-                console.log('[CONFIRM] Tags modified or from URL, persisting for next scan:', currentTags);
-              }
-              
+              console.log('[CONFIRM] Upload complete');                          
               this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
             });
           }

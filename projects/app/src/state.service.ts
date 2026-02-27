@@ -1,4 +1,5 @@
 import { computed, effect, Injectable, signal } from '@angular/core';
+import { PlatformService } from './platform.service';
 
 @Injectable({
   providedIn: 'root'
@@ -17,21 +18,24 @@ export class StateService {
   batchTags = signal<string[]>([]);
   batchTagsInput = signal<string>('');
 
-  constructor() {
+  constructor(private platform: PlatformService) {
     // Restore tags from localStorage on init
-    const savedTags = localStorage.getItem('batchTags');
-    if (savedTags) {
-      try {
-        this.batchTags.set(JSON.parse(savedTags));
-      } catch (e) {
-        // Ignore parse errors
+    platform.browser(() => {
+      const savedTags = localStorage.getItem('batchTags');
+      if (savedTags) {
+        try {
+          this.batchTags.set(JSON.parse(savedTags));
+        } catch (e) {
+          // Ignore parse errors
+        }
       }
-    }
-
+    });
     // Watch for changes to batchTags and persist to localStorage
     effect(() => {
       const tags = this.batchTags();
-      localStorage.setItem('batchTags', JSON.stringify(tags));
+      platform.browser(() => {
+        localStorage.setItem('batchTags', JSON.stringify(tags));
+      });
     });
   }
 
