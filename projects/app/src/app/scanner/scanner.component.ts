@@ -80,6 +80,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     private api: ApiService,
   ) {
     this.api.updateFromRoute(this.route.snapshot);
+        
     this.displayMsgSubject.pipe(
       takeUntilDestroyed(),
       distinctUntilChanged(),

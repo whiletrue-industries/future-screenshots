@@ -289,16 +289,21 @@ export class ModerateComponent {
             data.forEach((item: any) => {
               item.screenshot_url = this.fix_url(item.screenshot_url);
               item.favorable_future = this.fix_favorable_future(item.favorable_future);
-              // Parse tags from future_scenario_topics object
-              item.tags = [];
+              // Preserve tags from API response, merge with future_scenario_topics if present
+              const apiTags = item.tags || [];
+              let futureScenarioTopics = [];
               if (item.future_scenario_topics) {
                 // future_scenario_topics is an object, extract values
                 if (typeof item.future_scenario_topics === 'object' && !Array.isArray(item.future_scenario_topics)) {
-                  item.tags = Object.values(item.future_scenario_topics).filter((t: any) => t);
+                  futureScenarioTopics.push(...Object.values(item.future_scenario_topics).filter((t: any) => t));
                 } else if (Array.isArray(item.future_scenario_topics)) {
-                  item.tags = item.future_scenario_topics;
+                  futureScenarioTopics = item.future_scenario_topics;
                 }
               }
+              // Merge API tags with topics-based tags, removing duplicates
+              const mergedTags = [...new Set([...apiTags, ...futureScenarioTopics])];
+              item.tags = mergedTags;
+              item.future_scenario_topics = futureScenarioTopics; // Keep original topics for reference
             });
             
             // Store all fetched items
@@ -719,17 +724,10 @@ export class ModerateComponent {
   setTags(item: any) {
     const workspaceId = this.workspaceId();
     const apiKey = this.apiKey();
-    if (workspaceId && apiKey) {
-      // Create topics object from tags array
-      const topics: any = {};
-      item.tags.forEach((tag: string, index: number) => {
-        topics[`topic_${index + 1}`] = tag;
-      });
-      
+    if (workspaceId && apiKey) {      
       const updateData: any = {
-        future_scenario_topics: topics,
-        // Clear embedding to trigger re-analysis
-        embedding: null,
+        tags: item.tags, // Save tags array directly to database
+        future_scenario_topics: item.future_scenario_topics, // Preserve existing topics
       };
       this.api.updateItem(workspaceId, apiKey, item._id, updateData).subscribe(data => {
         console.log('tags updated, re-analysis triggered', data);
@@ -763,20 +761,12 @@ export class ModerateComponent {
 
   closeSidebar(): void {
     const currentItem = this.selectedItem();
-    if (currentItem) {
-      // Trigger re-analysis when closing
-      this.triggerReanalysis(currentItem);
-    }
     this.selectedItem.set(null);
     this.lightboxSidebarOpen.set(false);
   }
 
   nextItem(): void {
     const currentItem = this.selectedItem();
-    if (currentItem) {
-      // Trigger re-analysis before moving to next item
-      this.triggerReanalysis(currentItem);
-    }
     const index = this.selectedItemIndex();
     if (index < this.items().length - 1) {
       this.selectItem(this.items()[index + 1]);
@@ -785,36 +775,9 @@ export class ModerateComponent {
 
   prevItem(): void {
     const currentItem = this.selectedItem();
-    if (currentItem) {
-      // Trigger re-analysis before moving to previous item
-      this.triggerReanalysis(currentItem);
-    }
     const index = this.selectedItemIndex();
     if (index > 0) {
       this.selectItem(this.items()[index - 1]);
-    }
-  }
-
-  triggerReanalysis(item: any): void {
-    const workspaceId = this.workspaceId();
-    const apiKey = this.apiKey();
-    if (workspaceId && apiKey && item) {
-      // Clear embedding and automated analysis fields to trigger backend re-analysis
-      const updateData: any = {
-        embedding: null,
-        future_scenario_topics: null,
-        content_certainty: null,
-        transition_bar_certainty: null,
-        transition_bar_event_prediction: null,
-      };
-      this.api.updateItem(workspaceId, apiKey, item._id, updateData).subscribe(
-        data => {
-          console.log('item re-analysis triggered', data);
-        },
-        error => {
-          console.error('Error triggering re-analysis', error);
-        }
-      );
     }
   }
 

@@ -1,3 +1,79 @@
+@if (api.automatic()) {
+  <div class="dropdowns-container">
+    <div class="dropdown-wrapper">
+      <label class="dropdown-label" i18n>PREFERENCE:</label>
+      <div class="dropdown-select">
+        <select [ngModel]="state.batchPreference()" (ngModelChange)="state.batchPreference.set($event)" class="dropdown">
+          <option value="" i18n>none</option>
+          @for (opt of preferenceOptions; track opt.value) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+          }
+        </select>
+        <svg class="dropdown-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2 4L6 8L10 4" stroke="#B969FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="dropdown-wrapper">
+      <label class="dropdown-label" i18n>POTENTIAL:</label>
+      <div class="dropdown-select">
+        <select [ngModel]="state.batchPotential()" (ngModelChange)="state.batchPotential.set($event)" class="dropdown">
+          <option [ngValue]="null" i18n>none</option>
+          @for (opt of potentialOptions; track opt.value) {
+            <option [ngValue]="opt.value">{{ opt.label }}</option>
+          }
+        </select>
+        <svg class="dropdown-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2 4L6 8L10 4" stroke="#B969FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="tags-wrapper">
+      <label class="tags-label" i18n>TAGS:</label>
+      <div class="tags-input-container">
+        <div class="tags-input-wrapper">
+          <div class="tags-input-with-chips">
+            @for (tag of state.batchTags(); track tag) {
+              <span class="tag-chip">
+                {{ tag }}
+                <button 
+                  type="button"
+                  class="tag-remove"
+                  (click)="removeTag(tag)"
+                  aria-label="Remove tag">
+                  ✕
+                </button>
+              </span>
+            }
+            <input 
+              #tagInput
+              type="text"
+              class="tags-input"
+              placeholder="Type to add tags..."
+              [value]="state.batchTagsInput()"
+              (input)="onTagInputChange(tagInput.value)"
+              (keydown)="onKeyDown($event)"
+              (blur)="hideSuggestions()"
+              aria-label="Tags input field">
+          </div>
+          @if (showSuggestions() && filteredTags().length > 0) {
+            <div class="tags-suggestions">
+              @for (tag of filteredTags(); track tag) {
+                <button 
+                  type="button"
+                  class="tag-suggestion"
+                  (click)="onSuggestionSelect(tag)"
+                  (mousedown)="$event.preventDefault()">
+                  {{ tag }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+}
 <div class='img'>
   <div class='inner'>
       <img [src]="state.currentImageUrl()" alt="Confirmation Image">

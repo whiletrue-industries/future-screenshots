@@ -127,9 +127,13 @@ export class ApiService {
     const headers: any = {
       'Authorization': this.api_key(),
     };
+    console.log('[API] createItem with metadata:', metadata);
     return this.http.post(`${this.CHRONOMAPS_API_URL}/${this.workspaceId()}`, metadata, { headers }).pipe(
       map((response: any) => {
-        const item = Object.assign({}, metadata, response);
+        console.log('[API] createItem response:', response);
+        // Merge with response first, then override with user metadata to preserve user-set values
+        const item = Object.assign({}, response, metadata);
+        console.log('[API] final item in signal:', item);
         this.item.set(item);
         return item;
       })
@@ -186,6 +190,16 @@ export class ApiService {
     this.startDiscussion(image, item_id, item_key).pipe(
       tap(() => {
         this.uploadImageInProgress.next(false);
+        // After AI processing, save the item with preserved tags back to database
+        const currentItem = this.item();
+        if (currentItem && currentItem.tags && currentItem.tags.length > 0) {
+          console.log('[API] Saving item with preserved tags:', currentItem.tags);
+          // Send tags to database via updateItem to persist them
+          this.updateItem({ tags: currentItem.tags }, item_id, item_key).subscribe(
+            () => console.log('[API] Tags saved to database successfully'),
+            (err) => console.error('[API] Failed to save tags to database:', err)
+          );
+        }
       })
     ).subscribe(() => {
       console.log('Auto upload image complete');
@@ -278,5 +292,25 @@ export class ApiService {
         eventSource.close();
       };
     });    
+  }
+
+  getAvailableTags(): string[] {
+    const workspace = this.workspace();
+    if (!workspace || !workspace.items) {
+      return [];
+    }
+    
+    const tagsSet = new Set<string>();
+    workspace.items.forEach((item: any) => {
+      if (Array.isArray(item.tags)) {
+        item.tags.forEach((tag: string) => {
+          if (typeof tag === 'string' && tag.trim()) {
+            tagsSet.add(tag.trim());
+          }
+        });
+      }
+    });
+    
+    return Array.from(tagsSet).sort();
   }
 }

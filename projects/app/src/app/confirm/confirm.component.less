@@ -8,24 +8,258 @@
     overflow: hidden;
     background-color: @color-darker-purple;
 
+    .dropdowns-container {
+        flex: 0 0 auto;
+        display: flex;
+        flex-flow: row nowrap;
+        align-items: center;
+        padding: 8px 16px;
+        gap: 12px;
+        min-height: 65px;
+        border-bottom: 1px solid @color-accent;
+        overflow-x: scroll;
+    }
+
+    .dropdown-wrapper {
+        flex: 1 1 auto;
+        display: flex;
+        flex-flow: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .dropdown-label {
+        .font-sans;
+        font-style: normal;
+        font-weight: 900;
+        font-size: 10px;
+        line-height: 13px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: @color-accent;
+        margin: 0;
+    }
+
+    .dropdown-select {
+        position: relative;
+        width: 100%;
+    }
+
+    .dropdown {
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 100px;
+        padding: 8px 30px 8px 10px;
+        border: 1px solid @color-accent;
+        border-radius: 8px;
+        background-color: @color-darker-purple;
+        color: @color-dark-pink;
+        .font-sans;
+        font-style: normal;
+        font-weight: 500;
+        font-size: 13px;
+        line-height: 16px;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        cursor: pointer;
+        transition: all 0.2s;
+
+        &:focus {
+            outline: none;
+            border-color: @color-light-purple;
+        }
+
+        &:hover {
+            border-color: @color-light-purple;
+        }
+
+        option {
+            background-color: @color-darker-purple;
+            color: @color-dark-pink;
+        }
+    }
+
+    .dropdown-icon {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+    }
+
+    .tags-wrapper {
+        flex: 1 1 auto;
+        display: flex;
+        flex-flow: column;
+        align-items: flex-start;
+        gap: 4px;
+        min-width: 200px;
+    }
+
+    .tags-label {
+        .font-sans;
+        font-style: normal;
+        font-weight: 900;
+        font-size: 10px;
+        line-height: 13px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: @color-accent;
+        margin: 0;
+    }
+
+    .tags-input-container {
+        position: relative;
+
+    }
+
+    .tags-input-wrapper {
+        position: relative;
+        width: 100%;
+    }
+
+    .tags-input-with-chips {
+        box-sizing: border-box;
+        width: 100%;
+        min-height: 34px;
+        padding: 4px;
+        border: 1px solid @color-accent;
+        border-radius: 8px;
+        background-color: @color-darker-purple;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        transition: all 0.2s;
+
+        &:focus-within {
+            border-color: @color-light-purple;
+        }
+
+        &:hover {
+            border-color: @color-light-purple;
+        }
+    }
+
+    .tag-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        background-color: @color-accent;
+        color: @color-darker-purple;
+        .font-sans;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+        flex-shrink: 0;
+
+        .tag-remove {
+            background: none;
+            border: none;
+            color: @color-darker-purple;
+            cursor: pointer;
+            padding: 0;
+            font-size: 12px;
+            line-height: 1;
+            margin-left: 2px;
+            transition: opacity 0.2s;
+
+            &:hover {
+                opacity: 0.7;
+            }
+
+            &:focus {
+                outline: none;
+            }
+        }
+    }
+
+    .tags-input {
+        flex: 1 1 auto;
+        min-width: 120px;
+        border: none;
+        background: transparent;
+        color: @color-dark-pink;
+        .font-sans;
+        font-style: normal;
+        font-weight: 500;
+        font-size: 13px;
+        line-height: 16px;
+        padding: 4px;
+        outline: none;
+
+        &::placeholder {
+            color: rgba(217, 177, 255, 0.5);
+        }
+    }
+
+    .tags-suggestions {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        margin-top: 4px;
+        background-color: @color-darker-purple;
+        border: 1px solid @color-accent;
+        border-radius: 8px;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 10;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    .tag-suggestion {
+        display: block;
+        width: 100%;
+        padding: 8px 12px;
+        border: none;
+        background: none;
+        color: @color-dark-pink;
+        text-align: left;
+        cursor: pointer;
+        .font-sans;
+        font-size: 13px;
+        font-weight: 500;
+        transition: background-color 0.2s;
+
+        &:hover {
+            background-color: rgba(217, 177, 255, 0.1);
+        }
+
+        &:focus {
+            outline: none;
+            background-color: rgba(217, 177, 255, 0.15);
+        }
+
+        &:not(:last-child) {
+            border-bottom: 1px solid rgba(217, 177, 255, 0.1);
+        }
+    }
+
     .img {
         flex: 1 1 auto;
         width: 100%;
         height: 100%;
-        max-height: calc(100% ~'-'77px);
         display: flex;
         justify-content: center;
         align-items: center;
-        padding: 32px;
+        padding: 16px;
+        overflow: hidden;
 
         .inner {
             width: 100%;
             height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            
             img {
                 object-fit: contain;
                 object-position: center;
-                width: 100%;
-                height: 100%;
+                max-width: 100%;
+                max-height: 100%;
             }    
         }
     }
