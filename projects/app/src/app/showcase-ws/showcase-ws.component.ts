@@ -108,6 +108,25 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Count author
       const authorId = metadata['author_id'] || 'unknown';
       authorMap.set(authorId, (authorMap.get(authorId) || 0) + 1);
+
+      // Count preference
+      const preference = metadata['favorable_future'];
+      if (preference) {
+        preferenceMap.set(preference, (preferenceMap.get(preference) || 0) + 1);
+      }
+
+      // Count potential
+      const plausibility = metadata['plausibility'];
+      if (plausibility !== null && plausibility !== undefined) {
+        const key = String(plausibility);
+        potentialMap.set(key, (potentialMap.get(key) || 0) + 1);
+      }
+
+      // Count type
+      const screenshotType = metadata['screenshot_type'];
+      if (screenshotType) {
+        typeMap.set(screenshotType, (typeMap.get(screenshotType) || 0) + 1);
+      }
     });
     
     return {
@@ -1373,7 +1392,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         return;
       }
       
-      const matches = this.photoMatchesFilters(photo.metadata, filters);
+      const matches = this.photoMatchesFilters(photo, filters);
       
       if (matches) {
         // Matching item: full opacity, normal z-index
@@ -1390,7 +1409,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   /**
    * Check if a photo matches the current filters
    */
-  private photoMatchesFilters(metadata: any, filters: FiltersBarState): boolean {
+  private photoMatchesFilters(photo: PhotoData, filters: FiltersBarState): boolean {
+    const metadata = photo.metadata;
     // Status filter (based on _private_moderation)
     // Only filter if not all statuses are selected (6 total statuses)
     if (filters.status.length > 0 && filters.status.length < 6) {
@@ -1420,7 +1440,19 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       const potentialMatches = this.matchesPotentialFilter(plausibility, filters.potential);
       if (!potentialMatches) return false;
     }
-    
+
+    // Type filter (screenshot_type)
+    if (filters.type !== 'all') {
+      const screenshotType = metadata['screenshot_type'];
+      if (screenshotType !== filters.type) return false;
+    }
+
+    // Search filter
+    if (filters.search) {
+      const searchable = this.getSearchableText(photo);
+      if (!searchable.includes(filters.search.toLowerCase().trim())) return false;
+    }
+
     return true;
   }
   

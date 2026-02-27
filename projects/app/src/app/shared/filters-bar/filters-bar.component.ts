@@ -199,6 +199,7 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
   totalCount = input<number>(0);
   filteredCount = input<number>(0);
   showViewToggle = input<boolean>(false);
+  showOrderBy = input<boolean>(true);
   initialState = input<FiltersBarState | null>(null);
   
   // Outputs
