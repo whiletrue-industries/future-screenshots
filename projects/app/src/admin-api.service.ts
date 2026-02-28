@@ -85,10 +85,10 @@ export class AdminApiService {
         }
         console.log('Created workspace:', workspace);
         return this.updateWorkspace(workspace.id, workspace.keys!.admin, {
-          metadata: null, 
+          metadata: null,
           public: request.public,
           collaborate: request.collaborate
-        });
+        }).pipe(map(() => workspace));
       })
     );
   }

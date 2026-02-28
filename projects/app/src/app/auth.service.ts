@@ -14,7 +14,7 @@ export class AuthService {
   
   constructor(private afAuth: Auth, private router: Router, private platform: PlatformService) {
     this.platform.browser(() => {
-      this.afAuth.onAuthStateChanged(user => {
+      this.afAuth.onIdTokenChanged(user => {
         this.user.next(user);
       });
       this.user.pipe(
