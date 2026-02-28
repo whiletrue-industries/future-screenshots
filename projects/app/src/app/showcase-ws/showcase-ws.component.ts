@@ -13,13 +13,11 @@ import { LayoutStrategy } from './layout-strategy.interface';
 import { GridLayoutStrategy } from './grid-layout-strategy';
 import { TsneLayoutStrategy } from './tsne-layout-strategy';
 import { SvgBackgroundLayoutStrategy } from './svg-background-layout-strategy';
-import { SvgSideLayoutStrategy } from './svg-side-layout-strategy';
 import { CirclePackingLayoutStrategy } from './circle-packing-layout-strategy';
 import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
-import e from 'express';
 
 @Component({
   selector: 'app-showcase-ws',
@@ -237,7 +235,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   loadedPhotoIds = new Set<string>();
   private layoutChangeInProgress = false;
   private svgBackgroundStrategy: SvgBackgroundLayoutStrategy | null = null;
-  private svgSideStrategy: SvgSideLayoutStrategy | null = null;
   private readonly svgCircleRadius = 15000;
   qrUrl = computed(() => 
     `https://mapfutur.es/${this.lang()}prescan?workspace=${this.workspace()}&api_key=${this.api_key()}&ws=true`
@@ -567,10 +564,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
   private async applySvgLayoutMode(enableAutoPositioning: boolean): Promise<void> {
     const backgroundStrategy = this.svgBackgroundStrategy;
-    const sideStrategy = this.svgSideStrategy;
 
-    if (!backgroundStrategy || !sideStrategy) {
-      console.warn('[SVG] Strategies not initialized; run switchToSvgLayout first');
+    if (!backgroundStrategy) {
+      console.warn('[SVG] Strategy not initialized; run switchToSvgLayout first');
       return;
     }
 
@@ -597,35 +593,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
     await this.photoRepository.setLayoutStrategy(strategy);
     this.rendererService.setLayoutStrategyReference(strategy);
-
-    if (enableAutoPositioning) {
-      this.showSvgHotspotDebugVisualization();
-    }
-
-    // Don't refit camera here - it causes unwanted zoom-out
-    // Camera was already fitted in switchToSvgLayout()
-  }
-
-  /**
-   * Helper to show SVG hotspot debug visualization
-   */
-  private showSvgHotspotDebugVisualization() {
-    try {
-      const strategy = this.photoRepository.getLayoutStrategy();
-      console.log('[HOTSPOT-VIZ] Got strategy:', strategy?.constructor.name);
-      
-      if (!strategy) {
-        console.warn('[HOTSPOT-VIZ] No layout strategy available');
-        return;
-      }
-      
-      const showDebugMethod = (strategy as any).showAllHotspotsDebug;
-      if (typeof showDebugMethod === 'function') {
-        showDebugMethod.call(strategy);
-      }
-    } catch (error) {
-      console.error('[HOTSPOT-VIZ] Error showing visualization:', error);
-    }
   }
 
   /**
@@ -1111,13 +1078,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         }
       });
 
-      // Needed when auto-positioning is enabled
-      this.svgSideStrategy = new SvgSideLayoutStrategy({
-        photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
-        photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
-        svgRadius: this.svgCircleRadius,
-        useFanLayout: !this.isMobile()
-      });
       const svgElement = this.svgBackgroundStrategy.getSvgElement();
 
       if (svgElement) {

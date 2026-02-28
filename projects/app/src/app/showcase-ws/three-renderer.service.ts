@@ -111,12 +111,7 @@ export class ThreeRendererService {
   private clickThreshold = 5; // pixels - max movement to be considered a click
   private readonly FALLBACK_MOUSE_MOVEMENT = 1000; // Large fallback value when coordinates unavailable
 
-  // Dragging Preview Widget
-  private previewWidget: HTMLElement | null = null;
-  private previewImage: HTMLImageElement | null = null;
-  private previewHotspotInfo: HTMLElement | null = null;
   private hoveredMesh: THREE.Mesh | null = null;
-  private currentMatchedHotspot: { [key: string]: string | number } | null = null;
   
   // Store fisheye state before dragging
   private wasFisheyeEnabled = false;
@@ -1404,10 +1399,7 @@ export class ThreeRendererService {
       this.isDragging = false;
       this.draggedMesh = null;
       this.hoveredMesh = null;
-      
-      // Hide preview widget
-      this.hidePreviewWidget();
-      
+
       // Reset cursor
       if (this.container) {
         this.container.style.cursor = 'default';
@@ -1544,156 +1536,6 @@ export class ThreeRendererService {
     requestAnimationFrame(animate);
   }
 
-  /**
-   * Create dragging preview widget
-   */
-  private createPreviewWidget(): void {
-    // Preview widget disabled per request
-    this.previewWidget = null;
-    this.previewImage = null;
-    this.previewHotspotInfo = null;
-  }
-
-  /**
-   * Update preview widget position based on mouse position
-   */
-  private updatePreviewWidgetPosition(mouseX: number, mouseY: number): void {
-    if (!this.previewWidget || !this.container) return;
-
-    const containerRect = this.container.getBoundingClientRect();
-    const widgetHeight = containerRect.height * 0.5; // 50vh
-    const widgetWidth = widgetHeight * (530/1000); // Actual photo aspect ratio (530x1000)
-    const margin = 30;
-
-    // Position on opposite side of mouse
-    let left: number;
-    if (mouseX < containerRect.width / 2) {
-      // Mouse on left, put widget on right
-      left = containerRect.width - widgetWidth - margin;
-    } else {
-      // Mouse on right, put widget on left
-      left = margin;
-    }
-
-    this.previewWidget.style.left = `${left}px`;
-  }
-
-  /**
-   * Show preview widget with photo
-   */
-  private showPreviewWidget(mesh: THREE.Mesh): void {
-    if (!this.previewWidget || !this.previewImage || !this.previewHotspotInfo) return;
-
-    const photoData = this.meshToPhotoData.get(mesh);
-    if (!photoData) return;
-
-    // Reset hotspot info and image styles
-    this.previewHotspotInfo.style.display = 'none';
-    this.previewHotspotInfo.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-    this.previewHotspotInfo.style.fontSize = '12px';
-    this.previewImage.style.opacity = '1';
-    this.previewImage.style.transition = '';
-    this.currentMatchedHotspot = null;
-
-    // Load high-res image
-    this.previewImage.src = photoData.url;
-    this.previewWidget.style.display = 'block';
-    this.previewWidget.style.opacity = '1';
-  }
-
-  /**
-   * Update preview widget with hotspot info and apply rotation preview
-   */
-  private updatePreviewWidgetHotspot(hotspotData: { [key: string]: string | number } | null): void {
-    if (!this.previewHotspotInfo) return;
-
-    if (hotspotData) {
-      const displayText = this.formatHotspotDisplay(hotspotData);
-      this.previewHotspotInfo.innerHTML = displayText;
-      this.previewHotspotInfo.style.display = 'block';
-      
-      // Apply rotation preview to dragged mesh based on hotspot zone
-      if (this.draggedMesh) {
-        const photoData = this.meshToPhotoData.get(this.draggedMesh);
-        if (photoData) {
-          // Store original rotation if not already stored
-          if (this.draggedMesh.userData['previewOriginalRotation'] === undefined) {
-            this.draggedMesh.userData['previewOriginalRotation'] = this.draggedMesh.rotation.z;
-          }
-          
-          // Calculate new rotation based on hotspot zone
-          const newRotation = this.calculatePreviewRotation(photoData, hotspotData);
-          this.draggedMesh.rotation.z = newRotation;
-        }
-      }
-    } else {
-      this.previewHotspotInfo.style.display = 'none';
-      
-      // Restore original rotation when not hovering any hotspot
-      if (this.draggedMesh && this.draggedMesh.userData['previewOriginalRotation'] !== undefined) {
-        this.draggedMesh.rotation.z = this.draggedMesh.userData['previewOriginalRotation'];
-      }
-    }
-
-    this.currentMatchedHotspot = hotspotData;
-  }
-
-  /**
-   * Hide preview widget
-   */
-  private hidePreviewWidget(): void {
-    if (!this.previewWidget) return;
-
-    this.previewWidget.style.opacity = '0';
-    setTimeout(() => {
-      if (this.previewWidget) {
-        this.previewWidget.style.display = 'none';
-      }
-    }, 200);
-  }
-
-  /**
-   * Animate preview widget disappearance with hotspot highlight
-   */
-  private animatePreviewWidgetDrop(hotspotData: { [key: string]: string | number } | null): void {
-    if (!this.previewWidget || !this.previewImage || !this.previewHotspotInfo) return;
-
-    if (hotspotData) {
-      // First fade out the image
-      this.previewImage.style.transition = 'opacity 0.3s ease-out';
-      this.previewImage.style.opacity = '0';
-
-      // Show hotspot info prominently
-      this.previewHotspotInfo.style.display = 'block';
-      this.previewHotspotInfo.style.backgroundColor = 'rgba(34, 197, 94, 0.9)'; // Green success color
-      this.previewHotspotInfo.style.fontSize = '14px';
-      
-      const displayText = this.formatHotspotDisplay(hotspotData);
-      this.previewHotspotInfo.innerHTML = `✅ ${displayText}`;
-
-      // Hide everything after 2 seconds and fully reset
-      setTimeout(() => {
-        this.hidePreviewWidget();
-        // Reset all styles completely
-        setTimeout(() => {
-          if (this.previewImage) {
-            this.previewImage.style.opacity = '1';
-            this.previewImage.style.transition = '';
-          }
-          if (this.previewHotspotInfo) {
-            this.previewHotspotInfo.style.display = 'none';
-            this.previewHotspotInfo.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-            this.previewHotspotInfo.style.fontSize = '12px';
-            this.previewHotspotInfo.innerHTML = '';
-          }
-          this.currentMatchedHotspot = null;
-        }, 300); // Wait for fade out animation
-      }, 2000);
-    } else {
-      // No hotspot, just hide normally
-      this.hidePreviewWidget();
-    }
-  }
 
   /**
    * Calculate preview rotation when hovering over a hotspot zone
@@ -1748,54 +1590,6 @@ export class ThreeRendererService {
       console.warn('Failed to parse hotspot group ID:', groupId, error);
       return null;
     }
-  }
-
-  /**
-   * Format hotspot data for display in widget (with HTML line breaks)
-   */
-  private formatHotspotDisplay(hotspotData: { [key: string]: string | number }): string {
-    const entries = Object.entries(hotspotData);
-    if (entries.length === 0) return '';
-    
-    // Format as key: value pairs on separate lines with special transformations
-    return entries
-      .map(([key, value]) => {
-        // Transform key for display
-        let displayKey: string;
-        if (key === 'plausibility') {
-          displayKey = 'Potential';
-        } else {
-          // Remove underscores and capitalize each word
-          displayKey = key
-            .replace(/_/g, ' ')
-            .split(' ')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
-        }
-        
-        // Transform value for display
-        let displayValue: string | number = value;
-        if (key === 'plausibility' && typeof value === 'number') {
-          const plausibilityMap: { [key: number]: string } = {
-            0: 'Preposterous',
-            25: 'Possible',
-            50: 'Plausible',
-            75: 'Probable',
-            100: 'Projected'
-          };
-          displayValue = plausibilityMap[value] || value;
-        } else if (typeof value === 'string') {
-          // Capitalize string values (remove underscores and capitalize each word)
-          displayValue = value
-            .replace(/_/g, ' ')
-            .split(' ')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
-        }
-        
-        return `${displayKey}: ${displayValue}`;
-      })
-      .join('<br>');
   }
 
   /**
@@ -2153,9 +1947,6 @@ export class ThreeRendererService {
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     this.lastClientX = event.clientX;
     this.lastClientY = event.clientY;
-    
-    // Update preview widget position based on mouse screen coordinates
-    this.updatePreviewWidgetPosition(event.clientX - rect.left, event.clientY - rect.top);
   }
 
   private updateMousePositionFromTouch(touch: Touch): void {
@@ -2167,9 +1958,6 @@ export class ThreeRendererService {
     this.mouse.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
     this.lastClientX = touch.clientX;
     this.lastClientY = touch.clientY;
-    
-    // Update preview widget position based on touch screen coordinates  
-    this.updatePreviewWidgetPosition(touch.clientX - rect.left, touch.clientY - rect.top);
   }
 
   private onMouseDown(event: MouseEvent): void {
@@ -2254,11 +2042,21 @@ export class ThreeRendererService {
         const newPosition = intersection.sub(this.dragOffset);
         this.draggedMesh.position.copy(newPosition);
         
-        // Check for hotspot collision during drag and update preview widget
+        // Check for hotspot collision during drag and apply rotation preview
         const photoId = this.findPhotoIdForMesh(this.draggedMesh);
         if (photoId) {
           const matchedHotspot = this.findHotspotAtMeshPosition(this.draggedMesh, photoId);
-          this.updatePreviewWidgetHotspot(matchedHotspot);
+          if (matchedHotspot && this.draggedMesh) {
+            const photoData = this.meshToPhotoData.get(this.draggedMesh);
+            if (photoData) {
+              if (this.draggedMesh.userData['previewOriginalRotation'] === undefined) {
+                this.draggedMesh.userData['previewOriginalRotation'] = this.draggedMesh.rotation.z;
+              }
+              this.draggedMesh.rotation.z = this.calculatePreviewRotation(photoData, matchedHotspot);
+            }
+          } else if (this.draggedMesh?.userData['previewOriginalRotation'] !== undefined) {
+            this.draggedMesh.rotation.z = this.draggedMesh.userData['previewOriginalRotation'];
+          }
         }
         
         // Call drag callback if registered
@@ -2306,19 +2104,15 @@ export class ThreeRendererService {
             this.container.style.cursor = isDraggable ? 'grab' : 'pointer';
           }
           
-          // Show preview widget on hover
           if (this.hoveredMesh !== mesh) {
             this.hoveredMesh = mesh;
             this.hoveredItemSignal.set(true);
-            this.showPreviewWidget(mesh);
           }
         }
       } else {
-        // Hide preview widget when not hovering
         if (this.hoveredMesh) {
           this.hoveredMesh = null;
           this.hoveredItemSignal.set(false);
-          this.hidePreviewWidget();
         }
       }
 
@@ -2360,9 +2154,6 @@ export class ThreeRendererService {
           return; // Exit early, don't process drag logic
         }
       }
-      
-      // Animate preview widget drop with current matched hotspot
-      this.animatePreviewWidgetDrop(this.currentMatchedHotspot);
       
       // Call layout strategy drag end if available
       if (this.currentLayoutStrategy && this.currentLayoutStrategy.onPhotoDragEnd) {
@@ -2419,10 +2210,8 @@ export class ThreeRendererService {
       }
       
       this.draggedMesh = null;
-      this.hoveredMesh = null; // Clear hovered mesh on drop
-      console.log('[CURSOR] Drop event, setting hover signal to false');
+      this.hoveredMesh = null;
       this.hoveredItemSignal.set(false);
-      this.currentMatchedHotspot = null; // Clear matched hotspot
       
       // Re-enable fisheye if it was enabled before dragging
       if (this.wasFisheyeEnabled) {
@@ -2665,14 +2454,6 @@ export class ThreeRendererService {
     // Clear SVG background
     this.removeSvgBackground();
 
-    // Clear preview widget
-    if (this.previewWidget) {
-      this.previewWidget.remove();
-      this.previewWidget = null;
-      this.previewImage = null;
-      this.previewHotspotInfo = null;
-    }
-
     // Remove renderer canvas from the DOM to avoid duplicate attachments on re-init
     if (this.renderer && this.container?.contains(this.renderer.domElement)) {
       this.container.removeChild(this.renderer.domElement);
@@ -2683,9 +2464,7 @@ export class ThreeRendererService {
     this.isDragging = false;
     this.draggedMesh = null;
     this.hoveredMesh = null;
-    console.log('[CURSOR] Pointer left canvas, setting hover signal to false');
     this.hoveredItemSignal.set(false);
-    this.currentMatchedHotspot = null;
 
     // Dispose Three.js objects
     this.renderer?.dispose();
@@ -2733,9 +2512,6 @@ export class ThreeRendererService {
 
     // Set up drag and drop after canvas is in DOM
     this.setupDragAndDrop();
-
-    // Create preview widget
-    this.createPreviewWidget();
 
     // Scene & camera
     this.scene = new THREE.Scene();
