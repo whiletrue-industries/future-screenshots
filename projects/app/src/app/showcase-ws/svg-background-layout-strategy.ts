@@ -283,7 +283,8 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     // SVG remains in DOM for hit testing
   }
 
-  async getPositionForPhoto(photoData: PhotoData, existingPhotos: PhotoData[], enableAutoPositioning: boolean = false): Promise<LayoutPosition | null> {
+  async getPositionForPhoto(photoData: PhotoData, existingPhotos: PhotoData[], options?: { enableAutoPositioning?: boolean }): Promise<LayoutPosition | null> {
+    const enableAutoPositioning = options?.enableAutoPositioning ?? false;
     this.validateInitialized();
 
     // Track photo dimensions if available
@@ -381,7 +382,8 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     return position;
   }
 
-  async calculateAllPositions(photos: PhotoData[], enableAutoPositioning: boolean = false): Promise<(LayoutPosition | null)[]> {
+  async calculateAllPositions(photos: PhotoData[], options?: { enableAutoPositioning?: boolean }): Promise<(LayoutPosition | null)[]> {
+    const enableAutoPositioning = options?.enableAutoPositioning ?? false;
     this.validateInitialized();
     
     // Reset hotspot photo count for fresh distribution
@@ -409,7 +411,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     
     // Process each photo to get its position
     for (const photo of photos) {
-      const position = await this.getPositionForPhoto(photo, photos, enableAutoPositioning);
+      const position = await this.getPositionForPhoto(photo, photos, { enableAutoPositioning });
       positions.push(position);
     }
     

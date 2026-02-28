@@ -337,13 +337,10 @@ export class PhotoDataRepository {
       newStrategy.addPhoto(photo);
     }
 
-    // Calculate new positions for all photos (pass auto-positioning flag for SVG background)
-    let newPositions: Array<LayoutPosition | null> = [];
-    if (newStrategy.getConfiguration().name === 'svg-background' && 'calculateAllPositions' in newStrategy) {
-      newPositions = await (newStrategy as any).calculateAllPositions(currentPhotos, this.enableSvgAutoPositioning);
-    } else {
-      newPositions = await (newStrategy as any).calculateAllPositions(currentPhotos);
-    }
+    // Calculate new positions for all photos
+    const newPositions = await newStrategy.calculateAllPositions(currentPhotos, {
+      enableAutoPositioning: this.enableSvgAutoPositioning
+    });
 
     // Update layout strategy
     this.layoutStrategy = newStrategy;
@@ -494,15 +491,9 @@ export class PhotoDataRepository {
 
     const allPhotos = Array.from(this.photos.values());
     
-    // For SVG layout, pass the auto-positioning flag
-    let positions: (LayoutPosition | null)[] = [];
-    if (this.layoutStrategy.getConfiguration().name === 'svg-background' && 'calculateAllPositions' in this.layoutStrategy) {
-      // Cast to any to access method with optional parameter
-      positions = await (this.layoutStrategy as any).calculateAllPositions(allPhotos, this.enableSvgAutoPositioning);
-    } else {
-      // For other layouts, use standard calculateAllPositions
-      positions = await (this.layoutStrategy as any).calculateAllPositions(allPhotos);
-    }
+    const positions = await this.layoutStrategy.calculateAllPositions(allPhotos, {
+      enableAutoPositioning: this.enableSvgAutoPositioning
+    });
 
     // Update all photos with new positions and visibility
     const animationPromises = allPhotos.map(async (photo, index) => {
