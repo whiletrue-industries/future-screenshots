@@ -292,22 +292,23 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     const photoHeight = photoData.metadata['height'] as number | undefined || this.PHOTO_HEIGHT;
     this.photoSizes.set(photoData.id, { width: photoWidth, height: photoHeight });
 
-    // Check if this photo already has a stored position in current strategy
+    // Check session cache for already-computed positions (e.g. dragged/free positions)
     const existingPosition = this.photoPositions.get(photoData.id);
     if (existingPosition) {
       return existingPosition;
     }
-    
-    // Priority 1: Check for saved manual layout coordinates (layout_x, layout_y) - user overrides auto positioning
+
+    let position: LayoutPosition;
+
+    // Priority 1: Drag position (layout_x/layout_y in metadata) trumps all
     const layout_x = photoData.metadata['layout_x'];
     const layout_y = photoData.metadata['layout_y'];
 
     if (typeof layout_x === 'number' && typeof layout_y === 'number') {
-      // Convert normalized coordinates [-1,1] back to world coordinates using currentRadius
       const x = layout_x * this.options.circleRadius;
       const y = layout_y * this.options.circleRadius;
 
-      const restoredPosition: LayoutPosition = {
+      position = {
         x,
         y,
         metadata: {
@@ -317,23 +318,15 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
           circleRadius: this.options.circleRadius
         }
       };
-
-      // Store the restored position in current strategy and save it
-      this.photoPositions.set(photoData.id, restoredPosition);
-      photoData.setProperty('svgLayoutPosition', restoredPosition);
-
-      return restoredPosition;
     }
-
-    // Priority 2: If auto-positioning is enabled, try to get position from metadata-hotspot matching
-    if (enableAutoPositioning) {
+    // Priority 2: Auto-position from hotspot matching (when enabled)
+    else if (enableAutoPositioning) {
       const autoPosition = this.getAutoPositionFromMetadata(photoData);
       if (autoPosition) {
-        // Apply SVG offset to match the rendered SVG position
         const x = autoPosition.auto_x * this.options.circleRadius + this.options.svgOffsetX;
         const y = autoPosition.auto_y * this.options.circleRadius + this.options.svgOffsetY;
 
-        const autoPositionData: LayoutPosition = {
+        position = {
           x,
           y,
           metadata: {
@@ -345,40 +338,22 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
             svgOffsetY: this.options.svgOffsetY
           }
         };
-
-        this.photoPositions.set(photoData.id, autoPositionData);
-        photoData.setProperty('svgLayoutPosition', autoPositionData);
-        return autoPositionData;
+      } else {
+        // No hotspot match — fall through to proportional circular
+        position = this.options.useProportionalLayout
+          ? this.generateProportionalCircularPosition(photoData, existingPhotos)
+          : this.generateRandomCircularPosition();
       }
-
-      // If auto-positioning is enabled but this photo doesn't match any hotspot,
-      // fall through to use proportional circular positioning
-      // (Don't return null - that would leave the photo without a position)
+    }
+    // Priority 3: Proportional circular fallback
+    else {
+      position = this.options.useProportionalLayout
+        ? this.generateProportionalCircularPosition(photoData, existingPhotos)
+        : this.generateRandomCircularPosition();
     }
 
-    // Priority 3: Check if photo has a saved SVG layout position from previous session
-    const savedSvgPosition = photoData.getProperty<LayoutPosition>('svgLayoutPosition');
-
-    if (savedSvgPosition && savedSvgPosition.metadata?.['layoutType'] === 'proportional-circular') {
-
-      // Store the restored position in current strategy
-      this.photoPositions.set(photoData.id, savedSvgPosition);
-      return savedSvgPosition;
-    }
-    
-    // Fallback: Generate position based on layout mode
-    const position = this.options.useProportionalLayout
-      ? this.generateProportionalCircularPosition(photoData, existingPhotos)
-      : this.generateRandomCircularPosition();
-    
-    const positionType = this.options.useProportionalLayout ? 'proportional' : 'random';
-
-    
-    // Store the position both in strategy and photo properties
+    // Cache for the duration of this session
     this.photoPositions.set(photoData.id, position);
-    photoData.setProperty('svgLayoutPosition', position);
-
-    
     return position;
   }
 
@@ -392,10 +367,11 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     // Clear batch position tracker at the start of each layout calculation
     this.batchPositionedPhotos.clear();
     
-    // Clear existing positions EXCEPT for dragged/free positions that should be preserved
+    // Preserve dragged positions in session cache. The authoritative persistence
+    // mechanism is layout_x/layout_y in photo metadata (checked first in getPositionForPhoto).
+    // This cache avoids re-reading metadata for positions already resolved this session.
     const preservedPositions = new Map<string, LayoutPosition>();
     for (const [photoId, position] of this.photoPositions.entries()) {
-      // Preserve positions that were explicitly dragged by the user
       if (position.metadata?.['layoutType'] === 'free-dragged' || position.metadata?.['layoutType'] === 'dragging') {
         preservedPositions.set(photoId, position);
       }
@@ -654,7 +630,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     
     // Store position both in strategy and photo properties for persistence
     this.photoPositions.set(photo.id, layoutPosition);
-    photo.setProperty('svgLayoutPosition', layoutPosition);
 
   }
 
@@ -684,7 +659,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     
     // Store position both in strategy and photo properties for persistence
     this.photoPositions.set(photo.id, finalPosition);
-    photo.setProperty('svgLayoutPosition', finalPosition);
     
     // Update the photo metadata with new normalized coordinates
     // This ensures the drag position is maintained across layout changes
