@@ -235,6 +235,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   loadedPhotoIds = new Set<string>();
   private layoutChangeInProgress = false;
   private svgBackgroundStrategy: SvgBackgroundLayoutStrategy | null = null;
+  private circlePackingForSvg: CirclePackingLayoutStrategy | null = null;
   private readonly svgCircleRadius = 15000;
   qrUrl = computed(() => 
     `https://mapfutur.es/${this.lang()}prescan?workspace=${this.workspace()}&api_key=${this.api_key()}&ws=true`
@@ -563,33 +564,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   private async applySvgLayoutMode(enableAutoPositioning: boolean): Promise<void> {
-    const backgroundStrategy = this.svgBackgroundStrategy;
-
-    if (!backgroundStrategy) {
-      console.warn('[SVG] Strategy not initialized; run switchToSvgLayout first');
+    if (!this.svgBackgroundStrategy || !this.circlePackingForSvg) {
+      console.warn('[SVG] Strategies not initialized; run switchToSvgLayout first');
       return;
     }
 
-    // Switch strategies based on requested mode
     const strategy = enableAutoPositioning
-      ? backgroundStrategy
-      : new CirclePackingLayoutStrategy({
-          photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
-          photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
-          spacingX: PHOTO_CONSTANTS.SPACING_X,
-          spacingY: PHOTO_CONSTANTS.SPACING_Y,
-          groupBuffer: 1500,
-          photoBuffer: 0,
-          useFanLayout: !this.isMobile()
-        });
-
-    // Clear any lingering debug overlay when leaving auto-positioning mode
-    if (!enableAutoPositioning) {
-      const removeDebugOverlay = (backgroundStrategy as any).removeDebugOverlay;
-      if (typeof removeDebugOverlay === 'function') {
-        removeDebugOverlay.call(backgroundStrategy);
-      }
-    }
+      ? this.svgBackgroundStrategy
+      : this.circlePackingForSvg;
 
     await this.photoRepository.setLayoutStrategy(strategy);
     this.rendererService.setLayoutStrategyReference(strategy);
@@ -1005,6 +987,17 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       });
 
       await this.svgBackgroundStrategy.initialize();
+
+      // Create reusable circle-packing strategy for when auto-positioning is off
+      this.circlePackingForSvg = new CirclePackingLayoutStrategy({
+        photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
+        photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
+        spacingX: PHOTO_CONSTANTS.SPACING_X,
+        spacingY: PHOTO_CONSTANTS.SPACING_Y,
+        groupBuffer: 1500,
+        photoBuffer: 0,
+        useFanLayout: !this.isMobile()
+      });
 
       // Register hotspot drop callback to update photo metadata and recalculate layout
       this.rendererService.setHotspotDropCallback(async (photoId: string, hotspotData: { [key: string]: string | number }, position: { x: number, y: number, z: number }) => {
