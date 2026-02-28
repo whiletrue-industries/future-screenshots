@@ -226,7 +226,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   // Check if hovering over an item (for cursor style) - directly use the signal
   isHoveringItem = computed(() => {
     const hovering = this.rendererService.isHoveringItem()();
-    console.log('[SHOWCASE_WS_CURSOR] isHoveringItem computed changed to:', hovering);
     return hovering;
   });
 
@@ -246,19 +245,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
   private onMessageFromChild = (event: MessageEvent) => {
     const data = event.data;
-    console.log('[SHOWCASE_WS] Message received from child:', data);
     if (!data || typeof data !== 'object') {
-      console.log('[SHOWCASE_WS] Message skipped - not an object');
       return;
     }
     if (data.type === 'show-on-map') {
-      console.log('[SHOWCASE_WS] Processing show-on-map message');
       const itemId = typeof data.itemId === 'string' ? data.itemId : null;
       if (!itemId) {
-        console.log('[SHOWCASE_WS] show-on-map message missing itemId, skipping');
         return;
       }
-      console.log('[SHOWCASE_WS] Closing sidebar and focusing on item:', itemId);
       this.sidebarOpen.set(false);
       this.selectedItemId.set(null);
       // Trigger animated focus from "show on map" click
@@ -383,13 +377,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         const latestItem = items[items.length - 1];
         this.lastCreatedAt = latestItem.created_at;
       } else {
-        console.log('lastCreatedAt:', this.lastCreatedAt);
         // Second pass onwards: add new photos to queue for showcase
         const newItems = items.filter(item => {
           const created_at = item.created_at;
           return created_at && created_at > this.lastCreatedAt;
         });
-        console.log('num new items:', newItems.length);
         
         if (newItems.length > 0) {
           // Process new photos immediately - they'll be added to the showcase queue
@@ -413,7 +405,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
               transition_bar_position: transitionBarPosition,
               item_key: item._key ?? item.item_key ?? item._key
             };
-            console.log('[METADATA] New photo:', id, '-> plausibility:', item.plausibility, 'favorable_future:', item.favorable_future, 'transition_bar_position:', transitionBarPosition);
             
             try {
               await this.photoRepository.addPhoto(metadata); // Add to queue for showcase
@@ -453,8 +444,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     const adminKeyValue = this.admin_key();
     const isAdminUser = adminKeyValue !== '' && adminKeyValue !== 'ADMIN_KEY_NOT_SET';
     this.photoRepository.setDragEnabled(isAdminUser);
-    console.log('[SHOWCASE_WS_INIT] Query params - admin_key:', adminKeyValue);
-    console.log('[SHOWCASE_WS_INIT] Drag permissions set during initialization:', isAdminUser ? 'enabled (admin)' : 'disabled (visitor)');
     
     // Check for item permalink
     if (qp['item-id']) {
@@ -516,14 +505,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   toggleFisheyeEffect() {
     const willBeEnabled = !this.fisheyeEnabled();
-    console.log('[SHOWCASE_WS] Toggling fisheye to:', willBeEnabled);
     this.fisheyeEnabled.set(willBeEnabled);
     this.rendererService.enableFisheyeEffect(willBeEnabled);
     
     // When enabling, immediately apply current settings
     if (willBeEnabled) {
       const settings = this.fisheyeSettings();
-      console.log('[SHOWCASE_WS] Applying fisheye settings on toggle:', settings);
       this.rendererService.setFisheyeConfig({
         magnification: settings.maxMagnification,
         radius: settings.radius,
@@ -545,8 +532,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     const wasEnabled = this.enableSvgAutoPositioning();
     const willBeEnabled = !wasEnabled;
     
-    console.log('[TOGGLE] SVG Auto-Positioning button clicked');
-    console.log('[TOGGLE] Current state:', { wasEnabled, willBeEnabled, currentLayout: this.currentLayout() });
     
     this.enableSvgAutoPositioning.set(willBeEnabled);
     this.photoRepository.setSvgAutoPositioningEnabled(willBeEnabled);
@@ -558,8 +543,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       } finally {
         this.layoutChangeInProgress = false;
       }
-    } else {
-      console.log('[TOGGLE] Not on SVG layout, skipping visualization');
     }
   }
 
@@ -609,14 +592,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   private async recalculateClusterLayout(authorId: string): Promise<void> {
     if (!authorId) return;
     
-    console.log('[CLUSTER-RECALC] Recalculating layout for cluster:', authorId);
     
     // Get all photos in this cluster
     const allPhotos = this.photoRepository.getAllPhotos();
     const clusterPhotos = allPhotos.filter(photo => photo.metadata['author_id'] === authorId);
     
     if (clusterPhotos.length === 0) {
-      console.log('[CLUSTER-RECALC] No photos found in cluster:', authorId);
       return;
     }
     
@@ -636,7 +617,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       }
     }
     
-    console.log('[CLUSTER-RECALC] Recalculated positions for', clusterPhotos.length, 'photos in cluster:', authorId);
   }
 
   /**
@@ -664,7 +644,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             // Check if additional contributions are allowed
             const allowContributions = workspace.collaborate !== false; // Default to true if not specified
             this.allowAdditionalContributions.set(allowContributions);
-            console.log('[WORKSPACE_DATA] allowAdditionalContributions:', allowContributions);
           }
         },
         error: (error) => {
@@ -746,7 +725,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     // Apply default fisheye settings immediately on init
     const settings = this.fisheyeSettings();
     if (settings.enabled) {
-      console.log('[SHOWCASE_WS] Enabling fisheye on init with settings:', settings);
       this.rendererService.enableFisheyeEffect(true);
       this.rendererService.setFisheyeConfig({
         magnification: settings.maxMagnification,
@@ -858,7 +836,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           const hashParts = window.location.hash.slice(1).split('?')[0];
           const focusId = hashParts || this.focusItemId();
           if (focusId && !focusId.includes('search=')) {
-            console.log('[SHOWCASE_WS] Focusing on item from URL:', focusId);
             timer(500).subscribe(() => {
               this.rendererService.setAutoFit(false);
               this.focusOnItem(focusId, { animateFromFull: true, fromShowOnMap: true });
@@ -1001,7 +978,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
       // Register hotspot drop callback to update photo metadata and recalculate layout
       this.rendererService.setHotspotDropCallback(async (photoId: string, hotspotData: { [key: string]: string | number }, position: { x: number, y: number, z: number }) => {
-        console.log('[HOTSPOT-DROP] Photo', photoId, 'dropped, hotspotData:', hotspotData);
         
         // Get the photo from repository
         const photo = this.photoRepository.getPhotoById(photoId);
@@ -1018,7 +994,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         
         if (isDraggedOut) {
           // Clear evaluation metadata when dragged out of bounds
-          console.log('[HOTSPOT-DROP] Photo dragged out of bounds, clearing evaluation metadata');
           photo.updateMetadata({
             plausibility: undefined,
             favorable_future: undefined,
@@ -1027,7 +1002,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         } else {
           // Update photo metadata with hotspot zone data
           photo.updateMetadata(hotspotData);
-          console.log('[HOTSPOT-DROP] Updated metadata for photo', photoId, 'new metadata:', photo.metadata);
         }
         
         // Save metadata to API
@@ -1047,7 +1021,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             await new Promise<void>((resolve, reject) => {
               this.apiService.updateProperties(metadataToSave, photoId).subscribe({
                 next: () => {
-                  console.log('[HOTSPOT-DROP] Saved metadata to API for photo', photoId);
                   resolve();
                 },
                 error: (error) => {
@@ -1252,7 +1225,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     const search = this.searchText().toLowerCase().trim();
     const allPhotos = this.photoRepository.getAllPhotos();
     
-    console.log('[SEARCH] Applying filter. Search text:', search, 'Photo count:', allPhotos.length);
     
     // Update URL hash
     this.updateSearchHash();
@@ -1266,7 +1238,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         this.rendererService.setPhotoZIndex(photo.metadata.id, 0);
         resetCount++;
       });
-      console.log('[SEARCH] Reset', resetCount, 'photos to default state');
       return;
     }
     
@@ -1291,7 +1262,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       }
     });
     
-    console.log('[SEARCH] Filter applied. Matches:', matchCount, 'Non-matches:', nonMatchCount);
   }
 
   /**
@@ -1505,7 +1475,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   onSettingsChange(settings: FisheyeSettings): void {
     this.fisheyeSettings.set(settings);
-    console.log('[SHOWCASE_WS] onFisheyeSettingsChange', { ...settings });
     
     // Enable/disable the fisheye effect in the renderer
     this.rendererService.enableFisheyeEffect(settings.enabled);
@@ -1526,7 +1495,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Also updates URL hash with item ID
    */
   onPhotoClick(photoId: string): void {
-    console.log('[SHOWCASE_WS] Photo clicked:', photoId, 'isAdmin:', this.isAdmin());
     
     // Save item ID to URL hash
     window.location.hash = photoId;
@@ -1539,7 +1507,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       this.sidebarOpen.set(true);
     } else {
       // User does not have edit permissions - trigger zoom animation instead
-      console.log('[SHOWCASE_WS] User has no edit permissions, triggering zoom animation');
       this.focusOnItem(photoId, { animateFromFull: true, fromShowOnMap: true });
     }
   }
@@ -1548,7 +1515,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Focus camera on a specific item
    */
   async focusOnItem(itemId: string, options?: { animateFromFull?: boolean; fromShowOnMap?: boolean }): Promise<void> {
-    console.log('[SHOWCASE_WS] Focusing on item:', itemId);
     // Mark this item as the permalink target to allow high-res loading when focused
     this.rendererService.setPermalinkTarget(itemId);
     this.rendererService.setAutoFit(false);
@@ -1561,7 +1527,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       if (photo && photo.mesh) {
         // Get the photo's position
         const position = photo.mesh.position;
-        console.log('[SHOWCASE_WS] Found photo at position:', position);
         
         const shouldAnimate = options?.animateFromFull === true;
 
@@ -1609,7 +1574,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Boost the active item
       const photo = this.photoRepository.getPhoto(activeItemId);
       if (photo && photo.mesh) {
-        console.log('[SHOWCASE_WS] Bumping z-index for item:', activeItemId);
         photo.mesh.renderOrder = 100; // High z-index
       }
     } else {
@@ -1622,7 +1586,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Reset z-index for all items back to normal
    */
   private resetAllItemsZIndex(): void {
-    console.log('[SHOWCASE_WS] Resetting z-index for all items');
     // Get all photos and reset their renderOrder
     const allPhotos = this.photoRepository.getAllPhotos?.();
     if (allPhotos) {
@@ -1646,7 +1609,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Handle background click - close evaluation sidebar
    */
   onBackgroundClick(): void {
-    console.log('[SHOWCASE_WS] Background clicked');
     this.sidebarOpen.set(false);
     this.selectedItemId.set(null);
     // Clear URL hash when closing
@@ -1659,7 +1621,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Handle sidebar close
    */
   onSidebarClose(): void {
-    console.log('[SHOWCASE_WS] Sidebar closed');
     this.sidebarOpen.set(false);
     this.selectedItemId.set(null);
     // Clear URL hash when closing
@@ -1672,7 +1633,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Handle metadata updates from the sidebar
    */
   async onMetadataUpdated(event: { itemId: string; metadata: any }): Promise<void> {
-    console.log('[SHOWCASE_WS] Metadata updated:', event);
     
     const { itemId, metadata } = event;
     const photo = this.photoRepository.getPhoto(itemId);
@@ -1685,7 +1645,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       if (this.currentLayout() === 'svg' && this.enableSvgAutoPositioning()) {
         const authorId = photo.metadata['author_id'] as string;
         if (authorId) {
-          console.log('[SHOWCASE_WS] Recalculating layout for cluster:', authorId);
           await this.recalculateClusterLayout(authorId);
         }
       }

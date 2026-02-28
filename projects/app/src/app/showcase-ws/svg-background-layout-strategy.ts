@@ -150,7 +150,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   private async loadSvgBackground(): Promise<void> {
     // Skip on server-side rendering
     if (typeof fetch === 'undefined' || typeof document === 'undefined') {
-      console.log('[SVG-LOAD] Skipping SVG load on server-side rendering');
       return;
     }
     
@@ -180,7 +179,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   private extractHotspots(): void {
     // Skip on server-side rendering
     if (typeof document === 'undefined') {
-      console.log('[SVG-HOTSPOT] Skipping hotspot extraction on server-side rendering');
       return;
     }
     
@@ -770,7 +768,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       const normalizedX = (svgX - viewBox.width / 2) / (viewBox.width / 2);
       // Invert Y axis: SVG has Y increasing downward, but 3D world has Y increasing upward
       const normalizedY = -((svgY - viewBox.height / 2) / (viewBox.height / 2));
-      // console.log(`[DIST-DEBUG] Fallback to center: normalized=(${normalizedX.toFixed(3)}, ${normalizedY.toFixed(3)})`);
       return { auto_x: normalizedX, auto_y: normalizedY };
     }
     // Use all slots without header filtering
@@ -1303,11 +1300,9 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     }
     
     if (existingPhotosInHotspot.length === 0) {
-      // console.log(`[OVERLAP-DEBUG] No existing photos in hotspot, overlap=0%`);
       return 0; // No overlap if no existing photos
     }
     
-    // console.log(`[OVERLAP-DEBUG] Checking ${existingPhotosInHotspot.length} existing photos in hotspot for candidate at (${normalizedX.toFixed(3)},${normalizedY.toFixed(3)})`);
     
     // Get dimensions of photo to be placed
     const newPhotoSize = {
@@ -1330,15 +1325,9 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         existing.width,
         existing.height
       );
-      
-      // if (i === 0) {
-      //   console.log(`[OVERLAP-DEBUG] Existing photo ${i}: pos=(${existing.x.toFixed(1)},${existing.y.toFixed(1)}) size=(${existing.width},${existing.height}), overlap=${overlapPercent.toFixed(1)}%`);
-      // }
-      
       maxOverlapPercent = Math.max(maxOverlapPercent, overlapPercent);
     }
     
-    // console.log(`[OVERLAP-DEBUG] Max overlap for this candidate: ${maxOverlapPercent.toFixed(1)}%`);
     return maxOverlapPercent;
   }
 
@@ -1374,7 +1363,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     
     // No overlap if rectangles don't intersect
     if (intersectRight <= intersectLeft || intersectBottom <= intersectTop) {
-      // console.log('[RECT-MATH] No intersection: right<=left or bottom<=top');
       return 0;
     }
     
@@ -1386,10 +1374,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     // Calculate percentage relative to new photo area
     const newArea = newWidth * newHeight;
     const overlapPercent = (overlapArea / newArea) * 100;
-    // console.log('[RECT-MATH] New rect:', {newLeft, newTop, newRight, newBottom, newWidth, newHeight, newArea}, 
-    //             'Existing rect:', {existingLeft, existingTop, existingRight, existingBottom, existingWidth, existingHeight},
-    //             'Intersection:', {intersectLeft, intersectTop, intersectRight, intersectBottom, overlapWidth, overlapHeight, overlapArea},
-    //             'Result:', overlapPercent);
     return overlapPercent;
   }
 
@@ -1503,8 +1487,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
    * This ensures consistency between drag positions and API-saved positions
    */
   updatePhotoAfterHotspotDrop(photoId: string, position: { x: number, y: number, z: number }, hotspotData: { [key: string]: string | number }): void {
-    const photo = this.photoPositions.has(photoId) ? null : null; // We don't have direct access to PhotoData here
-    
     // Calculate normalized coordinates for the hotspot drop position
     const layout_x = Math.max(-1, Math.min(1, position.x / this.options.circleRadius));
     const layout_y = Math.max(-1, Math.min(1, position.y / this.options.circleRadius));
