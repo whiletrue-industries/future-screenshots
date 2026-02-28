@@ -38,22 +38,12 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   private isDragging = false;
   private hotspotPhotoCount = new Map<string, number>();
   private photoHotspotMap = new Map<string, SvgHotspot>();
-  private debugOverlay: SVGSVGElement | HTMLDivElement | null = null;
   private photoSizes = new Map<string, { width: number; height: number }>();
   private batchPositionedPhotos = new Map<string, Array<{ svgX: number; svgY: number }>>();
   private readonly MAX_OVERLAP_PERCENT = 10;
   private readonly PHOTO_WIDTH = 120;
   private readonly PHOTO_HEIGHT = 120;
   private hotspotSlots = new Map<string, Array<{ svgX: number; svgY: number }>>();
-  private slotLogEnabled = ((): boolean => {
-    try {
-      if (typeof window === 'undefined') return false;
-      const params = new URLSearchParams(window.location.search);
-      return params.get('slotlog') === '1';
-    } catch {
-      return false;
-    }
-  })();
 
   // Configuration
   private options: Required<SvgLayoutOptions> = {
@@ -155,7 +145,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     this.hotspotPhotoCount.clear();
     this.photoHotspotMap.clear();
     this.photoSizes.clear();
-    this.removeDebugOverlay();
   }
 
   private async loadSvgBackground(): Promise<void> {
@@ -827,20 +816,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       // Invert Y: SVG has Y increasing downward, 3D world has Y increasing upward
       const baseNormalizedY = -((candidate.svgY - viewBox.height / 2) / (viewBox.height / 2));
 
-      // When slotlog=1, skip overlap resolution for cleaner testing
-      if (this.slotLogEnabled) {
-        bestPlacement = {
-          normalizedX: baseNormalizedX,
-          normalizedY: baseNormalizedY,
-          overlap: 0,
-          displacement: 0,
-          spacing: 0,
-          svgX: candidate.svgX,
-          svgY: candidate.svgY,
-        };
-        break;
-      }
-
       const resolved = this.resolveOverlapByNudging(
         baseNormalizedX,
         baseNormalizedY,
@@ -879,25 +854,10 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       const slotIndex = usedPositions.length % useCandidates.length;
       const bestCandidate = useCandidates[slotIndex];
       
-      if (this.slotLogEnabled) {
-        console.log(`[OVERFLOW] Hotspot capacity exceeded, using round-robin slot ${slotIndex}/${useCandidates.length}`);
-      }
-      
       const baseNormalizedX = (bestCandidate.svgX - viewBox.width / 2) / (viewBox.width / 2);
       const baseNormalizedY = -((bestCandidate.svgY - viewBox.height / 2) / (viewBox.height / 2));
       
-      // When slotlog=1, skip overlap resolution for consistency
-      if (this.slotLogEnabled) {
-        bestPlacement = {
-          normalizedX: baseNormalizedX,
-          normalizedY: baseNormalizedY,
-          overlap: 100, // Mark as overlapping since we're reusing a slot
-          displacement: 0,
-          spacing: 0,
-          svgX: bestCandidate.svgX,
-          svgY: bestCandidate.svgY,
-        };
-      } else {
+      {
         const resolved = this.resolveOverlapByNudging(baseNormalizedX, baseNormalizedY, hotspot, viewBox);
         const svgCoords = this.normalizedToSvg(resolved.normalizedX, resolved.normalizedY, viewBox);
         bestPlacement = {
@@ -926,9 +886,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     try {
       const bounds = hotspot.bounds;
       if (!bounds || bounds.width === 0 || bounds.height === 0) {
-        if (this.slotLogEnabled) {
-          console.warn(`[PATH-CHECK] Invalid bounds:`, bounds);
-        }
         return false;
       }
 
@@ -1567,20 +1524,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     
     // Update the stored position
     this.photoPositions.set(photoId, hotspotDropPosition);
-  }
-
-  private removeDebugOverlay(): void {
-    if (typeof document === 'undefined') return;
-
-    const hotspotOverlay = document.getElementById('svg-hotspot-debug-overlay');
-    if (hotspotOverlay?.parentNode) {
-      hotspotOverlay.parentNode.removeChild(hotspotOverlay);
-    }
-
-    const candidateOverlay = document.getElementById('svg-candidate-slots-overlay');
-    if (candidateOverlay?.parentNode) {
-      candidateOverlay.parentNode.removeChild(candidateOverlay);
-    }
   }
 
 }
