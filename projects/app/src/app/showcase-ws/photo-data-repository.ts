@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Subject, Observable, timer, from, forkJoin } from 'rxjs';
 import * as THREE from 'three';
 import { PhotoData, PhotoMetadata, PhotoAnimationState } from './photo-data';
-import { LayoutStrategy, LayoutPosition, isInteractiveLayout } from './layout-strategy.interface';
+import { LayoutStrategy, LayoutPosition } from './layout-strategy.interface';
 import { ThreeRendererService } from './three-renderer.service';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { PHOTO_CONSTANTS } from './photo-constants';
@@ -29,6 +29,7 @@ export class PhotoDataRepository {
   private enableRandomShowcase = false;
   private enableSvgAutoPositioning = false;
   private isDragEnabled = true; // Permission-based flag for dragging
+  private svgVisible = false; // Whether SVG background is visible (enables drag)
   private showcaseInterval: number = ANIMATION_CONSTANTS.SHOWCASE_INTERVAL;
   private newPhotoAnimationDelay: number = ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DELAY;
   
@@ -206,14 +207,12 @@ export class PhotoDataRepository {
     photoData.setMesh(mesh);
     this.renderer.setMeshPhotoId(mesh, photoData.id);
 
-    // Enable hover/drag detection for ALL layouts
-    // For interactive layouts, this enables actual dragging
-    // For non-interactive layouts, this enables hover feedback (cursor changes)
+    // Enable hover detection for cursor feedback
     this.setupHoverDetectionForPhoto(photoData);
-    
-    // Enable dragging for interactive layouts
-    if (this.layoutStrategy && isInteractiveLayout(this.layoutStrategy)) {
-      this.setupInteractiveDragForPhoto(photoData);
+
+    // Enable dragging when SVG background is visible
+    if (this.svgVisible) {
+      this.setupDragForPhoto(photoData);
     }
 
      if (hasValidPosition) {
@@ -438,18 +437,15 @@ export class PhotoDataRepository {
       cameraAnimationPromise
     ]);
     
-    // Enable dragging for all existing photos if switching to interactive layout
-    if (isInteractiveLayout(this.layoutStrategy)) {
+    // Enable dragging when SVG background is visible (regardless of layout strategy)
+    if (this.svgVisible) {
       for (const photo of currentPhotos) {
         if (photo.mesh) {
-          // Set mesh-to-photoId mapping for hotspot detection
           this.renderer.setMeshPhotoId(photo.mesh, photo.id);
-          
-          this.setupInteractiveDragForPhoto(photo);
+          this.setupDragForPhoto(photo);
         }
       }
     } else {
-      // Disable dragging for all photos when switching to non-interactive layout
       this.renderer.disableAllDragging();
     }
     
@@ -478,6 +474,10 @@ export class PhotoDataRepository {
    */
   setDragEnabled(enabled: boolean): void {
     this.isDragEnabled = enabled;
+  }
+
+  setSvgVisible(visible: boolean): void {
+    this.svgVisible = visible;
   }
 
   /**
@@ -1001,34 +1001,29 @@ export class PhotoDataRepository {
   }
 
   /**
-   * Set up interactive drag functionality for a photo with layout strategy integration
-   * Only enables if isDragEnabled is true (admin permission)
+   * Set up drag functionality for a photo.
+   * Only enables if isDragEnabled is true (admin permission).
    */
-  private setupInteractiveDragForPhoto(photoData: PhotoData): void {
-    if (!photoData.mesh || !this.renderer || !this.layoutStrategy || !isInteractiveLayout(this.layoutStrategy)) {
+  private setupDragForPhoto(photoData: PhotoData): void {
+    if (!photoData.mesh || !this.renderer || !this.layoutStrategy) {
       return;
     }
-    
+
     // Check permission before enabling drag
     if (!this.isDragEnabled) {
-      // Still enable hover detection for cursor feedback
       this.setupHoverDetectionForPhoto(photoData);
       return;
     }
-    const interactiveStrategy = this.layoutStrategy as any; // Cast to access drag methods
-    
-    // Store the layout strategy reference in the renderer for drag integration
-    this.renderer.setLayoutStrategy(interactiveStrategy);
-    
+
+    // Store the layout strategy reference in the renderer for hotspot detection
+    this.renderer.setLayoutStrategy(this.layoutStrategy);
+
     // Store PhotoData reference for drag callbacks
     this.renderer.setMeshPhotoData(photoData.mesh, photoData);
-    
+
     this.renderer.enableDragForMesh(photoData.mesh, (position: { x: number; y: number; z: number }) => {
-      // Update photo data position when dragged (this is called during drag move)
       photoData.setCurrentPosition(position);
       photoData.setTargetPosition(position);
-      
-      // Note: Layout strategy drag handlers are now called directly by the renderer
     });
   }
 

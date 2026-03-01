@@ -855,8 +855,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       
       // Remove SVG background if switching from SVG layout
       this.rendererService.removeSvgBackground();
-      this.rendererService.disableAllDragging();
-      
+      this.photoRepository.setSvgVisible(false);
+
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(tsneStrategy);
       
@@ -1032,6 +1032,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         console.warn('❌ SVG element is null, cannot set background');
       }
       
+      // Enable drag when SVG is visible
+      this.photoRepository.setSvgVisible(true);
+
       // Apply auto-positioning only if enabled; otherwise keep circle packing positions intact
       this.photoRepository.setSvgAutoPositioningEnabled(this.enableSvgAutoPositioning());
 
@@ -1071,8 +1074,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       
       // Remove SVG background if switching from SVG layout
       this.rendererService.removeSvgBackground();
-      this.rendererService.disableAllDragging();
-      
+      this.photoRepository.setSvgVisible(false);
+
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(circlePackingStrategy);
       
