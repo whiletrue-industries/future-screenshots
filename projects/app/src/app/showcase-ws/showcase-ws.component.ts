@@ -362,12 +362,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         if (this.searchText()) {
           this.applySearchFilter();
         }
-        
-        // Apply search filter if query was provided in URL
-        if (this.searchText()) {
-          this.applySearchFilter();
+
+        // Focus on permalink target after layout is fully applied
+        const focusId = this.focusItemId();
+        if (focusId) {
+          this.rendererService.setCameraMode('user-controlled');
+          this.focusOnItem(focusId, { animateFromFull: true, fromShowOnMap: true });
         }
-        
+
         // Set lastCreatedAt to the most recent item
         const latestItem = items[items.length - 1];
         this.lastCreatedAt = latestItem.created_at;
@@ -440,9 +442,21 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     const isAdminUser = adminKeyValue !== '' && adminKeyValue !== 'ADMIN_KEY_NOT_SET';
     this.photoRepository.setDragEnabled(isAdminUser);
     
-    // Check for item permalink
+    // Check for item permalink (query param or URL hash)
     if (qp['item-id']) {
       this.focusItemId.set(qp['item-id']);
+    }
+    if (this.platform.browser()) {
+      const hashParts = window.location.hash.slice(1).split('?')[0];
+      if (hashParts && !hashParts.includes('search=')) {
+        this.focusItemId.set(hashParts);
+      }
+    }
+
+    // When loading with a focus target, default to svg+bg with autopositioning
+    if (this.focusItemId()) {
+      this.currentLayout.set('svg');
+      this.enableSvgAutoPositioning.set(true);
     }
     
     // Fetch workspace data to get title
@@ -813,17 +827,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       timer(ANIMATION_CONSTANTS.INITIAL_POLLING_DELAY).subscribe(() => {
         this.getItems().subscribe((items) => {
           this.loop.next(items);
-          
-          // Check for item to focus from URL hash first, then from query params
-          // Extract item ID from hash (before any search parameter)
-          const hashParts = window.location.hash.slice(1).split('?')[0];
-          const focusId = hashParts || this.focusItemId();
-          if (focusId && !focusId.includes('search=')) {
-            timer(500).subscribe(() => {
-              this.rendererService.setCameraMode('user-controlled');
-              this.focusOnItem(focusId, { animateFromFull: true, fromShowOnMap: true });
-            });
-          }
         });
       });
     }
@@ -1434,8 +1437,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     
     while (attempts < this.MAX_FOCUS_ATTEMPTS) {
       const photo = this.photoRepository.getPhoto(itemId);
-      if (photo && photo.mesh) {
-        // Get the photo's position
+      if (photo && photo.mesh && photo.animationState === PhotoAnimationState.POSITIONED) {
+        // Photo is loaded and positioned in its final layout location
         const position = photo.mesh.position;
         
         const shouldAnimate = options?.animateFromFull === true;
