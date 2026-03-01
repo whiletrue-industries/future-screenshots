@@ -101,9 +101,12 @@ export class ThreeRendererService {
   // SVG Container for hotspot detection
   private svgContainer: HTMLElement | null = null;
   
-  // Hotspot drop callback
-  private onHotspotDropCallback?: (photoId: string, hotspotData: { [key: string]: string | number }, position: { x: number, y: number, z: number }) => Promise<void>;
-  private onDragEndCallback?: (photoId: string, position: { x: number, y: number, z: number } | null) => void;
+  // Unified drag-complete callback (position + hotspot data in one call)
+  private onDragCompleteCallback?: (photoId: string, result: {
+    position: { x: number; y: number; z: number };
+    isOutOfBounds: boolean;
+    hotspotData: { [key: string]: string | number } | null;
+  }) => Promise<void>;
 
   // Click callbacks
   private onPhotoClickCallback?: (photoId: string) => void;
@@ -1430,15 +1433,12 @@ export class ThreeRendererService {
     this.currentLayoutStrategy = strategy;
   }
 
-  /**
-   * Set the hotspot drop callback
-   */
-  setHotspotDropCallback(callback: (photoId: string, hotspotData: { [key: string]: string | number }, position: { x: number, y: number, z: number }) => Promise<void>): void {
-    this.onHotspotDropCallback = callback;
-  }
-
-  setDragEndCallback(callback: (photoId: string, position: { x: number, y: number, z: number } | null) => void): void {
-    this.onDragEndCallback = callback;
+  setDragCompleteCallback(callback: (photoId: string, result: {
+    position: { x: number; y: number; z: number };
+    isOutOfBounds: boolean;
+    hotspotData: { [key: string]: string | number } | null;
+  }) => Promise<void>): void {
+    this.onDragCompleteCallback = callback;
   }
 
   /**
@@ -1679,24 +1679,6 @@ export class ThreeRendererService {
     const isOutside = distance > radius;
 
     return isOutside;
-  }
-
-  /**
-   * Check for hotspot collision when a photo is dropped
-   * Uses the core findHotspotAtMeshPosition method
-   */
-  private async checkHotspotCollision(mesh: THREE.Mesh, photoId: string): Promise<void> {
-    // Use the core collision detection method
-    const hotspotData = this.findHotspotAtMeshPosition(mesh, photoId);
-    
-    if (hotspotData && this.onHotspotDropCallback) {
-      try {
-        const position = { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z };
-        await this.onHotspotDropCallback(photoId, hotspotData, position);
-      } catch (error) {
-        console.error('Error in hotspot drop callback:', error);
-      }
-    }
   }
 
   /**
@@ -2122,14 +2104,14 @@ export class ThreeRendererService {
         }
       }
 
-      // Check for hotspot collision and persist position in SVG mode
-      if (this.isInteractiveLayout()) {
+      // Persist position and hotspot data in a single callback
+      if (this.isInteractiveLayout() && this.onDragCompleteCallback) {
         const photoId = this.findPhotoIdForMesh(draggedMesh);
         if (photoId) {
+          const position = { x: draggedMesh.position.x, y: draggedMesh.position.y, z: draggedMesh.position.z };
           const isOutOfBounds = this.isPositionOutOfCanvas(draggedMesh.position);
 
           if (isOutOfBounds) {
-            // Item dragged out of canvas - clear evaluation metadata and position
             const photoData = this.meshToPhotoData.get(draggedMesh);
             if (photoData) {
               photoData.updateMetadata({
@@ -2138,25 +2120,14 @@ export class ThreeRendererService {
                 _svgZoneFavorableFuture: undefined
               });
               draggedMesh.rotation.z = 0;
-
-              if (this.onHotspotDropCallback) {
-                const position = { x: draggedMesh.position.x, y: draggedMesh.position.y, z: draggedMesh.position.z };
-                this.onHotspotDropCallback(photoId, {}, position).catch(error => {
-                  console.error('[DRAG-OUT] Error saving cleared metadata:', error);
-                });
-              }
             }
-            // Clear persisted position
-            this.onDragEndCallback?.(photoId, null);
-          } else {
-            // Save position and check for hotspot collision
-            this.onDragEndCallback?.(photoId, {
-              x: draggedMesh.position.x,
-              y: draggedMesh.position.y,
-              z: draggedMesh.position.z
-            });
-            this.checkHotspotCollision(draggedMesh, photoId);
           }
+
+          const hotspotData = isOutOfBounds ? null : this.findHotspotAtMeshPosition(draggedMesh, photoId);
+
+          this.onDragCompleteCallback(photoId, { position, isOutOfBounds, hotspotData }).catch(error => {
+            console.error('[DRAG] Error in drag complete callback:', error);
+          });
         }
       }
       

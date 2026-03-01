@@ -912,104 +912,70 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       });
 
       // Register hotspot drop callback to update photo metadata and recalculate layout
-      this.rendererService.setHotspotDropCallback(async (photoId: string, hotspotData: { [key: string]: string | number }, position: { x: number, y: number, z: number }) => {
-        
-        // Get the photo from repository
+      this.rendererService.setDragCompleteCallback(async (photoId, { position, isOutOfBounds, hotspotData }) => {
         const photo = this.photoRepository.getPhotoById(photoId);
         if (!photo) {
-          console.warn('[HOTSPOT-DROP] Photo not found:', photoId);
+          console.warn('[DRAG] Photo not found:', photoId);
           return;
         }
 
-        // Store the old author_id to know which cluster to recalculate
         const oldAuthorId = photo.metadata['author_id'] as string;
-        
-        // Check if this is a "drag out of bounds" event (empty hotspotData)
-        const isDraggedOut = Object.keys(hotspotData).length === 0;
-        
-        if (isDraggedOut) {
-          // Clear evaluation metadata when dragged out of bounds
+
+        // Build a single metadata payload for the API
+        const metadataToSave: { [key: string]: string | number | null } = {};
+
+        if (isOutOfBounds) {
+          // Clear evaluation metadata and position
           photo.updateMetadata({
             plausibility: undefined,
             favorable_future: undefined,
-            _svgZoneFavorableFuture: undefined
+            _svgZoneFavorableFuture: undefined,
+            layout_x: undefined,
+            layout_y: undefined
           });
+          metadataToSave['plausibility'] = null;
+          metadataToSave['favorable_future'] = null;
+          metadataToSave['_svgZoneFavorableFuture'] = null;
+          metadataToSave['layout_x'] = null;
+          metadataToSave['layout_y'] = null;
         } else {
-          // Update photo metadata with hotspot zone data
-          photo.updateMetadata(hotspotData);
+          // Compute normalized position
+          const { layout_x, layout_y } = this.svgBackgroundStrategy!.worldToNormalized(position.x, position.y);
+          photo.updateMetadata({ layout_x, layout_y });
+          metadataToSave['layout_x'] = layout_x;
+          metadataToSave['layout_y'] = layout_y;
+
+          // Merge hotspot data if present
+          if (hotspotData) {
+            photo.updateMetadata(hotspotData);
+            Object.assign(metadataToSave, hotspotData);
+          }
         }
-        
-        // Save metadata to API
-        try {
-          const workspace = this.workspace();
-          const adminKey = this.admin_key();
-          
-          if (workspace && adminKey && workspace !== 'WORKSPACE_NOT_SET' && adminKey !== 'ADMIN_KEY_NOT_SET') {
-            // For dragged out items, send deletion of evaluation fields
-            const metadataToSave: { [key: string]: string | number | null } = isDraggedOut ? {
-              plausibility: null,
-              favorable_future: null,
-              _svgZoneFavorableFuture: null
-            } : hotspotData;
-            
-            // Use the original updateProperties method
+
+        // Single API call with all metadata
+        const workspace = this.workspace();
+        const adminKey = this.admin_key();
+        if (workspace && adminKey && workspace !== 'WORKSPACE_NOT_SET' && adminKey !== 'ADMIN_KEY_NOT_SET') {
+          try {
             await new Promise<void>((resolve, reject) => {
               this.apiService.updateProperties(metadataToSave, photoId).subscribe({
-                next: () => {
-                  resolve();
-                },
+                next: () => resolve(),
                 error: (error) => {
-                  console.error('[HOTSPOT-DROP] Error saving metadata to API:', error);
+                  console.error('[DRAG] Error saving to API:', error);
                   reject(error);
                 }
               });
             });
+          } catch (error) {
+            console.error('[DRAG] Error saving to API:', error);
           }
-        } catch (error) {
-          console.error('[HOTSPOT-DROP] Error saving metadata to API:', error);
         }
-        
+
         // Recalculate layout for affected cluster(s)
         await this.recalculateClusterLayout(oldAuthorId);
-        
-        // If author_id changed, also recalculate the new cluster
         const newAuthorId = photo.metadata['author_id'] as string;
         if (newAuthorId && newAuthorId !== oldAuthorId) {
           await this.recalculateClusterLayout(newAuthorId);
-        }
-      });
-
-      // Save drag position to API: actual position when in bounds, clear when out of bounds
-      this.rendererService.setDragEndCallback((photoId: string, position: { x: number, y: number, z: number } | null) => {
-        const photo = this.photoRepository.getPhotoById(photoId);
-
-        if (position) {
-          const { layout_x, layout_y } = this.svgBackgroundStrategy!.worldToNormalized(position.x, position.y);
-
-          if (photo) {
-            photo.updateMetadata({ layout_x, layout_y });
-          }
-
-          const workspace = this.workspace();
-          const adminKey = this.admin_key();
-          if (workspace && adminKey && workspace !== 'WORKSPACE_NOT_SET' && adminKey !== 'ADMIN_KEY_NOT_SET') {
-            this.apiService.updateProperties({ layout_x, layout_y }, photoId).subscribe({
-              error: (error) => console.error('[DRAG] Error saving position to API:', error)
-            });
-          }
-        } else {
-          // Out of bounds — clear persisted position
-          if (photo) {
-            photo.updateMetadata({ layout_x: undefined, layout_y: undefined });
-          }
-
-          const workspace = this.workspace();
-          const adminKey = this.admin_key();
-          if (workspace && adminKey && workspace !== 'WORKSPACE_NOT_SET' && adminKey !== 'ADMIN_KEY_NOT_SET') {
-            this.apiService.updateProperties({ layout_x: null, layout_y: null }, photoId).subscribe({
-              error: (error) => console.error('[DRAG] Error clearing position from API:', error)
-            });
-          }
         }
       });
 
