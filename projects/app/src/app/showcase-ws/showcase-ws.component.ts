@@ -1069,12 +1069,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Enable drag when SVG is visible
       this.photoRepository.setSvgVisible(true, this.svgBackgroundStrategy!);
 
-      // Apply auto-positioning only if enabled; otherwise keep circle packing positions intact
+      // Always apply SVG layout mode — when auto-positioning is off, this ensures
+      // photos with saved drag positions (layout_x/layout_y) are placed correctly
       this.photoRepository.setSvgAutoPositioningEnabled(this.enableSvgAutoPositioning());
-
-      if (this.enableSvgAutoPositioning()) {
-        await this.applySvgLayoutMode(true);
-      }
+      await this.applySvgLayoutMode(this.enableSvgAutoPositioning());
     } catch (error) {
       console.error('Error switching to SVG layout:', error);
     } finally {

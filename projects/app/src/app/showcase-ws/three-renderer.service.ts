@@ -1527,7 +1527,7 @@ export class ThreeRendererService {
    * Calculate preview rotation when hovering over a hotspot zone
    */
   private calculatePreviewRotation(photoData: PhotoData, hotspotData: { [key: string]: string | number }): number {
-    const plausibility = photoData.metadata['plausibility'] as number | undefined;
+    const plausibility = hotspotData['plausibility'] as number | undefined;
     const favorableFuture = hotspotData['favorable_future'] as string | undefined;
     
     if (plausibility === undefined || !favorableFuture) {
@@ -1587,55 +1587,30 @@ export class ThreeRendererService {
       return null;
     }
     
-    // Get the mesh's CENTER world position
-    const meshCenterWorld = new THREE.Vector3();
-    mesh.getWorldPosition(meshCenterWorld);
-    
-    // Project to screen coordinates
-    const projectedVector = meshCenterWorld.clone();
-    projectedVector.project(this.camera);
-    
-    const canvas = this.renderer.domElement;
-    const canvasX = (projectedVector.x * 0.5 + 0.5) * canvas.clientWidth;
-    const canvasY = (projectedVector.y * -0.5 + 0.5) * canvas.clientHeight;
-    
-    // Get SVG element and convert coordinates
     const svgElement = this.svgContainer.querySelector('svg');
     if (!svgElement) return null;
-    
-    const canvasRect = canvas.getBoundingClientRect();
-    const viewportX = canvasRect.left + canvasX;
-    const viewportY = canvasRect.top + canvasY;
-    
-    const svgContainerRect = this.svgContainer.getBoundingClientRect();
-    const containerX = viewportX - svgContainerRect.left;
-    const containerY = viewportY - svgContainerRect.top;
-    
-    let svgX, svgY;
-    
-    try {
-      const svgPoint = svgElement.createSVGPoint();
-      svgPoint.x = viewportX;
-      svgPoint.y = viewportY;
-      
-      const screenCTM = svgElement.getScreenCTM();
-      if (screenCTM) {
-        const transformedPoint = svgPoint.matrixTransform(screenCTM.inverse());
-        svgX = transformedPoint.x;
-        svgY = transformedPoint.y;
-      } else {
-        throw new Error('No screenCTM available');
-      }
-    } catch (error) {
-      if (svgElement.viewBox.baseVal.width > 0 && svgElement.viewBox.baseVal.height > 0) {
-        const svgRect = svgElement.getBoundingClientRect();
-        svgX = (containerX / svgRect.width) * svgElement.viewBox.baseVal.width;
-        svgY = (containerY / svgRect.height) * svgElement.viewBox.baseVal.height;
-      } else {
-        svgX = containerX;
-        svgY = containerY;
-      }
+
+    // Get the mesh's center world position
+    const meshCenterWorld = new THREE.Vector3();
+    mesh.getWorldPosition(meshCenterWorld);
+
+    // Direct world-to-SVG coordinate transformation
+    // The SVG plane in 3D: center at (offsetX, offsetY), size = 2*radius x 2*radius
+    const offsetX = this.svgBackgroundOptions?.offsetX || 0;
+    const offsetY = this.svgBackgroundOptions?.offsetY || 0;
+    const radius = this.svgBackgroundOptions?.radius || 15000;
+
+    // Normalize to [0,1] within the plane (Y flipped: Three.js Y-up, SVG Y-down)
+    const normalizedX = (meshCenterWorld.x - offsetX + radius) / (2 * radius);
+    const normalizedY = (radius - (meshCenterWorld.y - offsetY)) / (2 * radius);
+
+    // Convert to SVG viewBox coordinates
+    const viewBox = svgElement.viewBox.baseVal;
+    if (!viewBox || viewBox.width === 0 || viewBox.height === 0) {
+      return null;
     }
+    const svgX = viewBox.x + normalizedX * viewBox.width;
+    const svgY = viewBox.y + normalizedY * viewBox.height;
     
     // Test hotspots
     const hotspots = svgElement.querySelectorAll('[id^="hit"]');
