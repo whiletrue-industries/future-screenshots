@@ -363,48 +363,56 @@ export class PhotoDataRepository {
     // Update layout strategy
     this.layoutStrategy = newStrategy;
 
-    // Update all photos with new positions and visibility
-    const animationPromises = currentPhotos.map(async (photo, index) => {
+    // Set all target positions and opacity eagerly (before staggered animations)
+    // so that computeSceneBounds() sees the final layout immediately.
+    currentPhotos.forEach((photo, index) => {
       const newPosition = newPositions[index];
-      
-      // Add stagger delay based on index for natural cascading effect
-      const staggerDelay = index * ANIMATION_CONSTANTS.LAYOUT_STAGGER_DELAY;
-      if (staggerDelay > 0) {
-        await new Promise(resolve => setTimeout(resolve, staggerDelay * 1000));
-      }
-      
-      // Check if photo has valid position in new layout (not null)
       const hasValidPosition = newPosition !== null;
 
-      // Get current opacity from mesh material
-      const currentOpacity = photo.mesh?.material && 'opacity' in photo.mesh.material ? 
-        (photo.mesh.material as any).opacity : 1;
-      
       if (hasValidPosition) {
-        // Always make photo visible when it has a valid position
         photo.setProperty('opacity', 1);
         photo.setTargetPosition({
           x: newPosition.x,
           y: newPosition.y,
           z: photo.targetPosition.z
         });
-        
-        // Store layout metadata
         if (newPosition.metadata) {
           photo.updateMetadata(newPosition.metadata);
         }
         if (newPosition.gridKey) {
           photo.setProperty('gridKey', newPosition.gridKey);
         }
-        
-        // Animate both position and opacity to visible state
+      } else if (toLayout === 'svg-background') {
+        photo.setProperty('opacity', 1);
+      } else {
+        photo.setProperty('opacity', 0);
+        photo.setTargetPosition({ x: 0, y: 0, z: 0 });
+      }
+    });
+
+    // Now run staggered visual animations
+    const animationPromises = currentPhotos.map(async (photo, index) => {
+      const newPosition = newPositions[index];
+      const hasValidPosition = newPosition !== null;
+
+      // Add stagger delay based on index for natural cascading effect
+      const staggerDelay = index * ANIMATION_CONSTANTS.LAYOUT_STAGGER_DELAY;
+      if (staggerDelay > 0) {
+        await new Promise(resolve => setTimeout(resolve, staggerDelay * 1000));
+      }
+
+      // Get current opacity from mesh material
+      const currentOpacity = photo.mesh?.material && 'opacity' in photo.mesh.material ?
+        (photo.mesh.material as any).opacity : 1;
+
+      if (hasValidPosition) {
         if (photo.mesh) {
           const actualCurrentPosition = {
             x: photo.mesh.position.x,
             y: photo.mesh.position.y,
             z: photo.mesh.position.z
           };
-          
+
           return this.animateToPositionWithOpacityUpdate(
             photo,
             actualCurrentPosition,
@@ -414,35 +422,24 @@ export class PhotoDataRepository {
             ANIMATION_CONSTANTS.LAYOUT_TRANSITION_DURATION
           );
         }
+      } else if (toLayout === 'svg-background') {
+        return Promise.resolve();
       } else {
-        // For SVG layout: keep photo in cluster position (don't hide, don't move)
-        // For other layouts: hide photo and move to (0,0)
-        if (toLayout === 'svg-background') {
-          // Keep existing position and visibility - no animation needed
-          photo.setProperty('opacity', 1);
-          // Don't change targetPosition - keep current cluster position
-          return Promise.resolve();
-        } else {
-          // Hide photo and move to (0,0)
-          photo.setProperty('opacity', 0);
-          photo.setTargetPosition({ x: 0, y: 0, z: 0 });
-          // Animate to (0,0) and fade out simultaneously
-          if (photo.mesh) {
-            const actualCurrentPosition = {
-              x: photo.mesh.position.x,
-              y: photo.mesh.position.y,
-              z: photo.mesh.position.z
-            };
-            
-            return this.animateToPositionWithOpacityUpdate(
-              photo,
-              actualCurrentPosition,
-              { x: 0, y: 0, z: 0 },
-              currentOpacity,
-              0, // target opacity
-              ANIMATION_CONSTANTS.INVISIBLE_POSITION_TRANSITION_DURATION
-            );
-          }
+        if (photo.mesh) {
+          const actualCurrentPosition = {
+            x: photo.mesh.position.x,
+            y: photo.mesh.position.y,
+            z: photo.mesh.position.z
+          };
+
+          return this.animateToPositionWithOpacityUpdate(
+            photo,
+            actualCurrentPosition,
+            { x: 0, y: 0, z: 0 },
+            currentOpacity,
+            0, // target opacity
+            ANIMATION_CONSTANTS.INVISIBLE_POSITION_TRANSITION_DURATION
+          );
         }
       }
     });
@@ -515,7 +512,32 @@ export class PhotoDataRepository {
       enableAutoPositioning: this.enableSvgAutoPositioning
     });
 
-    // Update all photos with new positions and visibility
+    // Phase 1: Eagerly set all target positions and opacity synchronously
+    // so that computeSceneBounds() sees the final layout immediately.
+    allPhotos.forEach((photo, index) => {
+      const newPosition = positions[index];
+      const hasValidPosition = newPosition !== null;
+
+      if (hasValidPosition) {
+        photo.setProperty('opacity', 1);
+        photo.setTargetPosition({
+          x: newPosition.x,
+          y: newPosition.y,
+          z: photo.targetPosition.z
+        });
+        if (newPosition.metadata) {
+          photo.updateMetadata(newPosition.metadata);
+        }
+        if (newPosition.gridKey) {
+          photo.setProperty('gridKey', newPosition.gridKey);
+        }
+      } else {
+        photo.setProperty('opacity', 0);
+        photo.setTargetPosition({ x: 0, y: 0, z: 0 });
+      }
+    });
+
+    // Phase 2: Run staggered visual animations
     const animationPromises = allPhotos.map(async (photo, index) => {
       const newPosition = positions[index];
       
@@ -525,7 +547,6 @@ export class PhotoDataRepository {
         await new Promise(resolve => setTimeout(resolve, staggerDelay * 1000));
       }
       
-      // Check if photo has valid position in new layout (not null)
       const hasValidPosition = newPosition !== null;
 
       // Get current opacity from mesh material
@@ -533,23 +554,6 @@ export class PhotoDataRepository {
         (photo.mesh.material as any).opacity : 1;
       
       if (hasValidPosition) {
-        // Always make photo visible when it has a valid position
-        photo.setProperty('opacity', 1);
-        photo.setTargetPosition({
-          x: newPosition.x,
-          y: newPosition.y,
-          z: photo.targetPosition.z
-        });
-        
-        // Store layout metadata
-        if (newPosition.metadata) {
-          photo.updateMetadata(newPosition.metadata);
-        }
-        if (newPosition.gridKey) {
-          photo.setProperty('gridKey', newPosition.gridKey);
-        }
-        
-        // Animate both position and opacity to visible state
         if (photo.mesh) {
           const actualCurrentPosition = {
             x: photo.mesh.position.x,
@@ -567,10 +571,6 @@ export class PhotoDataRepository {
           );
         }
       } else {
-        // Hide photo and move to (0,0)
-        photo.setProperty('opacity', 0);
-        photo.setTargetPosition({ x: 0, y: 0, z: 0 });
-        // Animate to (0,0) and fade out simultaneously
         if (photo.mesh) {
           const actualCurrentPosition = {
             x: photo.mesh.position.x,
