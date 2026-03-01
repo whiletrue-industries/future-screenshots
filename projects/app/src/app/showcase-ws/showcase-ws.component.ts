@@ -563,37 +563,53 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Recalculate layout for all photos in a specific cluster (by author_id)
-   * This triggers the circle-packing strategy to reposition photos based on their current evaluation
+   * Recalculate layout for all photos in a specific cluster (by author_id).
+   * Computes new positions via the active layout strategy and animates
+   * any photos whose mesh position differs from the new target.
    */
   private async recalculateClusterLayout(authorId: string): Promise<void> {
     if (!authorId) return;
-    
-    
-    // Get all photos in this cluster
+
     const allPhotos = this.photoRepository.getAllPhotos();
     const clusterPhotos = allPhotos.filter(photo => photo.metadata['author_id'] === authorId);
-    
+
     if (clusterPhotos.length === 0) {
       return;
     }
-    
-    // Get the current layout strategy
+
     const strategy = this.photoRepository.getLayoutStrategy();
     if (!strategy) {
-      console.warn('[CLUSTER-RECALC] No layout strategy available');
       return;
     }
-    
-    // Recalculate positions for all photos in this cluster
-    // The circle-packing strategy will use the updated evaluation data
+
+    const enableAutoPositioning = this.enableSvgAutoPositioning();
+    const animations: Promise<void>[] = [];
+
     for (const photo of clusterPhotos) {
-      const newPosition = await strategy.getPositionForPhoto(photo, allPhotos);
-      if (newPosition) {
-        photo.setTargetPosition({ x: newPosition.x, y: newPosition.y, z: 0 });
+      const newPosition = await strategy.getPositionForPhoto(photo, allPhotos, { enableAutoPositioning });
+      if (!newPosition) continue;
+
+      const target = { x: newPosition.x, y: newPosition.y, z: 0 };
+      photo.setTargetPosition(target);
+
+      if (!photo.mesh) continue;
+
+      const mesh = photo.mesh;
+      const dx = mesh.position.x - target.x;
+      const dy = mesh.position.y - target.y;
+      const moved = Math.sqrt(dx * dx + dy * dy) > 1;
+
+      if (moved) {
+        const from = { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z };
+        animations.push(
+          this.rendererService.animateToPosition(mesh, from, target, 0.5).then(() => {
+            photo.setCurrentPosition(target);
+          })
+        );
       }
     }
-    
+
+    await Promise.all(animations);
   }
 
   /**
@@ -934,8 +950,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           metadataToSave['_svgZoneFavorableFuture'] = null;
           metadataToSave['layout_x'] = null;
           metadataToSave['layout_y'] = null;
-          // Clear SVG strategy's cached position to prevent stale data
-          this.svgBackgroundStrategy?.clearPhotoPosition(photoId);
         } else {
           // Compute normalized position
           const { layout_x, layout_y } = this.svgBackgroundStrategy!.worldToNormalized(position.x, position.y);
@@ -976,26 +990,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           await this.recalculateClusterLayout(newAuthorId);
         }
 
-        // Animate out-of-bounds photo back to its correct position
-        if (isOutOfBounds && photo.mesh) {
-          const allPhotos = this.photoRepository.getAllPhotos();
-          let returnPosition;
-          if (this.enableSvgAutoPositioning() && this.svgBackgroundStrategy) {
-            // Auto-positioning ON: SVG strategy returns auto-positioned location
-            // (from plausibility/favorable_future) or proportional circular fallback
-            returnPosition = await this.svgBackgroundStrategy.getPositionForPhoto(photo, allPhotos, { enableAutoPositioning: true });
-          } else if (this.circlePackingForSvg) {
-            // Auto-positioning OFF: circle-packing fan position
-            returnPosition = await this.circlePackingForSvg.getPositionForPhoto(photo, allPhotos);
-          }
-          if (returnPosition) {
-            const target = { x: returnPosition.x, y: returnPosition.y, z: 0 };
-            photo.setTargetPosition(target);
-            const from = { x: photo.mesh.position.x, y: photo.mesh.position.y, z: photo.mesh.position.z };
-            await this.rendererService.animateToPosition(photo.mesh, from, target, 0.5);
-            photo.setCurrentPosition(target);
-          }
-        }
       });
 
       const svgElement = this.svgBackgroundStrategy.getSvgElement();
