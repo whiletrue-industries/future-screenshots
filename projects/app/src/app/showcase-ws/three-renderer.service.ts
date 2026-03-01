@@ -2116,8 +2116,6 @@ export class ThreeRendererService {
             const photoData = this.meshToPhotoData.get(draggedMesh);
             if (photoData) {
               photoData.updateMetadata({
-                plausibility: undefined,
-                favorable_future: undefined,
                 _svgZoneFavorableFuture: undefined
               });
               draggedMesh.rotation.z = 0;
