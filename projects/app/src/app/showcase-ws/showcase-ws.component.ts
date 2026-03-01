@@ -976,12 +976,20 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           await this.recalculateClusterLayout(newAuthorId);
         }
 
-        // Animate out-of-bounds photo back to its circle-packing fan position
-        if (isOutOfBounds && this.circlePackingForSvg && photo.mesh) {
+        // Animate out-of-bounds photo back to its correct position
+        if (isOutOfBounds && photo.mesh) {
           const allPhotos = this.photoRepository.getAllPhotos();
-          const fanPosition = await this.circlePackingForSvg.getPositionForPhoto(photo, allPhotos);
-          if (fanPosition) {
-            const target = { x: fanPosition.x, y: fanPosition.y, z: 0 };
+          let returnPosition;
+          if (this.enableSvgAutoPositioning() && this.svgBackgroundStrategy) {
+            // Auto-positioning ON: SVG strategy returns auto-positioned location
+            // (from plausibility/favorable_future) or proportional circular fallback
+            returnPosition = await this.svgBackgroundStrategy.getPositionForPhoto(photo, allPhotos, { enableAutoPositioning: true });
+          } else if (this.circlePackingForSvg) {
+            // Auto-positioning OFF: circle-packing fan position
+            returnPosition = await this.circlePackingForSvg.getPositionForPhoto(photo, allPhotos);
+          }
+          if (returnPosition) {
+            const target = { x: returnPosition.x, y: returnPosition.y, z: 0 };
             photo.setTargetPosition(target);
             const from = { x: photo.mesh.position.x, y: photo.mesh.position.y, z: photo.mesh.position.z };
             await this.rendererService.animateToPosition(photo.mesh, from, target, 0.5);
