@@ -2132,28 +2132,27 @@ export class ThreeRendererService {
       if (this.wasFisheyeEnabled) {
         this.fisheyeEnabled = true;
       }
-    } else if (this.isPanning) {
-      // Stop panning
-      this.isPanning = false;
-    } else if (isClick && !this.isDragging) {
-      // Handle click events (not drag or pan)
-      this.raycaster.setFromCamera(this.mouse, this.camera);
-      const intersects = this.raycaster.intersectObjects(this.root.children, false);
-      
-      if (intersects.length > 0) {
-        const mesh = intersects[0].object as THREE.Mesh;
-        const photoId = this.findPhotoIdForMesh(mesh);
-        
-        if (photoId && this.onPhotoClickCallback) {
-          // Clicked on a photo
-          this.onPhotoClickCallback(photoId);
-        } else if (!photoId && this.onBackgroundClickCallback) {
-          // Clicked on background
+    } else {
+      if (this.isPanning) {
+        this.isPanning = false;
+      }
+      if (isClick) {
+        // Handle click events (not drag)
+        this.raycaster.setFromCamera(this.mouse, this.camera);
+        const intersects = this.raycaster.intersectObjects(this.root.children, false);
+
+        if (intersects.length > 0) {
+          const mesh = intersects[0].object as THREE.Mesh;
+          const photoId = this.findPhotoIdForMesh(mesh);
+
+          if (photoId && this.onPhotoClickCallback) {
+            this.onPhotoClickCallback(photoId);
+          } else if (!photoId && this.onBackgroundClickCallback) {
+            this.onBackgroundClickCallback();
+          }
+        } else if (this.onBackgroundClickCallback) {
           this.onBackgroundClickCallback();
         }
-      } else if (this.onBackgroundClickCallback) {
-        // Clicked on empty area (no mesh intersected)
-        this.onBackgroundClickCallback();
       }
     }
   }
