@@ -634,8 +634,9 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     this.isDragging = false;
     this.draggedPhoto = null;
 
-    // Don't cache out-of-bounds positions — let recalculateClusterLayout handle return
+    // Out of bounds: clear stale cache so getPositionForPhoto computes a fresh position
     if (this.isOutOfBounds(endPosition)) {
+      this.photoPositions.delete(photo.id);
       return false;
     }
 
