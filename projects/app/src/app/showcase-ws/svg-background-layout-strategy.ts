@@ -116,6 +116,15 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     };
   }
 
+  getSvgBounds(): { minX: number; maxX: number; minY: number; maxY: number } {
+    return {
+      minX: this.options.svgOffsetX - this.options.circleRadius,
+      maxX: this.options.svgOffsetX + this.options.circleRadius,
+      minY: this.options.svgOffsetY - this.options.circleRadius,
+      maxY: this.options.svgOffsetY + this.options.circleRadius,
+    };
+  }
+
   override async initialize(options?: SvgLayoutOptions): Promise<void> {
     await super.initialize(options);
     

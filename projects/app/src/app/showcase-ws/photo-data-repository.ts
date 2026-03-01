@@ -1,6 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Subject, Observable, timer, from, forkJoin } from 'rxjs';
-import * as THREE from 'three';
+import { Subject, Observable } from 'rxjs';
 import { PhotoData, PhotoMetadata, PhotoAnimationState } from './photo-data';
 import { LayoutStrategy, LayoutPosition } from './layout-strategy.interface';
 import { SvgBackgroundLayoutStrategy } from './svg-background-layout-strategy';
@@ -38,7 +37,6 @@ export class PhotoDataRepository {
   // State management
   private showcaseTimer: any = null;
   private isShowcasing = false;
-  private cameraBoundsUpdateTimer: any = null;
   
   // Queue system for new photos awaiting showcase
   private photoQueue: string[] = [];
@@ -254,7 +252,7 @@ export class PhotoDataRepository {
 
     // Update camera bounds if photo was placed immediately (not animated)
     if (hasValidPosition) {
-      this.updateCameraBounds();
+      this.updateCamera();
     }
 
     this.photoAddedSubject.next(photoData);
@@ -285,7 +283,7 @@ export class PhotoDataRepository {
     this.photos.delete(id);
     
     // Update camera bounds since grid size changed
-    this.updateCameraBounds();
+    this.updateCamera();
     
     this.photoRemovedSubject.next(id);
     return true;
@@ -450,8 +448,8 @@ export class PhotoDataRepository {
     });
 
     // Start camera animation simultaneously with photo animations
-    const cameraAnimationPromise = this.updateCameraBoundsAnimated(true);
-    
+    const cameraAnimationPromise = this.updateCamera({ animate: true, force: true });
+
     // Wait for both photo animations and camera animation to complete
     await Promise.all([
       Promise.all(animationPromises.filter(Boolean)),
@@ -593,8 +591,8 @@ export class PhotoDataRepository {
     });
 
     // Start camera animation simultaneously with photo animations
-    const cameraAnimationPromise = this.updateCameraBoundsAnimated(true);
-    
+    const cameraAnimationPromise = this.updateCamera({ animate: true, force: true });
+
     // Wait for both photo animations and camera animation to complete
     await Promise.all([
       Promise.all(animationPromises.filter(Boolean)),
@@ -727,12 +725,6 @@ export class PhotoDataRepository {
       this.showcaseTimer = null;
     }
     
-    // Stop camera bounds updates
-    if (this.cameraBoundsUpdateTimer) {
-      clearTimeout(this.cameraBoundsUpdateTimer);
-      this.cameraBoundsUpdateTimer = null;
-    }
-
     // Clean up all photos
     this.photos.forEach(photo => {
       if (photo.mesh && this.renderer) {
@@ -786,7 +778,7 @@ export class PhotoDataRepository {
     photoData.setAnimationState(PhotoAnimationState.POSITIONED);
     
     // Update camera bounds with animation for new photos
-    await this.updateCameraBoundsAnimated(true);
+    await this.updateCamera({ animate: true });
   }
 
   /**
@@ -844,133 +836,36 @@ export class PhotoDataRepository {
   }
 
   /**
-   * Update camera bounds based on visible photos (debounced)
+   * Compute the bounding box of all visible content (photos + SVG if visible).
+   * Single source of truth for scene extent — no hardcoded radius values.
    */
-  private updateCameraBounds(): void {
-    // Debounce camera bounds updates to prevent excessive calls
-    if (this.cameraBoundsUpdateTimer) {
-      clearTimeout(this.cameraBoundsUpdateTimer);
-    }
-    
-    this.cameraBoundsUpdateTimer = setTimeout(() => {
-      this.performCameraBoundsUpdate();
-    }, ANIMATION_CONSTANTS.CAMERA_BOUNDS_UPDATE_DEBOUNCE);
-  }
-  
-  /**
-   * Actually perform the camera bounds update
-   */
-  private performCameraBoundsUpdate(): void {
-    if (!this.renderer) {
-      return;
-    }
-
+  computeSceneBounds(): { minX: number; maxX: number; minY: number; maxY: number } {
     const visiblePhotos = this.getVisiblePhotos();
-    if (visiblePhotos.length === 0) {
-      return;
+    const positions = visiblePhotos.map(p => ({ x: p.targetPosition.x, y: p.targetPosition.y }));
+    let bounds = this.calculateBounds(positions);
+
+    if (this.svgVisible && this.svgStrategy) {
+      const svg = this.svgStrategy.getSvgBounds();
+      bounds = {
+        minX: Math.min(bounds.minX, svg.minX),
+        maxX: Math.max(bounds.maxX, svg.maxX),
+        minY: Math.min(bounds.minY, svg.minY),
+        maxY: Math.max(bounds.maxY, svg.maxY),
+      };
     }
-
-    const positions = visiblePhotos.map(photo => ({
-      x: photo.targetPosition.x,
-      y: photo.targetPosition.y
-    }));
-
-    const bounds = this.calculateBounds(positions);
-    this.renderer.updateCameraTarget(bounds);
+    return bounds;
   }
 
   /**
-   * Update camera bounds with animation after layout changes
+   * Push scene bounds to the renderer (the single camera-update entry point).
    */
-  private async updateCameraBoundsAnimated(animate: boolean = true): Promise<void> {
-    if (!this.renderer) {
-      return;
-    }
-
-    const visiblePhotos = this.getVisiblePhotos();
-    if (visiblePhotos.length === 0) {
-      return;
-    }
-
-    // Get layout name to determine camera positioning strategy
-    const layoutName = this.layoutStrategy?.getConfiguration().name;
-
-    let bounds: { minX: number; maxX: number; minY: number; maxY: number };
-
-    if (layoutName === 'svg-background') {
-      // For SVG layout: include both SVG area and all photo positions
-      const svgCircleRadius = 20000; // Same as in showcase-ws.component.ts
-      const svgOffsetX = -svgCircleRadius * 1.6; // Same calculation as in switchToSvgLayout
-      
-      // Start with SVG bounds
-      const svgBounds = {
-        minX: svgOffsetX - svgCircleRadius,
-        maxX: svgOffsetX + svgCircleRadius,
-        minY: -svgCircleRadius,
-        maxY: svgCircleRadius
-      };
-      
-      // Calculate bounds from actual photo positions (includes cluster items)
-      const positions = visiblePhotos.map(photo => ({
-        x: photo.targetPosition.x,
-        y: photo.targetPosition.y
-      }));
-      const photoBounds = this.calculateBounds(positions);
-      
-      // Merge bounds to include both SVG and all photos
-      bounds = {
-        minX: Math.min(svgBounds.minX, photoBounds.minX),
-        maxX: Math.max(svgBounds.maxX, photoBounds.maxX),
-        minY: Math.min(svgBounds.minY, photoBounds.minY),
-        maxY: Math.max(svgBounds.maxY, photoBounds.maxY)
-      };
-      
-      // Add extra margin (20%) for comfortable dragging
-      const marginX = (bounds.maxX - bounds.minX) * 0.2;
-      const marginY = (bounds.maxY - bounds.minY) * 0.2;
-      bounds.minX -= marginX;
-      bounds.maxX += marginX;
-      bounds.minY -= marginY;
-      bounds.maxY += marginY;
-    } else if (layoutName === 'circle-packing') {
-      // For cluster layouts: calculate bounds from positions but center camera at (0, 0)
-      const positions = visiblePhotos.map(photo => ({
-        x: photo.targetPosition.x,
-        y: photo.targetPosition.y
-      }));
-      const calculatedBounds = this.calculateBounds(positions);
-      
-      // Get the max extent to determine zoom level
-      const maxExtentX = Math.max(Math.abs(calculatedBounds.minX), Math.abs(calculatedBounds.maxX));
-      const maxExtentY = Math.max(Math.abs(calculatedBounds.minY), Math.abs(calculatedBounds.maxY));
-      const maxExtent = Math.max(maxExtentX, maxExtentY);
-      
-      // Ensure we have a valid extent (fallback to default if clusters are all at origin)
-      const finalExtent = maxExtent > 0 ? maxExtent : 20000;
-      
-      // Create bounds centered at (0, 0) with the calculated extent
-      bounds = {
-        minX: -finalExtent,
-        maxX: finalExtent,
-        minY: -finalExtent,
-        maxY: finalExtent
-      };
-    } else {
-      // For other layouts: calculate bounds from actual photo positions
-      const positions = visiblePhotos.map(photo => ({
-        x: photo.targetPosition.x,
-        y: photo.targetPosition.y
-      }));
-      bounds = this.calculateBounds(positions);
-    }
-    
-    if (animate) {
-      // Use animated camera bounds update for layout changes
-      await this.renderer.animateCameraTarget(bounds, ANIMATION_CONSTANTS.CAMERA_BOUNDS_ANIMATION_DURATION);
-    } else {
-      // Use immediate update for non-layout changes
-      this.renderer.updateCameraTarget(bounds);
-    }
+  updateCamera(options?: { animate?: boolean; force?: boolean }): Promise<void> {
+    if (!this.renderer) return Promise.resolve();
+    const bounds = this.computeSceneBounds();
+    return this.renderer.setSceneBounds(bounds, {
+      animate: options?.animate ?? false,
+      force: options?.force ?? false,
+    });
   }
 
   /**

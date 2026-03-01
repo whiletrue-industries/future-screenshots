@@ -121,19 +121,18 @@ export class ThreeRendererService {
   private userControlEnabled = true;
   private targetCamX = 0;
   private targetCamY = 0;
-  private minCamZ = 300;
-  private maxCamZ = 50000;
+  private computedMinCamZ = 300;
+  private computedMaxCamZ = 50000;
   private isPanning = false;
   private panStartMouse = new THREE.Vector2();
   private panStartCameraPos = new THREE.Vector3();
-  private autoFitEnabled = true; // When true, camera auto-fits to bounds
+  private cameraMode: 'auto-fit' | 'user-controlled' = 'auto-fit';
   private lastMousePos = new THREE.Vector2();
   private lastClientX: number | null = null;
   private lastClientY: number | null = null;
   private meshToUrl = new Map<THREE.Mesh, string>();
   private highResActive = new Set<THREE.Mesh>();
   private lodAccumTime = 0;
-  private maxExtentZoomLevel = 1.0; // Track the furthest extent (largest view) - used as baseline for fisheye zoom calculations
 
   // Fisheye Effect
   private fisheyeService: FisheyeEffectService;
@@ -452,71 +451,86 @@ export class ThreeRendererService {
   }
 
   // Camera management
-  updateCameraTarget(newBounds: SceneBounds): void {
-    this.bounds = { ...newBounds };
-    if (this.autoFitEnabled) {
-      // Center camera on bounds
-      this.targetCamX = (newBounds.minX + newBounds.maxX) * 0.5;
-      this.targetCamY = (newBounds.minY + newBounds.maxY) * 0.5;
-      
-      const targetCamZ = this.computeFitZWithMargin(
-        this.bounds,
-        THREE.MathUtils.degToRad(this.camera.fov),
-        this.container!.clientWidth / this.container!.clientHeight,
-        this.CAM_MARGIN
-      );
-      this.targetCamZ = targetCamZ;
+
+  /**
+   * Single entry point for all bounds updates.
+   * Stores bounds, recomputes zoom limits, and optionally auto-fits camera.
+   */
+  setSceneBounds(bounds: SceneBounds, options?: { animate?: boolean; force?: boolean; duration?: number }): Promise<void> {
+    this.bounds = { ...bounds };
+    this.recomputeZoomLimits();
+
+    const shouldFit = this.cameraMode === 'auto-fit' || options?.force;
+    if (!shouldFit) {
+      this.clampCameraToBounds();
+      return Promise.resolve();
+    }
+
+    this.cameraMode = 'auto-fit';
+    const targetX = (bounds.minX + bounds.maxX) * 0.5;
+    const targetY = (bounds.minY + bounds.maxY) * 0.5;
+    const targetZ = this.computedMaxCamZ;
+
+    if (options?.animate) {
+      const startX = this.targetCamX;
+      const startY = this.targetCamY;
+      const startZ = this.targetCamZ;
+      const dur = options.duration ?? 0.8;
+
+      // Skip if already at target
+      if (Math.abs(targetZ - startZ) < 0.01 &&
+          Math.abs(targetX - startX) < 0.01 &&
+          Math.abs(targetY - startY) < 0.01) {
+        return Promise.resolve();
+      }
+
+      return new Promise((resolve) => {
+        const tweenFn = this.makeTween(dur, (progress: number) => {
+          const eased = this.easeOutCubic(progress);
+          this.targetCamX = this.lerp(startX, targetX, eased);
+          this.targetCamY = this.lerp(startY, targetY, eased);
+          this.targetCamZ = this.lerp(startZ, targetZ, eased);
+
+          if (progress >= 1.0) {
+            this.targetCamX = targetX;
+            this.targetCamY = targetY;
+            this.targetCamZ = targetZ;
+            resolve();
+          }
+        });
+        this.addTween(tweenFn);
+      });
+    } else {
+      this.targetCamX = targetX;
+      this.targetCamY = targetY;
+      this.targetCamZ = targetZ;
+      return Promise.resolve();
     }
   }
 
-  animateCameraTarget(newBounds: SceneBounds, durationSec: number): Promise<void> {
-    return new Promise((resolve) => {
-      this.bounds = { ...newBounds };
-      if (!this.autoFitEnabled) {
-        resolve();
-        return;
-      }
-      
-      const targetCamZ = this.computeFitZWithMargin(
-        this.bounds,
-        THREE.MathUtils.degToRad(this.camera.fov),
-        this.container!.clientWidth / this.container!.clientHeight,
-        this.CAM_MARGIN
-      );
-      
-      // Calculate target camera center position
-      const targetCamX = (newBounds.minX + newBounds.maxX) * 0.5;
-      const targetCamY = (newBounds.minY + newBounds.maxY) * 0.5;
-      
-      const startCamX = this.targetCamX;
-      const startCamY = this.targetCamY;
-      const startCamZ = this.targetCamZ;
-      const finalTargetCamZ = targetCamZ;
-      
-      // If no change needed, resolve immediately
-      if (Math.abs(finalTargetCamZ - startCamZ) < 0.01 && 
-          Math.abs(targetCamX - startCamX) < 0.01 && 
-          Math.abs(targetCamY - startCamY) < 0.01) {
-        resolve();
-        return;
-      }
-      
-      const tweenFn = this.makeTween(durationSec, (progress: number) => {
-        const eased = this.easeOutCubic(progress);
-        this.targetCamX = this.lerp(startCamX, targetCamX, eased);
-        this.targetCamY = this.lerp(startCamY, targetCamY, eased);
-        this.targetCamZ = this.lerp(startCamZ, finalTargetCamZ, eased);
-        
-        if (progress >= 1.0) {
-          this.targetCamX = targetCamX;
-          this.targetCamY = targetCamY;
-          this.targetCamZ = finalTargetCamZ;
-          resolve();
-        }
-      });
-      
-      this.addTween(tweenFn);
-    });
+  /**
+   * Derive min/max camera Z from current content bounds and viewport.
+   */
+  private recomputeZoomLimits(): void {
+    if (!this.camera || !this.container) return;
+
+    const fovY = THREE.MathUtils.degToRad(this.camera.fov);
+    const aspect = this.container.clientWidth / this.container.clientHeight;
+
+    // Max zoom-out: everything fits in viewport
+    this.computedMaxCamZ = this.computeFitZWithMargin(this.bounds, fovY, aspect, this.CAM_MARGIN);
+
+    // Max zoom-in: single photo fills viewport
+    const singlePhotoBounds: SceneBounds = {
+      minX: -this.PHOTO_W / 2, maxX: this.PHOTO_W / 2,
+      minY: -this.PHOTO_H / 2, maxY: this.PHOTO_H / 2,
+    };
+    this.computedMinCamZ = this.computeFitZWithMargin(singlePhotoBounds, fovY, aspect, 0);
+
+    // Safety: ensure min <= max
+    if (this.computedMinCamZ > this.computedMaxCamZ) {
+      this.computedMinCamZ = this.computedMaxCamZ;
+    }
   }
 
   /**
@@ -527,15 +541,12 @@ export class ThreeRendererService {
   }
 
   /**
-   * Enable or disable auto-fit mode
-   * When enabled, camera automatically fits all content
-   * When disabled, user controls the camera with zoom/pan
+   * Switch camera between auto-fit and user-controlled modes.
    */
-  setAutoFit(enabled: boolean): void {
-    this.autoFitEnabled = enabled;
-    if (enabled) {
-      // Re-calculate target position to fit bounds
-      this.updateCameraTarget(this.bounds);
+  setCameraMode(mode: 'auto-fit' | 'user-controlled'): void {
+    this.cameraMode = mode;
+    if (mode === 'auto-fit') {
+      this.setSceneBounds(this.bounds, { force: true });
     }
   }
 
@@ -543,15 +554,7 @@ export class ThreeRendererService {
    * Reset camera view to fit all content
    */
   resetCameraView(animated = true): void {
-    this.autoFitEnabled = true;
-    this.targetCamX = 0;
-    this.targetCamY = 0;
-    
-    if (animated) {
-      this.animateCameraTarget(this.bounds, 0.5);
-    } else {
-      this.updateCameraTarget(this.bounds);
-    }
+    this.setSceneBounds(this.bounds, { animate: animated, force: true, duration: 0.5 });
   }
 
 
@@ -560,7 +563,8 @@ export class ThreeRendererService {
    * Simple and direct: anchor to cursor position
    */
   zoomAtPoint(factor: number, screenX: number, screenY: number): void {
-    if (!this.userControlEnabled || this.autoFitEnabled) return;
+    if (!this.userControlEnabled) return;
+    if (this.cameraMode === 'auto-fit') this.cameraMode = 'user-controlled';
 
     const rect = this.container!.getBoundingClientRect();
     const ndcX = ((screenX - rect.left) / rect.width) * 2 - 1;
@@ -568,14 +572,14 @@ export class ThreeRendererService {
 
     // Where does this screen point hit the world plane NOW?
     const worldBefore = this.projectScreenToWorld(ndcX, ndcY, this.targetCamX, this.targetCamY, this.targetCamZ);
-    
+
     // Apply zoom
-    const newZ = THREE.MathUtils.clamp(this.targetCamZ * factor, this.minCamZ, this.maxCamZ);
+    const newZ = THREE.MathUtils.clamp(this.targetCamZ * factor, this.computedMinCamZ, this.computedMaxCamZ);
     this.targetCamZ = newZ;
-    
+
     // Where does this screen point hit the world plane AFTER zoom?
     const worldAfter = this.projectScreenToWorld(ndcX, ndcY, this.targetCamX, this.targetCamY, this.targetCamZ);
-    
+
     // Pan camera to keep cursor pointing at same world location
     this.targetCamX += (worldBefore.x - worldAfter.x);
     this.targetCamY += (worldBefore.y - worldAfter.y);
@@ -726,7 +730,8 @@ export class ThreeRendererService {
    * Pan camera by pixel amount
    */
   panCamera(deltaX: number, deltaY: number): void {
-    if (!this.userControlEnabled || this.autoFitEnabled) return;
+    if (!this.userControlEnabled) return;
+    if (this.cameraMode === 'auto-fit') this.cameraMode = 'user-controlled';
 
     const rect = this.container!.getBoundingClientRect();
     // Convert pixel deltas to world space
@@ -782,7 +787,7 @@ export class ThreeRendererService {
     }
 
     // Clamp zoom first to avoid negative widths/heights
-    this.targetCamZ = THREE.MathUtils.clamp(this.targetCamZ, this.minCamZ, this.maxCamZ);
+    this.targetCamZ = THREE.MathUtils.clamp(this.targetCamZ, this.computedMinCamZ, this.computedMaxCamZ);
 
     const halfWidth = this.getVisibleWidth();
     const halfHeight = this.getVisibleHeight();
@@ -872,7 +877,7 @@ export class ThreeRendererService {
     }
 
     // Clamp to valid range
-    targetZoomZ = THREE.MathUtils.clamp(targetZoomZ, this.minCamZ, this.maxCamZ);
+    targetZoomZ = THREE.MathUtils.clamp(targetZoomZ, this.computedMinCamZ, this.computedMaxCamZ);
 
     // Single unified animation: pan + zoom together (1.25 seconds with smooth easing)
     await this.animateCameraToZoomLevel(x, y, targetZoomZ, 1.25);
@@ -887,7 +892,7 @@ export class ThreeRendererService {
       const startX = this.targetCamX;
       const startY = this.targetCamY;
       const startZ = this.targetCamZ;
-      const clampedZ = THREE.MathUtils.clamp(targetZ, this.minCamZ, this.maxCamZ);
+      const clampedZ = THREE.MathUtils.clamp(targetZ, this.computedMinCamZ, this.computedMaxCamZ);
 
 
       if (durationSec <= 0.01) {
@@ -1794,8 +1799,8 @@ export class ThreeRendererService {
         this.touchPanStart.y = (event.touches[0].clientY + event.touches[1].clientY) / 2;
         
         // Disable auto-fit when user starts gesturing
-        if (this.autoFitEnabled) {
-          this.autoFitEnabled = false;
+        if (this.cameraMode === 'auto-fit') {
+          this.cameraMode = 'user-controlled';
         }
         
         // Disable fisheye during gesture
@@ -1964,7 +1969,8 @@ export class ThreeRendererService {
     }
 
     // Start panning if not dragging a photo and user controls are enabled
-    if (this.userControlEnabled && !this.autoFitEnabled) {
+    if (this.userControlEnabled) {
+      if (this.cameraMode === 'auto-fit') this.cameraMode = 'user-controlled';
       this.isPanning = true;
       this.panStartMouse.set(event.clientX, event.clientY);
       this.panStartCameraPos.set(this.targetCamX, this.targetCamY, this.targetCamZ);
@@ -2194,8 +2200,8 @@ export class ThreeRendererService {
     event.preventDefault();
 
     // Disable auto-fit when user starts zooming
-    if (this.autoFitEnabled) {
-      this.autoFitEnabled = false;
+    if (this.cameraMode === 'auto-fit') {
+      this.cameraMode = 'user-controlled';
     }
 
     // Disable fisheye immediately on zoom
@@ -2226,8 +2232,8 @@ export class ThreeRendererService {
     event.preventDefault();
 
     // Disable auto-fit when user starts zooming
-    if (this.autoFitEnabled) {
-      this.autoFitEnabled = false;
+    if (this.cameraMode === 'auto-fit') {
+      this.cameraMode = 'user-controlled';
     }
 
     // Disable fisheye immediately on zoom
@@ -2262,28 +2268,28 @@ export class ThreeRendererService {
     switch (event.key) {
       case 'ArrowUp':
         event.preventDefault();
-        if (this.autoFitEnabled) this.autoFitEnabled = false;
+        if (this.cameraMode === 'auto-fit') this.cameraMode = 'user-controlled';
         this.panCamera(0, panSpeed);
         break;
       case 'ArrowDown':
         event.preventDefault();
-        if (this.autoFitEnabled) this.autoFitEnabled = false;
+        if (this.cameraMode === 'auto-fit') this.cameraMode = 'user-controlled';
         this.panCamera(0, -panSpeed);
         break;
       case 'ArrowLeft':
         event.preventDefault();
-        if (this.autoFitEnabled) this.autoFitEnabled = false;
+        if (this.cameraMode === 'auto-fit') this.cameraMode = 'user-controlled';
         this.panCamera(panSpeed, 0);
         break;
       case 'ArrowRight':
         event.preventDefault();
-        if (this.autoFitEnabled) this.autoFitEnabled = false;
+        if (this.cameraMode === 'auto-fit') this.cameraMode = 'user-controlled';
         this.panCamera(-panSpeed, 0);
         break;
       case '+':
       case '=':
         event.preventDefault();
-        if (this.autoFitEnabled) this.autoFitEnabled = false;
+        if (this.cameraMode === 'auto-fit') this.cameraMode = 'user-controlled';
         // Zoom in at center of screen
         const centerX = this.container!.clientWidth / 2;
         const centerY = this.container!.clientHeight / 2;
@@ -2292,7 +2298,7 @@ export class ThreeRendererService {
       case '-':
       case '_':
         event.preventDefault();
-        if (this.autoFitEnabled) this.autoFitEnabled = false;
+        if (this.cameraMode === 'auto-fit') this.cameraMode = 'user-controlled';
         // Zoom out at center of screen
         const centerX2 = this.container!.clientWidth / 2;
         const centerY2 = this.container!.clientHeight / 2;
@@ -2595,10 +2601,20 @@ export class ThreeRendererService {
 
     const w = this.container.clientWidth;
     const h = this.container.clientHeight;
-    
+
     this.renderer.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+
+    // Recompute zoom limits for new aspect ratio
+    this.recomputeZoomLimits();
+
+    // If auto-fit, re-center and re-zoom
+    if (this.cameraMode === 'auto-fit') {
+      this.targetCamX = (this.bounds.minX + this.bounds.maxX) * 0.5;
+      this.targetCamY = (this.bounds.minY + this.bounds.maxY) * 0.5;
+      this.targetCamZ = this.computedMaxCamZ;
+    }
   };
 
   private async loadTexture(url: string): Promise<THREE.Texture> {
@@ -3037,7 +3053,7 @@ export class ThreeRendererService {
    */
   zoomAtCenter(factor: number): Promise<void> {
     if (!this.container) return Promise.resolve();
-    if (this.autoFitEnabled) this.autoFitEnabled = false;
+    if (this.cameraMode === 'auto-fit') this.cameraMode = 'user-controlled';
     this.disableFisheyeForZoom();
     const rect = this.container.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
@@ -3055,14 +3071,12 @@ export class ThreeRendererService {
    *                Smaller values = more zoomed in. Default is 800.
    */
   focusOnPosition(x: number, y: number, targetZ: number = 800): void {
-    // Disable auto-fit mode
-    this.autoFitEnabled = false;
-    
+    this.cameraMode = 'user-controlled';
+
     // Set target camera position
     this.targetCamX = x;
     this.targetCamY = y;
-    this.targetCamZ = THREE.MathUtils.clamp(targetZ, this.minCamZ, this.maxCamZ);
-    
+    this.targetCamZ = THREE.MathUtils.clamp(targetZ, this.computedMinCamZ, this.computedMaxCamZ);
   }
 
       /**
@@ -3071,14 +3085,13 @@ export class ThreeRendererService {
    */
   focusOnPositionAnimated(x: number, y: number, targetZ: number = 800, durationSec: number = 1): Promise<void> {
     return new Promise((resolve) => {
-      // Disable auto-fit during manual focus
-      this.autoFitEnabled = false;
+      this.cameraMode = 'user-controlled';
 
       const startX = this.targetCamX;
       const startY = this.targetCamY;
       const startZ = this.targetCamZ;
 
-      const clampedZ = THREE.MathUtils.clamp(targetZ, this.minCamZ, this.maxCamZ);
+      const clampedZ = THREE.MathUtils.clamp(targetZ, this.computedMinCamZ, this.computedMaxCamZ);
 
       // If duration is tiny, snap immediately
       if (durationSec <= 0.01) {
@@ -3127,7 +3140,8 @@ export class ThreeRendererService {
    * Maintains cursor position as exact anchor throughout animation
    */
   private animatedZoomAtPoint(factor: number, screenX: number, screenY: number, durationSec: number): Promise<void> {
-    if (!this.userControlEnabled || this.autoFitEnabled) return Promise.resolve();
+    if (!this.userControlEnabled) return Promise.resolve();
+    if (this.cameraMode === 'auto-fit') this.cameraMode = 'user-controlled';
 
     const startZ = this.targetCamZ;
     const startCamX = this.targetCamX;
@@ -3136,8 +3150,8 @@ export class ThreeRendererService {
     // Calculate new camera Z
     const targetZ = THREE.MathUtils.clamp(
       startZ * factor,
-      this.minCamZ,
-      this.maxCamZ
+      this.computedMinCamZ,
+      this.computedMaxCamZ
     );
 
     // Convert screen coordinates to NDC
@@ -3295,101 +3309,8 @@ export class ThreeRendererService {
    */
   getCurrentZoomLevel(): number {
     // Zoom is inversely related to camera Z position
-    // Lower Z = more zoomed in, higher Z = more zoomed out
-    // Return zoom as a ratio: maxExtentZoomLevel / currentZoom
-    // maxExtentZoomLevel is set to the furthest extent (largest view composition)
-    const maxExtentCamZ = (1200 / this.maxExtentZoomLevel);
-    return maxExtentCamZ / this.targetCamZ;
-  }
-
-  /**
-   * Fit camera to view specific bounds (used for SVG layout with calculated positions)
-   * Calculates camera position to show all positions with padding, allowing unlimited zoom out
-   */
-  fitCameraToBounds(positions: Array<{ x: number; y: number; z?: number }>): Promise<void> {
-    if (positions.length === 0) return Promise.resolve();
-
-    // Calculate bounds from positions
-    let minX = Infinity, maxX = -Infinity;
-    let minY = Infinity, maxY = -Infinity;
-
-    for (const pos of positions) {
-      minX = Math.min(minX, pos.x);
-      maxX = Math.max(maxX, pos.x);
-      minY = Math.min(minY, pos.y);
-      maxY = Math.max(maxY, pos.y);
-    }
-
-    // Add minimal padding (5% of bounds) with small floor
-    const padX = Math.max((maxX - minX) * 0.05, 200);
-    const padY = Math.max((maxY - minY) * 0.05, 200);
-
-    minX -= padX;
-    maxX += padX;
-    minY -= padY;
-    maxY += padY;
-
-    // Update bounds
-    this.bounds = {
-      minX,
-      maxX,
-      minY,
-      maxY
-    };
-
-    // Center camera on these bounds
-    this.targetCamX = (minX + maxX) * 0.5;
-    this.targetCamY = (minY + maxY) * 0.5;
-
-    // Calculate camera Z to fit these bounds (no clamping to minCamZ/maxCamZ)
-    const targetCamZ = this.computeFitZWithMargin(
-      this.bounds,
-      THREE.MathUtils.degToRad(this.camera.fov),
-      this.container!.clientWidth / this.container!.clientHeight,
-      this.CAM_MARGIN
-    );
-
-    // Update max extent zoom level if this view is larger than previous
-    // This becomes the baseline for fisheye zoom calculations
-    const baselineZ = 1200;
-    const zoomLevelAtThisExtent = baselineZ / targetCamZ;
-    if (zoomLevelAtThisExtent < this.maxExtentZoomLevel) {
-      this.maxExtentZoomLevel = zoomLevelAtThisExtent;
-    }
-
-    // Animate to this target Z without clamping
-    const startCamZ = this.targetCamZ;
-    if (Math.abs(targetCamZ - startCamZ) < 0.01) {
-      return Promise.resolve(); // Already at target
-    }
-
-    return this.runTween(this.makeTween(0.5, (progress) => {
-      this.targetCamZ = THREE.MathUtils.lerp(startCamZ, targetCamZ, progress);
-    }));
-  }
-
-  /**
-   * Fit camera to positions while also including an SVG background radius footprint.
-   */
-  fitCameraToBoundsIncludingSvg(
-    positions: Array<{ x: number; y: number; z?: number }>,
-    svgRadius: number,
-    svgOffsetX = 0,
-    svgOffsetY = 0
-  ): Promise<void> {
-    if (!positions.length && !svgRadius) {
-      return Promise.resolve();
-    }
-
-    const merged = [...positions];
-    if (svgRadius > 0) {
-      merged.push({ x: svgOffsetX + svgRadius, y: svgOffsetY + svgRadius });
-      merged.push({ x: svgOffsetX - svgRadius, y: svgOffsetY - svgRadius });
-      merged.push({ x: svgOffsetX + svgRadius, y: svgOffsetY - svgRadius });
-      merged.push({ x: svgOffsetX - svgRadius, y: svgOffsetY + svgRadius });
-    }
-
-    return this.fitCameraToBounds(merged);
+    // 1.0 = fully zoomed out (everything visible), >1.0 = zoomed in
+    return this.computedMaxCamZ / this.targetCamZ;
   }
 
   /**

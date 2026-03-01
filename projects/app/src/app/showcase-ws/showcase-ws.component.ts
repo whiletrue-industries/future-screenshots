@@ -813,7 +813,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           const focusId = hashParts || this.focusItemId();
           if (focusId && !focusId.includes('search=')) {
             timer(500).subscribe(() => {
-              this.rendererService.setAutoFit(false);
+              this.rendererService.setCameraMode('user-controlled');
               this.focusOnItem(focusId, { animateFromFull: true, fromShowOnMap: true });
             });
           }
@@ -1028,40 +1028,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         // Set layout strategy reference for debug visualization
         this.rendererService.setLayoutStrategyReference(this.svgBackgroundStrategy);
 
-        // Fit camera to include SVG plane on the left and clusters centered at 0
-        const svgMinX = svgOffsetX - this.svgCircleRadius;
-        const svgMaxX = svgOffsetX + this.svgCircleRadius;
-        const clusterMinX = -this.svgCircleRadius;
-        const clusterMaxX = this.svgCircleRadius;
-        let minX = Math.min(svgMinX, clusterMinX);
-        let maxX = Math.max(svgMaxX, clusterMaxX);
-        let minY = -this.svgCircleRadius;
-        let maxY = this.svgCircleRadius;
-
-        // Add extra padding (50% expansion) to zoom out more
-        const centerX = (minX + maxX) * 0.5;
-        const centerY = (minY + maxY) * 0.5;
-        const rangeX = maxX - minX;
-        const rangeY = maxY - minY;
-        minX = centerX - rangeX * 0.75;
-        maxX = centerX + rangeX * 0.75;
-        minY = centerY - rangeY * 0.75;
-        maxY = centerY + rangeY * 0.75;
-
-        // Validate bounds to prevent NaN or Infinity
-        if (!isFinite(minX) || !isFinite(maxX) || !isFinite(minY) || !isFinite(maxY)) {
-          return;
-        }
-
-        // Skip camera fit if a permalink focus is active/pending
-        const hashItemId = window.location.hash.slice(1);
-        const hasPermalinkFocus = (!!hashItemId && !hashItemId.includes('search=')) || !!this.focusItemId();
-        if (!hasPermalinkFocus) {
-          this.rendererService.fitCameraToBounds([
-            { x: minX, y: minY },
-            { x: maxX, y: maxY }
-          ]);
-        }
+        // Camera will be handled by applySvgLayoutMode() → setLayoutStrategy() → updateCamera()
       } else {
         console.warn('❌ SVG element is null, cannot set background');
       }
@@ -1487,8 +1454,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   async focusOnItem(itemId: string, options?: { animateFromFull?: boolean; fromShowOnMap?: boolean }): Promise<void> {
     // Mark this item as the permalink target to allow high-res loading when focused
     this.rendererService.setPermalinkTarget(itemId);
-    this.rendererService.setAutoFit(false);
-    
+    this.rendererService.setCameraMode('user-controlled');
+
     // Wait for photo to be loaded
     let attempts = 0;
     
@@ -1505,7 +1472,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           await this.rendererService.focusOnItemFromShowOnMap(position.x, position.y, photo);
         } else if (shouldAnimate) {
           // Standard permalink animation (currently unused, kept for compatibility)
-          this.rendererService.setAutoFit(false);
+          this.rendererService.setCameraMode('user-controlled');
           const bounds = this.rendererService.getCurrentBounds();
           
           const fullViewZ = this.rendererService.computeFitZWithMargin(
