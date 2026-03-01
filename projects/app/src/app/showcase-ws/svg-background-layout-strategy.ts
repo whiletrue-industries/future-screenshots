@@ -701,7 +701,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   getAutoPositionFromMetadata(photoData: PhotoData): { auto_x: number; auto_y: number } | null {
     const metadata = photoData.metadata;
     const plausibilityRaw = metadata['plausibility'];
-    const favorableFuture = this.normalizeFavorableFuture(metadata['favorable_future']);
+    const favorableFuture = this.normalizeFavorableFuture(metadata['_svgZoneFavorableFuture'] as string || metadata['favorable_future'] as string);
     let transitionBarPosition = this.normalizeTransitionBar(metadata['transition_bar_position']);
     const plausibility = this.normalizePlausibility(plausibilityRaw);
 
