@@ -563,37 +563,44 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Recalculate layout for all photos in a specific cluster (by author_id)
-   * This triggers the circle-packing strategy to reposition photos based on their current evaluation
+   * Recalculate layout for all photos in a specific cluster (by author_id).
+   * Computes new positions via the active layout strategy and animates
+   * any photos whose mesh position differs from the new target.
    */
+  /**
+   * Reposition a single photo according to the active layout strategy.
+   * Computes the correct position and animates the mesh if it moved.
+   */
+  private async repositionPhoto(photo: PhotoData): Promise<void> {
+    const strategy = this.photoRepository.getLayoutStrategy();
+    if (!strategy) return;
+
+    const allPhotos = this.photoRepository.getAllPhotos();
+    const enableAutoPositioning = this.enableSvgAutoPositioning();
+    const newPosition = await strategy.getPositionForPhoto(photo, allPhotos, { enableAutoPositioning });
+    if (!newPosition || !photo.mesh) return;
+
+    const target = { x: newPosition.x, y: newPosition.y, z: 0 };
+    photo.setTargetPosition(target);
+
+    const mesh = photo.mesh;
+    const dx = mesh.position.x - target.x;
+    const dy = mesh.position.y - target.y;
+    if (Math.sqrt(dx * dx + dy * dy) > 1) {
+      const from = { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z };
+      await this.rendererService.animateToPosition(mesh, from, target, 0.5);
+      photo.setCurrentPosition(target);
+    }
+  }
+
   private async recalculateClusterLayout(authorId: string): Promise<void> {
     if (!authorId) return;
-    
-    
-    // Get all photos in this cluster
+
     const allPhotos = this.photoRepository.getAllPhotos();
     const clusterPhotos = allPhotos.filter(photo => photo.metadata['author_id'] === authorId);
-    
-    if (clusterPhotos.length === 0) {
-      return;
-    }
-    
-    // Get the current layout strategy
-    const strategy = this.photoRepository.getLayoutStrategy();
-    if (!strategy) {
-      console.warn('[CLUSTER-RECALC] No layout strategy available');
-      return;
-    }
-    
-    // Recalculate positions for all photos in this cluster
-    // The circle-packing strategy will use the updated evaluation data
-    for (const photo of clusterPhotos) {
-      const newPosition = await strategy.getPositionForPhoto(photo, allPhotos);
-      if (newPosition) {
-        photo.setTargetPosition({ x: newPosition.x, y: newPosition.y, z: 0 });
-      }
-    }
-    
+    if (clusterPhotos.length === 0) return;
+
+    await Promise.all(clusterPhotos.map(photo => this.repositionPhoto(photo)));
   }
 
   /**
@@ -925,17 +932,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         const metadataToSave: { [key: string]: string | number | null } = {};
 
         if (isOutOfBounds) {
-          // Clear evaluation metadata and position
+          // Clear position but keep evaluation metadata
           photo.updateMetadata({
-            plausibility: undefined,
-            favorable_future: undefined,
-            _svgZoneFavorableFuture: undefined,
             layout_x: undefined,
             layout_y: undefined
           });
-          metadataToSave['plausibility'] = null;
-          metadataToSave['favorable_future'] = null;
-          metadataToSave['_svgZoneFavorableFuture'] = null;
           metadataToSave['layout_x'] = null;
           metadataToSave['layout_y'] = null;
         } else {
@@ -976,6 +977,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         const newAuthorId = photo.metadata['author_id'] as string;
         if (newAuthorId && newAuthorId !== oldAuthorId) {
           await this.recalculateClusterLayout(newAuthorId);
+        }
+
+        // Reposition the dragged photo (handles photos with no author_id,
+        // and ensures the dragged photo itself animates to its correct position)
+        if (isOutOfBounds) {
+          await this.repositionPhoto(photo);
         }
       });
 

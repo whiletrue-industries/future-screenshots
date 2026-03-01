@@ -2113,15 +2113,7 @@ export class ThreeRendererService {
           const isOutOfBounds = this.isPositionOutOfCanvas(draggedMesh.position);
 
           if (isOutOfBounds) {
-            const photoData = this.meshToPhotoData.get(draggedMesh);
-            if (photoData) {
-              photoData.updateMetadata({
-                plausibility: undefined,
-                favorable_future: undefined,
-                _svgZoneFavorableFuture: undefined
-              });
-              draggedMesh.rotation.z = 0;
-            }
+            draggedMesh.rotation.z = 0;
           }
 
           const hotspotData = isOutOfBounds ? null : this.findHotspotAtMeshPosition(draggedMesh, photoId);

@@ -630,12 +630,18 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     if (!this.isDragging || this.draggedPhoto?.id !== photo.id) {
       return false;
     }
-    
+
     this.isDragging = false;
     this.draggedPhoto = null;
-    
+
+    // Out of bounds: clear stale cache so getPositionForPhoto computes a fresh position
+    if (this.isOutOfBounds(endPosition)) {
+      this.photoPositions.delete(photo.id);
+      return false;
+    }
+
     const { layout_x, layout_y } = this.worldToNormalized(endPosition.x, endPosition.y);
-    
+
     // Update position to final drag position (three-renderer will handle hotspot collision)
     const finalPosition: LayoutPosition = {
       x: endPosition.x,
@@ -647,10 +653,10 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         circleRadius: this.options.circleRadius
       }
     };
-    
+
     // Store position both in strategy and photo properties for persistence
     this.photoPositions.set(photo.id, finalPosition);
-    
+
     // Update the photo metadata with new normalized coordinates
     // This ensures the drag position is maintained across layout changes
     photo.updateMetadata({
@@ -659,6 +665,13 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     });
 
     return true; // Let three-renderer handle hotspot collision detection
+  }
+
+  private isOutOfBounds(position: Position3D): boolean {
+    const relX = position.x - this.options.svgOffsetX;
+    const relY = position.y - this.options.svgOffsetY;
+    const distance = Math.sqrt(relX * relX + relY * relY);
+    return distance > this.options.circleRadius;
   }
 
 
@@ -680,6 +693,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     this.photoPositions.set(photoId, position);
   }
 
+
   /**
    * Calculate auto position for a photo based on its metadata matching SVG hotspot regions
    * Returns null if no matching hotspot or if metadata is incomplete
@@ -687,7 +701,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   getAutoPositionFromMetadata(photoData: PhotoData): { auto_x: number; auto_y: number } | null {
     const metadata = photoData.metadata;
     const plausibilityRaw = metadata['plausibility'];
-    const favorableFuture = this.normalizeFavorableFuture(metadata['favorable_future']);
+    const favorableFuture = this.normalizeFavorableFuture(metadata['_svgZoneFavorableFuture'] as string || metadata['favorable_future'] as string);
     let transitionBarPosition = this.normalizeTransitionBar(metadata['transition_bar_position']);
     const plausibility = this.normalizePlausibility(plausibilityRaw);
 
