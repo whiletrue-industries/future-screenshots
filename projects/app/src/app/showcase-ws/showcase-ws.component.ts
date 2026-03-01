@@ -925,16 +925,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         const metadataToSave: { [key: string]: string | number | null } = {};
 
         if (isOutOfBounds) {
-          // Clear evaluation metadata and position
+          // Clear position but keep evaluation metadata (plausibility/favorable_future)
           photo.updateMetadata({
-            plausibility: undefined,
-            favorable_future: undefined,
             _svgZoneFavorableFuture: undefined,
             layout_x: undefined,
             layout_y: undefined
           });
-          metadataToSave['plausibility'] = null;
-          metadataToSave['favorable_future'] = null;
           metadataToSave['_svgZoneFavorableFuture'] = null;
           metadataToSave['layout_x'] = null;
           metadataToSave['layout_y'] = null;
