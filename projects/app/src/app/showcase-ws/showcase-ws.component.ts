@@ -10,7 +10,6 @@ import { FisheyeSettings } from './settings-panel.component';
 import { PhotoData, PhotoAnimationState, PhotoMetadata } from './photo-data';
 import { ThreeRendererService } from './three-renderer.service';
 import { LayoutStrategy } from './layout-strategy.interface';
-import { GridLayoutStrategy } from './grid-layout-strategy';
 import { TsneLayoutStrategy } from './tsne-layout-strategy';
 import { SvgBackgroundLayoutStrategy } from './svg-background-layout-strategy';
 import { CirclePackingLayoutStrategy } from './circle-packing-layout-strategy';
@@ -41,7 +40,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   admin_key = signal('');
   lang = signal('');
   allowAdditionalContributions = signal(true); // Default to showing QR code
-  currentLayout = signal<'grid' | 'tsne' | 'svg' | 'circle-packing'>('circle-packing');
+  currentLayout = signal<'tsne' | 'svg' | 'circle-packing'>('circle-packing');
   enableRandomShowcase = signal(false);
   enableSvgAutoPositioning = signal(true);
   fisheyeEnabled = signal(false);
@@ -337,14 +336,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         this.qrSmall.set(true);
         this.isLoading.set(false); // Content is now loaded
         
-        // Switch to the desired layout now that photos are loaded
-        // This ensures the layout strategy has content to work with
-        if (this.currentLayout() !== 'grid') {
+        // Switch to the desired layout if not the default circle-packing
+        if (this.currentLayout() !== 'circle-packing') {
           try {
             switch (this.currentLayout()) {
-              case 'circle-packing':
-                await this.switchToCirclePackingLayout();
-                break;
               case 'tsne':
                 await this.switchToTsneLayout();
                 break;
@@ -453,24 +448,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     // Fetch workspace data to get title
     if (this.workspace() !== 'WORKSPACE_NOT_SET') {
       this.fetchWorkspaceData();
-    }
-    
-    // Map layout parameter aliases to actual layout names
-    const layoutParam = qp['layout'];
-    if (layoutParam) {
-      // Map friendly names to internal layout names (map removed)
-      const layoutMap: { [key: string]: 'grid' | 'tsne' | 'svg' | 'circle-packing' } = {
-        'clusters': 'circle-packing',
-        'themes': 'grid',
-        'grid': 'grid',
-        'tsne': 'tsne',
-        'svg': 'svg',
-        'circle-packing': 'circle-packing'
-      };
-      const mappedLayout = layoutMap[layoutParam.toLowerCase()];
-      if (mappedLayout) {
-        this.currentLayout.set(mappedLayout);
-      }
     }
     
     // Check for fisheye parameters
@@ -765,28 +742,27 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       }
     }
 
-    // Initialize PhotoDataRepository with default grid strategy first
-    const defaultGridStrategy = new GridLayoutStrategy({
+    // Initialize PhotoDataRepository with circle-packing as the default strategy.
+    // Photos are positioned incrementally as they load (requiresFullRecalculationOnAdd).
+    const defaultStrategy = new CirclePackingLayoutStrategy({
       photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
       photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
       spacingX: PHOTO_CONSTANTS.SPACING_X,
       spacingY: PHOTO_CONSTANTS.SPACING_Y,
-      useRandomPositioning: true
+      groupBuffer: 1500,
+      photoBuffer: 0,
+      useFanLayout: !this.isMobile()
     });
 
     await this.photoRepository.initialize(
-      defaultGridStrategy, 
-      this.rendererService, 
+      defaultStrategy,
+      this.rendererService,
       {
         enableRandomShowcase: this.enableRandomShowcase(),
         showcaseInterval: ANIMATION_CONSTANTS.SHOWCASE_INTERVAL,
         newPhotoAnimationDelay: ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DELAY
       }
     );
-
-    // Note: Layout switching is deferred until first photos are loaded
-    // This ensures the layout strategy has content to work with
-    // and avoids issues with positioning calculations on empty layouts
 
     // Set up repository event subscriptions
     this.photoRepository.photoAdded$
@@ -886,47 +862,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       
     } catch (error) {
       console.error('Error switching to TSNE layout:', error);
-    } finally {
-      this.layoutChangeInProgress = false;
-    }
-  }
-
-  /**
-   * Switch back to grid layout
-   */
-  public async switchToGridLayout() {
-    if (this.layoutChangeInProgress) {
-      return;
-    }
-    
-    this.layoutChangeInProgress = true;
-    try {
-
-      
-      // Update UI immediately for responsive feedback
-      this.currentLayout.set('grid');
-      
-      // Create grid layout strategy
-      const gridStrategy = new GridLayoutStrategy({
-        photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
-        photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
-        spacingX: PHOTO_CONSTANTS.SPACING_X,
-        spacingY: PHOTO_CONSTANTS.SPACING_Y,
-        useRandomPositioning: true
-      });
-      
-      // Initialize the strategy
-      await gridStrategy.initialize();
-      
-      // Remove SVG background if switching from SVG layout
-      this.rendererService.removeSvgBackground();
-      this.rendererService.disableAllDragging();
-      
-      // Switch the layout using PhotoDataRepository
-      await this.photoRepository.setLayoutStrategy(gridStrategy);
-      
-    } catch (error) {
-      console.error('Error switching to Grid layout:', error);
     } finally {
       this.layoutChangeInProgress = false;
     }
