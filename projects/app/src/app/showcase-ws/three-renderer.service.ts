@@ -475,7 +475,7 @@ export class ThreeRendererService {
       const startX = this.targetCamX;
       const startY = this.targetCamY;
       const startZ = this.targetCamZ;
-      const dur = options.duration ?? 0.8;
+      const dur = options.duration ?? 2.4;
 
       // Skip if already at target
       if (Math.abs(targetZ - startZ) < 0.01 &&
