@@ -567,57 +567,40 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Computes new positions via the active layout strategy and animates
    * any photos whose mesh position differs from the new target.
    */
+  /**
+   * Reposition a single photo according to the active layout strategy.
+   * Computes the correct position and animates the mesh if it moved.
+   */
+  private async repositionPhoto(photo: PhotoData): Promise<void> {
+    const strategy = this.photoRepository.getLayoutStrategy();
+    if (!strategy) return;
+
+    const allPhotos = this.photoRepository.getAllPhotos();
+    const enableAutoPositioning = this.enableSvgAutoPositioning();
+    const newPosition = await strategy.getPositionForPhoto(photo, allPhotos, { enableAutoPositioning });
+    if (!newPosition || !photo.mesh) return;
+
+    const target = { x: newPosition.x, y: newPosition.y, z: 0 };
+    photo.setTargetPosition(target);
+
+    const mesh = photo.mesh;
+    const dx = mesh.position.x - target.x;
+    const dy = mesh.position.y - target.y;
+    if (Math.sqrt(dx * dx + dy * dy) > 1) {
+      const from = { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z };
+      await this.rendererService.animateToPosition(mesh, from, target, 0.5);
+      photo.setCurrentPosition(target);
+    }
+  }
+
   private async recalculateClusterLayout(authorId: string): Promise<void> {
-    console.log('[CLUSTER-RECALC] called with authorId:', authorId);
     if (!authorId) return;
 
     const allPhotos = this.photoRepository.getAllPhotos();
     const clusterPhotos = allPhotos.filter(photo => photo.metadata['author_id'] === authorId);
-    console.log('[CLUSTER-RECALC] clusterPhotos:', clusterPhotos.length);
+    if (clusterPhotos.length === 0) return;
 
-    if (clusterPhotos.length === 0) {
-      return;
-    }
-
-    const strategy = this.photoRepository.getLayoutStrategy();
-    console.log('[CLUSTER-RECALC] strategy:', strategy?.getConfiguration().name);
-    if (!strategy) {
-      return;
-    }
-
-    const enableAutoPositioning = this.enableSvgAutoPositioning();
-    console.log('[CLUSTER-RECALC] enableAutoPositioning:', enableAutoPositioning);
-    const animations: Promise<void>[] = [];
-
-    for (const photo of clusterPhotos) {
-      const newPosition = await strategy.getPositionForPhoto(photo, allPhotos, { enableAutoPositioning });
-      console.log('[CLUSTER-RECALC] photo:', photo.id, 'newPosition:', newPosition ? { x: newPosition.x.toFixed(0), y: newPosition.y.toFixed(0), type: newPosition.metadata?.['layoutType'] } : null);
-      if (!newPosition) continue;
-
-      const target = { x: newPosition.x, y: newPosition.y, z: 0 };
-      photo.setTargetPosition(target);
-
-      if (!photo.mesh) { console.log('[CLUSTER-RECALC] no mesh for', photo.id); continue; }
-
-      const mesh = photo.mesh;
-      const dx = mesh.position.x - target.x;
-      const dy = mesh.position.y - target.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const moved = dist > 1;
-      console.log('[CLUSTER-RECALC] photo:', photo.id, 'meshPos:', { x: mesh.position.x.toFixed(0), y: mesh.position.y.toFixed(0) }, 'dist:', dist.toFixed(0), 'moved:', moved);
-
-      if (moved) {
-        const from = { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z };
-        animations.push(
-          this.rendererService.animateToPosition(mesh, from, target, 0.5).then(() => {
-            photo.setCurrentPosition(target);
-          })
-        );
-      }
-    }
-
-    console.log('[CLUSTER-RECALC] animations:', animations.length);
-    await Promise.all(animations);
+    await Promise.all(clusterPhotos.map(photo => this.repositionPhoto(photo)));
   }
 
   /**
@@ -937,7 +920,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
       // Register hotspot drop callback to update photo metadata and recalculate layout
       this.rendererService.setDragCompleteCallback(async (photoId, { position, isOutOfBounds, hotspotData }) => {
-        console.log('[DRAG-DEBUG] callback fired', { photoId, isOutOfBounds, position });
         const photo = this.photoRepository.getPhotoById(photoId);
         if (!photo) {
           console.warn('[DRAG] Photo not found:', photoId);
@@ -945,7 +927,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         }
 
         const oldAuthorId = photo.metadata['author_id'] as string;
-        console.log('[DRAG-DEBUG] authorId:', oldAuthorId, 'metadata:', { plausibility: photo.metadata['plausibility'], favorable_future: photo.metadata['favorable_future'], _svgZoneFavorableFuture: photo.metadata['_svgZoneFavorableFuture'] });
 
         // Build a single metadata payload for the API
         const metadataToSave: { [key: string]: string | number | null } = {};
@@ -998,6 +979,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           await this.recalculateClusterLayout(newAuthorId);
         }
 
+        // Reposition the dragged photo (handles photos with no author_id,
+        // and ensures the dragged photo itself animates to its correct position)
+        if (isOutOfBounds) {
+          await this.repositionPhoto(photo);
+        }
       });
 
       const svgElement = this.svgBackgroundStrategy.getSvgElement();
