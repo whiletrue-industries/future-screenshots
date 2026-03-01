@@ -680,6 +680,10 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     this.photoPositions.set(photoId, position);
   }
 
+  clearPhotoPosition(photoId: string): void {
+    this.photoPositions.delete(photoId);
+  }
+
   /**
    * Calculate auto position for a photo based on its metadata matching SVG hotspot regions
    * Returns null if no matching hotspot or if metadata is incomplete

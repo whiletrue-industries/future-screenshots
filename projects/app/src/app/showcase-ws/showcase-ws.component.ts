@@ -938,6 +938,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           metadataToSave['_svgZoneFavorableFuture'] = null;
           metadataToSave['layout_x'] = null;
           metadataToSave['layout_y'] = null;
+          // Clear SVG strategy's cached position to prevent stale data
+          this.svgBackgroundStrategy?.clearPhotoPosition(photoId);
         } else {
           // Compute normalized position
           const { layout_x, layout_y } = this.svgBackgroundStrategy!.worldToNormalized(position.x, position.y);
@@ -976,6 +978,15 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         const newAuthorId = photo.metadata['author_id'] as string;
         if (newAuthorId && newAuthorId !== oldAuthorId) {
           await this.recalculateClusterLayout(newAuthorId);
+        }
+
+        // Override with circle-packing fan position for out-of-bounds photos
+        if (isOutOfBounds && this.circlePackingForSvg) {
+          const allPhotos = this.photoRepository.getAllPhotos();
+          const fanPosition = await this.circlePackingForSvg.getPositionForPhoto(photo, allPhotos);
+          if (fanPosition) {
+            photo.setTargetPosition({ x: fanPosition.x, y: fanPosition.y, z: 0 });
+          }
         }
       });
 
