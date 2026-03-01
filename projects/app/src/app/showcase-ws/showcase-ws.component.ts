@@ -442,10 +442,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     const isAdminUser = adminKeyValue !== '' && adminKeyValue !== 'ADMIN_KEY_NOT_SET';
     this.photoRepository.setDragEnabled(isAdminUser);
     
-    // Check for item permalink (query param or URL hash)
-    if (qp['item-id']) {
-      this.focusItemId.set(qp['item-id']);
-    }
+    // Check for item permalink in URL hash (e.g. #item-id)
     if (this.platform.browser()) {
       const hashParts = window.location.hash.slice(1).split('?')[0];
       if (hashParts && !hashParts.includes('search=')) {
