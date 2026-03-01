@@ -102,14 +102,6 @@ export class PhotoDataRepository {
       const allPhotos = Array.from(this.photos.values());
       const allPositions = await this.layoutStrategy.calculateAllPositions(allPhotos);
 
-      // Override with drag positions (layout_x/layout_y) when SVG is visible
-      allPhotos.forEach((photo, index) => {
-        const dragOverride = this.getDragPositionOverride(photo);
-        if (dragOverride) {
-          allPositions[index] = dragOverride;
-        }
-      });
-
       // Update all photos with new positions
       const animationPromises: Promise<void>[] = [];
 
@@ -182,13 +174,10 @@ export class PhotoDataRepository {
       }
     } else {
       // Position just the new photo for other layouts
-      let layoutPosition: LayoutPosition | null = this.getDragPositionOverride(photoData);
-      if (!layoutPosition) {
-        layoutPosition = await this.layoutStrategy.getPositionForPhoto(
-          photoData,
-          Array.from(this.photos.values())
-        );
-      }
+      const layoutPosition: LayoutPosition | null = await this.layoutStrategy.getPositionForPhoto(
+        photoData,
+        Array.from(this.photos.values())
+      );
 
       hasValidPosition = !!(layoutPosition &&
         (layoutPosition.x !== undefined && layoutPosition.y !== undefined));
@@ -350,14 +339,6 @@ export class PhotoDataRepository {
     // Calculate new positions for all photos
     const newPositions = await newStrategy.calculateAllPositions(currentPhotos, {
       enableAutoPositioning: this.enableSvgAutoPositioning
-    });
-
-    // Override with drag positions (layout_x/layout_y) when SVG is visible
-    currentPhotos.forEach((photo, index) => {
-      const dragOverride = this.getDragPositionOverride(photo);
-      if (dragOverride) {
-        newPositions[index] = dragOverride;
-      }
     });
 
     // Update layout strategy
@@ -948,22 +929,6 @@ export class PhotoDataRepository {
    * Enable hover detection for a photo (for both interactive and non-interactive layouts)
    * This allows cursor feedback and preview widgets without enabling drag
    */
-
-  /**
-   * When SVG background is visible and a photo has layout_x/layout_y metadata,
-   * override the computed position with the saved drag position.
-   * Returns the overridden LayoutPosition, or null if no override applies.
-   */
-  private getDragPositionOverride(photo: PhotoData): LayoutPosition | null {
-    if (!this.svgVisible || !this.svgStrategy) return null;
-    const layout_x = photo.metadata['layout_x'];
-    const layout_y = photo.metadata['layout_y'];
-    if (typeof layout_x === 'number' && typeof layout_y === 'number') {
-      const { x, y } = this.svgStrategy.normalizedToWorld(layout_x, layout_y);
-      return { x, y, metadata: { source: 'drag-override' } };
-    }
-    return null;
-  }
 
   private setupHoverDetectionForPhoto(photoData: PhotoData): void {
     if (!photoData.mesh || !this.renderer) {

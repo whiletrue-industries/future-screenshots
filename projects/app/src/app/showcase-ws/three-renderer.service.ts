@@ -516,6 +516,7 @@ export class ThreeRendererService {
    */
   private recomputeZoomLimits(): void {
     if (!this.camera || !this.container) return;
+    if (this.container.clientWidth === 0 || this.container.clientHeight === 0) return;
 
     const fovY = THREE.MathUtils.degToRad(this.camera.fov);
     const aspect = this.container.clientWidth / this.container.clientHeight;

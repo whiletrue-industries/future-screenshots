@@ -858,19 +858,17 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       const baseNormalizedX = (bestCandidate.svgX - viewBox.width / 2) / (viewBox.width / 2);
       const baseNormalizedY = -((bestCandidate.svgY - viewBox.height / 2) / (viewBox.height / 2));
       
-      {
-        const resolved = this.resolveOverlapByNudging(baseNormalizedX, baseNormalizedY, hotspot, viewBox);
-        const svgCoords = this.normalizedToSvg(resolved.normalizedX, resolved.normalizedY, viewBox);
-        bestPlacement = {
-          normalizedX: resolved.normalizedX,
-          normalizedY: resolved.normalizedY,
-          overlap: resolved.overlap,
-          displacement: resolved.displacement,
-          spacing: this.getMinDistanceToExistingPhotos(resolved.normalizedX, resolved.normalizedY, hotspot),
-          svgX: svgCoords.svgX,
-          svgY: svgCoords.svgY,
-        };
-      }
+      const resolved = this.resolveOverlapByNudging(baseNormalizedX, baseNormalizedY, hotspot, viewBox);
+      const svgCoords = this.normalizedToSvg(resolved.normalizedX, resolved.normalizedY, viewBox);
+      bestPlacement = {
+        normalizedX: resolved.normalizedX,
+        normalizedY: resolved.normalizedY,
+        overlap: resolved.overlap,
+        displacement: resolved.displacement,
+        spacing: this.getMinDistanceToExistingPhotos(resolved.normalizedX, resolved.normalizedY, hotspot),
+        svgX: svgCoords.svgX,
+        svgY: svgCoords.svgY,
+      };
     }
 
     // Record this position as used
