@@ -979,6 +979,40 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         }
       });
 
+      // Save drag position to API: actual position when in bounds, clear when out of bounds
+      this.rendererService.setDragEndCallback((photoId: string, position: { x: number, y: number, z: number } | null) => {
+        const photo = this.photoRepository.getPhotoById(photoId);
+
+        if (position) {
+          const { layout_x, layout_y } = this.svgBackgroundStrategy!.worldToNormalized(position.x, position.y);
+
+          if (photo) {
+            photo.updateMetadata({ layout_x, layout_y });
+          }
+
+          const workspace = this.workspace();
+          const adminKey = this.admin_key();
+          if (workspace && adminKey && workspace !== 'WORKSPACE_NOT_SET' && adminKey !== 'ADMIN_KEY_NOT_SET') {
+            this.apiService.updateProperties({ layout_x, layout_y }, photoId).subscribe({
+              error: (error) => console.error('[DRAG] Error saving position to API:', error)
+            });
+          }
+        } else {
+          // Out of bounds — clear persisted position
+          if (photo) {
+            photo.updateMetadata({ layout_x: undefined, layout_y: undefined });
+          }
+
+          const workspace = this.workspace();
+          const adminKey = this.admin_key();
+          if (workspace && adminKey && workspace !== 'WORKSPACE_NOT_SET' && adminKey !== 'ADMIN_KEY_NOT_SET') {
+            this.apiService.updateProperties({ layout_x: null, layout_y: null }, photoId).subscribe({
+              error: (error) => console.error('[DRAG] Error clearing position from API:', error)
+            });
+          }
+        }
+      });
+
       const svgElement = this.svgBackgroundStrategy.getSvgElement();
 
       if (svgElement) {
@@ -1033,7 +1067,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       }
       
       // Enable drag when SVG is visible
-      this.photoRepository.setSvgVisible(true);
+      this.photoRepository.setSvgVisible(true, this.svgBackgroundStrategy!);
 
       // Apply auto-positioning only if enabled; otherwise keep circle packing positions intact
       this.photoRepository.setSvgAutoPositioningEnabled(this.enableSvgAutoPositioning());

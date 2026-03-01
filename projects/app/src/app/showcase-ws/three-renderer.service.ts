@@ -103,6 +103,7 @@ export class ThreeRendererService {
   
   // Hotspot drop callback
   private onHotspotDropCallback?: (photoId: string, hotspotData: { [key: string]: string | number }, position: { x: number, y: number, z: number }) => Promise<void>;
+  private onDragEndCallback?: (photoId: string, position: { x: number, y: number, z: number } | null) => void;
 
   // Click callbacks
   private onPhotoClickCallback?: (photoId: string) => void;
@@ -1431,6 +1432,10 @@ export class ThreeRendererService {
     this.onHotspotDropCallback = callback;
   }
 
+  setDragEndCallback(callback: (photoId: string, position: { x: number, y: number, z: number } | null) => void): void {
+    this.onDragEndCallback = callback;
+  }
+
   /**
    * Set the photo click callback
    */
@@ -2132,44 +2137,43 @@ export class ThreeRendererService {
             z: draggedMesh.position.z
           };
 
-          // Call the async drag end handler
           this.currentLayoutStrategy.onPhotoDragEnd(photoData, endPosition);
         }
       }
-      
-      // Check for hotspot collision in SVG mode
+
+      // Check for hotspot collision and persist position in SVG mode
       if (this.isInteractiveLayout()) {
         const photoId = this.findPhotoIdForMesh(draggedMesh);
         if (photoId) {
-          // Check if item is outside canvas bounds
           const isOutOfBounds = this.isPositionOutOfCanvas(draggedMesh.position);
-          
+
           if (isOutOfBounds) {
-            // Item dragged out of canvas - remove evaluation metadata
+            // Item dragged out of canvas - clear evaluation metadata and position
             const photoData = this.meshToPhotoData.get(draggedMesh);
             if (photoData) {
-              
-              // Update photo metadata locally to clear evaluation fields
               photoData.updateMetadata({
                 plausibility: undefined,
                 favorable_future: undefined,
                 _svgZoneFavorableFuture: undefined
               });
-              
-              // Update rotation to 0°
               draggedMesh.rotation.z = 0;
-              
-              // Trigger async callback to save to API (fire and forget)
+
               if (this.onHotspotDropCallback) {
                 const position = { x: draggedMesh.position.x, y: draggedMesh.position.y, z: draggedMesh.position.z };
-                // Use empty object for cleared metadata (callback will handle undefined values)
                 this.onHotspotDropCallback(photoId, {}, position).catch(error => {
                   console.error('[DRAG-OUT] Error saving cleared metadata:', error);
                 });
               }
             }
+            // Clear persisted position
+            this.onDragEndCallback?.(photoId, null);
           } else {
-            // Check for hotspot collision only if within bounds
+            // Save position and check for hotspot collision
+            this.onDragEndCallback?.(photoId, {
+              x: draggedMesh.position.x,
+              y: draggedMesh.position.y,
+              z: draggedMesh.position.z
+            });
             this.checkHotspotCollision(draggedMesh, photoId);
           }
         }

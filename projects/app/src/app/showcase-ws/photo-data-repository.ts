@@ -30,6 +30,7 @@ export class PhotoDataRepository {
   private enableSvgAutoPositioning = false;
   private isDragEnabled = true; // Permission-based flag for dragging
   private svgVisible = false; // Whether SVG background is visible (enables drag)
+  private svgStrategy: LayoutStrategy | null = null; // SVG strategy reference for drag handlers
   private showcaseInterval: number = ANIMATION_CONSTANTS.SHOWCASE_INTERVAL;
   private newPhotoAnimationDelay: number = ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DELAY;
   
@@ -476,8 +477,9 @@ export class PhotoDataRepository {
     this.isDragEnabled = enabled;
   }
 
-  setSvgVisible(visible: boolean): void {
+  setSvgVisible(visible: boolean, svgStrategy?: LayoutStrategy): void {
     this.svgVisible = visible;
+    this.svgStrategy = visible && svgStrategy ? svgStrategy : null;
   }
 
   /**
@@ -1015,8 +1017,8 @@ export class PhotoDataRepository {
       return;
     }
 
-    // Store the layout strategy reference in the renderer for hotspot detection
-    this.renderer.setLayoutStrategy(this.layoutStrategy);
+    // Use SVG strategy for renderer drag handlers (hotspot detection, onPhotoDragEnd)
+    this.renderer.setLayoutStrategy(this.svgStrategy || this.layoutStrategy);
 
     // Store PhotoData reference for drag callbacks
     this.renderer.setMeshPhotoData(photoData.mesh, photoData);

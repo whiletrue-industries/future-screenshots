@@ -292,8 +292,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     const layout_y = photoData.metadata['layout_y'];
 
     if (typeof layout_x === 'number' && typeof layout_y === 'number') {
-      const x = layout_x * this.options.circleRadius;
-      const y = layout_y * this.options.circleRadius;
+      const { x, y } = this.normalizedToWorld(layout_x, layout_y);
 
       position = {
         x,
@@ -599,9 +598,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       return;
     }
     
-    // Calculate normalized coordinates during drag for consistent tracking
-    const layout_x = Math.max(-1, Math.min(1, currentPosition.x / this.options.circleRadius));
-    const layout_y = Math.max(-1, Math.min(1, currentPosition.y / this.options.circleRadius));
+    const { layout_x, layout_y } = this.worldToNormalized(currentPosition.x, currentPosition.y);
     
     // Update photo position during drag
     const layoutPosition: LayoutPosition = {
@@ -628,9 +625,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     this.isDragging = false;
     this.draggedPhoto = null;
     
-    // Calculate normalized coordinates for the new drag position
-    const layout_x = Math.max(-1, Math.min(1, endPosition.x / this.options.circleRadius));
-    const layout_y = Math.max(-1, Math.min(1, endPosition.y / this.options.circleRadius));
+    const { layout_x, layout_y } = this.worldToNormalized(endPosition.x, endPosition.y);
     
     // Update position to final drag position (three-renderer will handle hotspot collision)
     const finalPosition: LayoutPosition = {
@@ -1381,6 +1376,22 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
    * Parse metadata from SVG group ID
    * Format: s-favorable_future=preferred,plausibility=0,transition_bar_position=after
    */
+  /** Convert world coordinates to normalized layout coordinates [-1, 1] relative to SVG center */
+  worldToNormalized(worldX: number, worldY: number): { layout_x: number; layout_y: number } {
+    return {
+      layout_x: Math.max(-1, Math.min(1, (worldX - (this.options.svgOffsetX || 0)) / this.options.circleRadius)),
+      layout_y: Math.max(-1, Math.min(1, (worldY - (this.options.svgOffsetY || 0)) / this.options.circleRadius))
+    };
+  }
+
+  /** Convert normalized layout coordinates [-1, 1] to world coordinates */
+  normalizedToWorld(layout_x: number, layout_y: number): { x: number; y: number } {
+    return {
+      x: layout_x * this.options.circleRadius + (this.options.svgOffsetX || 0),
+      y: layout_y * this.options.circleRadius + (this.options.svgOffsetY || 0)
+    };
+  }
+
   private parseGroupIdMetadata(groupId: string): { plausibility: number; favorable_future: string; transition_bar_position: string } | null {
     try {
       // Remove the 's-' prefix and split by comma
@@ -1487,9 +1498,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
    * This ensures consistency between drag positions and API-saved positions
    */
   updatePhotoAfterHotspotDrop(photoId: string, position: { x: number, y: number, z: number }, hotspotData: { [key: string]: string | number }): void {
-    // Calculate normalized coordinates for the hotspot drop position
-    const layout_x = Math.max(-1, Math.min(1, position.x / this.options.circleRadius));
-    const layout_y = Math.max(-1, Math.min(1, position.y / this.options.circleRadius));
+    const { layout_x, layout_y } = this.worldToNormalized(position.x, position.y);
     
     // Create position with hotspot drop metadata
     const hotspotDropPosition: LayoutPosition = {
