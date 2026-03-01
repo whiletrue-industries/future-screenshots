@@ -1,0 +1,308 @@
+<!DOCTYPE html><html lang="nl" dir="ltr"><head>
+  <meta charset="utf-8">
+
+  <title>The Futures Map</title>
+  <meta name="title" content="The Futures Map">
+  <meta name="description" content="Navigating political imagination through screenshots from the futures we may shape together.">
+  
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="site.webmanifest" crossorigin="anonymous">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://mapfutur.es/">
+  <meta property="twitter:title" content="The Futures Map">
+  <meta property="twitter:description" content="Navigating political imagination through screenshots from the futures we may shape together.">
+  <meta property="twitter:image" content="https://mapfutur.es/og_image.jpg">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="fb:app_id" content="966242223397117">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://mapfutur.es/">
+  <meta property="og:title" content="The Futures Map">
+  <meta property="og:description" content="Navigating political imagination through screenshots from the futures we may shape together.">
+  <meta property="og:image" itemprop="image" content="https://mapfutur.es/og_image.jpg">
+  <meta property="og:image:secure_url" itemprop="image" content="https://mapfutur.es/og_image.jpg">
+
+  <base href="/nl/">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no, user-scalable=no">
+  <meta http-equiv="ScreenOrientation" content="autoRotate:disabled">
+  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(self), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()">
+  
+  <script src="https://docs.opencv.org/4.7.0/opencv.js" async=""></script>
+  <!-- warning: loading OpenCV can take some time. Load asynchronously -->
+  <script src="https://cdn.jsdelivr.net/gh/ColonelParrot/jscanify@master/src/jscanify.min.js"></script>
+<link rel="stylesheet" href="styles-7M4R3UQD.css"><link rel="preload" href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&amp;family=Permanent+Marker&amp;family=Shadows+Into+Light&amp;family=Indie+Flower&amp;display=swap" as="style"><style ng-app-id="ng">
+
+.font-sans[_ngcontent-ng-c1123793193] {
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+}
+.background-image[_ngcontent-ng-c1123793193] {
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+}
+.message[_ngcontent-ng-c1123793193] {
+  font-size: 18px;
+  padding: 16px 24px;
+  max-width: calc(100% - 32px);
+  transition: border-radius 0.3s ease-in-out;
+  z-index: 1;
+}
+.message[_ngcontent-ng-c1123793193]     * {
+  margin: 0;
+}
+.message[_ngcontent-ng-c1123793193]     * a {
+  color: inherit;
+}
+.message.ai[_ngcontent-ng-c1123793193] {
+  background-color: #E7CBFF;
+  color: #4E02B2;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  border-radius: 32px 32px 32px 2px;
+  align-self: flex-start;
+  animation: _ngcontent-ng-c1123793193_fadeInLeft 0.08s ease-out;
+}
+.message.human[_ngcontent-ng-c1123793193] {
+  background-color: #4E02B2;
+  color: #FFFFFF;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  border-radius: 32px 32px 2px 32px;
+  align-self: flex-end;
+  animation: _ngcontent-ng-c1123793193_fadeInRight 0.08s ease-out;
+  margin-bottom: 4px;
+}
+.message.part[_ngcontent-ng-c1123793193] {
+  border-radius: 32px;
+}
+.buttons[_ngcontent-ng-c1123793193] {
+  width: 100%;
+  display: flex;
+  flex-flow: column;
+  padding: 8px 0;
+  gap: 4px;
+}
+.buttons[_ngcontent-ng-c1123793193]   .button-row[_ngcontent-ng-c1123793193] {
+  width: 100%;
+  display: flex;
+  flex-flow: row;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+.buttons[_ngcontent-ng-c1123793193]   .button-row[_ngcontent-ng-c1123793193]    > .button[_ngcontent-ng-c1123793193] {
+  flex: 1 1 auto;
+}
+.buttons[_ngcontent-ng-c1123793193]   .button[_ngcontent-ng-c1123793193] {
+  height: 52px;
+  padding: 0px 8px;
+  display: flex;
+  flex-flow: row;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  font-size: 16px;
+  line-height: normal;
+  font-weight: 400;
+  border: 1px solid #E7CBFF;
+  background: #FBF5F6;
+  color: #4E02B2;
+  cursor: pointer;
+}
+.buttons[_ngcontent-ng-c1123793193]   .button.primary[_ngcontent-ng-c1123793193] {
+  border: 1px solid #4E02B2;
+  background: #4E02B2;
+  color: #FFFFFF;
+  font-weight: 700;
+}
+.buttons[_ngcontent-ng-c1123793193]   a[_ngcontent-ng-c1123793193] {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+@keyframes _ngcontent-ng-c1123793193_fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes _ngcontent-ng-c1123793193_fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes _ngcontent-ng-c1123793193_slideInUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes _ngcontent-ng-c1123793193_slideInUp2 {
+  from {
+    transform: translateY(200%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes _ngcontent-ng-c1123793193_slideInDown {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.container[_ngcontent-ng-c1123793193] {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: #FFFDF6;
+  display: flex;
+}
+.container[_ngcontent-ng-c1123793193]   .content[_ngcontent-ng-c1123793193] {
+  padding: 24px;
+  height: fit-content;
+}
+.container[_ngcontent-ng-c1123793193]   .content[_ngcontent-ng-c1123793193]  {
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  color: #4E02B2;
+  font-size: 18px;
+  font-weight: 400;
+}
+.container[_ngcontent-ng-c1123793193]   .content[_ngcontent-ng-c1123793193]  * {
+  margin: 0;
+  padding: 0;
+}
+.container[_ngcontent-ng-c1123793193]   .content[_ngcontent-ng-c1123793193]  h1 {
+  font-size: 36px;
+  font-weight: 400;
+  margin-bottom: 16px;
+}
+.container[_ngcontent-ng-c1123793193]   .content[_ngcontent-ng-c1123793193]  h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.container[_ngcontent-ng-c1123793193]   .content[_ngcontent-ng-c1123793193]  p {
+  margin-bottom: 8px;
+}</style></head>
+<body><!--nghm-->
+  <app-root ng-version="19.2.17" ngh="1" ng-server-context="ssg"><router-outlet></router-outlet><app-about _nghost-ng-c1123793193="" ngh="0"><div _ngcontent-ng-c1123793193="" class="container"><div _ngcontent-ng-c1123793193="" class="content"><h1>Privacybeleid voor The Futures Map</h1>
+<p>Laatst bijgewerkt: 4 mei 2025</p>
+<h2>Introductie</h2>
+<p>Welkom bij <strong>The Futures Map</strong>.</p>
+<p>Wij doen er alles aan om uw privacy te beschermen en ervoor te zorgen dat uw persoonsgegevens op een veilige en verantwoorde manier worden behandeld. In dit privacybeleid wordt uitgelegd hoe we gegevens verzamelen, gebruiken en opslaan van deelnemers die betrokken zijn bij onze kunstinstallatie en ons online archief.</p>
+<h2>Wie we zijn</h2>
+<p>De Futures Map (<a href="https://mapfutur.es">https://mapfutur.es</a>) is een kunstproject waarbij deelnemers gescande creatieve bijdragen ("future screenshots") indienen gebaseerd op geleverde sjablonen. Voor vragen over privacy kunt u contact met ons opnemen via: <a href="mailto:futures@mushon.com">futures@mushon.com</a></p>
+<h2>Welke gegevens we verzamelen</h2>
+<p>Wij verzamelen de volgende gegevens wanneer u deelneemt:</p>
+<p>· De gescande afbeelding die u verzendt (uw 'future screenshot')</p>
+<p>· Uw schriftelijke antwoorden op vragen over uw scan</p>
+<p>· De datum en context van uw inzending</p>
+<p>· <strong>Optioneel</strong>: uw e-mailadres</p>
+<p>We hebben geen identificeerbare persoonlijke informatie nodig. Uw handschrift of de inhoud van uw scan kan u echter indirect identificeren.</p>
+<h2>Waarom wij uw gegevens verzamelen</h2>
+<p>Wij verzamelen en verwerken deze gegevens voor de volgende doeleinden:</p>
+<p>· Om uw inzending op te nemen in het online archief van Futures Map</p>
+<p>· Om mogelijk onderzoek en analyse op basis van het collectieve werk mogelijk te maken</p>
+<p>· Om u in staat te stellen uw inzending te bewerken of te verwijderen via een unieke link (als u een e-mailadres opgeeft)</p>
+<p>· Om af en toe updates over het project te sturen (als u een e-mailadres verstrekt)</p>
+<h2>E-mailadressen (optioneel)</h2>
+<p>Als u ervoor kiest om uw e-mailadres op te geven, zullen we dit voor de volgende doeleinden gebruiken:</p>
+<p>· Om u een unieke link te sturen waarmee u uw ingediende "future screenshot" kunt bewerken of verwijderen</p>
+<p>· Om u af en toe op de hoogte te houden van het The Futures Map-project, inclusief tentoonstellingen, onderzoek of mogelijkheden om mee te doen</p>
+<p>Het verstrekken van uw e-mailadres is optioneel en gebaseerd op uw toestemming.</p>
+<p>U mag:</p>
+<p>· zich op elk gewenst moment afmelden voor updates via afmeldlinks (indien aanwezig) of door contact op te nemen met <a href="mailto:futures@mushon.com">futures@mushon.com</a></p>
+<p>· verzoeken om verwijdering van uw e-mailadres en bijbehorende gegevens</p>
+<p>Wij delen uw e-mailadres niet met derden.</p>
+<h2>Hoe we toestemming verkrijgen</h2>
+<p>Toestemming wordt verkregen via de chatinterface voordat u uw scan verzendt.</p>
+<p>U kunt te allen tijde verzoeken om inzage, correctie of verwijdering van uw gegevens door contact met <a href="mailto:futures@mushon.com">futures@mushon.com</a> op te nemen.</p>
+<h2>Delen en verwerken van gegevens</h2>
+<p>Gescande afbeeldingen kunnen worden verwerkt met behulp van ChatGPT, een AI-tool, ter ondersteuning van analyse of categorisering voor het archief.</p>
+<p>Er worden geen persoonlijke gegevens gedeeld met derden.</p>
+<h2>Gegevensbeveiliging</h2>
+<p>Wij gebruiken de volgende waarborgen om uw gegevens te beschermen:</p>
+<p>· SSL-versleuteling (Secure Sockets Layer)</p>
+<p>· Beperkte toegang tot gegevens alleen voor geautoriseerd projectteam</p>
+<p>· Geen onnodig verzamelen of opslaan van persoonsgegevens.</p>
+<h2>Bewaren van gegevens</h2>
+<p>Gescande inzendingen en bijbehorende gegevens worden bewaard zolang het Futures Map-project bestaat.</p>
+<p>Er is geen vooraf gedefinieerde verwijderingstijdlijn, tenzij op verzoek van de gebruiker.</p>
+<h2>Internationale gegevensoverdracht</h2>
+<p>Alle gegevens worden opgeslagen en verwerkt binnen de Europese Unie (EU).</p>
+<p>Wij dragen geen gegevens over buiten de EU.</p>
+<h2>Wijzigingen in dit privacybeleid</h2>
+<p>Aangezien we het delen van contactgegevens niet als voorwaarde stellen, kunnen we deelnemers niet op de hoogte stellen van wijzigingen in dit beleid.</p>
+<p>We raden gebruikers aan om deze pagina regelmatig opnieuw te bezoeken voor updates.</p>
+<h2>Uw rechten onder de AVG</h2>
+<p>Op grond van de Algemene Verordening Gegevensbescherming (AVG) heeft u recht op:</p>
+<p>· Toegang tot de gegevens die we over u hebben</p>
+<p>· Het aanvragen van correcties van onjuiste gegevens</p>
+<p>· Verzoeken om verwijdering van uw gegevens</p>
+<p>· Bezwaar maken tegen bepaalde soorten verwerking of deze beperken</p>
+<p>Om deze rechten uit te oefenen, kunt u contact met ons opnemen via: <a href="mailto:futures@mushon.com">futures@mushon.com</a></p>
+</div></div></app-about><!----></app-root>
+<link rel="modulepreload" href="chunk-NWR7T6GD.js"><script src="polyfills-J42HH2UI.js" type="module"></script><script src="main-PMSO4PHL.js" type="module"></script>
+
+<script id="ng-state" type="application/json">{"1472370580":{"b":"# Privacybeleid voor The Futures Map\n\nLaatst bijgewerkt: 4 mei 2025\n\n\n## Introductie\n\n\nWelkom bij **The Futures Map**.\n\nWij doen er alles aan om uw privacy te beschermen en ervoor te zorgen dat uw persoonsgegevens op een veilige en verantwoorde manier worden behandeld. In dit privacybeleid wordt uitgelegd hoe we gegevens verzamelen, gebruiken en opslaan van deelnemers die betrokken zijn bij onze kunstinstallatie en ons online archief.\n\n\n## Wie we zijn\n\nDe Futures Map (https://mapfutur.es) is een kunstproject waarbij deelnemers gescande creatieve bijdragen (\"future screenshots\") indienen gebaseerd op geleverde sjablonen. Voor vragen over privacy kunt u contact met ons opnemen via: [futures@mushon.com](mailto:futures@mushon.com)\n\n\n## Welke gegevens we verzamelen\n\n\nWij verzamelen de volgende gegevens wanneer u deelneemt:\n\n· De gescande afbeelding die u verzendt (uw 'future screenshot')\n\n· Uw schriftelijke antwoorden op vragen over uw scan\n\n· De datum en context van uw inzending\n\n· **Optioneel**: uw e-mailadres\n\nWe hebben geen identificeerbare persoonlijke informatie nodig. Uw handschrift of de inhoud van uw scan kan u echter indirect identificeren.\n\n\n## Waarom wij uw gegevens verzamelen\n\n\nWij verzamelen en verwerken deze gegevens voor de volgende doeleinden:\n\n· Om uw inzending op te nemen in het online archief van Futures Map\n\n· Om mogelijk onderzoek en analyse op basis van het collectieve werk mogelijk te maken\n\n· Om u in staat te stellen uw inzending te bewerken of te verwijderen via een unieke link (als u een e-mailadres opgeeft)\n\n· Om af en toe updates over het project te sturen (als u een e-mailadres verstrekt)\n\n\n## E-mailadressen (optioneel)\n\n\nAls u ervoor kiest om uw e-mailadres op te geven, zullen we dit voor de volgende doeleinden gebruiken:\n\n· Om u een unieke link te sturen waarmee u uw ingediende \"future screenshot\" kunt bewerken of verwijderen\n\n· Om u af en toe op de hoogte te houden van het The Futures Map-project, inclusief tentoonstellingen, onderzoek of mogelijkheden om mee te doen\n\n\nHet verstrekken van uw e-mailadres is optioneel en gebaseerd op uw toestemming.\n\nU mag:\n\n· zich op elk gewenst moment afmelden voor updates via afmeldlinks (indien aanwezig) of door contact op te nemen met [futures@mushon.com](mailto:futures@mushon.com)\n\n· verzoeken om verwijdering van uw e-mailadres en bijbehorende gegevens\n\n\nWij delen uw e-mailadres niet met derden.\n\n\n## Hoe we toestemming verkrijgen\n\n\nToestemming wordt verkregen via de chatinterface voordat u uw scan verzendt.\n\nU kunt te allen tijde verzoeken om inzage, correctie of verwijdering van uw gegevens door contact met [futures@mushon.com](mailto:futures@mushon.com) op te nemen.\n\n\n## Delen en verwerken van gegevens\n\n\nGescande afbeeldingen kunnen worden verwerkt met behulp van ChatGPT, een AI-tool, ter ondersteuning van analyse of categorisering voor het archief.\n\nEr worden geen persoonlijke gegevens gedeeld met derden.\n\n\n## Gegevensbeveiliging\n\nWij gebruiken de volgende waarborgen om uw gegevens te beschermen:\n\n· SSL-versleuteling (Secure Sockets Layer)\n\n· Beperkte toegang tot gegevens alleen voor geautoriseerd projectteam\n\n· Geen onnodig verzamelen of opslaan van persoonsgegevens.\n\n\n## Bewaren van gegevens\n\n\nGescande inzendingen en bijbehorende gegevens worden bewaard zolang het Futures Map-project bestaat.\n\nEr is geen vooraf gedefinieerde verwijderingstijdlijn, tenzij op verzoek van de gebruiker.\n\n\n## Internationale gegevensoverdracht\n\n\nAlle gegevens worden opgeslagen en verwerkt binnen de Europese Unie (EU).\n\nWij dragen geen gegevens over buiten de EU.\n\n\n## Wijzigingen in dit privacybeleid\n\n\nAangezien we het delen van contactgegevens niet als voorwaarde stellen, kunnen we deelnemers niet op de hoogte stellen van wijzigingen in dit beleid.\n\nWe raden gebruikers aan om deze pagina regelmatig opnieuw te bezoeken voor updates.\n\n\n## Uw rechten onder de AVG\n\n\nOp grond van de Algemene Verordening Gegevensbescherming (AVG) heeft u recht op:\n\n· Toegang tot de gegevens die we over u hebben\n\n· Het aanvragen van correcties van onjuiste gegevens\n\n· Verzoeken om verwijdering van uw gegevens\n\n· Bezwaar maken tegen bepaalde soorten verwerking of deze beperken\n\nOm deze rechten uit te oefenen, kunt u contact met ons opnemen via: [futures@mushon.com](mailto:futures@mushon.com)\n","h":{},"s":200,"st":"OK","u":"/abouts/privacy-policy-nl.md","rt":"text"},"__nghData__":[{},{"c":{"0":[{"i":"c1123793193","r":1}]}}]}</script></body></html>

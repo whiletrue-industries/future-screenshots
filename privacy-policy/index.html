@@ -1,0 +1,313 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+  <meta charset="utf-8">
+
+  <title>The Futures Map</title>
+  <meta name="title" content="The Futures Map">
+  <meta name="description" content="Navigating political imagination through screenshots from the futures we may shape together.">
+  
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="site.webmanifest" crossorigin="anonymous">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://mapfutur.es/">
+  <meta property="twitter:title" content="The Futures Map">
+  <meta property="twitter:description" content="Navigating political imagination through screenshots from the futures we may shape together.">
+  <meta property="twitter:image" content="https://mapfutur.es/og_image.jpg">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="fb:app_id" content="966242223397117">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://mapfutur.es/">
+  <meta property="og:title" content="The Futures Map">
+  <meta property="og:description" content="Navigating political imagination through screenshots from the futures we may shape together.">
+  <meta property="og:image" itemprop="image" content="https://mapfutur.es/og_image.jpg">
+  <meta property="og:image:secure_url" itemprop="image" content="https://mapfutur.es/og_image.jpg">
+
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no, user-scalable=no">
+  <meta http-equiv="ScreenOrientation" content="autoRotate:disabled">
+  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(self), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()">
+  
+  <script src="https://docs.opencv.org/4.7.0/opencv.js" async=""></script>
+  <!-- warning: loading OpenCV can take some time. Load asynchronously -->
+  <script src="https://cdn.jsdelivr.net/gh/ColonelParrot/jscanify@master/src/jscanify.min.js"></script>
+<link rel="stylesheet" href="styles-7M4R3UQD.css"><link rel="preload" href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&amp;family=Permanent+Marker&amp;family=Shadows+Into+Light&amp;family=Indie+Flower&amp;display=swap" as="style"><style ng-app-id="ng">
+
+.font-sans[_ngcontent-ng-c1123793193] {
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+}
+.background-image[_ngcontent-ng-c1123793193] {
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+}
+.message[_ngcontent-ng-c1123793193] {
+  font-size: 18px;
+  padding: 16px 24px;
+  max-width: calc(100% - 32px);
+  transition: border-radius 0.3s ease-in-out;
+  z-index: 1;
+}
+.message[_ngcontent-ng-c1123793193]     * {
+  margin: 0;
+}
+.message[_ngcontent-ng-c1123793193]     * a {
+  color: inherit;
+}
+.message.ai[_ngcontent-ng-c1123793193] {
+  background-color: #E7CBFF;
+  color: #4E02B2;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  border-radius: 32px 32px 32px 2px;
+  align-self: flex-start;
+  animation: _ngcontent-ng-c1123793193_fadeInLeft 0.08s ease-out;
+}
+.message.human[_ngcontent-ng-c1123793193] {
+  background-color: #4E02B2;
+  color: #FFFFFF;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  border-radius: 32px 32px 2px 32px;
+  align-self: flex-end;
+  animation: _ngcontent-ng-c1123793193_fadeInRight 0.08s ease-out;
+  margin-bottom: 4px;
+}
+.message.part[_ngcontent-ng-c1123793193] {
+  border-radius: 32px;
+}
+.buttons[_ngcontent-ng-c1123793193] {
+  width: 100%;
+  display: flex;
+  flex-flow: column;
+  padding: 8px 0;
+  gap: 4px;
+}
+.buttons[_ngcontent-ng-c1123793193]   .button-row[_ngcontent-ng-c1123793193] {
+  width: 100%;
+  display: flex;
+  flex-flow: row;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+.buttons[_ngcontent-ng-c1123793193]   .button-row[_ngcontent-ng-c1123793193]    > .button[_ngcontent-ng-c1123793193] {
+  flex: 1 1 auto;
+}
+.buttons[_ngcontent-ng-c1123793193]   .button[_ngcontent-ng-c1123793193] {
+  height: 52px;
+  padding: 0px 8px;
+  display: flex;
+  flex-flow: row;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  font-size: 16px;
+  line-height: normal;
+  font-weight: 400;
+  border: 1px solid #E7CBFF;
+  background: #FBF5F6;
+  color: #4E02B2;
+  cursor: pointer;
+}
+.buttons[_ngcontent-ng-c1123793193]   .button.primary[_ngcontent-ng-c1123793193] {
+  border: 1px solid #4E02B2;
+  background: #4E02B2;
+  color: #FFFFFF;
+  font-weight: 700;
+}
+.buttons[_ngcontent-ng-c1123793193]   a[_ngcontent-ng-c1123793193] {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+@keyframes _ngcontent-ng-c1123793193_fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes _ngcontent-ng-c1123793193_fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes _ngcontent-ng-c1123793193_slideInUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes _ngcontent-ng-c1123793193_slideInUp2 {
+  from {
+    transform: translateY(200%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes _ngcontent-ng-c1123793193_slideInDown {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.container[_ngcontent-ng-c1123793193] {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: #FFFDF6;
+  display: flex;
+}
+.container[_ngcontent-ng-c1123793193]   .content[_ngcontent-ng-c1123793193] {
+  padding: 24px;
+  height: fit-content;
+}
+.container[_ngcontent-ng-c1123793193]   .content[_ngcontent-ng-c1123793193]  {
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  color: #4E02B2;
+  font-size: 18px;
+  font-weight: 400;
+}
+.container[_ngcontent-ng-c1123793193]   .content[_ngcontent-ng-c1123793193]  * {
+  margin: 0;
+  padding: 0;
+}
+.container[_ngcontent-ng-c1123793193]   .content[_ngcontent-ng-c1123793193]  h1 {
+  font-size: 36px;
+  font-weight: 400;
+  margin-bottom: 16px;
+}
+.container[_ngcontent-ng-c1123793193]   .content[_ngcontent-ng-c1123793193]  h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.container[_ngcontent-ng-c1123793193]   .content[_ngcontent-ng-c1123793193]  p {
+  margin-bottom: 8px;
+}</style></head>
+<body><!--nghm-->
+  <app-root ng-version="19.2.17" ngh="1" ng-server-context="ssg"><router-outlet></router-outlet><app-about _nghost-ng-c1123793193="" ngh="0"><div _ngcontent-ng-c1123793193="" class="container"><div _ngcontent-ng-c1123793193="" class="content"><h1>Privacy Policy for The Futures Map</h1>
+<p><em>Last updated: May 4, 2025</em></p>
+<h2>Introduction</h2>
+<p>Welcome to <strong>The Futures Map</strong>.<br>We are committed to protecting your privacy and ensuring that your personal data is handled in a safe and responsible way. This Privacy Policy explains how we collect, use, and store data from participants engaging with our art installation and online archive.</p>
+<h2>Who We Are</h2>
+<p><strong>The Futures Map</strong> is an art project where participants submit scanned creative works ("future screenshots") based on provided templates.<br>For any privacy-related inquiries, you can contact us at: <a href="mailto:futures@mushon.com">futures@mushon.com</a>.</p>
+<h2>What Data We Collect</h2>
+<p>We collect the following data when you participate:</p>
+<ul>
+<li>The scanned image you submit (your "future screenshot")</li>
+<li>Your written answers to questions about your scan</li>
+<li>The date and context of your submission</li>
+<li><strong>Optionally</strong>: your email address</li>
+</ul>
+<p>We do not require identifiable personal information. However, your handwriting or the content of your scan may indirectly identify you.</p>
+<h2>Why We Collect Your Data</h2>
+<p>We collect and process this data for the following purposes:</p>
+<ul>
+<li>To include your submission in the <strong>Futures Map</strong> online archive</li>
+<li>To enable possible research and analysis based on the collective work</li>
+<li>To allow you to edit or delete your submission via a unique link (if you provide an email)</li>
+<li>To occasionally send updates about the project (if you provide an email)</li>
+</ul>
+<h2>Email Addresses (Optional)</h2>
+<p>If you choose to provide your email address, we will use it for the following purposes:</p>
+<ul>
+<li>To send you a <strong>unique link</strong> allowing you to edit or delete your submitted "future screenshot"</li>
+<li>To occasionally update you about <strong>The Futures Map</strong> project, including exhibitions, research, or ways to get involved</li>
+</ul>
+<p>Providing your email is <strong>optional</strong> and based on <strong>your consent</strong>. You may:</p>
+<ul>
+<li>Opt out of updates at any time via unsubscribe links (if included) or by contacting <a href="mailto:futures@mushon.com">futures@mushon.com</a></li>
+<li>Request deletion of your email and associated data</li>
+</ul>
+<p>We do <strong>not</strong> share your email address with third parties.</p>
+<h2>How We Obtain Consent</h2>
+<p>Consent is obtained via the chat interface before you submit your scan.<br>You may request access, correction, or deletion of your data at any time by contacting <a href="mailto:futures@mushon.com">futures@mushon.com</a>.</p>
+<h2>Data Sharing and Processing</h2>
+<p>Scanned images may be processed using <strong>ChatGPT</strong>, an AI tool, to support analysis or categorization for the archive.<br>No personal information is shared with third parties.</p>
+<h2>Data Security</h2>
+<p>We use the following safeguards to protect your data:</p>
+<ul>
+<li>SSL (Secure Sockets Layer) encryption</li>
+<li>Limited access to data by authorized project team only</li>
+<li>No unnecessary collection or storage of personal data</li>
+</ul>
+<h2>Data Retention</h2>
+<p>Scanned submissions and associated data will be retained for as long as <strong>The Futures Map</strong> project exists.<br>There is no predefined deletion timeline unless requested by the user.</p>
+<h2>International Data Transfers</h2>
+<p>All data is stored and processed within the <strong>European Union (EU)</strong>.<br>We do not transfer data outside the EU.</p>
+<h2>Changes to This Privacy Policy</h2>
+<p>Since we do not require contact details, we are unable to notify participants of changes to this policy.<br>We encourage users to revisit this page periodically for updates.</p>
+<h2>Your Rights Under GDPR</h2>
+<p>Under the General Data Protection Regulation (GDPR), you have the right to:</p>
+<ul>
+<li>Access the data we hold about you</li>
+<li>Request corrections to inaccurate data</li>
+<li>Request deletion of your data</li>
+<li>Object to or limit certain types of processing</li>
+</ul>
+<p>To exercise these rights, please contact us at: <a href="mailto:futures@mushon.com">futures@mushon.com</a></p>
+</div></div></app-about><!----></app-root>
+<link rel="modulepreload" href="chunk-NWR7T6GD.js"><script src="polyfills-J42HH2UI.js" type="module"></script><script src="main-PMSO4PHL.js" type="module"></script>
+
+<script id="ng-state" type="application/json">{"2132030345":{"b":"# Privacy Policy for The Futures Map\n\n_Last updated: May 4, 2025_\n\n## Introduction\n\nWelcome to **The Futures Map**.  \nWe are committed to protecting your privacy and ensuring that your personal data is handled in a safe and responsible way. This Privacy Policy explains how we collect, use, and store data from participants engaging with our art installation and online archive.\n\n## Who We Are\n\n**The Futures Map** is an art project where participants submit scanned creative works (\"future screenshots\") based on provided templates.  \nFor any privacy-related inquiries, you can contact us at: [futures@mushon.com](mailto:futures@mushon.com).\n\n## What Data We Collect\n\nWe collect the following data when you participate:\n- The scanned image you submit (your \"future screenshot\")\n- Your written answers to questions about your scan\n- The date and context of your submission\n- **Optionally**: your email address\n\nWe do not require identifiable personal information. However, your handwriting or the content of your scan may indirectly identify you.\n\n## Why We Collect Your Data\n\nWe collect and process this data for the following purposes:\n- To include your submission in the **Futures Map** online archive\n- To enable possible research and analysis based on the collective work\n- To allow you to edit or delete your submission via a unique link (if you provide an email)\n- To occasionally send updates about the project (if you provide an email)\n\n## Email Addresses (Optional)\n\nIf you choose to provide your email address, we will use it for the following purposes:\n- To send you a **unique link** allowing you to edit or delete your submitted \"future screenshot\"\n- To occasionally update you about **The Futures Map** project, including exhibitions, research, or ways to get involved\n\nProviding your email is **optional** and based on **your consent**. You may:\n- Opt out of updates at any time via unsubscribe links (if included) or by contacting [futures@mushon.com](mailto:futures@mushon.com)\n- Request deletion of your email and associated data\n\nWe do **not** share your email address with third parties.\n\n## How We Obtain Consent\n\nConsent is obtained via the chat interface before you submit your scan.  \nYou may request access, correction, or deletion of your data at any time by contacting [futures@mushon.com](mailto:futures@mushon.com).\n\n## Data Sharing and Processing\n\nScanned images may be processed using **ChatGPT**, an AI tool, to support analysis or categorization for the archive.  \nNo personal information is shared with third parties.\n\n## Data Security\n\nWe use the following safeguards to protect your data:\n- SSL (Secure Sockets Layer) encryption\n- Limited access to data by authorized project team only\n- No unnecessary collection or storage of personal data\n\n## Data Retention\n\nScanned submissions and associated data will be retained for as long as **The Futures Map** project exists.  \nThere is no predefined deletion timeline unless requested by the user.\n\n## International Data Transfers\n\nAll data is stored and processed within the **European Union (EU)**.  \nWe do not transfer data outside the EU.\n\n## Changes to This Privacy Policy\n\nSince we do not require contact details, we are unable to notify participants of changes to this policy.  \nWe encourage users to revisit this page periodically for updates.\n\n## Your Rights Under GDPR\n\nUnder the General Data Protection Regulation (GDPR), you have the right to:\n- Access the data we hold about you\n- Request corrections to inaccurate data\n- Request deletion of your data\n- Object to or limit certain types of processing\n\nTo exercise these rights, please contact us at: [futures@mushon.com](mailto:futures@mushon.com)\n","h":{},"s":200,"st":"OK","u":"/abouts/privacy-policy-en.md","rt":"text"},"__nghData__":[{},{"c":{"0":[{"i":"c1123793193","r":1}]}}]}</script></body></html>

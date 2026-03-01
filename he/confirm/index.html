@@ -1,0 +1,335 @@
+<!DOCTYPE html><html lang="he" dir="rtl"><head>
+  <meta charset="utf-8">
+
+  <title>The Futures Map</title>
+  <meta name="title" content="The Futures Map">
+  <meta name="description" content="Navigating political imagination through screenshots from the futures we may shape together.">
+  
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="site.webmanifest" crossorigin="anonymous">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://mapfutur.es/">
+  <meta property="twitter:title" content="The Futures Map">
+  <meta property="twitter:description" content="Navigating political imagination through screenshots from the futures we may shape together.">
+  <meta property="twitter:image" content="https://mapfutur.es/og_image.jpg">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="fb:app_id" content="966242223397117">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://mapfutur.es/">
+  <meta property="og:title" content="The Futures Map">
+  <meta property="og:description" content="Navigating political imagination through screenshots from the futures we may shape together.">
+  <meta property="og:image" itemprop="image" content="https://mapfutur.es/og_image.jpg">
+  <meta property="og:image:secure_url" itemprop="image" content="https://mapfutur.es/og_image.jpg">
+
+  <base href="/he/">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no, user-scalable=no">
+  <meta http-equiv="ScreenOrientation" content="autoRotate:disabled">
+  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(self), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()">
+  
+  <script src="https://docs.opencv.org/4.7.0/opencv.js" async=""></script>
+  <!-- warning: loading OpenCV can take some time. Load asynchronously -->
+  <script src="https://cdn.jsdelivr.net/gh/ColonelParrot/jscanify@master/src/jscanify.min.js"></script>
+<link rel="stylesheet" href="styles-7M4R3UQD.css"><link rel="preload" href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&amp;family=Permanent+Marker&amp;family=Shadows+Into+Light&amp;family=Indie+Flower&amp;display=swap" as="style"><style ng-app-id="ng">
+
+.font-sans[_ngcontent-ng-c1887618615] {
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+}
+.background-image[_ngcontent-ng-c1887618615] {
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+}
+.message[_ngcontent-ng-c1887618615] {
+  font-size: 18px;
+  padding: 16px 24px;
+  max-width: calc(100% - 32px);
+  transition: border-radius 0.3s ease-in-out;
+  z-index: 1;
+}
+.message[_ngcontent-ng-c1887618615]     * {
+  margin: 0;
+}
+.message[_ngcontent-ng-c1887618615]     * a {
+  color: inherit;
+}
+.message.ai[_ngcontent-ng-c1887618615] {
+  background-color: #E7CBFF;
+  color: #4E02B2;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  border-radius: 32px 32px 32px 2px;
+  align-self: flex-start;
+  animation: _ngcontent-ng-c1887618615_fadeInLeft 0.08s ease-out;
+}
+.message.human[_ngcontent-ng-c1887618615] {
+  background-color: #4E02B2;
+  color: #FFFFFF;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  border-radius: 32px 32px 2px 32px;
+  align-self: flex-end;
+  animation: _ngcontent-ng-c1887618615_fadeInRight 0.08s ease-out;
+  margin-bottom: 4px;
+}
+.message.part[_ngcontent-ng-c1887618615] {
+  border-radius: 32px;
+}
+.buttons[_ngcontent-ng-c1887618615] {
+  width: 100%;
+  display: flex;
+  flex-flow: column;
+  padding: 8px 0;
+  gap: 4px;
+}
+.buttons[_ngcontent-ng-c1887618615]   .button-row[_ngcontent-ng-c1887618615] {
+  width: 100%;
+  display: flex;
+  flex-flow: row;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+.buttons[_ngcontent-ng-c1887618615]   .button-row[_ngcontent-ng-c1887618615]    > .button[_ngcontent-ng-c1887618615] {
+  flex: 1 1 auto;
+}
+.buttons[_ngcontent-ng-c1887618615]   .button[_ngcontent-ng-c1887618615] {
+  height: 52px;
+  padding: 0px 8px;
+  display: flex;
+  flex-flow: row;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  font-size: 16px;
+  line-height: normal;
+  font-weight: 400;
+  border: 1px solid #E7CBFF;
+  background: #FBF5F6;
+  color: #4E02B2;
+  cursor: pointer;
+}
+.buttons[_ngcontent-ng-c1887618615]   .button.primary[_ngcontent-ng-c1887618615] {
+  border: 1px solid #4E02B2;
+  background: #4E02B2;
+  color: #FFFFFF;
+  font-weight: 700;
+}
+.buttons[_ngcontent-ng-c1887618615]   a[_ngcontent-ng-c1887618615] {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+@keyframes _ngcontent-ng-c1887618615_fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes _ngcontent-ng-c1887618615_fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes _ngcontent-ng-c1887618615_slideInUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes _ngcontent-ng-c1887618615_slideInUp2 {
+  from {
+    transform: translateY(200%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes _ngcontent-ng-c1887618615_slideInDown {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+[_nghost-ng-c1887618615] {
+  display: flex;
+  flex-flow: column;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background-color: rgba(59, 0, 137, 0.5);
+}
+[_nghost-ng-c1887618615]   .message[_ngcontent-ng-c1887618615] {
+  position: absolute;
+  top: 4px;
+  left: 24px;
+  transform: translateY(-300%);
+  z-index: 1;
+  animation: _ngcontent-ng-c1887618615_showElastic 0.8s linear forwards;
+  width: max-content;
+  max-width: none;
+}
+[_nghost-ng-c1887618615]   .message[_ngcontent-ng-c1887618615]   .message-text[_ngcontent-ng-c1887618615] {
+  width: max-content;
+  white-space: nowrap;
+}
+[_nghost-ng-c1887618615]   .camera-button[_ngcontent-ng-c1887618615] {
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  width: 66px;
+  height: 66px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  background-image: url("./media/button-camera-XMAZB2RA.svg");
+  background-size: 66px;
+  transform-origin: center;
+  will-change: transform, opacity;
+  animation: _ngcontent-ng-c1887618615_popIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  filter: drop-shadow(0 8px 24px rgba(59, 0, 137, 0.3));
+}
+[_nghost-ng-c1887618615]   .close[_ngcontent-ng-c1887618615] {
+  position: absolute;
+  top: 12px;
+  right: 24px;
+  z-index: 1;
+}
+[_nghost-ng-c1887618615]   .action[_ngcontent-ng-c1887618615] {
+  position: relative;
+  flex: 1 1 auto;
+}
+[_nghost-ng-c1887618615]   .action[_ngcontent-ng-c1887618615]   video[_ngcontent-ng-c1887618615], 
+[_nghost-ng-c1887618615]   .action[_ngcontent-ng-c1887618615]   canvas[_ngcontent-ng-c1887618615], 
+[_nghost-ng-c1887618615]   .action[_ngcontent-ng-c1887618615]   svg[_ngcontent-ng-c1887618615] {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+[_nghost-ng-c1887618615]   .action[_ngcontent-ng-c1887618615]   .overlay[_ngcontent-ng-c1887618615]   rect[_ngcontent-ng-c1887618615] {
+  fill: rgba(59, 0, 137, 0.5);
+}
+[_nghost-ng-c1887618615]   .action[_ngcontent-ng-c1887618615]   .overlay[_ngcontent-ng-c1887618615]   path[_ngcontent-ng-c1887618615] {
+  stroke: #B969FF;
+  fill: white;
+}
+[_nghost-ng-c1887618615]   .action[_ngcontent-ng-c1887618615]   .overlay[_ngcontent-ng-c1887618615]   circle[_ngcontent-ng-c1887618615] {
+  fill: #000;
+  stroke: #B969FF;
+}
+@keyframes _ngcontent-ng-c1887618615_showElastic {
+  0% {
+    transform: translateY(-300%);
+  }
+  16% {
+    transform: translateY(96.81%);
+  }
+  28% {
+    transform: translateY(-39.36%);
+  }
+  44% {
+    transform: translateY(13.89%);
+  }
+  59% {
+    transform: translateY(-4.92%);
+  }
+  73% {
+    transform: translateY(1.73%);
+  }
+  88% {
+    transform: translateY(-0.6%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+@keyframes _ngcontent-ng-c1887618615_popIn {
+  0% {
+    transform: translateX(-50%) scale(0.92);
+    opacity: 0;
+  }
+  60% {
+    transform: translateX(-50%) scale(1.06);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [_nghost-ng-c1887618615]   .camera-button[_ngcontent-ng-c1887618615] {
+    animation: _ngcontent-ng-c1887618615_popFade 160ms ease-out both;
+  }
+}
+@keyframes _ngcontent-ng-c1887618615_popFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}</style></head>
+<body><!--nghm--><script type="text/javascript" id="ng-event-dispatch-contract">(()=>{function p(t,n,r,o,e,i,f,m){return{eventType:t,event:n,targetElement:r,eic:o,timeStamp:e,eia:i,eirp:f,eiack:m}}function u(t){let n=[],r=e=>{n.push(e)};return{c:t,q:n,et:[],etc:[],d:r,h:e=>{r(p(e.type,e,e.target,t,Date.now()))}}}function s(t,n,r){for(let o=0;o<n.length;o++){let e=n[o];(r?t.etc:t.et).push(e),t.c.addEventListener(e,t.h,r)}}function c(t,n,r,o,e=window){let i=u(t);e._ejsas||(e._ejsas={}),e._ejsas[n]=i,s(i,r),s(i,o,!0)}window.__jsaction_bootstrap=c;})();
+</script><script>window.__jsaction_bootstrap(document.body,"ng",["click"],[]);</script>
+  <app-root ng-version="19.2.17" ngh="1" ng-server-context="ssg"><router-outlet></router-outlet><app-scanner _nghost-ng-c1887618615="" ngh="0"><!----><!----><a _ngcontent-ng-c1887618615="" queryparamshandling="preserve" class="close" href="/he/" jsaction="click:;"><svg _ngcontent-ng-c1887618615="" xmlns="http://www.w3.org/2000/svg" width="33" height="32" viewBox="0 0 33 32" fill="none"><path _ngcontent-ng-c1887618615="" d="M9.4086 8.00799C10.1897 7.22694 11.456 7.22694 12.237 8.00799L17.4167 13.1877L22.5957 8.00868L22.7483 7.87127C23.5339 7.23087 24.692 7.27656 25.4242 8.00868C26.1561 8.74081 26.2019 9.89903 25.5616 10.6845L25.4242 10.8371L20.2452 16.0161L25.4242 21.1951L25.5616 21.3477C26.2019 22.1333 26.1563 23.2914 25.4242 24.0235C24.692 24.7555 23.5338 24.8013 22.7483 24.161L22.5957 24.0235L17.4167 18.8445L12.237 24.0242C11.456 24.8049 10.1896 24.805 9.4086 24.0242C8.62767 23.2433 8.62789 21.9769 9.4086 21.1958L14.5883 16.0161L9.4086 10.8364C8.62761 10.0554 8.62773 8.78905 9.4086 8.00799Z" fill="white"></path></svg></a><div _ngcontent-ng-c1887618615="" class="action"><canvas _ngcontent-ng-c1887618615=""></canvas><video _ngcontent-ng-c1887618615="" autoplay="" playsinline="" muted="" volume="0"></video><svg _ngcontent-ng-c1887618615="" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="false" class="overlay-svg" viewBox="0 0 480 640"><defs _ngcontent-ng-c1887618615=""><mask _ngcontent-ng-c1887618615="" id="mask"><rect _ngcontent-ng-c1887618615="" x="0" y="0" width="100%" height="100%" fill="white"></rect><path _ngcontent-ng-c1887618615="" fill="#000" stroke="white" stroke-width="4" d=""></path><!----></mask></defs><g _ngcontent-ng-c1887618615="" mask="url(#mask)" class="overlay"><rect _ngcontent-ng-c1887618615="" x="0" y="0" width="100%" height="100%"></rect><path _ngcontent-ng-c1887618615="" stroke-width="4" d=""></path><!----></g></svg></div></app-scanner><!----></app-root>
+<link rel="modulepreload" href="chunk-NWR7T6GD.js"><script src="polyfills-J42HH2UI.js" type="module"></script><script src="main-PMSO4PHL.js" type="module"></script>
+
+<script id="ng-state" type="application/json">{"__nghData__":[{"t":{"0":"t38","1":"t39","16":"t40","21":"t41"},"c":{"0":[],"1":[],"16":[],"21":[]}},{"c":{"0":[{"i":"c1887618615","r":1}]}}]}</script></body></html>
