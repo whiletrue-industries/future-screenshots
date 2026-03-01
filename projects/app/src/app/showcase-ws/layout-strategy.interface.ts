@@ -37,16 +37,21 @@ export abstract class LayoutStrategy {
    * @returns Promise that resolves to the layout position, or null if photo should be hidden
    */
   abstract getPositionForPhoto(
-    photoData: PhotoData, 
-    existingPhotos: PhotoData[]
+    photoData: PhotoData,
+    existingPhotos: PhotoData[],
+    options?: { enableAutoPositioning?: boolean }
   ): Promise<LayoutPosition | null>;
 
   /**
    * Recalculate positions for all photos (used when switching layouts)
    * @param photos All photos to be positioned
+   * @param options Optional layout options (e.g. enableAutoPositioning for SVG layout)
    * @returns Promise that resolves to array of positions corresponding to input photos (null means hide photo)
    */
-  abstract calculateAllPositions(photos: PhotoData[]): Promise<(LayoutPosition | null)[]>;
+  abstract calculateAllPositions(
+    photos: PhotoData[],
+    options?: { enableAutoPositioning?: boolean }
+  ): Promise<(LayoutPosition | null)[]>;
 
   // Optional lifecycle methods
   async initialize(options?: any): Promise<void> {

@@ -38,22 +38,12 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   private isDragging = false;
   private hotspotPhotoCount = new Map<string, number>();
   private photoHotspotMap = new Map<string, SvgHotspot>();
-  private debugOverlay: SVGSVGElement | HTMLDivElement | null = null;
   private photoSizes = new Map<string, { width: number; height: number }>();
   private batchPositionedPhotos = new Map<string, Array<{ svgX: number; svgY: number }>>();
   private readonly MAX_OVERLAP_PERCENT = 10;
   private readonly PHOTO_WIDTH = 120;
   private readonly PHOTO_HEIGHT = 120;
   private hotspotSlots = new Map<string, Array<{ svgX: number; svgY: number }>>();
-  private slotLogEnabled = ((): boolean => {
-    try {
-      if (typeof window === 'undefined') return false;
-      const params = new URLSearchParams(window.location.search);
-      return params.get('slotlog') === '1';
-    } catch {
-      return false;
-    }
-  })();
 
   // Configuration
   private options: Required<SvgLayoutOptions> = {
@@ -126,6 +116,15 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     };
   }
 
+  getSvgBounds(): { minX: number; maxX: number; minY: number; maxY: number } {
+    return {
+      minX: this.options.svgOffsetX - this.options.circleRadius,
+      maxX: this.options.svgOffsetX + this.options.circleRadius,
+      minY: this.options.svgOffsetY - this.options.circleRadius,
+      maxY: this.options.svgOffsetY + this.options.circleRadius,
+    };
+  }
+
   override async initialize(options?: SvgLayoutOptions): Promise<void> {
     await super.initialize(options);
     
@@ -155,13 +154,11 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     this.hotspotPhotoCount.clear();
     this.photoHotspotMap.clear();
     this.photoSizes.clear();
-    this.removeDebugOverlay();
   }
 
   private async loadSvgBackground(): Promise<void> {
     // Skip on server-side rendering
     if (typeof fetch === 'undefined' || typeof document === 'undefined') {
-      console.log('[SVG-LOAD] Skipping SVG load on server-side rendering');
       return;
     }
     
@@ -191,7 +188,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
   private extractHotspots(): void {
     // Skip on server-side rendering
     if (typeof document === 'undefined') {
-      console.log('[SVG-HOTSPOT] Skipping hotspot extraction on server-side rendering');
       return;
     }
     
@@ -283,7 +279,8 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     // SVG remains in DOM for hit testing
   }
 
-  async getPositionForPhoto(photoData: PhotoData, existingPhotos: PhotoData[], enableAutoPositioning: boolean = false): Promise<LayoutPosition | null> {
+  async getPositionForPhoto(photoData: PhotoData, existingPhotos: PhotoData[], options?: { enableAutoPositioning?: boolean }): Promise<LayoutPosition | null> {
+    const enableAutoPositioning = options?.enableAutoPositioning ?? false;
     this.validateInitialized();
 
     // Track photo dimensions if available
@@ -291,22 +288,22 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     const photoHeight = photoData.metadata['height'] as number | undefined || this.PHOTO_HEIGHT;
     this.photoSizes.set(photoData.id, { width: photoWidth, height: photoHeight });
 
-    // Check if this photo already has a stored position in current strategy
+    // Check session cache for already-computed positions (e.g. dragged/free positions)
     const existingPosition = this.photoPositions.get(photoData.id);
     if (existingPosition) {
       return existingPosition;
     }
-    
-    // Priority 1: Check for saved manual layout coordinates (layout_x, layout_y) - user overrides auto positioning
+
+    let position: LayoutPosition;
+
+    // Priority 1: Drag position (layout_x/layout_y in metadata) trumps all
     const layout_x = photoData.metadata['layout_x'];
     const layout_y = photoData.metadata['layout_y'];
 
     if (typeof layout_x === 'number' && typeof layout_y === 'number') {
-      // Convert normalized coordinates [-1,1] back to world coordinates using currentRadius
-      const x = layout_x * this.options.circleRadius;
-      const y = layout_y * this.options.circleRadius;
+      const { x, y } = this.normalizedToWorld(layout_x, layout_y);
 
-      const restoredPosition: LayoutPosition = {
+      position = {
         x,
         y,
         metadata: {
@@ -316,23 +313,15 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
           circleRadius: this.options.circleRadius
         }
       };
-
-      // Store the restored position in current strategy and save it
-      this.photoPositions.set(photoData.id, restoredPosition);
-      photoData.setProperty('svgLayoutPosition', restoredPosition);
-
-      return restoredPosition;
     }
-
-    // Priority 2: If auto-positioning is enabled, try to get position from metadata-hotspot matching
-    if (enableAutoPositioning) {
+    // Priority 2: Auto-position from hotspot matching (when enabled)
+    else if (enableAutoPositioning) {
       const autoPosition = this.getAutoPositionFromMetadata(photoData);
       if (autoPosition) {
-        // Apply SVG offset to match the rendered SVG position
         const x = autoPosition.auto_x * this.options.circleRadius + this.options.svgOffsetX;
         const y = autoPosition.auto_y * this.options.circleRadius + this.options.svgOffsetY;
 
-        const autoPositionData: LayoutPosition = {
+        position = {
           x,
           y,
           metadata: {
@@ -344,44 +333,27 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
             svgOffsetY: this.options.svgOffsetY
           }
         };
-
-        this.photoPositions.set(photoData.id, autoPositionData);
-        photoData.setProperty('svgLayoutPosition', autoPositionData);
-        return autoPositionData;
+      } else {
+        // No hotspot match — fall through to proportional circular
+        position = this.options.useProportionalLayout
+          ? this.generateProportionalCircularPosition(photoData, existingPhotos)
+          : this.generateRandomCircularPosition();
       }
-
-      // If auto-positioning is enabled but this photo doesn't match any hotspot,
-      // fall through to use proportional circular positioning
-      // (Don't return null - that would leave the photo without a position)
+    }
+    // Priority 3: Proportional circular fallback
+    else {
+      position = this.options.useProportionalLayout
+        ? this.generateProportionalCircularPosition(photoData, existingPhotos)
+        : this.generateRandomCircularPosition();
     }
 
-    // Priority 3: Check if photo has a saved SVG layout position from previous session
-    const savedSvgPosition = photoData.getProperty<LayoutPosition>('svgLayoutPosition');
-
-    if (savedSvgPosition && savedSvgPosition.metadata?.['layoutType'] === 'proportional-circular') {
-
-      // Store the restored position in current strategy
-      this.photoPositions.set(photoData.id, savedSvgPosition);
-      return savedSvgPosition;
-    }
-    
-    // Fallback: Generate position based on layout mode
-    const position = this.options.useProportionalLayout
-      ? this.generateProportionalCircularPosition(photoData, existingPhotos)
-      : this.generateRandomCircularPosition();
-    
-    const positionType = this.options.useProportionalLayout ? 'proportional' : 'random';
-
-    
-    // Store the position both in strategy and photo properties
+    // Cache for the duration of this session
     this.photoPositions.set(photoData.id, position);
-    photoData.setProperty('svgLayoutPosition', position);
-
-    
     return position;
   }
 
-  async calculateAllPositions(photos: PhotoData[], enableAutoPositioning: boolean = false): Promise<(LayoutPosition | null)[]> {
+  async calculateAllPositions(photos: PhotoData[], options?: { enableAutoPositioning?: boolean }): Promise<(LayoutPosition | null)[]> {
+    const enableAutoPositioning = options?.enableAutoPositioning ?? false;
     this.validateInitialized();
     
     // Reset hotspot photo count for fresh distribution
@@ -390,10 +362,11 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     // Clear batch position tracker at the start of each layout calculation
     this.batchPositionedPhotos.clear();
     
-    // Clear existing positions EXCEPT for dragged/free positions that should be preserved
+    // Preserve dragged positions in session cache. The authoritative persistence
+    // mechanism is layout_x/layout_y in photo metadata (checked first in getPositionForPhoto).
+    // This cache avoids re-reading metadata for positions already resolved this session.
     const preservedPositions = new Map<string, LayoutPosition>();
     for (const [photoId, position] of this.photoPositions.entries()) {
-      // Preserve positions that were explicitly dragged by the user
       if (position.metadata?.['layoutType'] === 'free-dragged' || position.metadata?.['layoutType'] === 'dragging') {
         preservedPositions.set(photoId, position);
       }
@@ -409,7 +382,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     
     // Process each photo to get its position
     for (const photo of photos) {
-      const position = await this.getPositionForPhoto(photo, photos, enableAutoPositioning);
+      const position = await this.getPositionForPhoto(photo, photos, { enableAutoPositioning });
       positions.push(position);
     }
     
@@ -634,9 +607,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       return;
     }
     
-    // Calculate normalized coordinates during drag for consistent tracking
-    const layout_x = Math.max(-1, Math.min(1, currentPosition.x / this.options.circleRadius));
-    const layout_y = Math.max(-1, Math.min(1, currentPosition.y / this.options.circleRadius));
+    const { layout_x, layout_y } = this.worldToNormalized(currentPosition.x, currentPosition.y);
     
     // Update photo position during drag
     const layoutPosition: LayoutPosition = {
@@ -652,7 +623,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     
     // Store position both in strategy and photo properties for persistence
     this.photoPositions.set(photo.id, layoutPosition);
-    photo.setProperty('svgLayoutPosition', layoutPosition);
 
   }
 
@@ -664,9 +634,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     this.isDragging = false;
     this.draggedPhoto = null;
     
-    // Calculate normalized coordinates for the new drag position
-    const layout_x = Math.max(-1, Math.min(1, endPosition.x / this.options.circleRadius));
-    const layout_y = Math.max(-1, Math.min(1, endPosition.y / this.options.circleRadius));
+    const { layout_x, layout_y } = this.worldToNormalized(endPosition.x, endPosition.y);
     
     // Update position to final drag position (three-renderer will handle hotspot collision)
     const finalPosition: LayoutPosition = {
@@ -682,7 +650,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     
     // Store position both in strategy and photo properties for persistence
     this.photoPositions.set(photo.id, finalPosition);
-    photo.setProperty('svgLayoutPosition', finalPosition);
     
     // Update the photo metadata with new normalized coordinates
     // This ensures the drag position is maintained across layout changes
@@ -805,7 +772,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       const normalizedX = (svgX - viewBox.width / 2) / (viewBox.width / 2);
       // Invert Y axis: SVG has Y increasing downward, but 3D world has Y increasing upward
       const normalizedY = -((svgY - viewBox.height / 2) / (viewBox.height / 2));
-      // console.log(`[DIST-DEBUG] Fallback to center: normalized=(${normalizedX.toFixed(3)}, ${normalizedY.toFixed(3)})`);
       return { auto_x: normalizedX, auto_y: normalizedY };
     }
     // Use all slots without header filtering
@@ -851,20 +817,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       // Invert Y: SVG has Y increasing downward, 3D world has Y increasing upward
       const baseNormalizedY = -((candidate.svgY - viewBox.height / 2) / (viewBox.height / 2));
 
-      // When slotlog=1, skip overlap resolution for cleaner testing
-      if (this.slotLogEnabled) {
-        bestPlacement = {
-          normalizedX: baseNormalizedX,
-          normalizedY: baseNormalizedY,
-          overlap: 0,
-          displacement: 0,
-          spacing: 0,
-          svgX: candidate.svgX,
-          svgY: candidate.svgY,
-        };
-        break;
-      }
-
       const resolved = this.resolveOverlapByNudging(
         baseNormalizedX,
         baseNormalizedY,
@@ -903,37 +855,20 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
       const slotIndex = usedPositions.length % useCandidates.length;
       const bestCandidate = useCandidates[slotIndex];
       
-      if (this.slotLogEnabled) {
-        console.log(`[OVERFLOW] Hotspot capacity exceeded, using round-robin slot ${slotIndex}/${useCandidates.length}`);
-      }
-      
       const baseNormalizedX = (bestCandidate.svgX - viewBox.width / 2) / (viewBox.width / 2);
       const baseNormalizedY = -((bestCandidate.svgY - viewBox.height / 2) / (viewBox.height / 2));
       
-      // When slotlog=1, skip overlap resolution for consistency
-      if (this.slotLogEnabled) {
-        bestPlacement = {
-          normalizedX: baseNormalizedX,
-          normalizedY: baseNormalizedY,
-          overlap: 100, // Mark as overlapping since we're reusing a slot
-          displacement: 0,
-          spacing: 0,
-          svgX: bestCandidate.svgX,
-          svgY: bestCandidate.svgY,
-        };
-      } else {
-        const resolved = this.resolveOverlapByNudging(baseNormalizedX, baseNormalizedY, hotspot, viewBox);
-        const svgCoords = this.normalizedToSvg(resolved.normalizedX, resolved.normalizedY, viewBox);
-        bestPlacement = {
-          normalizedX: resolved.normalizedX,
-          normalizedY: resolved.normalizedY,
-          overlap: resolved.overlap,
-          displacement: resolved.displacement,
-          spacing: this.getMinDistanceToExistingPhotos(resolved.normalizedX, resolved.normalizedY, hotspot),
-          svgX: svgCoords.svgX,
-          svgY: svgCoords.svgY,
-        };
-      }
+      const resolved = this.resolveOverlapByNudging(baseNormalizedX, baseNormalizedY, hotspot, viewBox);
+      const svgCoords = this.normalizedToSvg(resolved.normalizedX, resolved.normalizedY, viewBox);
+      bestPlacement = {
+        normalizedX: resolved.normalizedX,
+        normalizedY: resolved.normalizedY,
+        overlap: resolved.overlap,
+        displacement: resolved.displacement,
+        spacing: this.getMinDistanceToExistingPhotos(resolved.normalizedX, resolved.normalizedY, hotspot),
+        svgX: svgCoords.svgX,
+        svgY: svgCoords.svgY,
+      };
     }
 
     // Record this position as used
@@ -950,9 +885,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     try {
       const bounds = hotspot.bounds;
       if (!bounds || bounds.width === 0 || bounds.height === 0) {
-        if (this.slotLogEnabled) {
-          console.warn(`[PATH-CHECK] Invalid bounds:`, bounds);
-        }
         return false;
       }
 
@@ -1370,11 +1302,9 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     }
     
     if (existingPhotosInHotspot.length === 0) {
-      // console.log(`[OVERLAP-DEBUG] No existing photos in hotspot, overlap=0%`);
       return 0; // No overlap if no existing photos
     }
     
-    // console.log(`[OVERLAP-DEBUG] Checking ${existingPhotosInHotspot.length} existing photos in hotspot for candidate at (${normalizedX.toFixed(3)},${normalizedY.toFixed(3)})`);
     
     // Get dimensions of photo to be placed
     const newPhotoSize = {
@@ -1397,15 +1327,9 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
         existing.width,
         existing.height
       );
-      
-      // if (i === 0) {
-      //   console.log(`[OVERLAP-DEBUG] Existing photo ${i}: pos=(${existing.x.toFixed(1)},${existing.y.toFixed(1)}) size=(${existing.width},${existing.height}), overlap=${overlapPercent.toFixed(1)}%`);
-      // }
-      
       maxOverlapPercent = Math.max(maxOverlapPercent, overlapPercent);
     }
     
-    // console.log(`[OVERLAP-DEBUG] Max overlap for this candidate: ${maxOverlapPercent.toFixed(1)}%`);
     return maxOverlapPercent;
   }
 
@@ -1441,7 +1365,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     
     // No overlap if rectangles don't intersect
     if (intersectRight <= intersectLeft || intersectBottom <= intersectTop) {
-      // console.log('[RECT-MATH] No intersection: right<=left or bottom<=top');
       return 0;
     }
     
@@ -1453,10 +1376,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     // Calculate percentage relative to new photo area
     const newArea = newWidth * newHeight;
     const overlapPercent = (overlapArea / newArea) * 100;
-    // console.log('[RECT-MATH] New rect:', {newLeft, newTop, newRight, newBottom, newWidth, newHeight, newArea}, 
-    //             'Existing rect:', {existingLeft, existingTop, existingRight, existingBottom, existingWidth, existingHeight},
-    //             'Intersection:', {intersectLeft, intersectTop, intersectRight, intersectBottom, overlapWidth, overlapHeight, overlapArea},
-    //             'Result:', overlapPercent);
     return overlapPercent;
   }
 
@@ -1464,6 +1383,22 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
    * Parse metadata from SVG group ID
    * Format: s-favorable_future=preferred,plausibility=0,transition_bar_position=after
    */
+  /** Convert world coordinates to normalized layout coordinates [-1, 1] relative to SVG center */
+  worldToNormalized(worldX: number, worldY: number): { layout_x: number; layout_y: number } {
+    return {
+      layout_x: Math.max(-1, Math.min(1, (worldX - (this.options.svgOffsetX || 0)) / this.options.circleRadius)),
+      layout_y: Math.max(-1, Math.min(1, (worldY - (this.options.svgOffsetY || 0)) / this.options.circleRadius))
+    };
+  }
+
+  /** Convert normalized layout coordinates [-1, 1] to world coordinates */
+  normalizedToWorld(layout_x: number, layout_y: number): { x: number; y: number } {
+    return {
+      x: layout_x * this.options.circleRadius + (this.options.svgOffsetX || 0),
+      y: layout_y * this.options.circleRadius + (this.options.svgOffsetY || 0)
+    };
+  }
+
   private parseGroupIdMetadata(groupId: string): { plausibility: number; favorable_future: string; transition_bar_position: string } | null {
     try {
       // Remove the 's-' prefix and split by comma
@@ -1570,11 +1505,7 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
    * This ensures consistency between drag positions and API-saved positions
    */
   updatePhotoAfterHotspotDrop(photoId: string, position: { x: number, y: number, z: number }, hotspotData: { [key: string]: string | number }): void {
-    const photo = this.photoPositions.has(photoId) ? null : null; // We don't have direct access to PhotoData here
-    
-    // Calculate normalized coordinates for the hotspot drop position
-    const layout_x = Math.max(-1, Math.min(1, position.x / this.options.circleRadius));
-    const layout_y = Math.max(-1, Math.min(1, position.y / this.options.circleRadius));
+    const { layout_x, layout_y } = this.worldToNormalized(position.x, position.y);
     
     // Create position with hotspot drop metadata
     const hotspotDropPosition: LayoutPosition = {
@@ -1591,20 +1522,6 @@ export class SvgBackgroundLayoutStrategy extends LayoutStrategy implements Inter
     
     // Update the stored position
     this.photoPositions.set(photoId, hotspotDropPosition);
-  }
-
-  private removeDebugOverlay(): void {
-    if (typeof document === 'undefined') return;
-
-    const hotspotOverlay = document.getElementById('svg-hotspot-debug-overlay');
-    if (hotspotOverlay?.parentNode) {
-      hotspotOverlay.parentNode.removeChild(hotspotOverlay);
-    }
-
-    const candidateOverlay = document.getElementById('svg-candidate-slots-overlay');
-    if (candidateOverlay?.parentNode) {
-      candidateOverlay.parentNode.removeChild(candidateOverlay);
-    }
   }
 
 }

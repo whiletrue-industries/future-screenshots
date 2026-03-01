@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
-import { Subject, Observable, timer, from, forkJoin } from 'rxjs';
-import * as THREE from 'three';
+import { Subject, Observable } from 'rxjs';
 import { PhotoData, PhotoMetadata, PhotoAnimationState } from './photo-data';
-import { LayoutStrategy, LayoutPosition, isInteractiveLayout } from './layout-strategy.interface';
+import { LayoutStrategy, LayoutPosition } from './layout-strategy.interface';
+import { SvgBackgroundLayoutStrategy } from './svg-background-layout-strategy';
 import { ThreeRendererService } from './three-renderer.service';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { PHOTO_CONSTANTS } from './photo-constants';
@@ -29,13 +29,14 @@ export class PhotoDataRepository {
   private enableRandomShowcase = false;
   private enableSvgAutoPositioning = false;
   private isDragEnabled = true; // Permission-based flag for dragging
+  private svgVisible = false; // Whether SVG background is visible (enables drag)
+  private svgStrategy: SvgBackgroundLayoutStrategy | null = null; // SVG strategy reference for drag handlers
   private showcaseInterval: number = ANIMATION_CONSTANTS.SHOWCASE_INTERVAL;
   private newPhotoAnimationDelay: number = ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DELAY;
   
   // State management
   private showcaseTimer: any = null;
   private isShowcasing = false;
-  private cameraBoundsUpdateTimer: any = null;
   
   // Queue system for new photos awaiting showcase
   private photoQueue: string[] = [];
@@ -100,10 +101,19 @@ export class PhotoDataRepository {
       // Recalculate all positions for layouts that need it (like circle-packing)
       const allPhotos = Array.from(this.photos.values());
       const allPositions = await this.layoutStrategy.calculateAllPositions(allPhotos);
-      
+
+      // Override with saved drag positions (layout_x/layout_y) when SVG is visible
+      // but the active strategy is circle-packing (auto-positioning off)
+      allPhotos.forEach((photo, index) => {
+        const dragOverride = this.getDragPositionOverride(photo);
+        if (dragOverride) {
+          allPositions[index] = dragOverride;
+        }
+      });
+
       // Update all photos with new positions
       const animationPromises: Promise<void>[] = [];
-      
+
       allPhotos.forEach((photo, index) => {
         const layoutPosition = allPositions[index];
         
@@ -173,12 +183,15 @@ export class PhotoDataRepository {
       }
     } else {
       // Position just the new photo for other layouts
-      const layoutPosition = await this.layoutStrategy.getPositionForPhoto(
-        photoData, 
-        Array.from(this.photos.values())
-      );
+      let layoutPosition: LayoutPosition | null = this.getDragPositionOverride(photoData);
+      if (!layoutPosition) {
+        layoutPosition = await this.layoutStrategy.getPositionForPhoto(
+          photoData,
+          Array.from(this.photos.values())
+        );
+      }
 
-      hasValidPosition = !!(layoutPosition && 
+      hasValidPosition = !!(layoutPosition &&
         (layoutPosition.x !== undefined && layoutPosition.y !== undefined));
       
       if (hasValidPosition && layoutPosition) {
@@ -206,14 +219,12 @@ export class PhotoDataRepository {
     photoData.setMesh(mesh);
     this.renderer.setMeshPhotoId(mesh, photoData.id);
 
-    // Enable hover/drag detection for ALL layouts
-    // For interactive layouts, this enables actual dragging
-    // For non-interactive layouts, this enables hover feedback (cursor changes)
+    // Enable hover detection for cursor feedback
     this.setupHoverDetectionForPhoto(photoData);
-    
-    // Enable dragging for interactive layouts
-    if (this.layoutStrategy && isInteractiveLayout(this.layoutStrategy)) {
-      this.setupInteractiveDragForPhoto(photoData);
+
+    // Enable dragging when SVG background is visible
+    if (this.svgVisible) {
+      this.setupDragForPhoto(photoData);
     }
 
      if (hasValidPosition) {
@@ -242,7 +253,7 @@ export class PhotoDataRepository {
 
     // Update camera bounds if photo was placed immediately (not animated)
     if (hasValidPosition) {
-      this.updateCameraBounds();
+      this.updateCamera();
     }
 
     this.photoAddedSubject.next(photoData);
@@ -273,7 +284,7 @@ export class PhotoDataRepository {
     this.photos.delete(id);
     
     // Update camera bounds since grid size changed
-    this.updateCameraBounds();
+    this.updateCamera();
     
     this.photoRemovedSubject.next(id);
     return true;
@@ -337,59 +348,73 @@ export class PhotoDataRepository {
       newStrategy.addPhoto(photo);
     }
 
-    // Calculate new positions for all photos (pass auto-positioning flag for SVG background)
-    let newPositions: Array<LayoutPosition | null> = [];
-    if (newStrategy.getConfiguration().name === 'svg-background' && 'calculateAllPositions' in newStrategy) {
-      newPositions = await (newStrategy as any).calculateAllPositions(currentPhotos, this.enableSvgAutoPositioning);
-    } else {
-      newPositions = await (newStrategy as any).calculateAllPositions(currentPhotos);
-    }
+    // Calculate new positions for all photos
+    const newPositions = await newStrategy.calculateAllPositions(currentPhotos, {
+      enableAutoPositioning: this.enableSvgAutoPositioning
+    });
+
+    // Override with saved drag positions (layout_x/layout_y) when SVG is visible
+    // but the active strategy is circle-packing (auto-positioning off)
+    currentPhotos.forEach((photo, index) => {
+      const dragOverride = this.getDragPositionOverride(photo);
+      if (dragOverride) {
+        newPositions[index] = dragOverride;
+      }
+    });
 
     // Update layout strategy
     this.layoutStrategy = newStrategy;
 
-    // Update all photos with new positions and visibility
-    const animationPromises = currentPhotos.map(async (photo, index) => {
+    // Set all target positions and opacity eagerly (before staggered animations)
+    // so that computeSceneBounds() sees the final layout immediately.
+    currentPhotos.forEach((photo, index) => {
       const newPosition = newPositions[index];
-      
-      // Add stagger delay based on index for natural cascading effect
-      const staggerDelay = index * ANIMATION_CONSTANTS.LAYOUT_STAGGER_DELAY;
-      if (staggerDelay > 0) {
-        await new Promise(resolve => setTimeout(resolve, staggerDelay * 1000));
-      }
-      
-      // Check if photo has valid position in new layout (not null)
       const hasValidPosition = newPosition !== null;
 
-      // Get current opacity from mesh material
-      const currentOpacity = photo.mesh?.material && 'opacity' in photo.mesh.material ? 
-        (photo.mesh.material as any).opacity : 1;
-      
       if (hasValidPosition) {
-        // Always make photo visible when it has a valid position
         photo.setProperty('opacity', 1);
         photo.setTargetPosition({
           x: newPosition.x,
           y: newPosition.y,
           z: photo.targetPosition.z
         });
-        
-        // Store layout metadata
         if (newPosition.metadata) {
           photo.updateMetadata(newPosition.metadata);
         }
         if (newPosition.gridKey) {
           photo.setProperty('gridKey', newPosition.gridKey);
         }
-        
-        // Animate both position and opacity to visible state
+      } else if (toLayout === 'svg-background') {
+        photo.setProperty('opacity', 1);
+      } else {
+        photo.setProperty('opacity', 0);
+        photo.setTargetPosition({ x: 0, y: 0, z: 0 });
+      }
+    });
+
+    // Now run staggered visual animations
+    const animationPromises = currentPhotos.map(async (photo, index) => {
+      const newPosition = newPositions[index];
+      const hasValidPosition = newPosition !== null;
+
+      // Add stagger delay based on index for natural cascading effect
+      const staggerDelay = index * ANIMATION_CONSTANTS.LAYOUT_STAGGER_DELAY;
+      if (staggerDelay > 0) {
+        await new Promise(resolve => setTimeout(resolve, staggerDelay * 1000));
+      }
+
+      // Get current opacity from mesh material
+      const currentOpacity = photo.mesh?.material && 'opacity' in photo.mesh.material ?
+        (photo.mesh.material as any).opacity : 1;
+
+      if (hasValidPosition) {
         if (photo.mesh) {
           const actualCurrentPosition = {
             x: photo.mesh.position.x,
             y: photo.mesh.position.y,
             z: photo.mesh.position.z
           };
-          
+
           return this.animateToPositionWithOpacityUpdate(
             photo,
             actualCurrentPosition,
@@ -399,60 +424,46 @@ export class PhotoDataRepository {
             ANIMATION_CONSTANTS.LAYOUT_TRANSITION_DURATION
           );
         }
+      } else if (toLayout === 'svg-background') {
+        return Promise.resolve();
       } else {
-        // For SVG layout: keep photo in cluster position (don't hide, don't move)
-        // For other layouts: hide photo and move to (0,0)
-        if (toLayout === 'svg-background') {
-          // Keep existing position and visibility - no animation needed
-          photo.setProperty('opacity', 1);
-          // Don't change targetPosition - keep current cluster position
-          return Promise.resolve();
-        } else {
-          // Hide photo and move to (0,0)
-          photo.setProperty('opacity', 0);
-          photo.setTargetPosition({ x: 0, y: 0, z: 0 });
-          // Animate to (0,0) and fade out simultaneously
-          if (photo.mesh) {
-            const actualCurrentPosition = {
-              x: photo.mesh.position.x,
-              y: photo.mesh.position.y,
-              z: photo.mesh.position.z
-            };
-            
-            return this.animateToPositionWithOpacityUpdate(
-              photo,
-              actualCurrentPosition,
-              { x: 0, y: 0, z: 0 },
-              currentOpacity,
-              0, // target opacity
-              ANIMATION_CONSTANTS.INVISIBLE_POSITION_TRANSITION_DURATION
-            );
-          }
+        if (photo.mesh) {
+          const actualCurrentPosition = {
+            x: photo.mesh.position.x,
+            y: photo.mesh.position.y,
+            z: photo.mesh.position.z
+          };
+
+          return this.animateToPositionWithOpacityUpdate(
+            photo,
+            actualCurrentPosition,
+            { x: 0, y: 0, z: 0 },
+            currentOpacity,
+            0, // target opacity
+            ANIMATION_CONSTANTS.INVISIBLE_POSITION_TRANSITION_DURATION
+          );
         }
       }
     });
 
     // Start camera animation simultaneously with photo animations
-    const cameraAnimationPromise = this.updateCameraBoundsAnimated(true);
-    
+    const cameraAnimationPromise = this.updateCamera({ animate: true, force: true });
+
     // Wait for both photo animations and camera animation to complete
     await Promise.all([
       Promise.all(animationPromises.filter(Boolean)),
       cameraAnimationPromise
     ]);
     
-    // Enable dragging for all existing photos if switching to interactive layout
-    if (isInteractiveLayout(this.layoutStrategy)) {
+    // Enable dragging when SVG background is visible (regardless of layout strategy)
+    if (this.svgVisible) {
       for (const photo of currentPhotos) {
         if (photo.mesh) {
-          // Set mesh-to-photoId mapping for hotspot detection
           this.renderer.setMeshPhotoId(photo.mesh, photo.id);
-          
-          this.setupInteractiveDragForPhoto(photo);
+          this.setupDragForPhoto(photo);
         }
       }
     } else {
-      // Disable dragging for all photos when switching to non-interactive layout
       this.renderer.disableAllDragging();
     }
     
@@ -483,6 +494,11 @@ export class PhotoDataRepository {
     this.isDragEnabled = enabled;
   }
 
+  setSvgVisible(visible: boolean, svgStrategy?: SvgBackgroundLayoutStrategy): void {
+    this.svgVisible = visible;
+    this.svgStrategy = visible && svgStrategy ? svgStrategy : null;
+  }
+
   /**
    * Refresh layout with current auto-positioning setting
    */
@@ -494,17 +510,45 @@ export class PhotoDataRepository {
 
     const allPhotos = Array.from(this.photos.values());
     
-    // For SVG layout, pass the auto-positioning flag
-    let positions: (LayoutPosition | null)[] = [];
-    if (this.layoutStrategy.getConfiguration().name === 'svg-background' && 'calculateAllPositions' in this.layoutStrategy) {
-      // Cast to any to access method with optional parameter
-      positions = await (this.layoutStrategy as any).calculateAllPositions(allPhotos, this.enableSvgAutoPositioning);
-    } else {
-      // For other layouts, use standard calculateAllPositions
-      positions = await (this.layoutStrategy as any).calculateAllPositions(allPhotos);
-    }
+    const positions = await this.layoutStrategy.calculateAllPositions(allPhotos, {
+      enableAutoPositioning: this.enableSvgAutoPositioning
+    });
 
-    // Update all photos with new positions and visibility
+    // Override with saved drag positions (layout_x/layout_y) when SVG is visible
+    // but the active strategy is circle-packing (auto-positioning off)
+    allPhotos.forEach((photo, index) => {
+      const dragOverride = this.getDragPositionOverride(photo);
+      if (dragOverride) {
+        positions[index] = dragOverride;
+      }
+    });
+
+    // Phase 1: Eagerly set all target positions and opacity synchronously
+    // so that computeSceneBounds() sees the final layout immediately.
+    allPhotos.forEach((photo, index) => {
+      const newPosition = positions[index];
+      const hasValidPosition = newPosition !== null;
+
+      if (hasValidPosition) {
+        photo.setProperty('opacity', 1);
+        photo.setTargetPosition({
+          x: newPosition.x,
+          y: newPosition.y,
+          z: photo.targetPosition.z
+        });
+        if (newPosition.metadata) {
+          photo.updateMetadata(newPosition.metadata);
+        }
+        if (newPosition.gridKey) {
+          photo.setProperty('gridKey', newPosition.gridKey);
+        }
+      } else {
+        photo.setProperty('opacity', 0);
+        photo.setTargetPosition({ x: 0, y: 0, z: 0 });
+      }
+    });
+
+    // Phase 2: Run staggered visual animations
     const animationPromises = allPhotos.map(async (photo, index) => {
       const newPosition = positions[index];
       
@@ -514,7 +558,6 @@ export class PhotoDataRepository {
         await new Promise(resolve => setTimeout(resolve, staggerDelay * 1000));
       }
       
-      // Check if photo has valid position in new layout (not null)
       const hasValidPosition = newPosition !== null;
 
       // Get current opacity from mesh material
@@ -522,23 +565,6 @@ export class PhotoDataRepository {
         (photo.mesh.material as any).opacity : 1;
       
       if (hasValidPosition) {
-        // Always make photo visible when it has a valid position
-        photo.setProperty('opacity', 1);
-        photo.setTargetPosition({
-          x: newPosition.x,
-          y: newPosition.y,
-          z: photo.targetPosition.z
-        });
-        
-        // Store layout metadata
-        if (newPosition.metadata) {
-          photo.updateMetadata(newPosition.metadata);
-        }
-        if (newPosition.gridKey) {
-          photo.setProperty('gridKey', newPosition.gridKey);
-        }
-        
-        // Animate both position and opacity to visible state
         if (photo.mesh) {
           const actualCurrentPosition = {
             x: photo.mesh.position.x,
@@ -556,10 +582,6 @@ export class PhotoDataRepository {
           );
         }
       } else {
-        // Hide photo and move to (0,0)
-        photo.setProperty('opacity', 0);
-        photo.setTargetPosition({ x: 0, y: 0, z: 0 });
-        // Animate to (0,0) and fade out simultaneously
         if (photo.mesh) {
           const actualCurrentPosition = {
             x: photo.mesh.position.x,
@@ -580,8 +602,8 @@ export class PhotoDataRepository {
     });
 
     // Start camera animation simultaneously with photo animations
-    const cameraAnimationPromise = this.updateCameraBoundsAnimated(true);
-    
+    const cameraAnimationPromise = this.updateCamera({ animate: true, force: true });
+
     // Wait for both photo animations and camera animation to complete
     await Promise.all([
       Promise.all(animationPromises.filter(Boolean)),
@@ -714,12 +736,6 @@ export class PhotoDataRepository {
       this.showcaseTimer = null;
     }
     
-    // Stop camera bounds updates
-    if (this.cameraBoundsUpdateTimer) {
-      clearTimeout(this.cameraBoundsUpdateTimer);
-      this.cameraBoundsUpdateTimer = null;
-    }
-
     // Clean up all photos
     this.photos.forEach(photo => {
       if (photo.mesh && this.renderer) {
@@ -773,7 +789,7 @@ export class PhotoDataRepository {
     photoData.setAnimationState(PhotoAnimationState.POSITIONED);
     
     // Update camera bounds with animation for new photos
-    await this.updateCameraBoundsAnimated(true);
+    await this.updateCamera({ animate: true });
   }
 
   /**
@@ -831,133 +847,36 @@ export class PhotoDataRepository {
   }
 
   /**
-   * Update camera bounds based on visible photos (debounced)
+   * Compute the bounding box of all visible content (photos + SVG if visible).
+   * Single source of truth for scene extent — no hardcoded radius values.
    */
-  private updateCameraBounds(): void {
-    // Debounce camera bounds updates to prevent excessive calls
-    if (this.cameraBoundsUpdateTimer) {
-      clearTimeout(this.cameraBoundsUpdateTimer);
-    }
-    
-    this.cameraBoundsUpdateTimer = setTimeout(() => {
-      this.performCameraBoundsUpdate();
-    }, ANIMATION_CONSTANTS.CAMERA_BOUNDS_UPDATE_DEBOUNCE);
-  }
-  
-  /**
-   * Actually perform the camera bounds update
-   */
-  private performCameraBoundsUpdate(): void {
-    if (!this.renderer) {
-      return;
-    }
-
+  computeSceneBounds(): { minX: number; maxX: number; minY: number; maxY: number } {
     const visiblePhotos = this.getVisiblePhotos();
-    if (visiblePhotos.length === 0) {
-      return;
+    const positions = visiblePhotos.map(p => ({ x: p.targetPosition.x, y: p.targetPosition.y }));
+    let bounds = this.calculateBounds(positions);
+
+    if (this.svgVisible && this.svgStrategy) {
+      const svg = this.svgStrategy.getSvgBounds();
+      bounds = {
+        minX: Math.min(bounds.minX, svg.minX),
+        maxX: Math.max(bounds.maxX, svg.maxX),
+        minY: Math.min(bounds.minY, svg.minY),
+        maxY: Math.max(bounds.maxY, svg.maxY),
+      };
     }
-
-    const positions = visiblePhotos.map(photo => ({
-      x: photo.targetPosition.x,
-      y: photo.targetPosition.y
-    }));
-
-    const bounds = this.calculateBounds(positions);
-    this.renderer.updateCameraTarget(bounds);
+    return bounds;
   }
 
   /**
-   * Update camera bounds with animation after layout changes
+   * Push scene bounds to the renderer (the single camera-update entry point).
    */
-  private async updateCameraBoundsAnimated(animate: boolean = true): Promise<void> {
-    if (!this.renderer) {
-      return;
-    }
-
-    const visiblePhotos = this.getVisiblePhotos();
-    if (visiblePhotos.length === 0) {
-      return;
-    }
-
-    // Get layout name to determine camera positioning strategy
-    const layoutName = this.layoutStrategy?.getConfiguration().name;
-
-    let bounds: { minX: number; maxX: number; minY: number; maxY: number };
-
-    if (layoutName === 'svg-background') {
-      // For SVG layout: include both SVG area and all photo positions
-      const svgCircleRadius = 20000; // Same as in showcase-ws.component.ts
-      const svgOffsetX = -svgCircleRadius * 1.6; // Same calculation as in switchToSvgLayout
-      
-      // Start with SVG bounds
-      const svgBounds = {
-        minX: svgOffsetX - svgCircleRadius,
-        maxX: svgOffsetX + svgCircleRadius,
-        minY: -svgCircleRadius,
-        maxY: svgCircleRadius
-      };
-      
-      // Calculate bounds from actual photo positions (includes cluster items)
-      const positions = visiblePhotos.map(photo => ({
-        x: photo.targetPosition.x,
-        y: photo.targetPosition.y
-      }));
-      const photoBounds = this.calculateBounds(positions);
-      
-      // Merge bounds to include both SVG and all photos
-      bounds = {
-        minX: Math.min(svgBounds.minX, photoBounds.minX),
-        maxX: Math.max(svgBounds.maxX, photoBounds.maxX),
-        minY: Math.min(svgBounds.minY, photoBounds.minY),
-        maxY: Math.max(svgBounds.maxY, photoBounds.maxY)
-      };
-      
-      // Add extra margin (20%) for comfortable dragging
-      const marginX = (bounds.maxX - bounds.minX) * 0.2;
-      const marginY = (bounds.maxY - bounds.minY) * 0.2;
-      bounds.minX -= marginX;
-      bounds.maxX += marginX;
-      bounds.minY -= marginY;
-      bounds.maxY += marginY;
-    } else if (layoutName === 'circle-packing') {
-      // For cluster layouts: calculate bounds from positions but center camera at (0, 0)
-      const positions = visiblePhotos.map(photo => ({
-        x: photo.targetPosition.x,
-        y: photo.targetPosition.y
-      }));
-      const calculatedBounds = this.calculateBounds(positions);
-      
-      // Get the max extent to determine zoom level
-      const maxExtentX = Math.max(Math.abs(calculatedBounds.minX), Math.abs(calculatedBounds.maxX));
-      const maxExtentY = Math.max(Math.abs(calculatedBounds.minY), Math.abs(calculatedBounds.maxY));
-      const maxExtent = Math.max(maxExtentX, maxExtentY);
-      
-      // Ensure we have a valid extent (fallback to default if clusters are all at origin)
-      const finalExtent = maxExtent > 0 ? maxExtent : 20000;
-      
-      // Create bounds centered at (0, 0) with the calculated extent
-      bounds = {
-        minX: -finalExtent,
-        maxX: finalExtent,
-        minY: -finalExtent,
-        maxY: finalExtent
-      };
-    } else {
-      // For other layouts: calculate bounds from actual photo positions
-      const positions = visiblePhotos.map(photo => ({
-        x: photo.targetPosition.x,
-        y: photo.targetPosition.y
-      }));
-      bounds = this.calculateBounds(positions);
-    }
-    
-    if (animate) {
-      // Use animated camera bounds update for layout changes
-      await this.renderer.animateCameraTarget(bounds, ANIMATION_CONSTANTS.CAMERA_BOUNDS_ANIMATION_DURATION);
-    } else {
-      // Use immediate update for non-layout changes
-      this.renderer.updateCameraTarget(bounds);
-    }
+  updateCamera(options?: { animate?: boolean; force?: boolean }): Promise<void> {
+    if (!this.renderer) return Promise.resolve();
+    const bounds = this.computeSceneBounds();
+    return this.renderer.setSceneBounds(bounds, {
+      animate: options?.animate ?? false,
+      force: options?.force ?? false,
+    });
   }
 
   /**
@@ -1010,34 +929,29 @@ export class PhotoDataRepository {
   }
 
   /**
-   * Set up interactive drag functionality for a photo with layout strategy integration
-   * Only enables if isDragEnabled is true (admin permission)
+   * Set up drag functionality for a photo.
+   * Only enables if isDragEnabled is true (admin permission).
    */
-  private setupInteractiveDragForPhoto(photoData: PhotoData): void {
-    if (!photoData.mesh || !this.renderer || !this.layoutStrategy || !isInteractiveLayout(this.layoutStrategy)) {
+  private setupDragForPhoto(photoData: PhotoData): void {
+    if (!photoData.mesh || !this.renderer || !this.layoutStrategy) {
       return;
     }
-    
+
     // Check permission before enabling drag
     if (!this.isDragEnabled) {
-      // Still enable hover detection for cursor feedback
       this.setupHoverDetectionForPhoto(photoData);
       return;
     }
-    const interactiveStrategy = this.layoutStrategy as any; // Cast to access drag methods
-    
-    // Store the layout strategy reference in the renderer for drag integration
-    this.renderer.setLayoutStrategy(interactiveStrategy);
-    
+
+    // Use SVG strategy for renderer drag handlers (hotspot detection, onPhotoDragEnd)
+    this.renderer.setLayoutStrategy(this.svgStrategy || this.layoutStrategy);
+
     // Store PhotoData reference for drag callbacks
     this.renderer.setMeshPhotoData(photoData.mesh, photoData);
-    
+
     this.renderer.enableDragForMesh(photoData.mesh, (position: { x: number; y: number; z: number }) => {
-      // Update photo data position when dragged (this is called during drag move)
       photoData.setCurrentPosition(position);
       photoData.setTargetPosition(position);
-      
-      // Note: Layout strategy drag handlers are now called directly by the renderer
     });
   }
 
@@ -1045,6 +959,24 @@ export class PhotoDataRepository {
    * Enable hover detection for a photo (for both interactive and non-interactive layouts)
    * This allows cursor feedback and preview widgets without enabling drag
    */
+
+  /**
+   * When SVG background is visible and a photo has layout_x/layout_y metadata,
+   * override the computed position with the saved drag position.
+   * This is needed because the active strategy may be circle-packing (auto-positioning off)
+   * while the SVG is still shown — circle-packing doesn't check layout_x/layout_y.
+   */
+  private getDragPositionOverride(photo: PhotoData): LayoutPosition | null {
+    if (!this.svgVisible || !this.svgStrategy) return null;
+    const layout_x = photo.metadata['layout_x'];
+    const layout_y = photo.metadata['layout_y'];
+    if (typeof layout_x === 'number' && typeof layout_y === 'number') {
+      const { x, y } = this.svgStrategy.normalizedToWorld(layout_x, layout_y);
+      return { x, y, metadata: { layoutType: 'restored-normalized', layout_x, layout_y } };
+    }
+    return null;
+  }
+
   private setupHoverDetectionForPhoto(photoData: PhotoData): void {
     if (!photoData.mesh || !this.renderer) {
       return;
