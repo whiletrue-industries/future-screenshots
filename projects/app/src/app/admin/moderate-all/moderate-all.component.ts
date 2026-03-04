@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, effect, HostListener } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -33,12 +33,16 @@ export class ModerateAllComponent implements OnInit {
   loading = signal<boolean>(true);
   loadingProgress = signal<string>('');
 
-  // Filters
-  filterWorkspace = signal<string>('all');
-  filterStatus = signal<string>('all');
+  // Filters - now using arrays for multi-select
+  filterWorkspaceIds = signal<string[]>([]);
+  filterStatus = signal<string[]>(['pending', 'flagged', 'not-flagged', 'approved', 'highlighted']);
   filterType = signal<string>('all');
   searchText = signal<string>('');
   orderBy = signal<string>('date');
+  
+  // UI state for multi-select dropdowns
+  workspaceDropdownOpen = signal<boolean>(false);
+  statusDropdownOpen = signal<boolean>(false);
 
   readonly LEVELS = ['rejected', 'flagged', 'pending', 'not-flagged', 'approved', 'highlighted'];
 
@@ -62,6 +66,9 @@ export class ModerateAllComponent implements OnInit {
     photograph: '📸 Photo',
   };
 
+  // Status options in order
+  readonly ALL_STATUSES = ['highlighted', 'approved', 'not-flagged', 'pending', 'flagged', 'rejected'];
+
   availableTypes = computed(() => {
     const types = new Set<string>();
     this.allItems().forEach(item => {
@@ -70,19 +77,43 @@ export class ModerateAllComponent implements OnInit {
     return Array.from(types).sort();
   });
 
+  // Compute status filter counts
+  statusCounts = computed(() => {
+    const items = this.allItems();
+    const counts = new Map<string, number>();
+    
+    this.ALL_STATUSES.forEach(status => {
+      counts.set(status, items.filter(item => FilterHelpers.getStatusKey(item) === status).length);
+    });
+    
+    return counts;
+  });
+
+  // Compute workspace names for display
+  workspaceNames = computed(() => {
+    const names = new Map<string, string>();
+    this.workspaces().forEach(ws => {
+      names.set(ws.id, ws.metadata?.source || ws.metadata?.event_name || ws.id);
+    });
+    return names;
+  });
+
   filteredItems = computed(() => {
     let items = this.allItems();
 
-    const ws = this.filterWorkspace();
-    if (ws !== 'all') {
-      items = items.filter(item => item._workspaceId === ws);
+    // Filter by workspaces (multi-select)
+    const wsIds = this.filterWorkspaceIds();
+    if (wsIds.length > 0 && wsIds.length < this.workspaces().length) {
+      items = items.filter(item => wsIds.includes(item._workspaceId));
     }
 
-    const status = this.filterStatus();
-    if (status !== 'all') {
-      items = items.filter(item => FilterHelpers.getStatusKey(item) === status);
+    // Filter by status (multi-select)
+    const statuses = this.filterStatus();
+    if (statuses.length > 0 && statuses.length < this.ALL_STATUSES.length) {
+      items = items.filter(item => statuses.includes(FilterHelpers.getStatusKey(item)));
     }
 
+    // Filter by type (single-select)
     const type = this.filterType();
     if (type !== 'all') {
       items = items.filter(item => item['screenshot_type'] === type);
@@ -122,10 +153,87 @@ export class ModerateAllComponent implements OnInit {
     return this.TYPE_LABELS[type] || type;
   }
 
+  getStatusLabel(status: string): string {
+    return this.STATUS_LABELS[status] || status;
+  }
+
   formatDate(dateStr: string): string {
     if (!dateStr) return '';
     const d = new Date(dateStr);
     return `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`;
+  }
+
+  // Multi-select filter methods
+  toggleWorkspaceDropdown(): void {
+    this.workspaceDropdownOpen.update(v => !v);
+  }
+
+  toggleStatusDropdown(): void {
+    this.statusDropdownOpen.update(v => !v);
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    // Close dropdowns when clicking outside
+    const target = event.target as HTMLElement;
+    if (!target.closest('.workspace-selector-in-title')) {
+      this.workspaceDropdownOpen.set(false);
+    }
+    if (!target.closest('.custom-multiselect')) {
+      this.statusDropdownOpen.set(false);
+    }
+  }
+
+  toggleWorkspaceFilter(workspaceId: string): void {
+    this.filterWorkspaceIds.update(ids => {
+      if (ids.includes(workspaceId)) {
+        return ids.filter(id => id !== workspaceId);
+      } else {
+        return [...ids, workspaceId];
+      }
+    });
+  }
+
+  toggleStatusFilter(status: string): void {
+    this.filterStatus.update(statuses => {
+      if (statuses.includes(status)) {
+        return statuses.filter(s => s !== status);
+      } else {
+        return [...statuses, status];
+      }
+    });
+  }
+
+  selectAllWorkspaces(): void {
+    this.filterWorkspaceIds.set(this.workspaces().map(ws => ws.id));
+  }
+
+  deselectAllWorkspaces(): void {
+    this.filterWorkspaceIds.set([]);
+  }
+
+  selectAllStatuses(): void {
+    this.filterStatus.set([...this.ALL_STATUSES]);
+  }
+
+  deselectAllStatuses(): void {
+    this.filterStatus.set([]);
+  }
+
+  getSelectedWorkspaceCount(): number {
+    return this.filterWorkspaceIds().length;
+  }
+
+  getSelectedStatusCount(): number {
+    return this.filterStatus().length;
+  }
+
+  isWorkspaceSelected(workspaceId: string): boolean {
+    return this.filterWorkspaceIds().includes(workspaceId);
+  }
+
+  isStatusSelected(status: string): boolean {
+    return this.filterStatus().includes(status);
   }
 
   ngOnInit(): void {
@@ -136,6 +244,9 @@ export class ModerateAllComponent implements OnInit {
       }
       this.adminApi.listWorkspaces().subscribe(workspaces => {
         this.workspaces.set(workspaces);
+        // Initialize workspace filter to include all workspaces
+        this.filterWorkspaceIds.set(workspaces.map(ws => ws.id));
+        
         if (!workspaces.length) {
           this.loading.set(false);
           return;

@@ -2,7 +2,57 @@
   <header class="topbar" role="banner">
     <div class="brand">
       <span class="logo" aria-hidden="true">✦</span>
-      <h1>All Workspaces – Browse</h1>
+      <h1>
+        <span>All Workspaces – Browse</span>
+        <div class="workspace-selector-in-title">
+          <button 
+            class="workspace-selector-trigger"
+            (click)="toggleWorkspaceDropdown()"
+            [attr.aria-expanded]="workspaceDropdownOpen()"
+            aria-label="Select workspaces">
+            <span class="selector-label">
+              @if (getSelectedWorkspaceCount() === 0) {
+                <span>No workspaces</span>
+              } @else if (getSelectedWorkspaceCount() === workspaces().length) {
+                <span>All workspaces</span>
+              } @else {
+                <span>{{ getSelectedWorkspaceCount() }} workspace{{ getSelectedWorkspaceCount() !== 1 ? 's' : '' }}</span>
+              }
+            </span>
+            <span class="selector-arrow">▼</span>
+          </button>
+          @if (workspaceDropdownOpen()) {
+            <div class="workspace-dropdown" (click)="$event.stopPropagation()">
+              <div class="multiselect-controls">
+                <button 
+                  type="button"
+                  class="control-btn" 
+                  (click)="selectAllWorkspaces()"
+                  aria-label="Select all workspaces">
+                  Select All
+                </button>
+                <button 
+                  type="button"
+                  class="control-btn" 
+                  (click)="deselectAllWorkspaces()"
+                  aria-label="Deselect all workspaces">
+                  Deselect All
+                </button>
+              </div>
+              @for (ws of workspaces(); track ws.id) {
+                <label class="workspace-option">
+                  <input 
+                    type="checkbox" 
+                    [checked]="isWorkspaceSelected(ws.id)"
+                    (change)="toggleWorkspaceFilter(ws.id)"
+                    [attr.aria-label]="'Toggle ' + (ws.metadata?.source || ws.metadata?.event_name || ws.id)" />
+                  <span class="option-label">{{ ws.metadata?.source || ws.metadata?.event_name || ws.id }}</span>
+                </label>
+              }
+            </div>
+          }
+        </div>
+      </h1>
     </div>
     <div class="actions">
       <a routerLink="/admin" class="back-link" aria-label="Back to admin">← Back</a>
@@ -18,27 +68,69 @@
 
     <section class="filters-bar" aria-label="Filters">
       <div class="filters-row">
-        <div class="filter-group">
-          <label for="filter-workspace">Workspace</label>
-          <select id="filter-workspace" [value]="filterWorkspace()" (change)="filterWorkspace.set($any($event.target).value)" aria-label="Filter by workspace">
-            <option value="all">all ({{ allItems().length }})</option>
-            @for (ws of workspaces(); track ws.id) {
-              <option [value]="ws.id">{{ ws.metadata?.source || ws.metadata?.event_name || ws.id }}</option>
+        <div class="filter-group custom-multiselect">
+          <label>Status:</label>
+          <div class="multiselect-container">
+            <button 
+              type="button"
+              class="multiselect-trigger" 
+              (click)="toggleStatusDropdown()"
+              [attr.aria-expanded]="statusDropdownOpen()"
+              aria-label="Select statuses">
+              <div class="multiselect-content">
+                @if (getSelectedStatusCount() === 0) {
+                  <span class="multiselect-placeholder">Select status…</span>
+                } @else if (getSelectedStatusCount() === ALL_STATUSES.length) {
+                  <span class="multiselect-text">All statuses</span>
+                } @else {
+                  <div class="multiselect-chips">
+                    @for (status of filterStatus(); track status) {
+                      <span class="chip">
+                        {{ getStatusLabel(status) }}
+                        <button 
+                          type="button"
+                          class="chip-remove" 
+                          (click)="$event.stopPropagation(); toggleStatusFilter(status)"
+                          [attr.title]="'Remove ' + getStatusLabel(status)">×</button>
+                      </span>
+                    }
+                  </div>
+                }
+              </div>
+              <span class="multiselect-arrow">▼</span>
+            </button>
+            @if (statusDropdownOpen()) {
+              <div class="multiselect-dropdown" (click)="$event.stopPropagation()">
+                <div class="multiselect-controls">
+                  <button 
+                    type="button"
+                    class="control-btn" 
+                    (click)="selectAllStatuses()"
+                    aria-label="Select all statuses">
+                    Select All
+                  </button>
+                  <button 
+                    type="button"
+                    class="control-btn" 
+                    (click)="deselectAllStatuses()"
+                    aria-label="Deselect all statuses">
+                    Deselect All
+                  </button>
+                </div>
+                @for (status of ALL_STATUSES; track status) {
+                  <label class="multiselect-option">
+                    <input 
+                      type="checkbox" 
+                      [checked]="isStatusSelected(status)"
+                      (change)="toggleStatusFilter(status)"
+                      [attr.aria-label]="'Toggle ' + getStatusLabel(status)" />
+                    <span class="option-label">{{ getStatusLabel(status) }}</span>
+                    <span class="option-count">{{ statusCounts().get(status) || 0 }}</span>
+                  </label>
+                }
+              </div>
             }
-          </select>
-        </div>
-
-        <div class="filter-group">
-          <label for="filter-status">Status</label>
-          <select id="filter-status" [value]="filterStatus()" (change)="filterStatus.set($any($event.target).value)" aria-label="Filter by status">
-            <option value="all">all</option>
-            <option value="highlighted">Highlighted</option>
-            <option value="approved">Approved</option>
-            <option value="not-flagged">Not flagged</option>
-            <option value="pending">Pending</option>
-            <option value="flagged">Flagged</option>
-            <option value="rejected">Rejected</option>
-          </select>
+          </div>
         </div>
 
         <div class="filter-group">
