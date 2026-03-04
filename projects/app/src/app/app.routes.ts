@@ -16,6 +16,7 @@ import { AuthGuard } from './auth.guard';
 import { CanvasCreatorComponent } from './canvas-creator/canvas-creator.component';
 import { LoginComponent } from './admin/login/login.component';
 import { ModerateComponent } from './admin/moderate/moderate.component';
+import { ModerateAllComponent } from './admin/moderate-all/moderate-all.component';
 import { WorkspaceFormComponent } from './admin/workspace-form/workspace-form.component';
 import { AdminComponent } from './admin/admin/admin.component';
 
@@ -38,6 +39,10 @@ export const routes: Routes = [
     {
         'path': 'admin/moderate',
         component: ModerateComponent
+    },
+    {
+        'path': 'admin/moderate-all',
+        component: ModerateAllComponent,
     },
     {
         'path': 'admin/new',
