@@ -1094,6 +1094,33 @@
                 display: block;
             }
         }
+
+        .permanently-delete-btn {
+            width: 100%;
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            border: 2px solid @color-prevent;
+            background: transparent;
+            color: @color-prevent;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+
+            &:hover {
+                background: @color-prevent;
+                color: white;
+                transform: translateY(-1px);
+                box-shadow: 0 2px 8px rgba(221, 0, 0, 0.3);
+            }
+
+            &:active {
+                transform: translateY(0);
+            }
+        }
     }
 }
 
