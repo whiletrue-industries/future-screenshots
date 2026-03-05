@@ -41,7 +41,7 @@ export const routes: Routes = [
         component: ModerateComponent
     },
     {
-        'path': 'admin/moderate-all',
+        'path': 'admin/all',
         component: ModerateAllComponent,
     },
     {

@@ -47,6 +47,18 @@ export class ModerateAllComponent implements OnInit {
   workspaceDropdownOpen = signal<boolean>(false);
   statusDropdownOpen = signal<boolean>(false);
 
+  // Sidebar moderation state (similar to moderate.component)
+  selectedItem = signal<EnrichedItem | null>(null);
+  lightboxSidebarOpen = signal<boolean>(true);
+  selectedItemIndex = signal<number>(-1);
+
+  // Multi-select/bulk edit state
+  multiSelectMode = signal<boolean>(false);
+  selectedIds = signal<Set<string>>(new Set());
+  bulkStatus = signal<number | null>(null);
+  bulkSaving = signal<boolean>(false);
+  bulkError = signal<string | null>(null);
+
   readonly LEVELS = ['rejected', 'flagged', 'pending', 'not-flagged', 'approved', 'highlighted'];
 
   readonly STATUS_LABELS: Record<string, string> = {
@@ -105,11 +117,11 @@ export class ModerateAllComponent implements OnInit {
   filteredWorkspaces = computed(() => {
     let workspaces = [...this.workspaces()];
     
-    // Sort in reverse chronological order (newest first)
+    // Sort in reverse chronological order (newest first) - same as admin page
     workspaces.sort((a, b) => {
-      const aTime = new Date(a.metadata?.created_at || 0).getTime();
-      const bTime = new Date(b.metadata?.created_at || 0).getTime();
-      return bTime - aTime;
+      const ad = a?.metadata?.date ?? '';
+      const bd = b?.metadata?.date ?? '';
+      return bd.localeCompare(ad);
     });
 
     // Filter by search text
@@ -260,6 +272,135 @@ export class ModerateAllComponent implements OnInit {
 
   isStatusSelected(status: string): boolean {
     return this.filterStatus().includes(status);
+  }
+
+  // Sidebar and bulk edit utility methods
+  selectedCount = computed(() => this.selectedIds().size);
+
+  toggleMultiSelectMode(): void {
+    this.multiSelectMode.update(v => !v);
+    if (!this.multiSelectMode()) {
+      this.selectedIds.set(new Set());
+      this.bulkStatus.set(null);
+      this.bulkError.set(null);
+    }
+  }
+
+  selectItem(item: EnrichedItem): void {
+    if (this.multiSelectMode()) {
+      const ids = new Set(this.selectedIds());
+      if (ids.has(item['_id'])) {
+        ids.delete(item['_id']);
+      } else {
+        ids.add(item['_id']);
+      }
+      this.selectedIds.set(ids);
+    } else {
+      const index = this.filteredItems().findIndex(i => i['_id'] === item['_id']);
+      this.selectedItem.set(item);
+      this.selectedItemIndex.set(index);
+      this.lightboxSidebarOpen.set(true);
+    }
+  }
+
+  isItemSelected(itemId: string): boolean {
+    return this.selectedIds().has(itemId);
+  }
+
+  selectAll(): void {
+    const ids = new Set(this.filteredItems().map(item => item['_id']));
+    this.selectedIds.set(ids);
+  }
+
+  clearBulkSelection(): void {
+    this.selectedIds.set(new Set());
+  }
+
+  closeSidebar(): void {
+    this.selectedItem.set(null);
+    this.lightboxSidebarOpen.set(false);
+  }
+
+  toggleLightboxSidebar(): void {
+    this.lightboxSidebarOpen.update(v => !v);
+  }
+
+  prevItem(): void {
+    const current = this.selectedItem();
+    if (!current || this.selectedItemIndex() <= 0) return;
+    const newIndex = this.selectedItemIndex() - 1;
+    const items = this.filteredItems();
+    if (items[newIndex]) {
+      this.selectedItem.set(items[newIndex]);
+      this.selectedItemIndex.set(newIndex);
+    }
+  }
+
+  nextItem(): void {
+    const current = this.selectedItem();
+    if (!current || this.selectedItemIndex() >= this.filteredItems().length - 1) return;
+    const newIndex = this.selectedItemIndex() + 1;
+    const items = this.filteredItems();
+    if (items[newIndex]) {
+      this.selectedItem.set(items[newIndex]);
+      this.selectedItemIndex.set(newIndex);
+    }
+  }
+
+  updateModeration(itemId: string, level: number): void {
+    const item = this.allItems().find(i => i['_id'] === itemId);
+    if (!item) return;
+
+    this.adminApi.updateItemModeration(item._workspaceId, item._workspaceAdminKey, itemId, level).subscribe(
+      () => {
+        // Update in local state
+        this.allItems.update(items =>
+          items.map(i => i['_id'] === itemId ? { ...i, _private_moderation: level } : i)
+        );
+        this.selectedItem.update(si => si && si['_id'] === itemId ? { ...si, _private_moderation: level } : si);
+      },
+      error => {
+        console.error('Failed to update moderation:', error);
+      }
+    );
+  }
+
+  applyBulkChanges(): void {
+    const ids = Array.from(this.selectedIds());
+    if (ids.length === 0 || this.bulkStatus() === null) return;
+
+    this.bulkSaving.set(true);
+    this.bulkError.set(null);
+
+    const updateRequests = ids.map(itemId => {
+      const item = this.allItems().find(i => i['_id'] === itemId);
+      if (!item) return of(null);
+      return this.adminApi.updateItemModeration(
+        item._workspaceId,
+        item._workspaceAdminKey,
+        itemId,
+        this.bulkStatus()!
+      );
+    });
+
+    forkJoin(updateRequests).subscribe(
+      () => {
+        // Update all items locally
+        this.allItems.update(items =>
+          items.map(item =>
+            ids.includes(item['_id']) ? { ...item, _private_moderation: this.bulkStatus() } : item
+          )
+        );
+        this.selectedIds.set(new Set());
+        this.bulkStatus.set(null);
+        this.bulkSaving.set(false);
+      },
+      error => {
+        console.error('Bulk update failed:', error);
+        this.bulkError.set('Failed to apply changes to some items.');
+        this.bulkSaving.set(false);
+      }
+    );
   }
 
   ngOnInit(): void {

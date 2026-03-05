@@ -176,55 +176,160 @@
 
         <div class="filter-info">
           <span class="count-display">{{ filteredItems().length }} / {{ allItems().length }}</span>
+          <button 
+            class="multi-select-toggle"
+            (click)="toggleMultiSelectMode()"
+            [class.active]="multiSelectMode()"
+            aria-label="Toggle multi-edit mode">
+            <span class="icon">🗂</span>
+            <span>{{ multiSelectMode() ? 'Close multi-edit' : 'Multi-edit' }}</span>
+            @if (multiSelectMode() && selectedCount() > 0) {
+              <span class="count">{{ selectedCount() }}</span>
+            }
+          </button>
         </div>
       </div>
     </section>
 
-    <div class="thumbnails-grid" role="list" aria-label="Items grid">
-      @for (item of filteredItems(); track item['_id']) {
-        <article
-          class="thumbnail-item"
-          [attr.data-status]="getStatusKey(item)"
-          role="listitem">
+    <div class="thumbnails-grid-wrapper" [class.sidebar-open]="selectedItem() !== null">
+      <div class="thumbnails-grid" role="list" aria-label="Items grid" [class.compact]="selectedItem() !== null">
+        @for (item of filteredItems(); track item['_id']) {
+          <article
+            class="thumbnail-item"
+            [attr.data-status]="getStatusKey(item)"
+            [class.select-mode]="multiSelectMode()"
+            [class.bulk-selected]="isItemSelected(item['_id'])"
+            (click)="selectItem(item)"
+            role="listitem"
+            tabindex="0"
+            (keydown.enter)="selectItem(item)"
+            (keydown.space)="selectItem(item)">
 
-          <div class="thumbnail-image">
-            <img [src]="item['screenshot_url']" [alt]="item['future_scenario_tagline'] || 'Future scenario screenshot'" loading="lazy" />
-            <div class="thumbnail-overlay">
-              <a
-                class="view-link"
-                [routerLink]="['/admin/moderate']"
-                [queryParams]="{workspace: item._workspaceId, api_key: item._workspaceAdminKey}"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open in moderation view">
-                ↗ Moderate
-              </a>
+            <div class="thumbnail-image">
+              <img [src]="item['screenshot_url']" [alt]="item['future_scenario_tagline'] || 'Future scenario screenshot'" loading="lazy" />
+              @if (multiSelectMode()) {
+                <div class="checkbox-overlay">
+                  <input 
+                    type="checkbox" 
+                    class="item-checkbox"
+                    [checked]="isItemSelected(item['_id'])"
+                    (change)="selectItem(item)"
+                    (click)="$event.stopPropagation()"
+                    [attr.aria-label]="'Select ' + (item['future_scenario_tagline'] || 'item')" />
+                </div>
+              }
+            </div>
+
+            <div class="thumbnail-meta">
+              <span class="workspace-badge" [title]="item._workspaceId">{{ item._workspaceName }}</span>
+              <span class="status-badge" [attr.data-status]="getStatusKey(item)">{{ STATUS_LABELS[getStatusKey(item)] || getStatusKey(item) }}</span>
+            </div>
+
+            @if (item['future_scenario_tagline']) {
+              <p class="tagline">{{ item['future_scenario_tagline'] }}</p>
+            }
+
+            <div class="item-footer">
+              @if (item['screenshot_type']) {
+                <span class="type-badge">{{ getTypeLabel(item['screenshot_type']) }}</span>
+              }
+              <span class="date">{{ formatDate(item['created_at']) }}</span>
+            </div>
+          </article>
+        }
+
+        @if (filteredItems().length === 0) {
+          <div class="empty-state" role="status">
+            No items match the current filters.
+          </div>
+        }
+      </div>
+
+      <!-- Sidebar for item moderation -->
+      @if (selectedItem()) {
+        <div class="lightbox-overlay" (click)="closeSidebar()" role="dialog" aria-modal="true" aria-labelledby="lightbox-title">
+          <div class="lightbox-container" [class.sidebar-open]="lightboxSidebarOpen()">
+            <div class="lightbox-content" (click)="$event.stopPropagation()">
+              <button class="lightbox-close-btn" (click)="closeSidebar()" aria-label="Close">×</button>
+              <button class="lightbox-sidebar-toggle-btn" (click)="toggleLightboxSidebar()" aria-label="Toggle sidebar">⋮</button>
+
+              <button class="nav-btn nav-prev" (click)="prevItem()" [disabled]="selectedItemIndex() <= 0" aria-label="Previous item">←</button>
+              <button class="nav-btn nav-next" (click)="nextItem()" [disabled]="selectedItemIndex() >= filteredItems().length - 1" aria-label="Next item">→</button>
+
+              <div class="lightbox-main">
+                <div class="lightbox-image">
+                  <img [src]="selectedItem()!['screenshot_url']" [alt]="selectedItem()!['future_scenario_tagline'] || 'Screenshot'" />
+                </div>
+
+                @if (lightboxSidebarOpen()) {
+                  <div class="lightbox-sidebar">
+                    <div class="sidebar-section">
+                      <h3>Status</h3>
+                      <div class="status-buttons">
+                        @for (level of [0, 1, 2, 3, 4, 5]; track level) {
+                          <button
+                            class="status-btn"
+                            [class.active]="selectedItem()?.['_private_moderation'] === level"
+                            (click)="updateModeration(selectedItem()!['_id'], level)"
+                            [attr.title]="LEVELS[level]"
+                            [attr.aria-label]="'Mark as ' + LEVELS[level]">
+                            {{ LEVELS[level] | slice:0:1 }}
+                          </button>
+                        }
+                      </div>
+                    </div>
+
+                    <div class="sidebar-section">
+                      <h3>Properties</h3>
+                      <p><strong>Workspace:</strong> {{ selectedItem()?._workspaceName }}</p>
+                      <p><strong>Type:</strong> {{ getTypeLabel(selectedItem()?.['screenshot_type'] ?? '') }}</p>
+                      <p><strong>Created:</strong> {{ formatDate(selectedItem()?.['created_at'] ?? '') }}</p>
+                      @if (selectedItem()?.['future_scenario_tagline']) {
+                        <p><strong>Tagline:</strong> {{ selectedItem()!['future_scenario_tagline'] }}</p>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
             </div>
           </div>
-
-          <div class="thumbnail-meta">
-            <span class="workspace-badge" [title]="item._workspaceId">{{ item._workspaceName }}</span>
-            <span class="status-badge" [attr.data-status]="getStatusKey(item)">{{ STATUS_LABELS[getStatusKey(item)] || getStatusKey(item) }}</span>
-          </div>
-
-          @if (item['future_scenario_tagline']) {
-            <p class="tagline">{{ item['future_scenario_tagline'] }}</p>
-          }
-
-          <div class="item-footer">
-            @if (item['screenshot_type']) {
-              <span class="type-badge">{{ getTypeLabel(item['screenshot_type']) }}</span>
-            }
-            <span class="date">{{ formatDate(item['created_at']) }}</span>
-          </div>
-        </article>
-      }
-
-      @if (filteredItems().length === 0) {
-        <div class="empty-state" role="status">
-          No items match the current filters.
         </div>
       }
     </div>
+
+    <!-- Bulk edit panel -->
+    @if (multiSelectMode()) {
+      <div class="bulk-bar" role="region" aria-label="Bulk edit panel">
+        <div class="bulk-summary">
+          <strong>{{ selectedCount() }}</strong> selected
+          <button class="select-all-btn" (click)="selectAll()" [disabled]="filteredItems().length === 0" aria-label="Select all items">Select all</button>
+        </div>
+        <div class="bulk-controls">
+          <label>
+            Status
+            <select [ngModel]="bulkStatus()" (ngModelChange)="bulkStatus.set($event)">
+              <option [ngValue]="null">No change</option>
+              <option [ngValue]="0">Rejected</option>
+              <option [ngValue]="1">Flagged</option>
+              <option [ngValue]="2">Pending</option>
+              <option [ngValue]="3">Not flagged</option>
+              <option [ngValue]="4">Approved</option>
+              <option [ngValue]="5">Highlighted</option>
+            </select>
+          </label>
+        </div>
+        <div class="bulk-actions">
+          <button class="bulk-btn" (click)="applyBulkChanges()" [disabled]="bulkSaving() || selectedCount() === 0">Apply to selected</button>
+          <button class="bulk-btn ghost" (click)="clearBulkSelection()" [disabled]="bulkSaving()">Clear selection</button>
+          <button class="bulk-btn ghost" (click)="toggleMultiSelectMode()" [disabled]="bulkSaving()">Exit</button>
+        </div>
+        @if (bulkError()) {
+          <div class="bulk-error">{{ bulkError() }}</div>
+        }
+        @if (bulkSaving()) {
+          <div class="bulk-progress">Applying changes…</div>
+        }
+      </div>
+    }
   }
 </div>

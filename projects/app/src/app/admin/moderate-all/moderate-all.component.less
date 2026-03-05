@@ -644,6 +644,7 @@
         align-items: center;
         padding: 4px 8px 6px;
         gap: 4px;
+        transition: opacity 0.2s;
 
         .type-badge {
             font-size: 11px;
@@ -656,6 +657,45 @@
             margin-left: auto;
         }
     }
+
+    // Hide footer, show on hover in normal mode
+    &:not(.select-mode) .item-footer {
+        opacity: 0;
+        &:hover { opacity: 1; }
+    }
+
+    // Multi-select mode styling
+    &.select-mode {
+        cursor: pointer;
+        position: relative;
+
+        &.bulk-selected {
+            background: @color-primary-50;
+            border-color: @color-purple;
+            box-shadow: 0 0 0 2px @color-purple;
+        }
+
+        .checkbox-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(78, 2, 178, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            z-index: 10;
+
+            .item-checkbox {
+                width: 28px;
+                height: 28px;
+                cursor: pointer;
+                accent-color: @color-purple;
+            }
+        }
+
+        &.bulk-selected .checkbox-overlay { opacity: 1; }
+        &:hover:not(.bulk-selected) .checkbox-overlay { opacity: 0.7; }
+    }
 }
 
 .empty-state {
@@ -664,4 +704,288 @@
     color: @color-gray;
     padding: 60px 20px;
     font-size: 16px;
+}
+
+// Grid wrapper with sidebar support
+.thumbnails-grid-wrapper {
+    display: flex;
+    flex: 1;
+    gap: 16px;
+    position: relative;
+
+    &.sidebar-open {
+        .thumbnails-grid {
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        }
+    }
+
+    .thumbnails-grid {
+        flex: 1;
+        overflow-y: auto;
+    }
+}
+
+// Lightbox sidebar styling
+.lightbox-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    z-index: 1000;
+
+    .lightbox-container {
+        background: @color-white;
+        width: 100%;
+        max-width: 500px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transform: translateX(100%);
+        transition: transform 0.3s;
+
+        &.sidebar-open {
+            transform: translateX(0);
+        }
+
+        .lightbox-content {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 16px;
+            overflow-y: auto;
+            position: relative;
+
+            .lightbox-close-btn,
+            .lightbox-sidebar-toggle-btn,
+            .nav-btn {
+                position: absolute;
+                top: 12px;
+                z-index: 101;
+                padding: 6px 12px;
+                background: @color-white;
+                border: 1px solid @color-primary-100;
+                border-radius: 6px;
+                cursor: pointer;
+                font-weight: 600;
+
+                &:hover { background: @color-primary-50; }
+                &:disabled { opacity: 0.5; cursor: not-allowed; }
+            }
+
+            .lightbox-close-btn { right: 12px; }
+            .lightbox-sidebar-toggle-btn { right: 50px; }
+            .nav-btn { top: 50%; transform: translateY(-50%); }
+            .nav-prev { left: 12px; }
+            .nav-next { right: 12px; }
+
+            .lightbox-main {
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+                margin-top: 50px;
+                flex: 1;
+
+                .lightbox-image {
+                    aspect-ratio: 10 / 19;
+                    background: @color-primary-50;
+                    border-radius: 8px;
+                    overflow: hidden;
+
+                    img {
+                        width: 100%;
+                        height: 100%;
+                        object-fit: cover;
+                    }
+                }
+
+                .lightbox-sidebar {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 16px;
+                    padding: 12px;
+                    background: @color-primary-50;
+                    border-radius: 8px;
+                    max-height: 300px;
+                    overflow-y: auto;
+
+                    .sidebar-section {
+                        h3 {
+                            margin: 0 0 8px 0;
+                            font-size: 14px;
+                            color: @color-purple;
+                        }
+
+                        .status-buttons {
+                            display: flex;
+                            gap: 4px;
+                            flex-wrap: wrap;
+
+                            .status-btn {
+                                padding: 4px 8px;
+                                border: 1px solid @color-purple;
+                                background: @color-white;
+                                border-radius: 4px;
+                                cursor: pointer;
+                                font-weight: 600;
+                                min-width: 32px;
+
+                                &.active {
+                                    background: @color-purple;
+                                    color: @color-white;
+                                }
+
+                                &:hover { background: @color-primary-100; }
+                            }
+                        }
+
+                        p {
+                            margin: 4px 0;
+                            font-size: 12px;
+                            color: @color-gray;
+
+                            strong { color: @color-dark-gray; }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Bulk edit bar
+.bulk-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: @color-white;
+    border-top: 2px solid @color-purple;
+    padding: 12px;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+    z-index: 999;
+
+    .bulk-summary {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+        flex-shrink: 0;
+
+        .select-all-btn {
+            padding: 4px 10px;
+            border: 1px solid @color-primary-100;
+            background: @color-primary-50;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+
+            &:hover { background: @color-primary-100; }
+            &:disabled { opacity: 0.5; cursor: not-allowed; }
+        }
+    }
+
+    .bulk-controls {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex: 1;
+
+        label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            font-size: 13px;
+
+            select {
+                padding: 4px 8px;
+                border: 1px solid @color-primary-100;
+                border-radius: 4px;
+                background: @color-white;
+                cursor: pointer;
+            }
+        }
+    }
+
+    .bulk-actions {
+        display: flex;
+        gap: 8px;
+        flex-shrink: 0;
+
+        .bulk-btn {
+            padding: 6px 12px;
+            border: 1px solid @color-purple;
+            background: @color-purple;
+            color: @color-white;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+
+            &:hover { background: @color-dark-purple; }
+            &:disabled { opacity: 0.5; cursor: not-allowed; }
+
+            &.ghost {
+                background: transparent;
+                color: @color-purple;
+
+                &:hover { background: @color-primary-50; }
+            }
+        }
+    }
+
+    .bulk-error {
+        width: 100%;
+        padding: 8px;
+        background: #ffe3e3;
+        color: @color-prevent-dark;
+        border-radius: 4px;
+        font-size: 12px;
+    }
+
+    .bulk-progress {
+        width: 100%;
+        text-align: center;
+        color: @color-purple;
+        font-weight: 600;
+    }
+}
+
+// Multi-select toggle
+.multi-select-toggle {
+    padding: 6px 12px;
+    border: 1px solid @color-purple;
+    background: transparent;
+    color: @color-purple;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+
+    &:hover { background: @color-primary-50; }
+    &.active {
+        background: @color-purple;
+        color: @color-white;
+    }
+
+    .icon { font-size: 16px; }
+    .count {
+        background: @color-dark-pink;
+        color: @color-white;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 11px;
+        font-weight: 700;
+    }
 }
