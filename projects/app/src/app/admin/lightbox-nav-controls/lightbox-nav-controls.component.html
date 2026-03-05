@@ -1,0 +1,17 @@
+<div class="nav-controls">
+  <button 
+    class="nav-btn nav-prev" 
+    (click)="onPrevItem()" 
+    [disabled]="prevDisabled()" 
+    aria-label="Previous item">
+    ←
+  </button>
+  <div class="counter">{{ selectedItemIndex() + 1 }} / {{ totalItems() }}</div>
+  <button 
+    class="nav-btn nav-next" 
+    (click)="onNextItem()" 
+    [disabled]="nextDisabled()" 
+    aria-label="Next item">
+    →
+  </button>
+</div>

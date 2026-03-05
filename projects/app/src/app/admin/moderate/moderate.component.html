@@ -111,26 +111,6 @@
     </button>
   </div>
 
-  @if (items().length >= 500 || page() > 0) {
-    <section class="pagination-section" aria-label="Pagination">
-      <button 
-        class="pagination-btn" 
-        [disabled]="page() === 0" 
-        (click)="page.set(page() - 1)"
-        aria-label="Previous page">
-        ← Previous
-      </button>
-      <span class="page-info">Page {{ page() + 1 }}</span>
-      <button 
-        class="pagination-btn" 
-        [disabled]="!items().length" 
-        (click)="page.set(page() + 1)"
-        aria-label="Next page">
-        Next →
-      </button>
-    </section>
-  }
-
   @if (indexLink()) {
     <div class="index-notice" role="alert">
       <span>⚠️ Database index required</span>
@@ -138,7 +118,13 @@
     </div>
   } @else {
     @if (viewMode() === 'grid') {
-      <div class="grid-layout">
+      <div class="grid-layout" (scroll)="onGridScroll($event)">
+        @if (workspacesLoading()) {
+          <div class="loading-indicator workspace-loading">
+            <div class="spinner"></div>
+            <p>{{ workspacesLoadingProgress() || 'Loading workspaces...' }}</p>
+          </div>
+        }
         @if (selectedItem()) {
           <app-admin-lightbox 
             [selectedItemIndex]="selectedItemIndex()"
@@ -448,6 +434,22 @@
               }
               <div class="thumbnail-image">
                 <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
+                <div class="thumbnail-hover-info">
+                  <div class="hover-info-content">
+                    @if (item.future_scenario_tagline) {
+                      <p class="hover-tagline">{{ item.future_scenario_tagline }}</p>
+                    }
+                    @if (item.content) {
+                      <p class="hover-content">{{ item.content }}</p>
+                    }
+                    <div class="hover-metadata">
+                      @if (item.created_at) {
+                        <span class="hover-date">{{ formatDate(item.created_at) }}</span>
+                      }
+                      <span class="hover-status">{{ LEVELS[item._private_moderation] }}</span>
+                    </div>
+                  </div>
+                </div>
                 <div 
                   class="plausibility-scale"
                   role="img"
@@ -529,6 +531,13 @@
             }
           }
         </div>
+        
+        @if (itemsLoading() && !multiWorkspaceMode()) {
+          <div class="loading-indicator items-loading">
+            <div class="spinner"></div>
+            <p>Loading more items...</p>
+          </div>
+        }
       </div>
     } @else {
       <div class="items-grid" role="list">

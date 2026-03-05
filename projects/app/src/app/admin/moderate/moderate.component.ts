@@ -61,8 +61,8 @@ export class ModerateComponent implements OnInit {
   filterWorkspaceIds = signal<string[]>([]);
   workspaceDropdownOpen = signal<boolean>(false);
   workspaceSearchText = signal<string>('');
-  loading = signal<boolean>(false);
-  loadingProgress = signal<string>('');
+  workspacesLoading = signal<boolean>(false);
+  workspacesLoadingProgress = signal<string>('');
   private tokenWaitRetries = 0;
   private readonly maxTokenWaitRetries = 50;
   
@@ -74,6 +74,11 @@ export class ModerateComponent implements OnInit {
   workspace = signal<any>({});
   apiKey = signal<string | null>(null);
   page = signal<number>(0);
+  
+  // Lazy loading state
+  itemsLoading = signal<boolean>(false);
+  hasMoreItems = signal<boolean>(true);
+  private isLoadingMore = false;
   
   // Individual filters
   filterStatus = signal<string[]>(FilterHelpers.DEFAULT_STATUSES);
@@ -358,50 +363,11 @@ export class ModerateComponent implements OnInit {
       const workspaceId = this.workspaceId();
       const apiKey = this.apiKey();
       const page = this.page();
-      if (workspaceId && apiKey) {
-        // Only fetch from API - no filtering on server
-        this.api.getItems(workspaceId, apiKey, page, '').pipe(
-          catchError(error => {
-            console.error('Failed to load items:', error);
-            return of({ 'index-required': null });
-          })
-        ).subscribe((data: any) => {
-          if (data['index-required']) {
-            this.indexLink.set(data['index-required'] || null);
-            this.allFetchedItems.set([]);
-          } else {
-            this.indexLink.set(null);
-            const items = Array.isArray(data) ? data : [];
-            const filtered = items.filter((item: any) => !!item?.screenshot_url);
-            filtered.forEach((item: any) => {
-              item.screenshot_url = this.fix_url(item.screenshot_url);
-              item.favorable_future = this.fix_favorable_future(item.favorable_future);
-              // Preserve tags from API response, merge with future_scenario_topics if present
-              const apiTags = item.tags || [];
-              let futureScenarioTopics = [];
-              if (item.future_scenario_topics) {
-                // future_scenario_topics is an object, extract values
-                if (typeof item.future_scenario_topics === 'object' && !Array.isArray(item.future_scenario_topics)) {
-                  futureScenarioTopics.push(...Object.values(item.future_scenario_topics).filter((t: any) => t));
-                } else if (Array.isArray(item.future_scenario_topics)) {
-                  futureScenarioTopics = item.future_scenario_topics;
-                }
-              }
-              // Merge API tags with topics-based tags, removing duplicates
-              const mergedTags = [...new Set([...apiTags, ...futureScenarioTopics])];
-              item.tags = mergedTags;
-              item.future_scenario_topics = futureScenarioTopics; // Keep original topics for reference
-            });
-            
-            // Store all fetched items
-            const existing = this.allFetchedItems();
-            const newItems = filtered.filter((item: any) => !existing.find((i: any) => i._id === item._id));
-            this.allFetchedItems.set([...existing, ...newItems]);
-            
-            // Note: items will be automatically recomputed via computed signals
-            // when allFetchedItems changes
-          }
-        });
+      if (workspaceId && apiKey && page === 0) {
+        // Initial load: reset items and load first page
+        this.allFetchedItems.set([]);
+        this.hasMoreItems.set(true);
+        this.loadMoreItems();
       }
     });
     effect(() => {
@@ -1228,6 +1194,88 @@ export class ModerateComponent implements OnInit {
     return this.multiWorkspaceMode() ? 'all' : 'workspace';
   }
 
+  loadMoreItems(): void {
+    if (this.isLoadingMore || !this.hasMoreItems() || this.multiWorkspaceMode()) {
+      return;
+    }
+    
+    const workspaceId = this.workspaceId();
+    const apiKey = this.apiKey();
+    if (!workspaceId || !apiKey) {
+      return;
+    }
+
+    this.isLoadingMore = true;
+    this.itemsLoading.set(true);
+    
+    const currentPage = this.page();
+    this.api.getItems(workspaceId, apiKey, currentPage, '').pipe(
+      catchError(error => {
+        console.error('Failed to load more items:', error);
+        return of({ 'index-required': null });
+      })
+    ).subscribe((data: any) => {
+      this.isLoadingMore = false;
+      this.itemsLoading.set(false);
+      
+      if (data['index-required']) {
+        this.indexLink.set(data['index-required'] || null);
+        this.hasMoreItems.set(false);
+      } else {
+        this.indexLink.set(null);
+        const items = Array.isArray(data) ? data : [];
+        const filtered = items.filter((item: any) => !!item?.screenshot_url);
+        
+        // Process items
+        filtered.forEach((item: any) => {
+          item.screenshot_url = this.fix_url(item.screenshot_url);
+          item.favorable_future = this.fix_favorable_future(item.favorable_future);
+          const apiTags = item.tags || [];
+          let futureScenarioTopics = [];
+          if (item.future_scenario_topics) {
+            if (typeof item.future_scenario_topics === 'object' && !Array.isArray(item.future_scenario_topics)) {
+              futureScenarioTopics.push(...Object.values(item.future_scenario_topics).filter((t: any) => t));
+            } else if (Array.isArray(item.future_scenario_topics)) {
+              futureScenarioTopics = item.future_scenario_topics;
+            }
+          }
+          const mergedTags = [...new Set([...apiTags, ...futureScenarioTopics])];
+          item.tags = mergedTags;
+          item.future_scenario_topics = futureScenarioTopics;
+        });
+        
+        // Check if we got fewer items than expected (indicating end of data)
+        if (filtered.length < 500) {
+          this.hasMoreItems.set(false);
+        }
+        
+        // Store all fetched items
+        const existing = this.allFetchedItems();
+        const newItems = filtered.filter((item: any) => !existing.find((i: any) => i._id === item._id));
+        if (newItems.length > 0) {
+          this.allFetchedItems.set([...existing, ...newItems]);
+          // Increment page for next load
+          this.page.set(currentPage + 1);
+        } else {
+          // No new items, we've reached the end
+          this.hasMoreItems.set(false);
+        }
+      }
+    });
+  }
+
+  onGridScroll(event: Event): void {
+    const target = event.target as HTMLElement;
+    const scrollTop = target.scrollTop;
+    const scrollHeight = target.scrollHeight;
+    const clientHeight = target.clientHeight;
+    
+    // Load more when scrolled to 80% of the way down
+    if (scrollTop + clientHeight >= scrollHeight * 0.8) {
+      this.loadMoreItems();
+    }
+  }
+
   ngOnInit(): void {
     // Detect if we're in multi-workspace mode
     const snapshotData = this.route.snapshot.data;
@@ -1251,17 +1299,17 @@ export class ModerateComponent implements OnInit {
     const token = this.auth.token();
     if (!token) {
       if (this.tokenWaitRetries >= this.maxTokenWaitRetries) {
-        this.loading.set(false);
-        this.loadingProgress.set('Authentication timed out. Please refresh.');
+        this.workspacesLoading.set(false);
+        this.workspacesLoadingProgress.set('Authentication timed out. Please refresh.');
         return;
       }
       this.tokenWaitRetries += 1;
-      this.loadingProgress.set('Authenticating…');
+      this.workspacesLoadingProgress.set('Authenticating…');
       setTimeout(() => this.loadWorkspacesWhenTokenReady(), 100);
       return;
     }
 
-    this.loading.set(true);
+    this.workspacesLoading.set(true);
     this.adminApi.listWorkspaces().subscribe(workspaces => {
       const fetchableWorkspaces = workspaces.filter((ws: any) => !!ws?.id && !!ws?.keys?.admin);
       this.workspaces.set(fetchableWorkspaces);
@@ -1269,11 +1317,11 @@ export class ModerateComponent implements OnInit {
       this.filterWorkspaceIds.set(fetchableWorkspaces.map((ws: any) => ws.id));
       
       if (!fetchableWorkspaces.length) {
-        this.loading.set(false);
-        this.loadingProgress.set('No accessible workspaces with admin keys found.');
+        this.workspacesLoading.set(false);
+        this.workspacesLoadingProgress.set('No accessible workspaces with admin keys found.');
         return;
       }
-      this.loadingProgress.set(`Loading items from ${fetchableWorkspaces.length} workspace(s)…`);
+      this.workspacesLoadingProgress.set(`Loading items from ${fetchableWorkspaces.length} workspace(s)…`);
 
       const requests = fetchableWorkspaces.map((ws: any) =>
         this.api.getItems(ws.id, ws.keys?.admin, 0, null).pipe(
@@ -1312,8 +1360,8 @@ export class ModerateComponent implements OnInit {
           }
         });
         this.allFetchedItems.set(enriched);
-        this.loading.set(false);
-        this.loadingProgress.set('');
+        this.workspacesLoading.set(false);
+        this.workspacesLoadingProgress.set('');
       });
     });
   }

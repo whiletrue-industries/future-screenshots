@@ -3,14 +3,18 @@
     <div class="lightbox-content" (click)="$event.stopPropagation()">
       <button class="lightbox-close-btn" (click)="onClose()" aria-label="Close lightbox">×</button>
       <button class="lightbox-sidebar-toggle-btn" (click)="onToggleSidebar()" aria-label="Toggle sidebar">⋮</button>
-      
-      <button class="nav-btn nav-prev" (click)="onPrevItem()" [disabled]="isPrevDisabled()" aria-label="Previous item">←</button>
-      <button class="nav-btn nav-next" (click)="onNextItem()" [disabled]="isNextDisabled()" aria-label="Next item">→</button>
 
       <!-- Content projection for image and sidebar -->
       <ng-content></ng-content>
 
-      <div class="lightbox-counter">{{ selectedItemIndex() + 1 }} / {{ totalItems() }}</div>
+      <app-lightbox-nav-controls
+        [selectedItemIndex]="selectedItemIndex()"
+        [totalItems]="totalItems()"
+        [prevDisabled]="isPrevDisabled()"
+        [nextDisabled]="isNextDisabled()"
+        (prevItem)="onPrevItem()"
+        (nextItem)="onNextItem()">
+      </app-lightbox-nav-controls>
     </div>
   </div>
 </div>
