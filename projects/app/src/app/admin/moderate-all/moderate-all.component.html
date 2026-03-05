@@ -1,5 +1,8 @@
 <div class="moderate-all-container">
   <header class="topbar" role="banner">
+    <div class="actions-left">
+      <a routerLink="/admin" class="back-link" aria-label="Back to admin">← Back</a>
+    </div>
     <div class="brand">
       <span class="logo" aria-hidden="true">✦</span>
       <h1>
@@ -23,6 +26,15 @@
           </button>
           @if (workspaceDropdownOpen()) {
             <div class="workspace-dropdown" (click)="$event.stopPropagation()">
+              <div class="multiselect-search">
+                <input 
+                  type="text" 
+                  class="search-input"
+                  placeholder="Search workspaces…"
+                  [value]="workspaceSearchText()"
+                  (input)="workspaceSearchText.set($any($event.target).value)"
+                  (click)="$event.stopPropagation()" />
+              </div>
               <div class="multiselect-controls">
                 <button 
                   type="button"
@@ -39,7 +51,7 @@
                   Deselect All
                 </button>
               </div>
-              @for (ws of workspaces(); track ws.id) {
+              @for (ws of filteredWorkspaces(); track ws.id) {
                 <label class="workspace-option">
                   <input 
                     type="checkbox" 
@@ -55,7 +67,6 @@
       </h1>
     </div>
     <div class="actions">
-      <a routerLink="/admin" class="back-link" aria-label="Back to admin">← Back</a>
     </div>
   </header>
 
@@ -182,7 +193,7 @@
               <a
                 class="view-link"
                 [routerLink]="['/admin/moderate']"
-                [queryParams]="{workspace: item._workspaceId, apiKey: item._workspaceAdminKey}"
+                [queryParams]="{workspace: item._workspaceId, api_key: item._workspaceAdminKey}"
                 target="_blank"
                 rel="noopener"
                 aria-label="Open in moderation view">

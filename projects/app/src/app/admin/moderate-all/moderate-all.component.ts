@@ -27,6 +27,8 @@ export class ModerateAllComponent implements OnInit {
   private adminApi = inject(AdminApiService);
   private auth = inject(AuthService);
   private router = inject(Router);
+  private tokenWaitRetries = 0;
+  private readonly maxTokenWaitRetries = 50;
 
   workspaces = signal<any[]>([]);
   allItems = signal<EnrichedItem[]>([]);
@@ -39,6 +41,7 @@ export class ModerateAllComponent implements OnInit {
   filterType = signal<string>('all');
   searchText = signal<string>('');
   orderBy = signal<string>('date');
+  workspaceSearchText = signal<string>('');
   
   // UI state for multi-select dropdowns
   workspaceDropdownOpen = signal<boolean>(false);
@@ -96,6 +99,29 @@ export class ModerateAllComponent implements OnInit {
       names.set(ws.id, ws.metadata?.source || ws.metadata?.event_name || ws.id);
     });
     return names;
+  });
+
+  // Compute filtered and sorted workspaces for the dropdown
+  filteredWorkspaces = computed(() => {
+    let workspaces = [...this.workspaces()];
+    
+    // Sort in reverse chronological order (newest first)
+    workspaces.sort((a, b) => {
+      const aTime = new Date(a.metadata?.created_at || 0).getTime();
+      const bTime = new Date(b.metadata?.created_at || 0).getTime();
+      return bTime - aTime;
+    });
+
+    // Filter by search text
+    const searchText = this.workspaceSearchText().trim().toLowerCase();
+    if (searchText) {
+      workspaces = workspaces.filter(ws => {
+        const name = ws.metadata?.source || ws.metadata?.event_name || ws.id;
+        return name.toLowerCase().includes(searchText);
+      });
+    }
+
+    return workspaces;
   });
 
   filteredItems = computed(() => {
@@ -242,38 +268,55 @@ export class ModerateAllComponent implements OnInit {
         this.router.navigate(['/admin/login']);
         return;
       }
-      this.adminApi.listWorkspaces().subscribe(workspaces => {
-        this.workspaces.set(workspaces);
-        // Initialize workspace filter to include all workspaces
-        this.filterWorkspaceIds.set(workspaces.map(ws => ws.id));
-        
-        if (!workspaces.length) {
-          this.loading.set(false);
-          return;
-        }
-        this.loadingProgress.set(`Loading items from ${workspaces.length} workspace(s)…`);
+      this.loadWorkspacesWhenTokenReady();
+    });
+  }
 
-        const requests = workspaces.map(ws =>
-          this.adminApi.getItems(ws.id, ws.keys?.admin, 0, null).pipe(
-            catchError(() => of([]))
-          )
-        );
+  private loadWorkspacesWhenTokenReady(): void {
+    const token = this.auth.token();
+    if (!token) {
+      if (this.tokenWaitRetries >= this.maxTokenWaitRetries) {
+        this.loading.set(false);
+        this.loadingProgress.set('Authentication timed out. Please refresh.');
+        return;
+      }
+      this.tokenWaitRetries += 1;
+      this.loadingProgress.set('Authenticating…');
+      setTimeout(() => this.loadWorkspacesWhenTokenReady(), 100);
+      return;
+    }
 
-        forkJoin(requests).subscribe((results: any[]) => {
-          const enriched: EnrichedItem[] = [];
-          results.forEach((items: any[], idx: number) => {
-            const ws = workspaces[idx];
-            const name = ws?.metadata?.source || ws?.metadata?.event_name || ws?.id || 'Unknown';
-            if (Array.isArray(items)) {
-              items.forEach((item: any) => {
-                enriched.push({ ...item, _workspaceId: ws.id, _workspaceName: name, _workspaceAdminKey: ws.keys?.admin || '' });
-              });
-            }
-          });
-          this.allItems.set(enriched);
-          this.loading.set(false);
-          this.loadingProgress.set('');
+    this.adminApi.listWorkspaces().subscribe(workspaces => {
+      this.workspaces.set(workspaces);
+      // Initialize workspace filter to include all workspaces
+      this.filterWorkspaceIds.set(workspaces.map(ws => ws.id));
+      
+      if (!workspaces.length) {
+        this.loading.set(false);
+        return;
+      }
+      this.loadingProgress.set(`Loading items from ${workspaces.length} workspace(s)…`);
+
+      const requests = workspaces.map(ws =>
+        this.adminApi.getItems(ws.id, ws.keys?.admin, 0, null).pipe(
+          catchError(() => of([]))
+        )
+      );
+
+      forkJoin(requests).subscribe((results: any[]) => {
+        const enriched: EnrichedItem[] = [];
+        results.forEach((items: any[], idx: number) => {
+          const ws = workspaces[idx];
+          const name = ws?.metadata?.source || ws?.metadata?.event_name || ws?.id || 'Unknown';
+          if (Array.isArray(items)) {
+            items.forEach((item: any) => {
+              enriched.push({ ...item, _workspaceId: ws.id, _workspaceName: name, _workspaceAdminKey: ws.keys?.admin || '' });
+            });
+          }
         });
+        this.allItems.set(enriched);
+        this.loading.set(false);
+        this.loadingProgress.set('');
       });
     });
   }

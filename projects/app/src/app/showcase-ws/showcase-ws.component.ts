@@ -10,10 +10,10 @@ import { FisheyeSettings } from './settings-panel.component';
 import { PhotoData, PhotoAnimationState, PhotoMetadata } from './photo-data';
 import { ThreeRendererService } from './three-renderer.service';
 import { LayoutStrategy } from './layout-strategy.interface';
-import { GridLayoutStrategy } from './grid-layout-strategy';
+// import { GridLayoutStrategy } from './grid-layout-strategy';
 import { TsneLayoutStrategy } from './tsne-layout-strategy';
 import { SvgBackgroundLayoutStrategy } from './svg-background-layout-strategy';
-import { SvgSideLayoutStrategy } from './svg-side-layout-strategy';
+// import { SvgSideLayoutStrategy } from './svg-side-layout-strategy';
 import { CirclePackingLayoutStrategy } from './circle-packing-layout-strategy';
 import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
@@ -218,7 +218,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   loadedPhotoIds = new Set<string>();
   private layoutChangeInProgress = false;
   private svgBackgroundStrategy: SvgBackgroundLayoutStrategy | null = null;
-  private svgSideStrategy: SvgSideLayoutStrategy | null = null;
+  // private svgSideStrategy: SvgSideLayoutStrategy | null = null;
   private readonly svgCircleRadius = 15000;
   qrUrl = computed(() => 
     `https://mapfutur.es/${this.lang()}prescan?workspace=${this.workspace()}&api_key=${this.api_key()}&ws=true`
@@ -547,41 +547,42 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   private async applySvgLayoutMode(enableAutoPositioning: boolean): Promise<void> {
-    const backgroundStrategy = this.svgBackgroundStrategy;
-    const sideStrategy = this.svgSideStrategy;
+    // TODO: Re-enable when SvgSideLayoutStrategy is implemented
+    // const backgroundStrategy = this.svgBackgroundStrategy;
+    // const sideStrategy = this.svgSideStrategy;
 
-    if (!backgroundStrategy || !sideStrategy) {
-      console.warn('[SVG] Strategies not initialized; run switchToSvgLayout first');
-      return;
-    }
+    // if (!backgroundStrategy || !sideStrategy) {
+    //   console.warn('[SVG] Strategies not initialized; run switchToSvgLayout first');
+    //   return;
+    // }
 
-    // Switch strategies based on requested mode
-    const strategy = enableAutoPositioning
-      ? backgroundStrategy
-      : new CirclePackingLayoutStrategy({
-          photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
-          photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
-          spacingX: PHOTO_CONSTANTS.SPACING_X,
-          spacingY: PHOTO_CONSTANTS.SPACING_Y,
-          groupBuffer: 1500,
-          photoBuffer: 0,
-          useFanLayout: !this.isMobile()
-        });
+    // // Switch strategies based on requested mode
+    // const strategy = enableAutoPositioning
+    //   ? backgroundStrategy
+    //   : new CirclePackingLayoutStrategy({
+    //       photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
+    //       photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
+    //       spacingX: PHOTO_CONSTANTS.SPACING_X,
+    //       spacingY: PHOTO_CONSTANTS.SPACING_Y,
+    //       groupBuffer: 1500,
+    //       photoBuffer: 0,
+    //       useFanLayout: !this.isMobile()
+    //     });
 
-    // Clear any lingering debug overlay when leaving auto-positioning mode
-    if (!enableAutoPositioning) {
-      const removeDebugOverlay = (backgroundStrategy as any).removeDebugOverlay;
-      if (typeof removeDebugOverlay === 'function') {
-        removeDebugOverlay.call(backgroundStrategy);
-      }
-    }
+    // // Clear any lingering debug overlay when leaving auto-positioning mode
+    // if (!enableAutoPositioning) {
+    //   const removeDebugOverlay = (backgroundStrategy as any).removeDebugOverlay;
+    //   if (typeof removeDebugOverlay === 'function') {
+    //     removeDebugOverlay.call(backgroundStrategy);
+    //   }
+    // }
 
-    await this.photoRepository.setLayoutStrategy(strategy);
-    this.rendererService.setLayoutStrategyReference(strategy);
+    // await this.photoRepository.setLayoutStrategy(strategy);
+    // this.rendererService.setLayoutStrategyReference(strategy);
 
-    if (enableAutoPositioning) {
-      this.showSvgHotspotDebugVisualization();
-    }
+    // if (enableAutoPositioning) {
+    //   this.showSvgHotspotDebugVisualization();
+    // }
 
     // Don't refit camera here - it causes unwanted zoom-out
     // Camera was already fitted in switchToSvgLayout()
@@ -820,23 +821,26 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     }
 
     // Initialize PhotoDataRepository with default grid strategy first
-    const defaultGridStrategy = new GridLayoutStrategy({
-      photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
-      photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
-      spacingX: PHOTO_CONSTANTS.SPACING_X,
-      spacingY: PHOTO_CONSTANTS.SPACING_Y,
-      useRandomPositioning: true
-    });
+    // TODO: Re-enable grid layout when GridLayoutStrategy is implemented
+    // const defaultGridStrategy = new GridLayoutStrategy({
+    //   photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
+    //   photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
+    //   spacingX: PHOTO_CONSTANTS.SPACING_X,
+    //   spacingY: PHOTO_CONSTANTS.SPACING_Y,
+    //   useRandomPositioning: true
+    // });
+    const defaultGridStrategy = null;
 
-    await this.photoRepository.initialize(
-      defaultGridStrategy, 
-      this.rendererService, 
-      {
-        enableRandomShowcase: this.enableRandomShowcase(),
-        showcaseInterval: ANIMATION_CONSTANTS.SHOWCASE_INTERVAL,
-        newPhotoAnimationDelay: ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DELAY
-      }
-    );
+    // TODO: Re-enable when GridLayoutStrategy is implemented
+    // await this.photoRepository.initialize(
+    //   defaultGridStrategy, 
+    //   this.rendererService, 
+    //   {
+    //     enableRandomShowcase: this.enableRandomShowcase(),
+    //     showcaseInterval: ANIMATION_CONSTANTS.SHOWCASE_INTERVAL,
+    //     newPhotoAnimationDelay: ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DELAY
+    //   }
+    // );
 
     // Note: Layout switching is deferred until first photos are loaded
     // This ensures the layout strategy has content to work with
@@ -892,7 +896,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           if (focusId && !focusId.includes('search=')) {
             console.log('[SHOWCASE_WS] Focusing on item from URL:', focusId);
             timer(500).subscribe(() => {
-              this.rendererService.setAutoFit(false);
+              // this.rendererService.setAutoFit(false);
               this.focusOnItem(focusId, { animateFromFull: true, fromShowOnMap: true });
             });
           }
@@ -961,24 +965,27 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Update UI immediately for responsive feedback
       this.currentLayout.set('grid');
       
+      // TODO: Re-enable grid layout when GridLayoutStrategy is implemented
       // Create grid layout strategy
-      const gridStrategy = new GridLayoutStrategy({
-        photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
-        photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
-        spacingX: PHOTO_CONSTANTS.SPACING_X,
-        spacingY: PHOTO_CONSTANTS.SPACING_Y,
-        useRandomPositioning: true
-      });
+      // const gridStrategy = new GridLayoutStrategy({
+      //   photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
+      //   photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
+      //   spacingX: PHOTO_CONSTANTS.SPACING_X,
+      //   spacingY: PHOTO_CONSTANTS.SPACING_Y,
+      //   useRandomPositioning: true
+      // });
+      const gridStrategy = null;
       
+      // TODO: Re-enable when GridLayoutStrategy is implemented
       // Initialize the strategy
-      await gridStrategy.initialize();
+      // await gridStrategy.initialize();
       
       // Remove SVG background if switching from SVG layout
-      this.rendererService.removeSvgBackground();
-      this.rendererService.disableAllDragging();
+      // this.rendererService.removeSvgBackground();
+      // this.rendererService.disableAllDragging();
       
       // Switch the layout using PhotoDataRepository
-      await this.photoRepository.setLayoutStrategy(gridStrategy);
+      // await this.photoRepository.setLayoutStrategy(gridStrategy);
       
     } catch (error) {
       console.error('Error switching to Grid layout:', error);
@@ -1020,85 +1027,87 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
       await this.svgBackgroundStrategy.initialize();
 
+      // TODO: Re-enable hotspot drop callback when setHotspotDropCallback is implemented
       // Register hotspot drop callback to update photo metadata and recalculate layout
-      this.rendererService.setHotspotDropCallback(async (photoId: string, hotspotData: { [key: string]: string | number }, position: { x: number, y: number, z: number }) => {
-        console.log('[HOTSPOT-DROP] Photo', photoId, 'dropped, hotspotData:', hotspotData);
-        
-        // Get the photo from repository
-        const photo = this.photoRepository.getPhotoById(photoId);
-        if (!photo) {
-          console.warn('[HOTSPOT-DROP] Photo not found:', photoId);
-          return;
-        }
+      // this.rendererService.setHotspotDropCallback(async (photoId: string, hotspotData: { [key: string]: string | number }, position: { x: number, y: number, z: number }) => {
+      //   console.log('[HOTSPOT-DROP] Photo', photoId, 'dropped, hotspotData:', hotspotData);
+      //   
+      //   // Get the photo from repository
+      //   const photo = this.photoRepository.getPhotoById(photoId);
+      //   if (!photo) {
+      //     console.warn('[HOTSPOT-DROP] Photo not found:', photoId);
+      //     return;
+      //   }
+      //
+      //   // Store the old author_id to know which cluster to recalculate
+      //   const oldAuthorId = photo.metadata['author_id'] as string;
+      //   
+      //   // Check if this is a "drag out of bounds" event (empty hotspotData)
+      //   const isDraggedOut = Object.keys(hotspotData).length === 0;
+      //   
+      //   if (isDraggedOut) {
+      //     // Clear evaluation metadata when dragged out of bounds
+      //     console.log('[HOTSPOT-DROP] Photo dragged out of bounds, clearing evaluation metadata');
+      //     photo.updateMetadata({
+      //       plausibility: undefined,
+      //       favorable_future: undefined,
+      //       _svgZoneFavorableFuture: undefined
+      //     });
+      //   } else {
+      //     // Update photo metadata with hotspot zone data
+      //     photo.updateMetadata(hotspotData);
+      //     console.log('[HOTSPOT-DROP] Updated metadata for photo', photoId, 'new metadata:', photo.metadata);
+      //   }
+      //   
+      //   // Save metadata to API
+      //   try {
+      //     const workspace = this.workspace();
+      //     const adminKey = this.admin_key();
+      //     
+      //     if (workspace && adminKey && workspace !== 'WORKSPACE_NOT_SET' && adminKey !== 'ADMIN_KEY_NOT_SET') {
+      //       // For dragged out items, send deletion of evaluation fields
+      //       const metadataToSave: { [key: string]: string | number | null } = isDraggedOut ? {
+      //         plausibility: null,
+      //         favorable_future: null,
+      //         _svgZoneFavorableFuture: null
+      //       } : hotspotData;
+      //       
+      //       // Use the original updateProperties method
+      //       await new Promise<void>((resolve, reject) => {
+      //         this.apiService.updateProperties(metadataToSave, photoId).subscribe({
+      //           next: () => {
+      //             console.log('[HOTSPOT-DROP] Saved metadata to API for photo', photoId);
+      //             resolve();
+      //           },
+      //           error: (error) => {
+      //             console.error('[HOTSPOT-DROP] Error saving metadata to API:', error);
+      //             reject(error);
+      //           }
+      //         });
+      //       });
+      //     }
+      //   } catch (error) {
+      //     console.error('[HOTSPOT-DROP] Error saving metadata to API:', error);
+      //   }
+      //   
+      //   // Recalculate layout for affected cluster(s)
+      //   await this.recalculateClusterLayout(oldAuthorId);
+      //   
+      //   // If author_id changed, also recalculate the new cluster
+      //   const newAuthorId = photo.metadata['author_id'] as string;
+      //   if (newAuthorId && newAuthorId !== oldAuthorId) {
+      //     await this.recalculateClusterLayout(newAuthorId);
+      //   }
+      // });
 
-        // Store the old author_id to know which cluster to recalculate
-        const oldAuthorId = photo.metadata['author_id'] as string;
-        
-        // Check if this is a "drag out of bounds" event (empty hotspotData)
-        const isDraggedOut = Object.keys(hotspotData).length === 0;
-        
-        if (isDraggedOut) {
-          // Clear evaluation metadata when dragged out of bounds
-          console.log('[HOTSPOT-DROP] Photo dragged out of bounds, clearing evaluation metadata');
-          photo.updateMetadata({
-            plausibility: undefined,
-            favorable_future: undefined,
-            _svgZoneFavorableFuture: undefined
-          });
-        } else {
-          // Update photo metadata with hotspot zone data
-          photo.updateMetadata(hotspotData);
-          console.log('[HOTSPOT-DROP] Updated metadata for photo', photoId, 'new metadata:', photo.metadata);
-        }
-        
-        // Save metadata to API
-        try {
-          const workspace = this.workspace();
-          const adminKey = this.admin_key();
-          
-          if (workspace && adminKey && workspace !== 'WORKSPACE_NOT_SET' && adminKey !== 'ADMIN_KEY_NOT_SET') {
-            // For dragged out items, send deletion of evaluation fields
-            const metadataToSave: { [key: string]: string | number | null } = isDraggedOut ? {
-              plausibility: null,
-              favorable_future: null,
-              _svgZoneFavorableFuture: null
-            } : hotspotData;
-            
-            // Use the original updateProperties method
-            await new Promise<void>((resolve, reject) => {
-              this.apiService.updateProperties(metadataToSave, photoId).subscribe({
-                next: () => {
-                  console.log('[HOTSPOT-DROP] Saved metadata to API for photo', photoId);
-                  resolve();
-                },
-                error: (error) => {
-                  console.error('[HOTSPOT-DROP] Error saving metadata to API:', error);
-                  reject(error);
-                }
-              });
-            });
-          }
-        } catch (error) {
-          console.error('[HOTSPOT-DROP] Error saving metadata to API:', error);
-        }
-        
-        // Recalculate layout for affected cluster(s)
-        await this.recalculateClusterLayout(oldAuthorId);
-        
-        // If author_id changed, also recalculate the new cluster
-        const newAuthorId = photo.metadata['author_id'] as string;
-        if (newAuthorId && newAuthorId !== oldAuthorId) {
-          await this.recalculateClusterLayout(newAuthorId);
-        }
-      });
-
+      // TODO: Re-enable SvgSideLayoutStrategy when implemented
       // Needed when auto-positioning is enabled
-      this.svgSideStrategy = new SvgSideLayoutStrategy({
-        photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
-        photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
-        svgRadius: this.svgCircleRadius,
-        useFanLayout: !this.isMobile()
-      });
+      // this.svgSideStrategy = new SvgSideLayoutStrategy({
+      //   photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
+      //   photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
+      //   svgRadius: this.svgCircleRadius,
+      //   useFanLayout: !this.isMobile()
+      // });
       const svgElement = this.svgBackgroundStrategy.getSvgElement();
 
       if (svgElement) {
@@ -1143,10 +1152,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         const hashItemId = window.location.hash.slice(1);
         const hasPermalinkFocus = (!!hashItemId && !hashItemId.includes('search=')) || !!this.focusItemId();
         if (!hasPermalinkFocus) {
-          this.rendererService.fitCameraToBounds([
-            { x: minX, y: minY },
-            { x: maxX, y: maxY }
-          ]);
+          // this.rendererService.fitCameraToBounds([
+          //   { x: minX, y: minY },
+          //   { x: maxX, y: maxY }
+          // ]);
         }
       } else {
         console.warn('❌ SVG element is null, cannot set background');
@@ -1566,7 +1575,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     console.log('[SHOWCASE_WS] Focusing on item:', itemId);
     // Mark this item as the permalink target to allow high-res loading when focused
     this.rendererService.setPermalinkTarget(itemId);
-    this.rendererService.setAutoFit(false);
+    // this.rendererService.setAutoFit(false);
     
     // Wait for photo to be loaded
     let attempts = 0;
@@ -1585,7 +1594,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           await this.rendererService.focusOnItemFromShowOnMap(position.x, position.y, photo);
         } else if (shouldAnimate) {
           // Standard permalink animation (currently unused, kept for compatibility)
-          this.rendererService.setAutoFit(false);
+          // this.rendererService.setAutoFit(false);
           const bounds = this.rendererService.getCurrentBounds();
           
           const fullViewZ = this.rendererService.computeFitZWithMargin(

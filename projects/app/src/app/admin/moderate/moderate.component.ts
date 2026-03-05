@@ -1,10 +1,10 @@
-import { Component, effect, signal, computed, inject, afterNextRender, OnDestroy } from '@angular/core';
+import { Component, effect, signal, computed, inject, OnDestroy } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AdminApiService } from '../../../admin-api.service';
 import { FormsModule } from '@angular/forms';
 import { FilterHelpers, FiltersBarComponent, FiltersBarState, FilterCounts } from '../../shared/filters-bar/filters-bar.component';
 import { ItemFilterService } from '../../shared/filters-bar/item-filter.service';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, catchError, of } from 'rxjs';
 import { ImageReplacementModalComponent } from '../image-replacement-modal/image-replacement-modal.component';
 import { QrCodeModalComponent } from '../qr-code-modal/qr-code-modal.component';
 import { CommonModule } from '@angular/common';
@@ -17,6 +17,9 @@ export type Filter = {
 
 @Component({
   selector: 'app-moderate',
+  host: {
+    ngSkipHydration: 'true'
+  },
   imports: [
     FormsModule,
     FiltersBarComponent,
@@ -236,9 +239,27 @@ export class ModerateComponent {
       }
     }
     
+    // Read initial query parameters from snapshot (synchronously available)
+    const snapshotParams = this.route.snapshot.queryParams;
+    const workspace = snapshotParams['workspace'] || snapshotParams['workspaceId'];
+    const apiKey = snapshotParams['api_key'] || snapshotParams['apiKey'];
+    if (workspace) {
+      this.workspaceId.set(workspace);
+    }
+    if (apiKey) {
+      this.apiKey.set(apiKey);
+    }
+    
+    // Also subscribe to future parameter changes in case they update
     this.route.queryParams.subscribe(params => {
-      this.apiKey.set(params['api_key'] || null);
-      this.workspaceId.set(params['workspace'] || this.workspaceId());
+      const workspace = params['workspace'] || params['workspaceId'];
+      const apiKey = params['api_key'] || params['apiKey'];
+      if (workspace) {
+        this.workspaceId.set(workspace);
+      }
+      if (apiKey) {
+        this.apiKey.set(apiKey);
+      }
     });
     
     // Read filters from hash parameters (for updates after initial load)
@@ -279,14 +300,20 @@ export class ModerateComponent {
       const page = this.page();
       if (workspaceId && apiKey) {
         // Only fetch from API - no filtering on server
-        this.api.getItems(workspaceId, apiKey, page, '').subscribe((data: any) => {
+        this.api.getItems(workspaceId, apiKey, page, '').pipe(
+          catchError(error => {
+            console.error('Failed to load items:', error);
+            return of({ 'index-required': null });
+          })
+        ).subscribe((data: any) => {
           if (data['index-required']) {
             this.indexLink.set(data['index-required'] || null);
             this.allFetchedItems.set([]);
           } else {
             this.indexLink.set(null);
-            data = data.filter((item: any) => !!item?.screenshot_url);
-            data.forEach((item: any) => {
+            const items = Array.isArray(data) ? data : [];
+            const filtered = items.filter((item: any) => !!item?.screenshot_url);
+            filtered.forEach((item: any) => {
               item.screenshot_url = this.fix_url(item.screenshot_url);
               item.favorable_future = this.fix_favorable_future(item.favorable_future);
               // Preserve tags from API response, merge with future_scenario_topics if present
@@ -308,7 +335,7 @@ export class ModerateComponent {
             
             // Store all fetched items
             const existing = this.allFetchedItems();
-            const newItems = data.filter((item: any) => !existing.find((i: any) => i._id === item._id));
+            const newItems = filtered.filter((item: any) => !existing.find((i: any) => i._id === item._id));
             this.allFetchedItems.set([...existing, ...newItems]);
             
             // Note: items will be automatically recomputed via computed signals
@@ -321,7 +348,12 @@ export class ModerateComponent {
       const workspaceId = this.workspaceId();
       const apiKey = this.apiKey();
       if (workspaceId && apiKey) {
-        this.api.getWorkspace(workspaceId, apiKey).subscribe((data: any) => {
+        this.api.getWorkspace(workspaceId, apiKey).pipe(
+          catchError(error => {
+            console.error('Failed to load workspace:', error);
+            return of({});
+          })
+        ).subscribe((data: any) => {
           this.workspace.set(data);
         });
       }
