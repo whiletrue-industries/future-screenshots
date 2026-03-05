@@ -2397,10 +2397,11 @@
     .workspace-tooltip-wrapper {
         position: absolute;
         top: calc(100% + 6px);
-        left: 50%;
-        transform: translateX(-50%);
+        left: 0;
+        width: 100%;
         z-index: 10;
-        white-space: nowrap;
+        display: flex;
+        justify-content: center;
         pointer-events: none;
 
         .workspace-tooltip {
@@ -2415,6 +2416,8 @@
             visibility: hidden;
             transition: opacity 0.2s ease, visibility 0.2s ease;
             display: inline-block;
+            text-align: center;
+            white-space: nowrap;
         }
     }
 

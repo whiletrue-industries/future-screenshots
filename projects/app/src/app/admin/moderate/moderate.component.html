@@ -475,11 +475,6 @@
                     </div>
                   </div>
                 </div>
-                <div class="workspace-tooltip-wrapper">
-                  @if (multiWorkspaceMode() && item._workspaceName) {
-                    <span class="workspace-tooltip">{{ item._workspaceName }}</span>
-                  }
-                </div>
                 <div 
                   class="plausibility-scale"
                   role="img"
@@ -496,6 +491,11 @@
                     </span>
                   }
                 </div>
+              </div>
+              <div class="workspace-tooltip-wrapper">
+                @if (item._workspaceName) {
+                  <span class="workspace-tooltip">{{ item._workspaceName }}</span>
+                }
               </div>
             </div>
           }
