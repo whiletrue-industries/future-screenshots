@@ -92,6 +92,10 @@ This will:
 - Watch for file changes and automatically reload
 - Enable source maps for debugging
 
+When running on localhost, admin API calls are proxied through the dev server path `/chronomaps-api` to avoid browser CORS issues during development. The proxy is configured in `proxy.conf.json` and wired in `angular.json` (`serve.development.proxyConfig`).
+
+If you change proxy settings, restart the dev server.
+
 In addition, the dev wrapper binds to `0.0.0.0` for LAN access and prints both URLs that include the test workspace and admin key, for example:
 
 ```

@@ -9,7 +9,9 @@ import { CreateOrUpdateWorkspaceRequest, Workspace } from './app/admin/workspace
 })
 export class AdminApiService {
 
-  CHRONOMAPS_API_URL = 'https://chronomaps-api-qjzuw7ypfq-ez.a.run.app';
+  CHRONOMAPS_API_URL = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? '/chronomaps-api'
+    : 'https://chronomaps-api-qjzuw7ypfq-ez.a.run.app';
 
   constructor(private http: HttpClient, private auth: AuthService) { }
 
@@ -49,8 +51,8 @@ export class AdminApiService {
       }
     }).pipe(
       catchError((error) => {
-        console.error('Error fetching items:', error.error);
-        return of(error.error); // Return null or handle the error as needed
+        console.error('Error fetching items:', error);
+        return of([]);
       })
     );
   }
