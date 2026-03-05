@@ -11,6 +11,8 @@ import { CommonModule } from '@angular/common';
 import { PlatformService } from '../../../platform.service';
 import { AdminLightboxComponent } from '../admin-lightbox/admin-lightbox.component';
 import { AuthService } from '../../auth.service';
+import { SkeletonLoaderComponent } from '../skeleton-loader/skeleton-loader.component';
+import { LazyLoadImageDirective } from '../lazy-load-image.directive';
 
 export type Filter = {
   name: string;
@@ -36,12 +38,14 @@ interface EnrichedItem {
     ImageReplacementModalComponent,
     QrCodeModalComponent,
     AdminLightboxComponent,
-    CommonModule
+    CommonModule,
+    SkeletonLoaderComponent,
+    LazyLoadImageDirective
   ],
   templateUrl: './moderate.component.html',
   styleUrl: './moderate.component.less'
 })
-export class ModerateComponent implements OnInit {
+export class ModerateComponent implements OnInit, OnDestroy {
 
   Array = Array; // Make Array available in template
 
@@ -80,6 +84,10 @@ export class ModerateComponent implements OnInit {
   hasMoreItems = signal<boolean>(true);
   private isLoadingMore = false;
   
+  // Image lazy loading - track which images have loaded
+  imageLoadedMap = signal<Map<string, boolean>>(new Map());
+  imageObserver: IntersectionObserver | null = null;
+  
   // Individual filters
   filterStatus = signal<string[]>(FilterHelpers.DEFAULT_STATUSES);
   filterAuthor = signal<string>('all');
@@ -108,6 +116,13 @@ export class ModerateComponent implements OnInit {
   editTags = signal<string | null>(null);
   newTag = signal<string>('');
   showDescription = signal<Set<string>>(new Set());
+  allItemsForCounting = signal<any[]>([]); // Store all items for accurate counting
+  allFetchedItems = signal<any[]>([]); // Store all fetched items for client-side filtering
+  viewMode = signal<'list' | 'grid'>('grid');
+  selectedItem = signal<any | null>(null);
+  lightboxSidebarOpen = signal<boolean>(false);
+  selectedItemIndex = signal<number>(-1);
+
   userItemCounts = computed(() => {
     const allItems = this.workspaceFilteredItems();
     const userCounts = new Map<string, number>();
@@ -117,12 +132,6 @@ export class ModerateComponent implements OnInit {
     });
     return userCounts;
   });
-  allItemsForCounting = signal<any[]>([]); // Store all items for accurate counting
-  allFetchedItems = signal<any[]>([]); // Store all fetched items for client-side filtering
-  viewMode = signal<'list' | 'grid'>('grid');
-  selectedItem = signal<any | null>(null);
-  lightboxSidebarOpen = signal<boolean>(true);
-  selectedItemIndex = signal<number>(-1);
 
   // Multi-edit state
   multiSelectMode = signal<boolean>(false);
@@ -437,6 +446,14 @@ export class ModerateComponent implements OnInit {
     if (this.multiWorkspaceMode()) {
       if (item._workspaceId && item._workspaceAdminKey) {
         return { workspaceId: item._workspaceId, apiKey: item._workspaceAdminKey };
+      }
+
+      if (item._workspaceId) {
+        const workspace = this.workspaces().find((ws: any) => ws?.id === item._workspaceId);
+        const adminKey = workspace?.keys?.admin;
+        if (adminKey) {
+          return { workspaceId: item._workspaceId, apiKey: adminKey };
+        }
       }
     } else {
       const wsId = this.workspaceId();
@@ -840,7 +857,7 @@ export class ModerateComponent implements OnInit {
     // Find and set the index of the selected item
     const index = this.items().findIndex(i => i._id === item._id);
     this.selectedItemIndex.set(index);
-    this.lightboxSidebarOpen.set(true);
+    // Don't reset sidebar state - preserve it across navigation
     // Scroll to top when opening lightbox
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -850,7 +867,10 @@ export class ModerateComponent implements OnInit {
   closeSidebar(): void {
     const currentItem = this.selectedItem();
     this.selectedItem.set(null);
-    this.lightboxSidebarOpen.set(false);
+  }
+
+  closeWorkspaceDropdown(): void {
+    this.workspaceDropdownOpen.set(false);
   }
 
   nextItem(): void {
@@ -1015,16 +1035,9 @@ export class ModerateComponent implements OnInit {
       return;
     }
 
-    const workspaceId = this.workspaceId();
-    const apiKey = this.apiKey();
-    if (!workspaceId || !apiKey) {
-      this.bulkError.set('Workspace ID and API key are required.');
-      return;
-    }
-
     const updates: any = {};
     const statusValue = this.bulkStatus();
-    const moderationValue = statusValue ? this.statusToModeration(statusValue) : null;
+    const moderationValue = statusValue !== null ? this.statusToModeration(statusValue) : null;
     if (moderationValue !== null) {
       updates._private_moderation = moderationValue;
     }
@@ -1049,9 +1062,20 @@ export class ModerateComponent implements OnInit {
     this.bulkSaving.set(true);
     this.bulkError.set(null);
 
+    const allItems = this.allFetchedItems();
     const results = await Promise.all(ids.map(async id => {
       try {
-        await firstValueFrom(this.api.updateItem(workspaceId, apiKey, id, updates));
+        const item = allItems.find((entry: any) => entry._id === id);
+        if (!item) {
+          return { id, ok: false, error: 'Item not found in current dataset' };
+        }
+
+        const creds = this.getItemCredentials(item);
+        if (!creds) {
+          return { id, ok: false, error: 'Missing credentials for item workspace' };
+        }
+
+        await firstValueFrom(this.api.updateItem(creds.workspaceId, creds.apiKey, id, updates));
         return { id, ok: true };
       } catch (error: any) {
         return { id, ok: false, error };
@@ -1276,7 +1300,36 @@ export class ModerateComponent implements OnInit {
     }
   }
 
+  initImageLazyLoading(): void {
+    if (!this.imageObserver && typeof IntersectionObserver !== 'undefined') {
+      this.imageObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          const img = entry.target as HTMLImageElement;
+          const itemId = img.getAttribute('data-item-id');
+          const dataSrc = img.getAttribute('data-src');
+          
+          if (entry.isIntersecting && itemId && dataSrc && !img.src) {
+            // Image is in viewport and hasn't loaded yet, start loading
+            img.src = dataSrc;
+          }
+        });
+      }, {
+        rootMargin: '100px' // Start loading 100px before the image enters viewport
+      });
+    }
+  }
+
+  onImageLoaded(itemId: string): void {
+    this.imageLoadedMap.update(map => new Map(map).set(itemId, true));
+  }
+
+  isImageLoaded(itemId: string): boolean {
+    return this.imageLoadedMap().get(itemId) ?? false;
+  }
+
   ngOnInit(): void {
+    this.initImageLazyLoading();
+
     // Detect if we're in multi-workspace mode
     const snapshotData = this.route.snapshot.data;
     const isMultiWorkspace = snapshotData['multiWorkspace'] === true;
@@ -1293,6 +1346,10 @@ export class ModerateComponent implements OnInit {
       });
     }
     // else: single workspace mode - parameters are already read in constructor
+  }
+
+  ngOnDestroy(): void {
+    this.imageObserver?.disconnect();
   }
 
   private loadWorkspacesWhenTokenReady(): void {

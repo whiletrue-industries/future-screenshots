@@ -1,5 +1,5 @@
-<div class="moderate-container">
-  <header class="topbar" role="banner">
+<div class="moderate-container" (click)="closeWorkspaceDropdown()">
+  <header class="topbar" role="banner" (click)="$event.stopPropagation()">
     <div class="brand">
       <span class="logo" aria-hidden="true">✦</span>
       <div class="title-stack">
@@ -15,7 +15,7 @@
             <button
               type="button"
               class="title-dropdown-icon"
-              (click)="toggleWorkspaceDropdown()"
+              (click)="toggleWorkspaceDropdown(); $event.stopPropagation()"
               [attr.aria-expanded]="workspaceDropdownOpen()"
               aria-label="Open workspace filter dropdown">
               ▼
@@ -29,7 +29,7 @@
         </div>
 
         @if (multiWorkspaceMode() && workspaceDropdownOpen()) {
-          <div class="workspace-selector-in-title">
+          <div class="workspace-selector-in-title" (click)="$event.stopPropagation()">
             <div class="workspace-dropdown" (click)="$event.stopPropagation()">
               <div class="multiselect-search">
                 <input
@@ -44,24 +44,25 @@
                 <button
                   type="button"
                   class="control-btn"
-                  (click)="selectAllWorkspaces()"
+                  (click)="selectAllWorkspaces(); $event.stopPropagation()"
                   aria-label="Select all workspaces">
                   Select All
                 </button>
                 <button
                   type="button"
                   class="control-btn"
-                  (click)="deselectAllWorkspaces()"
+                  (click)="deselectAllWorkspaces(); $event.stopPropagation()"
                   aria-label="Deselect all workspaces">
                   Deselect All
                 </button>
               </div>
               @for (ws of filteredWorkspaces(); track ws.id) {
-                <label class="workspace-option">
+                <label class="workspace-option" (click)="$event.stopPropagation()">
                   <input
                     type="checkbox"
                     [checked]="isWorkspaceSelected(ws.id)"
                     (change)="toggleWorkspaceFilter(ws.id)"
+                    (click)="$event.stopPropagation()"
                     [attr.aria-label]="'Toggle ' + (ws.metadata?.source || ws.metadata?.event_name || ws.id)" />
                   <span class="option-label">{{ ws.metadata?.source || ws.metadata?.event_name || ws.id }}</span>
                 </label>
@@ -72,6 +73,13 @@
       </div>
     </div>
     <div class="actions">
+      <button class="multi-select-toggle" (click)="toggleMultiSelectMode(); $event.stopPropagation()" aria-label="Toggle multi-edit mode">
+        <span class="icon">🗂</span>
+        <span>{{ multiSelectMode() ? 'Close multi-edit' : 'Multi-edit' }}</span>
+        @if (multiSelectMode() && selectedCount() > 0) {
+          <span class="multi-select-count">{{ selectedCount() }}</span>
+        }
+      </button>
       @if (!multiWorkspaceMode()) {
         <div class="cred-inline">
           <input 
@@ -91,7 +99,7 @@
     </div>
   </header>
 
-  <div class="filters-bar-row">
+  <div class="filters-bar-row" (click)="$event.stopPropagation()">
     <app-filters-bar
       [counts]="filterCounts()"
       [totalCount]="allFetchedItems().length"
@@ -101,14 +109,6 @@
       (filtersChange)="onFiltersChange($event)"
       (filtersCommit)="onFiltersCommit($event)"
     ></app-filters-bar>
-    
-    <button class="multi-select-toggle" (click)="toggleMultiSelectMode()" aria-label="Toggle multi-edit mode">
-      <span class="icon">🗂</span>
-      <span>{{ multiSelectMode() ? 'Close multi-edit' : 'Multi-edit' }}</span>
-      @if (multiSelectMode() && selectedCount() > 0) {
-        <span class="multi-select-count">{{ selectedCount() }}</span>
-      }
-    </button>
   </div>
 
   @if (indexLink()) {
@@ -433,7 +433,17 @@
                 </label>
               }
               <div class="thumbnail-image">
-                <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
+                @if (!isImageLoaded(item._id)) {
+                  <app-skeleton-loader></app-skeleton-loader>
+                }
+                <img
+                  appLazyLoad
+                  [dataSrc]="item.screenshot_url"
+                  [itemId]="item._id"
+                  [observer]="imageObserver"
+                  [onLoaded]="onImageLoaded.bind(this)"
+                  [title]="(item.future_scenario_tagline || 'No tagline') + ' • ' + (LEVELS[item._private_moderation] || 'unknown')"
+                  alt="Future scenario screenshot" />
                 <div class="thumbnail-hover-info">
                   <div class="hover-info-content">
                     @if (item.future_scenario_tagline) {
@@ -566,7 +576,13 @@
             <div class="screenshot-container">
               @if (!isShowingDescription(item._id)) {
               <div class="screenshot-image-wrapper">
-                <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
+                <img
+                  [src]="item.screenshot_url"
+                  loading="lazy"
+                  decoding="async"
+                  fetchpriority="low"
+                  [title]="(item.future_scenario_tagline || 'No tagline') + ' • ' + (LEVELS[item._private_moderation] || 'unknown')"
+                  alt="Future scenario screenshot" />
                 <div 
                   class="plausibility-scale"
                   role="img"
