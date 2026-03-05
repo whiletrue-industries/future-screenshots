@@ -40,6 +40,12 @@ export const routes: Routes = [
         component: ModerateComponent
     },
     {
+        'path': 'admin/all',
+        component: ModerateComponent,
+        data: { multiWorkspace: true },
+        canActivate: [AuthGuard],
+    },
+    {
         'path': 'admin/new',
         component: WorkspaceFormComponent,
         canActivate: [AuthGuard],

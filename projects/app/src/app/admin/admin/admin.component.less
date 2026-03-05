@@ -42,6 +42,12 @@
     .actions {
         display: flex; align-items: center; gap: 12px;
         .reviewed-toggle { display: inline-flex; align-items: center; gap: 6px; color: @color-gray; }
+        .moderate-all-btn {
+            padding: 4px 10px;
+            background-color: @color-dark-pink;
+            color: @color-purple; text-decoration: none; border-radius: 12px; font-weight: 600;
+            &:hover { background-color: @color-accent; color: white; }
+        }
         .create-workspace-btn {
             padding: 4px 10px;
             background-color: @color-purple;

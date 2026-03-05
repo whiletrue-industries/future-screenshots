@@ -53,12 +53,12 @@
                 {
                   "type": "initial",
                   "maximumWarning": "1500kB",
-                  "maximumError": "2MB"
+                  "maximumError": "2.1MB"
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "32kB",
-                  "maximumError": "64kB"
+                  "maximumWarning": "48kB",
+                  "maximumError": "80kB"
                 }
               ],
               "outputHashing": "all",
@@ -93,7 +93,8 @@
               "buildTarget": "app:build:production"
             },
             "development": {
-              "buildTarget": "app:build:development"
+              "buildTarget": "app:build:development",
+              "proxyConfig": "proxy.conf.json"
             },
             "he": {
               "buildTarget": "app:build:he"

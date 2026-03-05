@@ -1,0 +1,10 @@
+{
+  "/chronomaps-api": {
+    "target": "https://chronomaps-api-qjzuw7ypfq-ez.a.run.app",
+    "secure": true,
+    "changeOrigin": true,
+    "pathRewrite": {
+      "^/chronomaps-api": ""
+    }
+  }
+}

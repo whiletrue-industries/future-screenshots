@@ -1,32 +1,105 @@
-<div class="moderate-container">
-  <header class="topbar" role="banner">
+<div class="moderate-container" (click)="closeWorkspaceDropdown()">
+  <header class="topbar" role="banner" (click)="$event.stopPropagation()">
     <div class="brand">
       <span class="logo" aria-hidden="true">✦</span>
-      <h1>Content Moderation</h1>
-      @if (workspace()?.source) {
-        <span class="workspace-name">{{ workspace()?.source }}</span>
-      }
+      <div class="title-stack">
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <a [routerLink]="['/admin']">admin</a>
+          <span class="sep">/</span>
+          <span>{{ breadcrumbLeaf() }}</span>
+        </nav>
+
+        <div class="title-row">
+          @if (multiWorkspaceMode()) {
+            <h1>All Workspaces</h1>
+            <button
+              type="button"
+              class="title-dropdown-icon"
+              (click)="toggleWorkspaceDropdown(); $event.stopPropagation()"
+              [attr.aria-expanded]="workspaceDropdownOpen()"
+              aria-label="Open workspace filter dropdown">
+              ▼
+            </button>
+          } @else {
+            <h1>Content Moderation</h1>
+            @if (workspace()?.source) {
+              <span class="workspace-name">{{ workspace()?.source }}</span>
+            }
+          }
+        </div>
+
+        @if (multiWorkspaceMode() && workspaceDropdownOpen()) {
+          <div class="workspace-selector-in-title">
+            <div class="workspace-dropdown" (click)="$event.stopPropagation()">
+              <div class="multiselect-search">
+                <input
+                  type="text"
+                  class="search-input"
+                  placeholder="Search workspaces…"
+                  [value]="workspaceSearchText()"
+                  (input)="workspaceSearchText.set($any($event.target).value)"
+                  (click)="$event.stopPropagation()" />
+              </div>
+              <div class="multiselect-controls">
+                <button
+                  type="button"
+                  class="control-btn"
+                  (click)="selectAllWorkspaces(); $event.stopPropagation()"
+                  aria-label="Select all workspaces">
+                  Select All
+                </button>
+                <button
+                  type="button"
+                  class="control-btn"
+                  (click)="deselectAllWorkspaces(); $event.stopPropagation()"
+                  aria-label="Deselect all workspaces">
+                  Deselect All
+                </button>
+              </div>
+              @for (ws of filteredWorkspaces(); track ws.id) {
+                <label class="workspace-option" (click)="$event.stopPropagation()">
+                  <input
+                    type="checkbox"
+                    [checked]="isWorkspaceSelected(ws.id)"
+                    (change)="toggleWorkspaceFilter(ws.id)"
+                    (click)="$event.stopPropagation()"
+                    [attr.aria-label]="'Toggle ' + (ws.metadata?.source || ws.metadata?.event_name || ws.id)" />
+                  <span class="option-label">{{ ws.metadata?.source || ws.metadata?.event_name || ws.id }}</span>
+                </label>
+              }
+            </div>
+          </div>
+        }
+      </div>
     </div>
     <div class="actions">
-      <div class="cred-inline">
-        <input 
-          type="text" 
-          [ngModel]="workspaceId() ?? ''" 
-          (ngModelChange)="workspaceId.set($event || null)" 
-          placeholder="workspace"
-          aria-label="Workspace ID" />
-        <input 
-          type="text" 
-          [ngModel]="apiKey() ?? ''" 
-          (ngModelChange)="apiKey.set($event || null)" 
-          placeholder="api key"
-          aria-label="API key" />
-      </div>
-      <a href="/admin" class="back-link" aria-label="Back to admin">← Back</a>
+      <button class="multi-select-toggle" (click)="toggleMultiSelectMode(); $event.stopPropagation()" aria-label="Toggle multi-edit mode">
+        <span class="icon">🗂</span>
+        <span>{{ multiSelectMode() ? 'Close multi-edit' : 'Multi-edit' }}</span>
+        @if (multiSelectMode() && selectedCount() > 0) {
+          <span class="multi-select-count">{{ selectedCount() }}</span>
+        }
+      </button>
+      @if (!multiWorkspaceMode()) {
+        <div class="cred-inline">
+          <input 
+            type="text" 
+            [ngModel]="workspaceId() ?? ''" 
+            (ngModelChange)="workspaceId.set($event || null)" 
+            placeholder="workspace"
+            aria-label="Workspace ID" />
+          <input 
+            type="text" 
+            [ngModel]="apiKey() ?? ''" 
+            (ngModelChange)="apiKey.set($event || null)" 
+            placeholder="api key"
+            aria-label="API key" />
+        </div>
+      }
     </div>
   </header>
 
-  <div class="filters-bar-row">
+  <div class="filters-bar-row" (click)="$event.stopPropagation()">
     <app-filters-bar
       [counts]="filterCounts()"
       [totalCount]="allFetchedItems().length"
@@ -36,35 +109,7 @@
       (filtersChange)="onFiltersChange($event)"
       (filtersCommit)="onFiltersCommit($event)"
     ></app-filters-bar>
-    
-    <button class="multi-select-toggle" (click)="toggleMultiSelectMode()" aria-label="Toggle multi-edit mode">
-      <span class="icon">🗂</span>
-      <span>{{ multiSelectMode() ? 'Close multi-edit' : 'Multi-edit' }}</span>
-      @if (multiSelectMode() && selectedCount() > 0) {
-        <span class="multi-select-count">{{ selectedCount() }}</span>
-      }
-    </button>
   </div>
-
-  @if (items().length >= 500 || page() > 0) {
-    <section class="pagination-section" aria-label="Pagination">
-      <button 
-        class="pagination-btn" 
-        [disabled]="page() === 0" 
-        (click)="page.set(page() - 1)"
-        aria-label="Previous page">
-        ← Previous
-      </button>
-      <span class="page-info">Page {{ page() + 1 }}</span>
-      <button 
-        class="pagination-btn" 
-        [disabled]="!items().length" 
-        (click)="page.set(page() + 1)"
-        aria-label="Next page">
-        Next →
-      </button>
-    </section>
-  }
 
   @if (indexLink()) {
     <div class="index-notice" role="alert">
@@ -73,18 +118,24 @@
     </div>
   } @else {
     @if (viewMode() === 'grid') {
-      <div class="grid-layout">
+      <div class="grid-layout" (scroll)="onGridScroll($event)">
+        @if (workspacesLoading()) {
+          <div class="loading-indicator workspace-loading">
+            <div class="spinner"></div>
+            <p>{{ workspacesLoadingProgress() || 'Loading workspaces...' }}</p>
+          </div>
+        }
         @if (selectedItem()) {
-          <div class="lightbox-overlay" (click)="closeSidebar()" role="dialog" aria-modal="true" aria-labelledby="lightbox-title">
-            <div class="lightbox-container" [class.sidebar-open]="lightboxSidebarOpen()">
-              <div class="lightbox-content" (click)="$event.stopPropagation()">
-                <button class="lightbox-close-btn" (click)="closeSidebar()" aria-label="Close lightbox">×</button>
-                <button class="lightbox-sidebar-toggle-btn" (click)="toggleLightboxSidebar()" aria-label="Toggle sidebar">⋮</button>
-                
-                <button class="nav-btn nav-prev" (click)="prevItem()" [disabled]="selectedItemIndex() <= 0" aria-label="Previous item">←</button>
-                <button class="nav-btn nav-next" (click)="nextItem()" [disabled]="selectedItemIndex() >= items().length - 1" aria-label="Next item">→</button>
+          <app-admin-lightbox 
+            [selectedItemIndex]="selectedItemIndex()"
+            [totalItems]="items().length"
+            [lightboxSidebarOpen]="lightboxSidebarOpen()"
+            (close)="closeSidebar()"
+            (prevItem)="prevItem()"
+            (nextItem)="nextItem()"
+            (toggleSidebar)="toggleLightboxSidebar()">
 
-                <div class="lightbox-actions">
+            <div class="lightbox-actions">
                   <button class="image-action-btn" (click)="$event.stopPropagation(); openImageReplacementModal(selectedItem()?._id!)" aria-label="Replace image from lightbox">
                     ✎ Replace
                   </button>
@@ -195,11 +246,8 @@
                   </div>
                 </div>
 
-                <div class="lightbox-counter">{{ selectedItemIndex() + 1 }} / {{ items().length }}</div>
-              </div>
-
-              @if (lightboxSidebarOpen()) {
-                <aside class="lightbox-sidebar" role="complementary" (click)="$event.stopPropagation()">
+            @if (lightboxSidebarOpen()) {
+              <aside class="lightbox-sidebar" role="complementary" (click)="$event.stopPropagation()">
                   <div class="sidebar-header">
                     <h2>Item Details</h2>
                     <button class="close-sidebar-btn" (click)="toggleLightboxSidebar()" aria-label="Close sidebar">×</button>
@@ -231,14 +279,14 @@
                         <button 
                           class="icon-btn star-btn" 
                           [class.active]="selectedItem()._private_moderation === 5"
-                          (click)="highlight(selectedItem()._id)"
+                          (click)="$event.stopPropagation(); highlight(selectedItem()._id)"
                           aria-label="Highlight">
                           {{ selectedItem()._private_moderation === 5 ? '★' : '☆' }}
                         </button>
                         <span class="ai-confidence" [attr.data-confidence]="getConfidenceLevel(selectedItem())">
                           AI: {{ getAIConfidence(selectedItem()) }}%
                         </span>
-                        <button class="icon-btn trash-btn" (click)="reject(selectedItem()._id)" aria-label="Archive">
+                        <button class="icon-btn trash-btn" (click)="$event.stopPropagation(); reject(selectedItem()._id)" aria-label="Archive">
                           🗑️
                         </button>
                       </div>
@@ -367,26 +415,66 @@
                     </div>
                   </article>
                   </div>
-                </aside>
-              }
-            </div>
-          </div>
+              </aside>
+            }
+          </app-admin-lightbox>
         }
         <div class="thumbnails-grid" role="list">
           @for (item of items(); track item._id) {
-            <div class="thumbnail-item" [attr.data-status]="LEVELS[item._private_moderation]" (click)="selectItem(item)" role="button" tabindex="0" [class.selected]="selectedItem()?._id === item._id" [class.select-mode]="multiSelectMode()" [class.bulk-selected]="isItemSelected(item._id)">
-              @if (multiSelectMode()) {
-                <label class="select-checkbox">
-                  <input 
-                    type="checkbox" 
-                    [checked]="isItemSelected(item._id)"
-                    (click)="$event.stopPropagation()"
-                    (change)="toggleItemSelection(item._id)"
-                    aria-label="Select item for bulk edit" />
-                </label>
-              }
+            <div class="thumbnail-item" [attr.data-status]="LEVELS[item._private_moderation]" (click)="selectItem(item)" (mouseenter)="onThumbnailHover(item)" (mouseleave)="onThumbnailLeave()" role="button" tabindex="0" [class.selected]="selectedItem()?._id === item._id" [class.bulk-selected]="isItemSelected(item._id)" [class.same-workspace-related]="isSameWorkspaceHovered(item)">
+              <label class="select-checkbox">
+                <input 
+                  type="checkbox" 
+                  [checked]="isItemSelected(item._id)"
+                  (click)="$event.stopPropagation()"
+                  (change)="toggleItemSelectionAndEnableMode(item._id)"
+                  aria-label="Select item for bulk edit" />
+              </label>
               <div class="thumbnail-image">
-                <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
+                @if (!isImageLoaded(item._id)) {
+                  <app-skeleton-loader></app-skeleton-loader>
+                }
+                <img
+                  appLazyLoad
+                  [dataSrc]="item.screenshot_url"
+                  [itemId]="item._id"
+                  [observer]="imageObserver"
+                  [onLoaded]="onImageLoaded.bind(this)"
+                  [title]="(item.future_scenario_tagline || 'No tagline') + ' • ' + (LEVELS[item._private_moderation] || 'unknown')"
+                  alt="Future scenario screenshot" />
+                <div class="thumbnail-hover-info">
+                  <div class="hover-bottom-section">
+                    @if (item.future_scenario_tagline) {
+                      <h4 class="hover-title">{{ item.future_scenario_tagline }}</h4>
+                    } @else {
+                      <h4 class="hover-title no-title">No title</h4>
+                    }
+                    <div class="hover-button-group">
+                      <button 
+                        class="hover-btn star-btn" 
+                        [class.active]="item._private_moderation === 5"
+                        (click)="$event.stopPropagation(); highlight(item._id)"
+                        [title]="item._private_moderation === 5 ? 'Remove highlight' : 'Highlight'"
+                        aria-label="Toggle highlight">
+                        {{ item._private_moderation === 5 ? '★' : '☆' }}
+                      </button>
+                      <button 
+                        class="hover-btn edit-btn" 
+                        (click)="$event.stopPropagation(); openImageReplacementModal(item._id)"
+                        title="Replace image"
+                        aria-label="Replace image">
+                        ✎
+                      </button>
+                      <button 
+                        class="hover-btn trash-btn" 
+                        (click)="$event.stopPropagation(); reject(item._id)"
+                        title="Archive"
+                        aria-label="Archive">
+                        🗑
+                      </button>
+                    </div>
+                  </div>
+                </div>
                 <div 
                   class="plausibility-scale"
                   role="img"
@@ -403,53 +491,83 @@
                     </span>
                   }
                 </div>
-                <div class="thumbnail-actions">
-                  <button class="thumb-btn" (click)="$event.stopPropagation(); openImageReplacementModal(item._id)" aria-label="Replace image">
-                    ✎
-                  </button>
-                  <button class="thumb-btn ghost" (click)="$event.stopPropagation(); openQrModal(item._id)" aria-label="Open scanner QR for this image">
-                    QR
-                  </button>
-                </div>
+              </div>
+              <div class="workspace-tooltip-wrapper">
+                @if (item._workspaceName) {
+                  <span class="workspace-tooltip">{{ item._workspaceName }}</span>
+                }
               </div>
             </div>
           }
 
-          @if (replacingImageItemId() && currentReplacingImageUrl() && workspaceId() && apiKey()) {
-            <app-image-replacement-modal
-              [workspaceId]="workspaceId()!"
-              [apiKey]="apiKey()!"
-              [itemId]="replacingImageItemId()!"
-              [currentImageUrl]="currentReplacingImageUrl()!"
-              (closed)="closeImageReplacementModal()"
-              (imageReplaced)="onImageReplaced(replacingImageItemId()!, $event)"
-            />
+          @if (replacingImageItemId() && currentReplacingImageUrl()) {
+            @if (multiWorkspaceMode()) {
+              @for (item of allFetchedItems(); track item._id) {
+                @if (item._id === replacingImageItemId() && item._workspaceId && item._workspaceAdminKey) {
+                  <app-image-replacement-modal
+                    [workspaceId]="item._workspaceId"
+                    [apiKey]="item._workspaceAdminKey"
+                    [itemId]="replacingImageItemId()!"
+                    [currentImageUrl]="currentReplacingImageUrl()!"
+                    (closed)="closeImageReplacementModal()"
+                    (imageReplaced)="onImageReplaced(replacingImageItemId()!, $event)"
+                  />
+                }
+              }
+            } @else if (workspaceId() && apiKey()) {
+              <app-image-replacement-modal
+                [workspaceId]="workspaceId()!"
+                [apiKey]="apiKey()!"
+                [itemId]="replacingImageItemId()!"
+                [currentImageUrl]="currentReplacingImageUrl()!"
+                (closed)="closeImageReplacementModal()"
+                (imageReplaced)="onImageReplaced(replacingImageItemId()!, $event)"
+              />
+            }
           }
 
-          @if (showQRModal() && qrItemId() && workspaceId() && apiKey()) {
-            <app-qr-code-modal
-              [workspaceId]="workspaceId()!"
-              [apiKey]="apiKey()!"
-              [itemId]="qrItemId()!"
-              (closed)="closeQrModal()"
-            />
+          @if (showQRModal() && qrItemId()) {
+            @if (multiWorkspaceMode()) {
+              @for (item of allFetchedItems(); track item._id) {
+                @if (item._id === qrItemId() && item._workspaceId && item._workspaceAdminKey) {
+                  <app-qr-code-modal
+                    [workspaceId]="item._workspaceId"
+                    [apiKey]="item._workspaceAdminKey"
+                    [itemId]="qrItemId()!"
+                    (closed)="closeQrModal()"
+                  />
+                }
+              }
+            } @else if (workspaceId() && apiKey()) {
+              <app-qr-code-modal
+                [workspaceId]="workspaceId()!"
+                [apiKey]="apiKey()!"
+                [itemId]="qrItemId()!"
+                (closed)="closeQrModal()"
+              />
+            }
           }
         </div>
+        
+        @if (itemsLoading() && !multiWorkspaceMode()) {
+          <div class="loading-indicator items-loading">
+            <div class="spinner"></div>
+            <p>Loading more items...</p>
+          </div>
+        }
       </div>
     } @else {
       <div class="items-grid" role="list">
         @for (item of items(); track item._id) {
           <article class="item-card" [attr.data-status]="LEVELS[item._private_moderation]" role="listitem" [class.select-mode]="multiSelectMode()" [class.bulk-selected]="isItemSelected(item._id)">
             <div class="card-header">
-              @if (multiSelectMode()) {
-                <label class="select-checkbox">
-                  <input 
-                    type="checkbox" 
-                    [checked]="isItemSelected(item._id)"
-                    (change)="toggleItemSelection(item._id)"
-                    aria-label="Select item for bulk edit" />
-                </label>
-              }
+              <label class="select-checkbox">
+                <input 
+                  type="checkbox" 
+                  [checked]="isItemSelected(item._id)"
+                  (change)="toggleItemSelection(item._id)"
+                  aria-label="Select item for bulk edit" />
+              </label>
               <button class="user-info" (click)="filterByUser(item.author_id)" [title]="getEmail(item)">
                 @if (item.author_id && item.author_id !== 'unknown') {
                   <span class="user-count-link">{{ getUserItemCount(item.author_id) }} items</span>
@@ -463,7 +581,13 @@
             <div class="screenshot-container">
               @if (!isShowingDescription(item._id)) {
               <div class="screenshot-image-wrapper">
-                <img [src]="item.screenshot_url" alt="Future scenario screenshot" />
+                <img
+                  [src]="item.screenshot_url"
+                  loading="lazy"
+                  decoding="async"
+                  fetchpriority="low"
+                  [title]="(item.future_scenario_tagline || 'No tagline') + ' • ' + (LEVELS[item._private_moderation] || 'unknown')"
+                  alt="Future scenario screenshot" />
                 <div 
                   class="plausibility-scale"
                   role="img"
@@ -548,14 +672,14 @@
               <button 
                 class="icon-btn star-btn" 
                 [class.active]="item._private_moderation === 5"
-                (click)="highlight(item._id)"
+                (click)="$event.stopPropagation(); highlight(item._id)"
                 aria-label="Highlight">
                 {{ item._private_moderation === 5 ? '★' : '☆' }}
               </button>
               <span class="ai-confidence" [attr.data-confidence]="getConfidenceLevel(item)">
                 AI: {{ getAIConfidence(item) }}%
               </span>
-              <button class="icon-btn trash-btn" (click)="reject(item._id)" aria-label="Archive">
+              <button class="icon-btn trash-btn" (click)="$event.stopPropagation(); reject(item._id)" aria-label="Archive">
                 🗑️
               </button>
             </div>
