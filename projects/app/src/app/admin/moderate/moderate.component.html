@@ -421,7 +421,7 @@
         }
         <div class="thumbnails-grid" role="list">
           @for (item of items(); track item._id) {
-            <div class="thumbnail-item" [attr.data-status]="LEVELS[item._private_moderation]" (click)="selectItem(item)" role="button" tabindex="0" [class.selected]="selectedItem()?._id === item._id" [class.bulk-selected]="isItemSelected(item._id)">
+            <div class="thumbnail-item" [attr.data-status]="LEVELS[item._private_moderation]" (click)="selectItem(item)" (mouseenter)="onThumbnailHover(item)" (mouseleave)="onThumbnailLeave()" role="button" tabindex="0" [class.selected]="selectedItem()?._id === item._id" [class.bulk-selected]="isItemSelected(item._id)" [class.same-workspace-related]="isSameWorkspaceHovered(item)">
               <label class="select-checkbox">
                 <input 
                   type="checkbox" 
@@ -443,37 +443,39 @@
                   [title]="(item.future_scenario_tagline || 'No tagline') + ' • ' + (LEVELS[item._private_moderation] || 'unknown')"
                   alt="Future scenario screenshot" />
                 <div class="thumbnail-hover-info">
-                  <div class="hover-info-content">
+                  <div class="hover-bottom-section">
                     @if (item.future_scenario_tagline) {
                       <h4 class="hover-title">{{ item.future_scenario_tagline }}</h4>
                     } @else {
                       <h4 class="hover-title no-title">No title</h4>
                     }
+                    <div class="hover-button-group">
+                      <button 
+                        class="hover-btn star-btn" 
+                        [class.active]="item._private_moderation === 5"
+                        (click)="$event.stopPropagation(); highlight(item._id)"
+                        [title]="item._private_moderation === 5 ? 'Remove highlight' : 'Highlight'"
+                        aria-label="Toggle highlight">
+                        {{ item._private_moderation === 5 ? '★' : '☆' }}
+                      </button>
+                      <button 
+                        class="hover-btn edit-btn" 
+                        (click)="$event.stopPropagation(); openImageReplacementModal(item._id)"
+                        title="Replace image"
+                        aria-label="Replace image">
+                        ✎
+                      </button>
+                      <button 
+                        class="hover-btn trash-btn" 
+                        (click)="$event.stopPropagation(); reject(item._id)"
+                        title="Archive"
+                        aria-label="Archive">
+                        🗑
+                      </button>
+                    </div>
                   </div>
-                  <div class="hover-button-group">
-                    <button 
-                      class="hover-btn star-btn" 
-                      [class.active]="item._private_moderation === 5"
-                      (click)="$event.stopPropagation(); highlight(item._id)"
-                      [title]="item._private_moderation === 5 ? 'Remove highlight' : 'Highlight'"
-                      aria-label="Toggle highlight">
-                      {{ item._private_moderation === 5 ? '★' : '☆' }}
-                    </button>
-                    <button 
-                      class="hover-btn edit-btn" 
-                      (click)="$event.stopPropagation(); selectItem(item)"
-                      title="Edit details"
-                      aria-label="Edit details">
-                      ✎
-                    </button>
-                    <button 
-                      class="hover-btn trash-btn" 
-                      (click)="$event.stopPropagation(); reject(item._id)"
-                      title="Archive"
-                      aria-label="Archive">
-                      🗑
-                    </button>
-                  </div>
+                </div>
+                <div class="workspace-tooltip-wrapper">
                   @if (multiWorkspaceMode() && item._workspaceName) {
                     <span class="workspace-tooltip">{{ item._workspaceName }}</span>
                   }

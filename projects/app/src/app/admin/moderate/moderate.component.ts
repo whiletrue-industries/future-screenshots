@@ -122,6 +122,8 @@ export class ModerateComponent implements OnInit, OnDestroy {
   selectedItem = signal<any | null>(null);
   lightboxSidebarOpen = signal<boolean>(false);
   selectedItemIndex = signal<number>(-1);
+  hoveredWorkspaceId = signal<string | null>(null);
+  hoveredItemId = signal<string | null>(null);
 
   userItemCounts = computed(() => {
     const allItems = this.workspaceFilteredItems();
@@ -874,6 +876,27 @@ export class ModerateComponent implements OnInit, OnDestroy {
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+  }
+
+  onThumbnailHover(item: any): void {
+    if (!item?._workspaceId) {
+      this.hoveredWorkspaceId.set(null);
+      this.hoveredItemId.set(null);
+      return;
+    }
+    this.hoveredWorkspaceId.set(item._workspaceId);
+    this.hoveredItemId.set(item._id ?? null);
+  }
+
+  onThumbnailLeave(): void {
+    this.hoveredWorkspaceId.set(null);
+    this.hoveredItemId.set(null);
+  }
+
+  isSameWorkspaceHovered(item: any): boolean {
+    const workspaceId = this.hoveredWorkspaceId();
+    const hoveredItemId = this.hoveredItemId();
+    return !!workspaceId && item?._workspaceId === workspaceId && item?._id !== hoveredItemId;
   }
 
   closeSidebar(): void {
