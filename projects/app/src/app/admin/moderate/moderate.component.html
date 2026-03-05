@@ -29,7 +29,7 @@
         </div>
 
         @if (multiWorkspaceMode() && workspaceDropdownOpen()) {
-          <div class="workspace-selector-in-title" (click)="$event.stopPropagation()">
+          <div class="workspace-selector-in-title">
             <div class="workspace-dropdown" (click)="$event.stopPropagation()">
               <div class="multiselect-search">
                 <input
@@ -279,14 +279,14 @@
                         <button 
                           class="icon-btn star-btn" 
                           [class.active]="selectedItem()._private_moderation === 5"
-                          (click)="highlight(selectedItem()._id)"
+                          (click)="$event.stopPropagation(); highlight(selectedItem()._id)"
                           aria-label="Highlight">
                           {{ selectedItem()._private_moderation === 5 ? '★' : '☆' }}
                         </button>
                         <span class="ai-confidence" [attr.data-confidence]="getConfidenceLevel(selectedItem())">
                           AI: {{ getAIConfidence(selectedItem()) }}%
                         </span>
-                        <button class="icon-btn trash-btn" (click)="reject(selectedItem()._id)" aria-label="Archive">
+                        <button class="icon-btn trash-btn" (click)="$event.stopPropagation(); reject(selectedItem()._id)" aria-label="Archive">
                           🗑️
                         </button>
                       </div>
@@ -421,17 +421,15 @@
         }
         <div class="thumbnails-grid" role="list">
           @for (item of items(); track item._id) {
-            <div class="thumbnail-item" [attr.data-status]="LEVELS[item._private_moderation]" (click)="selectItem(item)" role="button" tabindex="0" [class.selected]="selectedItem()?._id === item._id" [class.select-mode]="multiSelectMode()" [class.bulk-selected]="isItemSelected(item._id)">
-              @if (multiSelectMode()) {
-                <label class="select-checkbox">
-                  <input 
-                    type="checkbox" 
-                    [checked]="isItemSelected(item._id)"
-                    (click)="$event.stopPropagation()"
-                    (change)="toggleItemSelection(item._id)"
-                    aria-label="Select item for bulk edit" />
-                </label>
-              }
+            <div class="thumbnail-item" [attr.data-status]="LEVELS[item._private_moderation]" (click)="selectItem(item)" role="button" tabindex="0" [class.selected]="selectedItem()?._id === item._id" [class.bulk-selected]="isItemSelected(item._id)">
+              <label class="select-checkbox">
+                <input 
+                  type="checkbox" 
+                  [checked]="isItemSelected(item._id)"
+                  (click)="$event.stopPropagation()"
+                  (change)="toggleItemSelectionAndEnableMode(item._id)"
+                  aria-label="Select item for bulk edit" />
+              </label>
               <div class="thumbnail-image">
                 @if (!isImageLoaded(item._id)) {
                   <app-skeleton-loader></app-skeleton-loader>
@@ -447,18 +445,38 @@
                 <div class="thumbnail-hover-info">
                   <div class="hover-info-content">
                     @if (item.future_scenario_tagline) {
-                      <p class="hover-tagline">{{ item.future_scenario_tagline }}</p>
+                      <h4 class="hover-title">{{ item.future_scenario_tagline }}</h4>
+                    } @else {
+                      <h4 class="hover-title no-title">No title</h4>
                     }
-                    @if (item.content) {
-                      <p class="hover-content">{{ item.content }}</p>
-                    }
-                    <div class="hover-metadata">
-                      @if (item.created_at) {
-                        <span class="hover-date">{{ formatDate(item.created_at) }}</span>
-                      }
-                      <span class="hover-status">{{ LEVELS[item._private_moderation] }}</span>
-                    </div>
                   </div>
+                  <div class="hover-button-group">
+                    <button 
+                      class="hover-btn star-btn" 
+                      [class.active]="item._private_moderation === 5"
+                      (click)="$event.stopPropagation(); highlight(item._id)"
+                      [title]="item._private_moderation === 5 ? 'Remove highlight' : 'Highlight'"
+                      aria-label="Toggle highlight">
+                      {{ item._private_moderation === 5 ? '★' : '☆' }}
+                    </button>
+                    <button 
+                      class="hover-btn edit-btn" 
+                      (click)="$event.stopPropagation(); selectItem(item)"
+                      title="Edit details"
+                      aria-label="Edit details">
+                      ✎
+                    </button>
+                    <button 
+                      class="hover-btn trash-btn" 
+                      (click)="$event.stopPropagation(); reject(item._id)"
+                      title="Archive"
+                      aria-label="Archive">
+                      🗑
+                    </button>
+                  </div>
+                  @if (multiWorkspaceMode() && item._workspaceName) {
+                    <span class="workspace-tooltip">{{ item._workspaceName }}</span>
+                  }
                 </div>
                 <div 
                   class="plausibility-scale"
@@ -476,19 +494,6 @@
                     </span>
                   }
                 </div>
-                <div class="thumbnail-actions">
-                  <button class="thumb-btn" (click)="$event.stopPropagation(); openImageReplacementModal(item._id)" aria-label="Replace image">
-                    ✎
-                  </button>
-                  <button class="thumb-btn ghost" (click)="$event.stopPropagation(); openQrModal(item._id)" aria-label="Open scanner QR for this image">
-                    QR
-                  </button>
-                </div>
-                @if (multiWorkspaceMode() && item._workspaceName) {
-                  <div class="workspace-badge-wrapper">
-                    <span class="workspace-badge" [title]="item._workspaceName">{{ item._workspaceName }}</span>
-                  </div>
-                }
               </div>
             </div>
           }
@@ -554,15 +559,13 @@
         @for (item of items(); track item._id) {
           <article class="item-card" [attr.data-status]="LEVELS[item._private_moderation]" role="listitem" [class.select-mode]="multiSelectMode()" [class.bulk-selected]="isItemSelected(item._id)">
             <div class="card-header">
-              @if (multiSelectMode()) {
-                <label class="select-checkbox">
-                  <input 
-                    type="checkbox" 
-                    [checked]="isItemSelected(item._id)"
-                    (change)="toggleItemSelection(item._id)"
-                    aria-label="Select item for bulk edit" />
-                </label>
-              }
+              <label class="select-checkbox">
+                <input 
+                  type="checkbox" 
+                  [checked]="isItemSelected(item._id)"
+                  (change)="toggleItemSelection(item._id)"
+                  aria-label="Select item for bulk edit" />
+              </label>
               <button class="user-info" (click)="filterByUser(item.author_id)" [title]="getEmail(item)">
                 @if (item.author_id && item.author_id !== 'unknown') {
                   <span class="user-count-link">{{ getUserItemCount(item.author_id) }} items</span>
@@ -667,14 +670,14 @@
               <button 
                 class="icon-btn star-btn" 
                 [class.active]="item._private_moderation === 5"
-                (click)="highlight(item._id)"
+                (click)="$event.stopPropagation(); highlight(item._id)"
                 aria-label="Highlight">
                 {{ item._private_moderation === 5 ? '★' : '☆' }}
               </button>
               <span class="ai-confidence" [attr.data-confidence]="getConfidenceLevel(item)">
                 AI: {{ getAIConfidence(item) }}%
               </span>
-              <button class="icon-btn trash-btn" (click)="reject(item._id)" aria-label="Archive">
+              <button class="icon-btn trash-btn" (click)="$event.stopPropagation(); reject(item._id)" aria-label="Archive">
                 🗑️
               </button>
             </div>

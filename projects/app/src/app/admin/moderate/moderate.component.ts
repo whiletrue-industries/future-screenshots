@@ -417,8 +417,20 @@ export class ModerateComponent implements OnInit, OnDestroy {
     
     if (workspaceId && apiKey) {
       this.api.updateItemModeration(workspaceId, apiKey, itemId, level).subscribe(data => {
-        // Update source data - items will be recomputed automatically
-        this.allFetchedItems.set(this.allFetchedItems().filter(item => item._id !== itemId));
+        // Update the item's moderation status in the source data
+        this.allFetchedItems.update(items => 
+          items.map(item => 
+            item._id === itemId 
+              ? { ...item, _private_moderation: level }
+              : item
+          )
+        );
+        
+        // Also update the selected item if it's the same one
+        const currentSelected = this.selectedItem();
+        if (currentSelected && currentSelected._id === itemId) {
+          this.selectedItem.set({ ...currentSelected, _private_moderation: level });
+        }
       });
     } else {
       console.error('workspaceId or apiKey is null');
@@ -995,6 +1007,26 @@ export class ModerateComponent implements OnInit, OnDestroy {
       current.delete(itemId);
     } else {
       current.add(itemId);
+    }
+    this.selectedIds.set(current);
+  }
+
+  toggleItemSelectionAndEnableMode(itemId: string): void {
+    const current = new Set(this.selectedIds());
+    const isAdding = !current.has(itemId);
+    
+    if (isAdding) {
+      current.add(itemId);
+      // Enable multiSelectMode when first item is selected
+      if (!this.multiSelectMode()) {
+        this.multiSelectMode.set(true);
+      }
+    } else {
+      current.delete(itemId);
+      // Disable multiSelectMode if no items are selected
+      if (current.size === 0) {
+        this.multiSelectMode.set(false);
+      }
     }
     this.selectedIds.set(current);
   }

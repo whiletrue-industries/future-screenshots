@@ -5,8 +5,7 @@
     flex-flow: column;
     align-items: stretch;
     width: 100%;
-    height: 100%;
-    overflow: hidden;
+    min-height: 100vh;
     .font-sans;
 }
 
@@ -18,7 +17,7 @@
     max-width: 1400px;
     margin: 0 auto;
     width: 100%;
-    min-height: calc(100vh - 24px);
+    flex: 1;
 }
 
 // Topbar matching admin page
@@ -1323,8 +1322,6 @@
     display: flex;
     gap: 8px;
     align-items: flex-start;
-    min-height: 100%;
-    overflow-y: auto;
     flex: 1;
     width: 100%;
 }
@@ -1918,7 +1915,6 @@
     border: 1px solid @color-primary-100;
     align-content: start;
     justify-content: start;
-    min-height: calc(100vh - 220px);
 
     .thumbnail-item.select-mode {
         position: relative;
@@ -1941,8 +1937,23 @@
         border: 1px solid @color-primary-100;
         border-radius: 6px;
         padding: 4px 6px;
-        z-index: 2;
+        z-index: 8;
         box-shadow: 0 2px 6px fade(@color-gray, 25%);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.2s ease, visibility 0.2s ease;
+    }
+
+    .thumbnail-item:hover .select-checkbox {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .thumbnail-item .select-checkbox input[type="checkbox"] {
+        cursor: pointer;
+        width: 16px;
+        height: 16px;
+        margin: 0;
     }
 
     .item-card.select-mode {
@@ -1957,10 +1968,20 @@
 }
 
 .filters-bar-row {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: @color-white;
     display: flex;
     gap: 12px;
     align-items: stretch;
     margin-bottom: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid @color-primary-100;
+    margin-left: -12px;
+    margin-right: -12px;
+    padding-left: 12px;
+    padding-right: 12px;
 
     app-filters-bar {
         flex: 1;
@@ -2154,10 +2175,6 @@
         .thumbnail-hover-info {
             opacity: 1 !important;
         }
-
-        .thumbnail-actions {
-            opacity: 1;
-        }
     }
 
     &:focus-within {
@@ -2205,53 +2222,15 @@
             }
         }
 
-        .thumbnail-actions {
-            position: absolute;
-            top: 6px;
-            right: 6px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            opacity: 0;
-            transition: opacity 120ms ease;
-            z-index: 4;
-
-            .thumb-btn {
-                width: 32px;
-                height: 32px;
-                border-radius: 50%;
-                border: none;
-                background: fade(#fff, 92%);
-                color: @color-darker-purple;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                box-shadow: 0 2px 6px fade(@color-gray, 30%);
-                font-weight: 700;
-                transition: transform 120ms ease, background 120ms ease, color 120ms ease;
-
-                &.ghost {
-                    background: fade(@color-purple, 10%);
-                    color: @color-purple;
-                }
-
-                &:hover {
-                    transform: scale(1.07);
-                    background: @color-purple;
-                    color: #fff;
-                }
-            }
-        }
-
         .thumbnail-hover-info {
             position: absolute;
             inset: 0;
-            background: linear-gradient(to bottom, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.85));
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.85));
             opacity: 0;
             transition: opacity 0.2s ease;
             display: flex;
-            align-items: flex-end;
+            flex-direction: column;
+            justify-content: space-between;
             padding: 8px;
             z-index: 5;
             pointer-events: none;
@@ -2259,51 +2238,95 @@
 
             .hover-info-content {
                 width: 100%;
-                color: @color-white;
-                font-size: 11px;
-                line-height: 1.3;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                flex: 1;
 
-                .hover-tagline {
+                .hover-title {
+                    color: @color-white;
+                    font-size: 12px;
+                    line-height: 1.3;
                     font-weight: 600;
-                    margin: 0 0 4px 0;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    display: -webkit-box;
-                    -webkit-line-clamp: 2;
-                    -webkit-box-orient: vertical;
+                    margin: 0;
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                    hyphens: auto;
+                    
+                    &.no-title {
+                        opacity: 0.6;
+                        font-style: italic;
+                    }
                 }
+            }
 
-                .hover-content {
-                    margin: 0 0 6px 0;
-                    opacity: 0.9;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    display: -webkit-box;
-                    -webkit-line-clamp: 3;
-                    -webkit-box-orient: vertical;
-                }
+            .hover-button-group {
+                display: flex;
+                gap: 6px;
+                pointer-events: auto;
+                justify-content: center;
+                width: 100%;
 
-                .hover-metadata {
-                    display: flex;
-                    justify-content: space-between;
+                .hover-btn {
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 50%;
+                    border: none;
+                    background: fade(@color-white, 90%);
+                    color: @color-darker-purple;
+                    display: inline-flex;
                     align-items: center;
-                    font-size: 10px;
-                    opacity: 0.8;
-                    margin-top: 4px;
+                    justify-content: center;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 700;
+                    box-shadow: 0 2px 4px fade(#000, 30%);
+                    transition: transform 120ms ease, background 120ms ease;
 
-                    .hover-date {
-                        font-weight: 400;
+                    &:hover {
+                        transform: scale(1.1);
+                        background: @color-white;
                     }
 
-                    .hover-status {
-                        font-weight: 600;
-                        text-transform: uppercase;
-                        font-size: 9px;
-                        padding: 2px 4px;
-                        background: fade(@color-white, 20%);
-                        border-radius: 3px;
+                    &.star-btn.active {
+                        background: @color-accent;
+                        color: @color-white;
+                    }
+
+                    &.edit-btn:hover {
+                        background: @color-light-purple;
+                        color: @color-white;
+                    }
+
+                    &.trash-btn:hover {
+                        background: @color-prevent;
+                        color: @color-white;
                     }
                 }
+            }
+
+            .workspace-tooltip {
+                position: absolute;
+                bottom: -28px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: @color-dark-pink;
+                color: @color-purple;
+                padding: 6px 8px;
+                border-radius: 4px;
+                font-size: 9px;
+                font-weight: 600;
+                white-space: nowrap;
+                z-index: 10;
+                pointer-events: none;
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.2s ease, visibility 0.2s ease;
+            }
+
+            &:hover .workspace-tooltip {
+                opacity: 1;
+                visibility: visible;
             }
         }
 
@@ -2373,34 +2396,6 @@
                     box-shadow: 0 0 0 2px fade(@color-prevent, 30%), 0 0 0 4px fade(@color-prefer, 45%);
                 }
             }
-        }
-
-        .workspace-badge-wrapper {
-            position: absolute;
-            bottom: 6px;
-            left: 4px;
-            right: 4px;
-            display: flex;
-            justify-content: center;
-            pointer-events: none;
-            z-index: 3;
-
-            .workspace-badge {
-                font-size: 10px;
-                font-weight: 700;
-                background: @color-dark-pink;
-                color: @color-purple;
-                padding: 2px 6px;
-                border-radius: 4px;
-                max-width: 100%;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }
-        }
-
-        &:hover .thumbnail-actions {
-            opacity: 1;
         }
     }
 
