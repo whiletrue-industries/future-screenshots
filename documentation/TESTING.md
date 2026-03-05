@@ -864,6 +864,20 @@ it('should save to local storage', () => {
 });
 ```
 
+## Manual QA Scenarios (Admin)
+
+### Image Replacement Crop Flow
+
+When validating the admin image replacement dialog:
+
+1. Open item image replacement and click `Crop Current Image`
+2. Drag all 4 corner handles and click `Crop`
+3. Verify cropped preview appears and updates when re-cropping
+4. Click `Confirm & Replace` and verify comparison view appears before approval
+5. Approve compare and verify the item screenshot updates in the grid/lightbox
+6. Repeat with `Confirm & Duplicate` and verify a new item is created in the same workspace
+7. Validate `Cancel` closes the dialog without changes
+
 ## Resources
 
 - [Angular Testing Guide](https://angular.dev/guide/testing)

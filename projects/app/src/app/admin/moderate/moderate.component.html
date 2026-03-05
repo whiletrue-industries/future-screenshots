@@ -511,6 +511,7 @@
                     [currentImageUrl]="currentReplacingImageUrl()!"
                     (closed)="closeImageReplacementModal()"
                     (imageReplaced)="onImageReplaced(replacingImageItemId()!, $event)"
+                    (itemDuplicated)="onItemDuplicated($event)"
                   />
                 }
               }
@@ -522,6 +523,7 @@
                 [currentImageUrl]="currentReplacingImageUrl()!"
                 (closed)="closeImageReplacementModal()"
                 (imageReplaced)="onImageReplaced(replacingImageItemId()!, $event)"
+                (itemDuplicated)="onItemDuplicated($event)"
               />
             }
           }

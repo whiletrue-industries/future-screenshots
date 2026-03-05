@@ -41,7 +41,67 @@
             </div>
           </div>
         }
+
+        @if (showCropEditor()) {
+          <div class="crop-editor">
+            <h4>Crop Current Image (drag corners)</h4>
+            <div class="crop-workspace">
+              <div class="crop-container">
+                <div class="crop-frame" #cropFrame>
+                  @if (cropImageBlobUrl()) {
+                    <img #cropImage [src]="cropImageBlobUrl()!" alt="Crop source image" (load)="onCropImageLoaded()">
+                    <svg class="crop-overlay" [attr.viewBox]="'0 0 ' + cropFrameWidth() + ' ' + cropFrameHeight()" preserveAspectRatio="none">
+                      <polygon [attr.points]="cropPolygonPoints()" />
+                    </svg>
+                    @for (corner of cropCorners(); track $index; let idx = $index) {
+                      <button
+                        type="button"
+                        class="corner-handle"
+                        [style.left.px]="corner.x"
+                        [style.top.px]="corner.y"
+                        (pointerdown)="startDraggingCorner(idx, $event)"
+                        aria-label="Move crop corner">
+                      </button>
+                    }
+                  }
+                </div>
+              </div>
+              @if (croppedImageDataUrl()) {
+                <div class="crop-preview">
+                  <h5>Cropped Result ✓</h5>
+                  <div class="preview-image-container">
+                    <img [src]="croppedImageDataUrl()!" alt="Cropped preview">
+                  </div>
+                  <p class="preview-info">Ready to save</p>
+                </div>
+              }
+            </div>
+            @if (cropError()) {
+              <p class="crop-error">{{ cropError() }}</p>
+            }
+            <div class="buttons crop-actions">
+              <button class="button" (click)="runCrop()" [disabled]="cropBusy() || loading()">
+                @if (cropBusy()) {
+                  Cropping...
+                } @else {
+                  Crop
+                }
+              </button>
+              <button class="button primary" (click)="confirmCroppedReplace()" [disabled]="!croppedImageDataUrl() || loading()">
+                Confirm & Replace
+              </button>
+              <button class="button" (click)="confirmCroppedDuplicate()" [disabled]="!croppedImageDataUrl() || loading()">
+                Confirm & Duplicate
+              </button>
+              <button class="button" (click)="close()" [disabled]="loading()">Cancel</button>
+            </div>
+          </div>
+        }
+
         <div class="buttons">
+          <button class="button" (click)="openCropEditor()" [disabled]="loading()">
+            Crop Current Image
+          </button>
           <button class="button" (click)="scanAgain()" [disabled]="loading()">
             Scan New Image
           </button>
@@ -63,7 +123,7 @@
         <app-image-comparison
           [currentImage]="currentImageUrl()"
           [newImage]="pendingNewImage()!"
-          (approved)="onExistingComparisonApproved()"
+          (approved)="onComparisonApproved()"
           (cancelled)="onComparisonCancelled()"
         />
       </div>

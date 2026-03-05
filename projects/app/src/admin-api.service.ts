@@ -76,6 +76,14 @@ export class AdminApiService {
     });
   }
 
+  createItem(workspace: string, api_key: string, metadata: any): Observable<any> {
+    return this.http.post<any>(`${this.CHRONOMAPS_API_URL}/${workspace}`, metadata, {
+      headers: {
+        'Authorization': `${api_key}`
+      }
+    });
+  }
+
   createWorkspace(request: CreateOrUpdateWorkspaceRequest): Observable<Workspace> {
     const headers = { 'Authorization': 'Bearer ' + this.auth.token() };
     return this.http.post<Workspace>(`${this.CHRONOMAPS_API_URL}/`, request.metadata, { headers }).pipe(

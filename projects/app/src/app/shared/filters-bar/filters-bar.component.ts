@@ -171,8 +171,16 @@ export class FilterHelpers {
     }
     const moderation = item._private_moderation;
 
-    // Check if moderation value matches any selected status
+    // Special handling for 'new' status: includes moderation===2 OR undefined/null
+    if (selectedStatuses.includes('new')) {
+      if (moderation === undefined || moderation === null || moderation === 2) {
+        return true;
+      }
+    }
+
+    // Check if moderation value matches any other selected status
     const allowedValues = selectedStatuses
+      .filter(s => s !== 'new') // exclude 'new' since we handled it above
       .map(status => FilterHelpers.STATUS_MAP[status as keyof typeof FilterHelpers.STATUS_MAP])
       .filter(v => v !== undefined);
     

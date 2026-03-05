@@ -1221,6 +1221,32 @@ export class ModerateComponent implements OnInit, OnDestroy {
     this.replacingImageItemId.set(null);
   }
 
+  onItemDuplicated(data: { item_id: string }): void {
+    console.log('🔄 Item duplicated, refreshing grid to show new item:', data.item_id);
+    console.log('📊 Current items count before refresh:', this.allFetchedItems().length);
+    
+    // A new item was created, so refresh the entire grid
+    this.replacingImageItemId.set(null);
+    
+    // Wait a moment for the backend to index the new item
+    setTimeout(() => {
+      console.log('⏰ Refreshing after 1 second delay...');
+      // Force reload by temporarily changing page then back to 0
+      const currentPage = this.page();
+      if (currentPage === 0) {
+        // If already on page 0, force reload by clearing items and calling loadMoreItems directly
+        this.allFetchedItems.set([]);
+        this.hasMoreItems.set(true);
+        this.loadMoreItems();
+      } else {
+        // If on another page, just reset to page 0 which will trigger the effect
+        this.allFetchedItems.set([]);
+        this.hasMoreItems.set(true);
+        this.page.set(0);
+      }
+    }, 1000);
+  }
+
   onRefreshGrid(): void {
     // Reload all items to update grid with latest data and metadata
     this.allFetchedItems.set([]);
@@ -1330,13 +1356,19 @@ export class ModerateComponent implements OnInit, OnDestroy {
         
         // Store all fetched items
         const existing = this.allFetchedItems();
+        console.log('📥 Fetched', filtered.length, 'items from API (page', currentPage, ')');
+        console.log('📊 Existing items count:', existing.length);
         const newItems = filtered.filter((item: any) => !existing.find((i: any) => i._id === item._id));
+        console.log('🆕 New items to add:', newItems.length);
         if (newItems.length > 0) {
+          console.log('🆕 First few new item IDs:', newItems.slice(0, 5).map((i: any) => i._id));
           this.allFetchedItems.set([...existing, ...newItems]);
+          console.log('📊 Total items after loading:', this.allFetchedItems().length);
           // Increment page for next load
           this.page.set(currentPage + 1);
         } else {
           // No new items, we've reached the end
+          console.log('⚠️ No new items found, reached end of data');
           this.hasMoreItems.set(false);
         }
       }
