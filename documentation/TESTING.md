@@ -870,13 +870,19 @@ it('should save to local storage', () => {
 
 When validating the admin image replacement dialog:
 
-1. Open item image replacement and click `Crop Current Image`
-2. Drag all 4 corner handles and click `Crop`
-3. Verify cropped preview appears and updates when re-cropping
-4. Click `Confirm & Replace` and verify comparison view appears before approval
-5. Approve compare and verify the item screenshot updates in the grid/lightbox
-6. Repeat with `Confirm & Duplicate` and verify a new item is created in the same workspace
-7. Validate `Cancel` closes the dialog without changes
+1. Open item image replacement and verify the tab order is: `Crop`, `Swap`, `Scan New`, `Upload` (with `Crop` selected by default)
+2. Verify that all interface elements scale to use full viewport without scrolling and action buttons fit in one clean horizontal row
+3. In `Crop`, drag all 4 corner handles and verify preview updates live while dragging, then click `Crop`
+4. Verify cropped preview remains consistent after manual crop confirmation
+5. Click `Replace` and verify comparison view appears before approval
+6. Approve compare and verify the item screenshot updates in the grid/lightbox
+7. Repeat in `Crop` with `Duplicate` and verify a new item is created in the same workspace
+8. In `Swap`, select an existing item image and click `Replace`
+9. In `Scan New`, verify QR is visible and `Open Scanner` navigates to `/scan` with `workspace`, `api_key`, and `replace_item`
+10. In `Upload`, drag-and-drop an image (or click the drop area), verify preview appears
+11. In `Upload`, test the `Crop` button to open uploaded image in crop interface with handles
+12. In `Upload`, verify `Replace` button for direct replacement
+13. Validate `Cancel` closes the dialog without changes
 
 ## Resources
 

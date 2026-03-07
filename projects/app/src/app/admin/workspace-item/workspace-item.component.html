@@ -9,7 +9,7 @@
             </a>
             <a [routerLink]="['/admin/moderate']" [queryParams]="{ api_key: w.keys.admin, workspace: w.id }" class="workspace-link">
                 <div class="cell title">
-                    <div class="title-text">{{ w.metadata.event_name || w.metadata.source }}</div>
+                    <div class="title-text">{{ workspaceNameWithEmojis() }}</div>
                     <div class="meta">{{ locationText() }}</div>
                 </div>
             </a>

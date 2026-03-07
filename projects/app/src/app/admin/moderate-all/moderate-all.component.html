@@ -57,8 +57,8 @@
                     type="checkbox" 
                     [checked]="isWorkspaceSelected(ws.id)"
                     (change)="toggleWorkspaceFilter(ws.id)"
-                    [attr.aria-label]="'Toggle ' + (ws.metadata?.source || ws.metadata?.event_name || ws.id)" />
-                  <span class="option-label">{{ ws.metadata?.source || ws.metadata?.event_name || ws.id }}</span>
+                    [attr.aria-label]="'Toggle ' + getWorkspaceNameWithEmojis(ws)" />
+                  <span class="option-label">{{ getWorkspaceNameWithEmojis(ws) }}</span>
                 </label>
               }
             </div>
@@ -67,6 +67,16 @@
       </h1>
     </div>
     <div class="actions">
+      <button 
+        type="button"
+        class="export-btn"
+        (click)="openShowcaseExportModal()"
+        [disabled]="filteredItems().length === 0"
+        [title]="filteredItems().length === 0 ? 'No items to export' : 'Export to showcase'"
+        aria-label="Export filtered items to showcase">
+        <span class="icon">📤</span>
+        <span>Export</span>
+      </button>
     </div>
   </header>
 
@@ -599,3 +609,13 @@
     }
   }
 </div>
+
+<!-- Showcase Export Modal -->
+@if (showShowcaseExportModal()) {
+  <app-showcase-export-modal
+    [workspaceId]="'multi'"
+    [adminKey]="authToken()"
+    [filteredItems]="filteredItems()"
+    (close)="closeShowcaseExportModal()">
+  </app-showcase-export-modal>
+}

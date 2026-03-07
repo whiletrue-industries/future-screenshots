@@ -1,0 +1,62 @@
+<div class="modal-backdrop" (click)="onBackgroundClick($event)">
+  <div class="modal-content" role="dialog" aria-labelledby="modal-title" aria-modal="true">
+    <div class="modal-header">
+      <h2 id="modal-title">Export to Showcase</h2>
+      <button 
+        type="button" 
+        class="close-btn" 
+        (click)="closeModal()"
+        aria-label="Close modal">
+        ✕
+      </button>
+    </div>
+    
+    <div class="modal-body">
+      <div class="info-section">
+        <p class="info-text">
+          Create a showcase view with <strong>{{ itemCount() }} filtered items</strong> 
+          from <strong>{{ workspaceCount() }} workspace{{ workspaceCount() !== 1 ? 's' : '' }}</strong>.
+        </p>
+      </div>
+      
+      <div class="settings-section">
+        <div class="form-group">
+          <label for="layout-select">Layout:</label>
+          <select id="layout-select" [ngModel]="layout()" (ngModelChange)="layout.set($event)">
+            <option value="circle-packing">Clusters (Circle Packing)</option>
+            <option value="grid">Grid</option>
+            <option value="tsne">TSNE Map</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="cluster-select">Cluster by:</label>
+          <select id="cluster-select" [ngModel]="clusterBy()" (ngModelChange)="clusterBy.set($event)">
+            <option value="user">User (Author ID)</option>
+            <option value="workspace">Workspace</option>
+          </select>
+          <p class="form-hint">
+            @if (clusterBy() === 'user') {
+              Items will be grouped by the person who created them
+            } @else {
+              Items will be grouped by the workspace they belong to
+            }
+          </p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" (click)="closeModal()">
+        Cancel
+      </button>
+      <button 
+        type="button" 
+        class="btn btn-primary" 
+        (click)="generateShowcase()"
+        [disabled]="itemCount() === 0">
+        Open Showcase
+      </button>
+    </div>
+  </div>
+</div>

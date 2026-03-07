@@ -8,6 +8,7 @@ import { ImageComparisonComponent } from '../../shared/image-comparison/image-co
 declare const jscanify: any;
 
 type CropPoint = { x: number; y: number };
+type ReplaceTab = 'crop' | 'swap' | 'scan' | 'upload';
 
 @Component({
   selector: 'app-image-replacement-modal',
@@ -30,6 +31,7 @@ export class ImageReplacementModalComponent {
   imageReplaced = output<{ screenshot_url: string }>();
   itemDuplicated = output<{ item_id: string }>();
   
+  displayedImageUrl = signal<string>('');
   workspaceItems = signal<any[]>([]);
   currentItem = signal<any | null>(null);
   selectedItemId = signal<string | null>(null);
@@ -37,6 +39,7 @@ export class ImageReplacementModalComponent {
   pendingNewImage = signal<string | null>(null);
   showComparison = signal<boolean>(false);
   showCropEditor = signal<boolean>(false);
+  activeTab = signal<ReplaceTab>('crop');
   cropCorners = signal<CropPoint[]>([]);
   cropFrameWidth = signal<number>(0);
   cropFrameHeight = signal<number>(0);
@@ -45,11 +48,16 @@ export class ImageReplacementModalComponent {
   croppedImageDataUrl = signal<string | null>(null);
   pendingActionSource = signal<'existing' | 'cropped' | null>(null);
   cropImageBlobUrl = signal<string | null>(null); // For CORS workaround
+  uploadedImageDataUrl = signal<string | null>(null);
+  uploadDragOver = signal<boolean>(false);
+  reanalyzeImage = signal<boolean>(true); // Run AI analysis on new image by default
 
   @ViewChild('cropFrame') cropFrame?: ElementRef<HTMLDivElement>;
   @ViewChild('cropImage') cropImage?: ElementRef<HTMLImageElement>;
+  @ViewChild('uploadInput') uploadInput?: ElementRef<HTMLInputElement>;
 
   private dragCornerIndex: number | null = null;
+  private cropPreviewTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly pointerMoveHandler = (event: PointerEvent) => this.onPointerMove(event);
   private readonly pointerUpHandler = () => this.stopDraggingCorner();
   
@@ -57,6 +65,15 @@ export class ImageReplacementModalComponent {
   private adminApi = inject(AdminApiService);
   
   constructor() {
+    // Initialize displayed image URL from input
+    effect(() => {
+      const urlInput = this.currentImageUrl();
+      // Only update if we haven't replaced the image yet (displayedImageUrl is still empty)
+      if (this.displayedImageUrl() === '' && urlInput) {
+        this.displayedImageUrl.set(urlInput);
+      }
+    });
+
     // Load workspace items immediately when component is initialized
     effect(() => {
       // Access workspaceId to establish dependency
@@ -68,10 +85,23 @@ export class ImageReplacementModalComponent {
         this.loadWorkspaceItems();
       }
     });
+
+    effect(() => {
+      const tab = this.activeTab();
+      const hasBlob = !!this.cropImageBlobUrl();
+      const sourceImage = this.currentImageUrl();
+      if (tab === 'crop' && !hasBlob && sourceImage) {
+        this.openCropEditor();
+      }
+    });
   }
 
   ngOnDestroy(): void {
     this.stopDraggingCorner();
+    if (this.cropPreviewTimer) {
+      clearTimeout(this.cropPreviewTimer);
+      this.cropPreviewTimer = null;
+    }
     // Clean up blob URL to prevent memory leaks
     const blobUrl = this.cropImageBlobUrl();
     if (blobUrl) {
@@ -180,6 +210,12 @@ export class ImageReplacementModalComponent {
     this.pendingNewImage.set(null);
     this.pendingActionSource.set(null);
   }
+
+  setActiveTab(tab: ReplaceTab) {
+    this.activeTab.set(tab);
+    this.cropError.set(null);
+    this.uploadDragOver.set(false);
+  }
   
   selectExistingImage(sourceItemId: string) {
     this.selectedItemId.set(sourceItemId);
@@ -232,6 +268,105 @@ export class ImageReplacementModalComponent {
       });
   }
 
+  triggerUploadSelect() {
+    this.uploadInput?.nativeElement.click();
+  }
+
+  onUploadSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    this.processUploadedFile(file);
+  }
+
+  onUploadDragOver(event: DragEvent) {
+    event.preventDefault();
+    this.uploadDragOver.set(true);
+  }
+
+  onUploadDragLeave(event: DragEvent) {
+    event.preventDefault();
+    this.uploadDragOver.set(false);
+  }
+
+  onUploadDrop(event: DragEvent) {
+    event.preventDefault();
+    this.uploadDragOver.set(false);
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) return;
+    this.processUploadedFile(file);
+  }
+
+  private processUploadedFile(file: File) {
+    if (!file.type.startsWith('image/')) {
+      this.cropError.set('Please choose an image file.');
+      return;
+    }
+
+    this.cropError.set(null);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : null;
+      this.uploadedImageDataUrl.set(result);
+    };
+    reader.onerror = () => {
+      this.cropError.set('Failed to read the selected image.');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  confirmUploadedReplace() {
+    const uploaded = this.uploadedImageDataUrl();
+    if (!uploaded) return;
+    this.pendingNewImage.set(uploaded);
+    this.pendingActionSource.set('cropped');
+    this.showComparison.set(true);
+  }
+
+  uploadAndCrop() {
+    const uploaded = this.uploadedImageDataUrl();
+    if (!uploaded) return;
+    
+    // Clean up previous crop blob URL
+    const prevUrl = this.cropImageBlobUrl();
+    if (prevUrl) {
+      URL.revokeObjectURL(prevUrl);
+    }
+
+    // Convert data URL to blob and create object URL for crop editor
+    fetch(uploaded)
+      .then(response => response.blob())
+      .then(blob => {
+        const blobUrl = URL.createObjectURL(blob);
+        this.cropImageBlobUrl.set(blobUrl);
+        this.croppedImageDataUrl.set(null);
+        this.cropError.set(null);
+        this.activeTab.set('crop');
+        requestAnimationFrame(() => this.initializeCropCorners());
+      })
+      .catch(error => {
+        console.error('❌ Failed to convert uploaded image for cropping:', error);
+        this.cropError.set(`Failed to prepare image for cropping: ${error.message}`);
+      });
+  }
+
+  scanUrl(): string {
+    if (typeof window === 'undefined') return '';
+    const query = new URLSearchParams({
+      workspace: this.workspaceId(),
+      api_key: this.apiKey(),
+      replace_item: this.itemId()
+    });
+    return `${window.location.origin}/scan?${query.toString()}`;
+  }
+
+  scanQrUrl(): string {
+    const scanUrl = this.scanUrl();
+    if (!scanUrl) return '';
+    return `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(scanUrl)}`;
+  }
+
   onCropImageLoaded() {
     console.log('🖼️ Crop image loaded event fired');
     // Wait a moment for the image to fully render
@@ -265,18 +400,17 @@ export class ImageReplacementModalComponent {
     this.cropFrameWidth.set(width);
     this.cropFrameHeight.set(height);
     
-    const marginX = Math.max(12, width * 0.08);
-    const marginY = Math.max(12, height * 0.08);
-    
+    // Default corners to image edges - no margin needed since handles can extend outside
     const initialCorners = [
-      { x: marginX, y: marginY },
-      { x: width - marginX, y: marginY },
-      { x: width - marginX, y: height - marginY },
-      { x: marginX, y: height - marginY }
+      { x: 0, y: 0 },
+      { x: width, y: 0 },
+      { x: width, y: height },
+      { x: 0, y: height }
     ];
     
     console.log('Initial corners (display space):', initialCorners);
     this.cropCorners.set(initialCorners);
+    this.scheduleCropPreviewUpdate(true);
   }
 
   startDraggingCorner(index: number, event: PointerEvent) {
@@ -292,8 +426,8 @@ export class ImageReplacementModalComponent {
     const imageEl = this.cropImage?.nativeElement;
     if (!imageEl) return;
     const rect = imageEl.getBoundingClientRect();
-    const nextX = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
-    const nextY = Math.max(0, Math.min(rect.height, event.clientY - rect.top));
+    const nextX = event.clientX - rect.left;
+    const nextY = event.clientY - rect.top;
 
     this.cropCorners.update(points => {
       if (points.length !== 4) return points;
@@ -301,33 +435,62 @@ export class ImageReplacementModalComponent {
       next[this.dragCornerIndex as number] = { x: nextX, y: nextY };
       return next;
     });
+
+    this.scheduleCropPreviewUpdate();
   }
 
   private stopDraggingCorner() {
     this.dragCornerIndex = null;
     window.removeEventListener('pointermove', this.pointerMoveHandler);
     window.removeEventListener('pointerup', this.pointerUpHandler);
+    this.scheduleCropPreviewUpdate(true);
   }
 
   cropPolygonPoints(): string {
     return this.cropCorners().map(point => `${point.x},${point.y}`).join(' ');
   }
 
-  runCrop() {
-    this.cropError.set(null);
+  private scheduleCropPreviewUpdate(immediate = false) {
+    if (this.activeTab() !== 'crop') return;
+
+    if (immediate) {
+      if (this.cropPreviewTimer) {
+        clearTimeout(this.cropPreviewTimer);
+        this.cropPreviewTimer = null;
+      }
+      this.updateCroppedPreview();
+      return;
+    }
+
+    if (this.cropPreviewTimer) return;
+    this.cropPreviewTimer = setTimeout(() => {
+      this.cropPreviewTimer = null;
+      this.updateCroppedPreview();
+    }, 80);
+  }
+
+  private updateCroppedPreview() {
+    const previewUrl = this.extractCrop(false);
+    if (previewUrl) {
+      this.croppedImageDataUrl.set(previewUrl);
+    }
+  }
+
+  private getLightestColor(imageEl: HTMLImageElement): string {
+    // Use light gray as background fill color for any pixels outside the original image
+    return '#eee';
+  }
+
+  private extractCrop(reportErrors: boolean): string | null {
     const imageEl = this.cropImage?.nativeElement;
     const frameEl = this.cropFrame?.nativeElement;
     const corners = this.cropCorners();
 
-    console.log('🔍 Crop Debug - Starting crop operation');
-    console.log('Image element:', imageEl);
-    console.log('Frame element:', frameEl);
-    console.log('Corners:', corners);
-
     if (!imageEl || !frameEl || corners.length !== 4) {
-      console.error('❌ Missing required elements or corners');
-      this.cropError.set('Crop area is not ready yet.');
-      return;
+      if (reportErrors) {
+        this.cropError.set('Crop area is not ready yet.');
+      }
+      return null;
     }
 
     console.log('Image natural dimensions:', imageEl.naturalWidth, 'x', imageEl.naturalHeight);
@@ -336,24 +499,25 @@ export class ImageReplacementModalComponent {
     console.log('Frame client dimensions:', frameEl.clientWidth, 'x', frameEl.clientHeight);
 
     if (imageEl.naturalWidth === 0 || imageEl.naturalHeight === 0) {
-      console.error('❌ Image natural dimensions are zero!');
-      this.cropError.set('Image not fully loaded. Please wait and try again.');
-      return;
+      if (reportErrors) {
+        this.cropError.set('Image not fully loaded. Please wait and try again.');
+      }
+      return null;
     }
 
     if (!(window as any).jscanify) {
-      console.error('❌ JSscanify not available');
-      this.cropError.set('JSscanify is not available in this environment.');
-      return;
+      if (reportErrors) {
+        this.cropError.set('JSscanify is not available in this environment.');
+      }
+      return null;
     }
-    console.log('✅ JSscanify available');
 
     if (!(window as any).cv || !(window as any).cv.Mat) {
-      console.error('❌ OpenCV not loaded');
-      this.cropError.set('OpenCV is still loading. Please wait a moment and try again.');
-      return;
+      if (reportErrors) {
+        this.cropError.set('OpenCV is still loading. Please wait a moment and try again.');
+      }
+      return null;
     }
-    console.log('✅ OpenCV loaded');
 
     // IMPORTANT: jscanify/OpenCV reads from cv.imread(imageEl), which uses the image's rendered pixel space.
     // Map corners into that same source space (not naturalWidth/naturalHeight) to avoid warped/black output.
@@ -365,9 +529,10 @@ export class ImageReplacementModalComponent {
     console.log('Image display size:', imageDisplayWidth, 'x', imageDisplayHeight);
     
     if (imageDisplayWidth <= 0 || imageDisplayHeight <= 0) {
-      console.error('❌ Image not properly displayed');
-      this.cropError.set('Image not fully loaded. Please try again.');
-      return;
+      if (reportErrors) {
+        this.cropError.set('Image not fully loaded. Please try again.');
+      }
+      return null;
     }
 
     const scaleX = cvSourceWidth / imageDisplayWidth;
@@ -422,49 +587,78 @@ export class ImageReplacementModalComponent {
     const outputHeight = Math.round(avgHeight * scale);
     console.log('Output dimensions:', outputWidth, 'x', outputHeight);
 
-    this.cropBusy.set(true);
     try {
-      console.log('🚀 Calling scanner.extractPaper...');
       const scanner = new jscanify();
       const extractedCanvas = scanner.extractPaper(imageEl, outputWidth, outputHeight, mappedCorners);
-      console.log('✅ Extract successful, canvas:', extractedCanvas);
       
       if (!extractedCanvas) {
         throw new Error('extractPaper returned null or undefined');
       }
       
       const dataUrl = extractedCanvas.toDataURL('image/jpeg', 0.92);
-      console.log('✅ Data URL created, length:', dataUrl.length);
-      console.log('✅ Canvas dimensions:', extractedCanvas.width, 'x', extractedCanvas.height);
-      console.log('✅ Data URL prefix:', dataUrl.substring(0, 50));
-      this.croppedImageDataUrl.set(dataUrl);
-      console.log('✅ Crop completed successfully!');
-      console.log('✅ croppedImageDataUrl signal value:', this.croppedImageDataUrl()?.substring(0, 50));
-      this.cropError.set(null); // Clear any previous errors
+      return dataUrl;
     } catch (error) {
-      console.error('❌ Crop extraction failed:', error);
-      console.error('Error details:', {
-        message: (error as any)?.message,
-        stack: (error as any)?.stack,
-        type: typeof error,
-        error
-      });
-      this.cropError.set(`Failed to crop: ${(error as any)?.message || 'Unknown error'}. Check browser console for details.`);
+      if (reportErrors) {
+        this.cropError.set(`Failed to crop: ${(error as any)?.message || 'Unknown error'}. Check browser console for details.`);
+      }
+      return null;
+    }
+  }
+
+  runCrop() {
+    this.cropError.set(null);
+    this.cropBusy.set(true);
+    try {
+      const dataUrl = this.extractCrop(true);
+      if (!dataUrl) return;
+      this.croppedImageDataUrl.set(dataUrl);
     } finally {
       this.cropBusy.set(false);
     }
   }
 
   confirmCroppedReplace() {
-    const cropped = this.croppedImageDataUrl();
-    if (!cropped) return;
+    // Execute crop if not already done
+    let cropped = this.croppedImageDataUrl();
+    if (!cropped) {
+      this.cropError.set(null);
+      this.cropBusy.set(true);
+      try {
+        cropped = this.extractCrop(true);
+        if (!cropped) {
+          this.cropBusy.set(false);
+          return;
+        }
+        this.croppedImageDataUrl.set(cropped);
+      } finally {
+        this.cropBusy.set(false);
+      }
+    }
+    
     this.pendingNewImage.set(cropped);
     this.pendingActionSource.set('cropped');
     this.showComparison.set(true);
   }
 
   confirmCroppedDuplicate() {
-    const cropped = this.croppedImageDataUrl();
+    // Execute crop if not already done
+    let cropped = this.croppedImageDataUrl();
+    if (!cropped) {
+      this.cropError.set(null);
+      this.cropBusy.set(true);
+      try {
+        cropped = this.extractCrop(true);
+        if (!cropped) {
+          console.error('❌ Failed to extract crop');
+          this.cropBusy.set(false);
+          return;
+        }
+        this.croppedImageDataUrl.set(cropped);
+      } finally {
+        this.cropBusy.set(false);
+      }
+    }
+    
     console.log('🔄 Duplicate - cropped image length:', cropped?.length);
     if (!cropped) {
       console.error('❌ No cropped image available');
@@ -557,7 +751,7 @@ export class ImageReplacementModalComponent {
 
     this.loading.set(true);
 
-    const updatePayload = source === 'existing'
+    const updatePayload: any = source === 'existing'
       ? (() => {
           const sourceItemId = this.selectedItemId();
           const sourceItem = this.workspaceItems().find(item => item._id === sourceItemId);
@@ -570,9 +764,17 @@ export class ImageReplacementModalComponent {
       return;
     }
 
+    // Add reanalyze flag if checkbox is checked
+    // This triggers AI analysis while preserving user-generated fields like preference and potential
+    if (this.reanalyzeImage()) {
+      updatePayload._reanalyze_image = true;
+    }
+
     this.adminApi.updateItem(this.workspaceId(), this.apiKey(), this.itemId(), updatePayload).subscribe({
       next: () => {
         this.loading.set(false);
+        // Update the displayed image immediately to show the new image
+        this.displayedImageUrl.set(updatePayload.screenshot_url);
         this.imageReplaced.emit({ screenshot_url: updatePayload.screenshot_url });
         this.pendingActionSource.set(null);
         alert('Success! Image has been replaced.');

@@ -3,6 +3,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AdminApiService } from '../../../admin-api.service';
 import { FormsModule } from '@angular/forms';
 import { FilterHelpers, FiltersBarComponent, FiltersBarState, FilterCounts } from '../../shared/filters-bar/filters-bar.component';
+import { WorkspaceNameUtility } from '../../shared/workspace-name.utility';
 import { ItemFilterService } from '../../shared/filters-bar/item-filter.service';
 import { firstValueFrom, catchError, of, forkJoin, take } from 'rxjs';
 import { ImageReplacementModalComponent } from '../image-replacement-modal/image-replacement-modal.component';
@@ -13,6 +14,7 @@ import { AdminLightboxComponent } from '../admin-lightbox/admin-lightbox.compone
 import { AuthService } from '../../auth.service';
 import { SkeletonLoaderComponent } from '../skeleton-loader/skeleton-loader.component';
 import { LazyLoadImageDirective } from '../lazy-load-image.directive';
+import { ShowcaseExportModalComponent } from '../showcase-export-modal/showcase-export-modal.component';
 
 export type Filter = {
   name: string;
@@ -40,7 +42,8 @@ interface EnrichedItem {
     AdminLightboxComponent,
     CommonModule,
     SkeletonLoaderComponent,
-    LazyLoadImageDirective
+    LazyLoadImageDirective,
+    ShowcaseExportModalComponent
   ],
   templateUrl: './moderate.component.html',
   styleUrl: './moderate.component.less'
@@ -201,6 +204,11 @@ export class ModerateComponent implements OnInit, OnDestroy {
   });
   showQRModal = signal<boolean>(false);
   qrItemId = signal<string | null>(null);
+  showShowcaseExportModal = signal<boolean>(false);
+
+  authToken = computed(() => {
+    return this.auth.token() || '';
+  });
 
   LEVELS = [
     'banned',
@@ -611,6 +619,10 @@ export class ModerateComponent implements OnInit, OnDestroy {
       'photograph': '📸'
     };
     return emojiMap[type] || '❓';
+  }
+
+  getWorkspaceNameWithEmojis(workspace: any): string {
+    return WorkspaceNameUtility.formatWorkspaceNameWithEmojis(workspace);
   }
 
   filterByUser(authorId: string) {
@@ -1477,7 +1489,7 @@ export class ModerateComponent implements OnInit, OnDestroy {
         const enriched: EnrichedItem[] = [];
         results.forEach((items: any[], idx: number) => {
           const ws = fetchableWorkspaces[idx];
-          const name = ws?.metadata?.source || ws?.metadata?.event_name || ws?.id || 'Unknown';
+          const name = this.getWorkspaceNameWithEmojis(ws);
           if (Array.isArray(items)) {
             items.forEach((item: any) => {
               if (!item?.screenshot_url) {
@@ -1512,5 +1524,13 @@ export class ModerateComponent implements OnInit, OnDestroy {
 
   private get adminApi(): AdminApiService {
     return this.api;
+  }
+
+  openShowcaseExportModal() {
+    this.showShowcaseExportModal.set(true);
+  }
+
+  closeShowcaseExportModal() {
+    this.showShowcaseExportModal.set(false);
   }
 }

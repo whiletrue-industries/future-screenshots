@@ -6,6 +6,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { QrcodeComponent } from "./qrcode/qrcode.component";
 import { EvaluationSidebarComponent } from "./evaluation-sidebar/evaluation-sidebar.component";
 import { FiltersBarComponent, FiltersBarState } from '../shared/filters-bar/filters-bar.component';
+import { WorkspaceNameUtility } from '../shared/workspace-name.utility';
 import { FisheyeSettings } from './settings-panel.component';
 import { PhotoData, PhotoAnimationState, PhotoMetadata } from './photo-data';
 import { ThreeRendererService } from './three-renderer.service';
@@ -19,6 +20,7 @@ import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
+import { ExportCacheService } from '../shared/export-cache.service';
 import e from 'express';
 
 @Component({
@@ -48,6 +50,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   enableSvgAutoPositioning = signal(true);
   fisheyeEnabled = signal(false);
   currentZoomLevel = signal(1.0); // Track current zoom level for UI display
+  
+  // Multi-workspace export support
+  itemIds = signal<string[]>([]);  // Specific item IDs to load (for exports)
+  clusterBy = signal<'user' | 'workspace'>('user'); // How to cluster items
   
   // Evaluation sidebar state
   sidebarOpen = signal(false);
@@ -255,7 +261,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     private apiService: ApiService,
     private http: HttpClient,
     private platform: PlatformService,
-    private rendererService: ThreeRendererService
+    private rendererService: ThreeRendererService,
+    private exportCache: ExportCacheService
   ) {
     this.activatedRoute = route;
     this.photoRepository = new PhotoDataRepository();
@@ -282,7 +289,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.loop.pipe(
       distinctUntilChanged()
     ).subscribe(async (items) => {
-      items = items.sort((item1, item2) => item1.created_at.localeCompare(item2.created_at));
+      items = items.sort((item1, item2) => {
+        const createdAt1 = typeof item1?.created_at === 'string' ? item1.created_at : '';
+        const createdAt2 = typeof item2?.created_at === 'string' ? item2.created_at : '';
+        return createdAt1.localeCompare(createdAt2);
+      });
       
       // First pass: load existing photos immediately
       if (this.lastCreatedAt === '0' && items.length > 0) {
@@ -431,6 +442,18 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.admin_key.set(qp['admin_key'] || 'ADMIN_KEY_NOT_SET');
     this.lang.set(qp['lang'] ? qp['lang'] + '/' : '');
     
+    // Parse export parameters for multi-workspace showcase
+    if (qp['item_ids']) {
+      const ids = qp['item_ids'].split(',').map((id: string) => id.trim()).filter(Boolean);
+      this.itemIds.set(ids);
+    }
+    if (qp['cluster_by']) {
+      const clusterMode = qp['cluster_by'] as 'user' | 'workspace';
+      if (clusterMode === 'user' || clusterMode === 'workspace') {
+        this.clusterBy.set(clusterMode);
+      }
+    }
+    
     // Set drag permissions immediately based on admin status
     // This must be done before photos are added to the repository
     const adminKeyValue = this.admin_key();
@@ -445,7 +468,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     }
     
     // Fetch workspace data to get title
-    if (this.workspace() !== 'WORKSPACE_NOT_SET') {
+    if (this.workspace() === 'multi') {
+      this.workspaceTitle.set('All Workspaces');
+      this.allowAdditionalContributions.set(false);
+    } else if (this.workspace() !== 'WORKSPACE_NOT_SET') {
       this.fetchWorkspaceData();
     }
     
@@ -679,7 +705,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     const workspaceId = this.workspace();
     const apiKey = this.resolveAuthToken();
     
-    if (!workspaceId || workspaceId === 'WORKSPACE_NOT_SET' || !apiKey) {
+    if (!workspaceId || workspaceId === 'WORKSPACE_NOT_SET' || workspaceId === 'multi' || !apiKey) {
       return;
     }
     
@@ -691,7 +717,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       .subscribe({
         next: (workspace) => {
           if (workspace) {
-            const displayTitle = workspace.source || workspace.title || '';
+            const displayTitle = WorkspaceNameUtility.formatWorkspaceNameWithEmojis(workspace);
             this.workspaceTitle.set(displayTitle);
             
             // Check if additional contributions are allowed
@@ -707,6 +733,29 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   getItems(): Observable<any[]> {
+    // Check if we're in multi-workspace export mode
+    if (this.workspace() === 'multi') {
+      // Try to get items from export cache
+      const cachedItems = this.exportCache.getExportItems();
+      if (cachedItems && cachedItems.length > 0) {
+        console.log('[SHOWCASE_WS] Using cached export items:', cachedItems.length);
+        
+        // Filter by item_ids if specified
+        const itemIds = this.itemIds();
+        if (itemIds.length > 0) {
+          const itemIdSet = new Set(itemIds);
+          return of(cachedItems.filter(item => itemIdSet.has(item._id)));
+        }
+        
+        return of(cachedItems);
+      }
+      
+      // No cache available - return empty (could implement fallback loading here)
+      console.warn('[SHOWCASE_WS] No cached items available for multi-workspace export');
+      return of([]);
+    }
+    
+    // Normal single-workspace mode
     const httpOptions: { headers?: Record<string, string> } = {};
     const authToken = this.resolveAuthToken();
     if (authToken) {
@@ -1195,7 +1244,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         spacingY: PHOTO_CONSTANTS.SPACING_Y,
         groupBuffer: 1500,  // Ample buffer between groups
         photoBuffer: 0,   // Buffer between photos within groups
-        useFanLayout: !this.isMobile()
+        useFanLayout: !this.isMobile(),
+        clusterBy: this.clusterBy() // Use clusterBy from query params
       });
       
       // Remove SVG background if switching from SVG layout

@@ -7,9 +7,11 @@ import { catchError, take } from 'rxjs/operators';
 import { AdminApiService } from '../../../admin-api.service';
 import { AuthService } from '../../auth.service';
 import { FilterHelpers } from '../../shared/filters-bar/filters-bar.component';
+import { WorkspaceNameUtility } from '../../shared/workspace-name.utility';
 import { AdminLightboxComponent } from '../admin-lightbox/admin-lightbox.component';
 import { ImageReplacementModalComponent } from '../image-replacement-modal/image-replacement-modal.component';
 import { QrCodeModalComponent } from '../qr-code-modal/qr-code-modal.component';
+import { ShowcaseExportModalComponent } from '../showcase-export-modal/showcase-export-modal.component';
 
 interface EnrichedItem {
   _workspaceId: string;
@@ -20,7 +22,7 @@ interface EnrichedItem {
 
 @Component({
   selector: 'app-moderate-all',
-  imports: [CommonModule, FormsModule, RouterLink, AdminLightboxComponent, ImageReplacementModalComponent, QrCodeModalComponent],
+  imports: [CommonModule, FormsModule, RouterLink, AdminLightboxComponent, ImageReplacementModalComponent, QrCodeModalComponent, ShowcaseExportModalComponent],
   templateUrl: './moderate-all.component.html',
   styleUrl: './moderate-all.component.less',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -96,6 +98,12 @@ export class ModerateAllComponent implements OnInit {
     if (!id) return null;
     return this.allItems().find(i => i['_id'] === id) || null;
   });
+  
+  // Showcase export modal state
+  showShowcaseExportModal = signal<boolean>(false);
+  
+  // Auth token for templates
+  authToken = computed(() => this.auth.token() || '');
 
   // Editable metadata computed
   editableMetadata = computed<[string, any][]>(() => {
@@ -207,11 +215,11 @@ export class ModerateAllComponent implements OnInit {
 
   // Compute workspace names for display
   workspaceNames = computed(() => {
-    const names = new Map<string, string>();
+    const map = new Map<string, string>();
     this.workspaces().forEach(ws => {
-      names.set(ws.id, ws.metadata?.source || ws.metadata?.event_name || ws.id);
+      map.set(ws.id, this.getWorkspaceNameWithEmojis(ws));
     });
-    return names;
+    return map;
   });
 
   // Compute filtered and sorted workspaces for the dropdown
@@ -229,7 +237,7 @@ export class ModerateAllComponent implements OnInit {
     const searchText = this.workspaceSearchText().trim().toLowerCase();
     if (searchText) {
       workspaces = workspaces.filter(ws => {
-        const name = ws.metadata?.source || ws.metadata?.event_name || ws.id;
+        const name = this.getWorkspaceNameWithEmojis(ws);
         return name.toLowerCase().includes(searchText);
       });
     }
@@ -674,6 +682,10 @@ export class ModerateAllComponent implements OnInit {
     return this.userItemCounts().get(authorId) || 0;
   }
 
+  getWorkspaceNameWithEmojis(workspace: any): string {
+    return WorkspaceNameUtility.formatWorkspaceNameWithEmojis(workspace);
+  }
+
   filterByUser(authorId: string): void {
     // For multi-workspace view, we can add this to search text
     const email = authorId === 'unknown' ? 'unknown' : authorId;
@@ -813,6 +825,15 @@ export class ModerateAllComponent implements OnInit {
     this.showQRModal.set(false);
     this.qrItemId.set(null);
   }
+  
+  // Showcase export modal methods
+  openShowcaseExportModal(): void {
+    this.showShowcaseExportModal.set(true);
+  }
+  
+  closeShowcaseExportModal(): void {
+    this.showShowcaseExportModal.set(false);
+  }
 
   ngOnInit(): void {
     this.auth.user.pipe(take(1)).subscribe(user => {
@@ -859,7 +880,7 @@ export class ModerateAllComponent implements OnInit {
         const enriched: EnrichedItem[] = [];
         results.forEach((items: any[], idx: number) => {
           const ws = workspaces[idx];
-          const name = ws?.metadata?.source || ws?.metadata?.event_name || ws?.id || 'Unknown';
+          const name = this.getWorkspaceNameWithEmojis(ws);
           if (Array.isArray(items)) {
             items.forEach((item: any) => {
               enriched.push({ ...item, _workspaceId: ws.id, _workspaceName: name, _workspaceAdminKey: ws.keys?.admin || '' });

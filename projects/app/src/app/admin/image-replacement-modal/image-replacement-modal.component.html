@@ -7,125 +7,160 @@
     
     @if (!showComparison()) {
       <div class="modal-body">
-        <h3>Select Existing Image</h3>
-        <p>Choose an image from another item in this workspace:</p>
-        @if (workspaceItems().length === 0 && !loading()) {
-          <p class="no-items">No other items with images found in this workspace.</p>
-        } @else {
-          <div class="replacement-layout">
-            <div class="current-image-section">
-              <h4>Current Image</h4>
+        <div class="replace-shell">
+          <div class="replace-top">
+            <div class="current-image-section compact">
               <div class="current-image-container">
-                <img [src]="currentImageUrl()" alt="Current image to be replaced">
-                @if (currentItem()?.future_scenario_tagline) {
-                  <div class="current-image-label">{{ currentItem()?.future_scenario_tagline }}</div>
-                }
+                <img [src]="displayedImageUrl()" alt="Current image to be replaced">
               </div>
             </div>
-            <div class="replacement-options-section">
-              <h4>Choose Replacement</h4>
-              <div class="items-grid">
-                @for (item of workspaceItems(); track item._id) {
-                  <div 
-                    class="item-thumbnail" 
-                    [class.selected]="selectedItemId() === item._id"
-                    (click)="selectExistingImage(item._id)"
-                  >
-                    <img [src]="item.screenshot_url" [alt]="item.future_scenario_tagline || 'Item image'">
-                    @if (item.future_scenario_tagline) {
-                      <div class="item-label">{{ item.future_scenario_tagline }}</div>
+
+            <div class="replace-main">
+              <div class="tab-bar" role="tablist" aria-label="Replace options">
+                <button type="button" class="tab" [class.active]="activeTab() === 'crop'" (click)="setActiveTab('crop')">Crop</button>
+                <button type="button" class="tab" [class.active]="activeTab() === 'swap'" (click)="setActiveTab('swap')">Swap</button>
+                <button type="button" class="tab" [class.active]="activeTab() === 'scan'" (click)="setActiveTab('scan')">Scan New</button>
+                <button type="button" class="tab" [class.active]="activeTab() === 'upload'" (click)="setActiveTab('upload')">Upload</button>
+              </div>
+
+              <div class="tab-content">
+                @if (activeTab() === 'crop') {
+                  <div class="crop-editor">
+                    <div class="crop-workspace">
+                      <div class="crop-container">
+                        <div class="crop-frame" #cropFrame>
+                          @if (cropImageBlobUrl()) {
+                            <img #cropImage [src]="cropImageBlobUrl()!" alt="Crop source image" (load)="onCropImageLoaded()">
+                            <svg class="crop-overlay" [attr.viewBox]="'0 0 ' + cropFrameWidth() + ' ' + cropFrameHeight()" preserveAspectRatio="none">
+                              <polygon [attr.points]="cropPolygonPoints()" />
+                            </svg>
+                            @for (corner of cropCorners(); track $index; let idx = $index) {
+                              <button
+                                type="button"
+                                class="corner-handle"
+                                [style.left.px]="corner.x"
+                                [style.top.px]="corner.y"
+                                (pointerdown)="startDraggingCorner(idx, $event)"
+                                aria-label="Move crop corner">
+                              </button>
+                            }
+                          }
+                        </div>
+                      </div>
+                      @if (croppedImageDataUrl()) {
+                        <div class="crop-preview">
+                          <h5>Cropped Result</h5>
+                          <div class="preview-image-container">
+                            <img [src]="croppedImageDataUrl()!" alt="Cropped preview">
+                          </div>
+                        </div>
+                      }
+                    </div>
+                    @if (cropError()) {
+                      <p class="crop-error">{{ cropError() }}</p>
                     }
                   </div>
                 }
-              </div>
-            </div>
-          </div>
-        }
 
-        @if (showCropEditor()) {
-          <div class="crop-editor">
-            <h4>Crop Current Image (drag corners)</h4>
-            <div class="crop-workspace">
-              <div class="crop-container">
-                <div class="crop-frame" #cropFrame>
-                  @if (cropImageBlobUrl()) {
-                    <img #cropImage [src]="cropImageBlobUrl()!" alt="Crop source image" (load)="onCropImageLoaded()">
-                    <svg class="crop-overlay" [attr.viewBox]="'0 0 ' + cropFrameWidth() + ' ' + cropFrameHeight()" preserveAspectRatio="none">
-                      <polygon [attr.points]="cropPolygonPoints()" />
-                    </svg>
-                    @for (corner of cropCorners(); track $index; let idx = $index) {
-                      <button
-                        type="button"
-                        class="corner-handle"
-                        [style.left.px]="corner.x"
-                        [style.top.px]="corner.y"
-                        (pointerdown)="startDraggingCorner(idx, $event)"
-                        aria-label="Move crop corner">
-                      </button>
-                    }
+                @if (activeTab() === 'swap') {
+                  @if (workspaceItems().length === 0 && !loading()) {
+                    <p class="no-items">No other items with images found in this workspace.</p>
+                  } @else {
+                    <div class="items-grid compact-grid">
+                      @for (item of workspaceItems(); track item._id) {
+                        <div
+                          class="item-thumbnail"
+                          [class.selected]="selectedItemId() === item._id"
+                          (click)="selectExistingImage(item._id)">
+                          <img [src]="item.screenshot_url" [alt]="item.future_scenario_tagline || 'Item image'">
+                        </div>
+                      }
+                    </div>
                   }
-                </div>
-              </div>
-              @if (croppedImageDataUrl()) {
-                <div class="crop-preview">
-                  <h5>Cropped Result ✓</h5>
-                  <div class="preview-image-container">
-                    <img [src]="croppedImageDataUrl()!" alt="Cropped preview">
-                  </div>
-                  <p class="preview-info">Ready to save</p>
-                </div>
-              }
-            </div>
-            @if (cropError()) {
-              <p class="crop-error">{{ cropError() }}</p>
-            }
-            <div class="buttons crop-actions">
-              <button class="button" (click)="runCrop()" [disabled]="cropBusy() || loading()">
-                @if (cropBusy()) {
-                  Cropping...
-                } @else {
-                  Crop
                 }
-              </button>
-              <button class="button primary" (click)="confirmCroppedReplace()" [disabled]="!croppedImageDataUrl() || loading()">
-                Confirm & Replace
-              </button>
-              <button class="button" (click)="confirmCroppedDuplicate()" [disabled]="!croppedImageDataUrl() || loading()">
-                Confirm & Duplicate
-              </button>
-              <button class="button" (click)="close()" [disabled]="loading()">Cancel</button>
+
+                @if (activeTab() === 'scan') {
+                  <div class="scan-tab">
+                    <p>Scan on your phone and replace this image automatically.</p>
+                    @if (scanQrUrl()) {
+                      <img class="scan-qr" [src]="scanQrUrl()" alt="QR code for scanning new image">
+                    }
+                    <p class="scan-link">{{ scanUrl() }}</p>
+                  </div>
+                }
+
+                @if (activeTab() === 'upload') {
+                  <div class="upload-tab">
+                    <input #uploadInput type="file" accept="image/*" (change)="onUploadSelected($event)">
+                    <div
+                      class="upload-dropzone"
+                      [class.drag-over]="uploadDragOver()"
+                      (click)="triggerUploadSelect()"
+                      (dragover)="onUploadDragOver($event)"
+                      (dragleave)="onUploadDragLeave($event)"
+                      (drop)="onUploadDrop($event)">
+                      @if (uploadedImageDataUrl()) {
+                        <div class="upload-preview">
+                          <img [src]="uploadedImageDataUrl()!" alt="Uploaded image preview">
+                        </div>
+                        <p>Drop another image or click to replace</p>
+                      } @else {
+                        <p>Drop an image here or click to upload</p>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
             </div>
           </div>
-        }
 
-        <div class="buttons">
-          <button class="button" (click)="openCropEditor()" [disabled]="loading()">
-            Crop Current Image
-          </button>
-          <button class="button" (click)="scanAgain()" [disabled]="loading()">
-            Scan New Image
-          </button>
-          <button 
-            class="button primary" 
-            (click)="confirmExistingImage()"
-            [disabled]="!selectedItemId() || loading()"
-          >
-            @if (loading()) {
-              Replacing...
-            } @else {
-              Compare Images
+          <div class="bottom-bar buttons">
+            <button class="button text-only" (click)="close()" [disabled]="loading()">Cancel</button>
+
+            @if (activeTab() === 'crop') {
+              <button class="button" (click)="confirmCroppedDuplicate()" [disabled]="loading() || cropBusy()">Duplicate</button>
+              <button class="button primary" (click)="confirmCroppedReplace()" [disabled]="loading() || cropBusy()">Replace</button>
             }
-          </button>
+
+            @if (activeTab() === 'swap') {
+              <button class="button primary" (click)="confirmExistingImage()" [disabled]="!selectedItemId() || loading()">Replace</button>
+            }
+
+            @if (activeTab() === 'scan') {
+              <button class="button primary" (click)="scanAgain()" [disabled]="loading()">Open Scanner</button>
+            }
+
+            @if (activeTab() === 'upload') {
+              <button class="button" (click)="triggerUploadSelect()" [disabled]="loading()">Choose</button>
+              <button class="button" (click)="uploadAndCrop()" [disabled]="!uploadedImageDataUrl() || loading()">Crop</button>
+              <button class="button primary" (click)="confirmUploadedReplace()" [disabled]="!uploadedImageDataUrl() || loading()">Replace</button>
+            }
+
+          </div>
         </div>
       </div>
     } @else {
       <div class="modal-body comparison-modal">
-        <app-image-comparison
-          [currentImage]="currentImageUrl()"
-          [newImage]="pendingNewImage()!"
-          (approved)="onComparisonApproved()"
-          (cancelled)="onComparisonCancelled()"
-        />
+        <div class="comparison-wrapper">
+          <app-image-comparison
+            [currentImage]="currentImageUrl()"
+            [newImage]="pendingNewImage()!"
+            (approved)="onComparisonApproved()"
+            (cancelled)="onComparisonCancelled()"
+          />
+          <div class="reanalyze-option">
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [checked]="reanalyzeImage()"
+                (change)="reanalyzeImage.set($any($event.target).checked)"
+                aria-label="Run AI image analysis on the new image"
+              >
+              <span>Run AI image analysis on the new image</span>
+            </label>
+            <p class="help-text">Note: User-generated preference and potential values will not be overridden</p>
+          </div>
+        </div>
       </div>
     }
   </div>

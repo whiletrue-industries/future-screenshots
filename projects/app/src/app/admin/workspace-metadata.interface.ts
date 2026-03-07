@@ -28,6 +28,8 @@ export interface Workspace {
   };
   item_count?: number;
   reviewed_count?: number;
+  public?: boolean; // Whether the workspace allows public visibility
+  collaborate?: boolean; // Whether the workspace allows collaboration/new items
 }
 
 export interface CreateOrUpdateWorkspaceRequest {
