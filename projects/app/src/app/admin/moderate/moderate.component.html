@@ -398,10 +398,18 @@
                       </div>
 
                       <div class="ai-regenerate">
-                        <p class="ai-regenerate-help">Regenerate AI fields from the current edits.</p>
-                        <button class="regenerate-btn" (click)="regenerateAiFieldsFromUserInput()" aria-label="Regenerate AI generated fields from current values">
-                          ♻️ Regenerate AI fields
-                        </button>
+                        <p class="ai-regenerate-help">Regenerate AI fields with different methods.</p>
+                        <div class="regenerate-actions">
+                          <button class="regenerate-btn" (click)="regenerateFromScratch()" aria-label="Analyze from scratch">
+                            Analyze from scratch
+                          </button>
+                          <button class="regenerate-btn" (click)="regenerateMetaFields()" aria-label="Generate meta fields">
+                            Generate meta fields
+                          </button>
+                          <button class="regenerate-btn" (click)="estimateEvaluation()" aria-label="Estimate evaluation">
+                            Estimate evaluation
+                          </button>
+                        </div>
                       </div>
                     </div>
 

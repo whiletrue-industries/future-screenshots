@@ -610,7 +610,27 @@ export class ModerateAllComponent implements OnInit {
   }
 
   // AI regeneration
-  regenerateAiFieldsFromUserInput(): void {
+  regenerateFromScratch(): void {
+    const current = this.selectedItem();
+    if (!current) return;
+
+    // Clear AI-generated fields and trigger full reprocessing but preserve user input (content, screenshot_type, tags, plausibility, favorable_future, email, etc.)
+    const updateData: any = {
+      embedding: null,
+      content_certainty: null,
+      transition_bar_certainty: null,
+      transition_bar_event_prediction: null,
+      content_title: null,
+      future_scenario_description: null,
+      future_scenario_tagline: null,
+      future_scenario_topics: null,
+      needs_processing: true,  // Trigger backend to reprocess the image with vision analysis
+    };
+
+    this.updateItemData(current['_id'], updateData);
+  }
+
+  regenerateMetaFields(): void {
     const current = this.selectedItem();
     if (!current) return;
 
@@ -636,6 +656,34 @@ export class ModerateAllComponent implements OnInit {
       transition_bar_certainty: null,
       transition_bar_event_prediction: null,
     };
+
+    this.updateItemData(current['_id'], updateData);
+  }
+
+  estimateEvaluation(): void {
+    const current = this.selectedItem();
+    if (!current) return;
+
+    // Add AI tags to existing tags
+    const currentTags = Array.isArray(current.tags) ? [...current.tags] : [];
+    if (!currentTags.includes('ai_plausibility')) {
+      currentTags.push('ai_plausibility');
+    }
+    if (!currentTags.includes('ai_favorable_future')) {
+      currentTags.push('ai_favorable_future');
+    }
+
+    // Only reset plausibility and favorable_future if they haven't been set yet
+    const updateData: any = {
+      tags: currentTags
+    };
+
+    if (current.plausibility === null || current.plausibility === undefined) {
+      updateData.plausibility = null;
+    }
+    if (current.favorable_future === null || current.favorable_future === undefined) {
+      updateData.favorable_future = null;
+    }
 
     this.updateItemData(current['_id'], updateData);
   }

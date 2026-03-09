@@ -318,18 +318,23 @@ export class ApiService {
 
 ### 3. Triggering AI Re‑analysis from the UI
 
-Moderators can now regenerate AI-generated metadata for a single item from the lightbox sidebar.
+Moderators can regenerate AI-generated metadata for a single item from the lightbox sidebar using different methods via dedicated buttons.
 
-- Button: "Regenerate AI fields" inside the item sidebar in Moderate view
-- Inputs used: `content_title`, `future_scenario_description`, `future_scenario_tagline`, `future_scenario_topics`
-- Topics source: derived from current `tags` when present, otherwise existing `future_scenario_topics`
-- Mechanism: frontend calls `AdminApiService.updateItem()` sending the user-edited fields and clears `embedding` and related certainty fields; the backend reprocesses and updates AI outputs
+- **Three Buttons**: "Analyze from scratch", "Generate meta fields", and "Estimate evaluation" inside the item sidebar in Moderate view:
+  
+  1. **Analyze from scratch**: Reprocesses the image with full AI recognition and analysis from the original screenshot. Sets `needs_processing: true` to trigger backend vision analysis. Clears all AI-generated interpretations (`content_title`, `future_scenario_description`, `future_scenario_tagline`, `future_scenario_topics`, `embedding`, and certainty fields) but preserves user input data (content, screenshot_type, tags, plausibility, favorable_future, email, etc.).
+  
+  2. **Generate meta fields**: Uses current user edits to regenerate title, description, tagline, and topics. Topics are derived from current `tags` when present, otherwise existing `future_scenario_topics`. Clears `embedding` and certainty fields to trigger regeneration.
+  
+  3. **Estimate evaluation**: Estimates plausibility and favorable_future fields (only if they have not been set earlier). Adds tags `ai_plausibility` and `ai_favorable_future` to indicate AI-generated evaluation.
 
-Implementation entrypoint: [projects/app/src/app/admin/moderate/moderate.component.ts](projects/app/src/app/admin/moderate/moderate.component.ts) method `regenerateAiFieldsFromUserInput()`.
+- Mechanism: frontend calls `AdminApiService.updateItem()` with appropriate fields cleared/reset; the backend reprocesses and updates AI outputs
+- Implementation entrypoint: [projects/app/src/app/admin/moderate/moderate.component.ts](projects/app/src/app/admin/moderate/moderate.component.ts) methods `regenerateFromScratch()`, `regenerateMetaFields()`, and `estimateEvaluation()`
 
 Usage notes:
 - Ensure you have workspace ID and API key in the topbar inputs
-- Select an item, edit fields, then press "Regenerate AI fields"
+- Select an item, optionally edit fields, then click the appropriate regeneration button
+- "Analyze from scratch" will retrigger full image vision analysis—processing may take a few seconds
 - Use the "Refresh" control if needed to see updated AI outputs across the grid
 
 ### 2. Define Data Models
