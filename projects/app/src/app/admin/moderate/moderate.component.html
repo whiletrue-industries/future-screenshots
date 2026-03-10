@@ -810,13 +810,9 @@
 
   @if (multiSelectMode()) {
     <div class="bulk-bar" role="region" aria-label="Bulk edit panel">
-      <div class="bulk-summary">
-        <strong>{{ selectedCount() }}</strong> selected
-        <button class="select-all-btn" (click)="selectAll()" [disabled]="items().length === 0" aria-label="Select all items">Select all</button>
-      </div>
       <div class="bulk-controls">
         <label>
-          Status
+          <span class="label-text">Status</span>
           <select [ngModel]="bulkStatus()" (ngModelChange)="bulkStatus.set($event)">
             <option [ngValue]="null">No change</option>
             <option [ngValue]="0">Rejected</option>
@@ -828,11 +824,11 @@
           </select>
         </label>
         <label>
-          Author
+          <span class="label-text">Author</span>
           <input type="text" [ngModel]="bulkAuthor()" (ngModelChange)="bulkAuthor.set($event || '')" placeholder="author id" />
         </label>
         <label>
-          Plausibility
+          <span class="label-text">Plausibility</span>
           <select [ngModel]="bulkPlausibility()" (ngModelChange)="bulkPlausibility.set(parseNumber($event))">
             <option [ngValue]="null">No change</option>
             <option [ngValue]="100">Projected (100)</option>
@@ -843,7 +839,7 @@
           </select>
         </label>
         <label>
-          Favorable future
+          <span class="label-text">Favorable</span>
           <select [ngModel]="bulkFavorable()" (ngModelChange)="bulkFavorable.set($event || null)">
             <option [ngValue]="null">No change</option>
             <option value="prefer">prefer</option>
@@ -854,7 +850,7 @@
           </select>
         </label>
         <label>
-          Type
+          <span class="label-text">Type</span>
           <select [ngModel]="bulkType()" (ngModelChange)="bulkType.set($event || null)">
             <option [ngValue]="null">No change</option>
             <option value="sign_in_a_demonstration">Sign</option>
@@ -867,11 +863,34 @@
             <option value="photograph">Photo</option>
           </select>
         </label>
+        <label class="tags-field">
+          <span class="label-text">Tags</span>
+          <div class="tags-input-wrapper">
+            @if (commonTags().length > 0) {
+              @for (tag of commonTags(); track tag) {
+                <button class="tag-chip" (click)="removeCommonTag(tag)" [disabled]="bulkSaving()" [attr.aria-label]="'Remove ' + tag + ' from all selected items'">
+                  {{ tag }}
+                  <span class="tag-remove">×</span>
+                </button>
+              }
+            }
+            <input 
+              type="text" 
+              [ngModel]="bulkAddTags()" 
+              (ngModelChange)="bulkAddTags.set($event || '')" 
+              placeholder="add tags..." 
+              aria-label="Add tags (comma or space separated)" />
+          </div>
+        </label>
+        <div class="bulk-right">
+          <span class="count">{{ selectedCount() }}/{{ items().length }}</span>
+          <button class="bulk-btn ghost" (click)="selectAll()" [disabled]="items().length === 0">select all</button>
+          <button class="bulk-btn" (click)="applyBulkChanges()" [disabled]="bulkSaving() || selectedCount() === 0">apply</button>
+          <button class="bulk-btn close" (click)="toggleMultiSelectMode()" [disabled]="bulkSaving()" aria-label="Close bulk edit mode">×</button>
+        </div>
       </div>
-      <div class="bulk-actions">
-        <button class="bulk-btn" (click)="applyBulkChanges()" [disabled]="bulkSaving() || selectedCount() === 0">Apply to selected</button>
-        <button class="bulk-btn ghost" (click)="clearBulkSelection()" [disabled]="bulkSaving()">Clear selection</button>
-        <button class="bulk-btn ghost" (click)="toggleMultiSelectMode()" [disabled]="bulkSaving()">Exit</button>
+            <div class="bulk-header">
+
       </div>
       @if (bulkError()) {
         <div class="bulk-error">{{ bulkError() }}</div>

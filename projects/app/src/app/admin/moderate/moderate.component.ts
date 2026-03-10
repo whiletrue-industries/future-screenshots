@@ -146,8 +146,26 @@ export class ModerateComponent implements OnInit, OnDestroy {
   bulkPlausibility = signal<number | null>(null);
   bulkFavorable = signal<string | null>(null);
   bulkType = signal<string | null>(null);
+  bulkAddTags = signal<string>('');
   bulkSaving = signal<boolean>(false);
   bulkError = signal<string | null>(null);
+
+  // Computed common tags across selected items
+  commonTags = computed(() => {
+    const selectedItems = this.allFetchedItems()
+      .filter(item => this.selectedIds().has(item._id));
+
+    if (selectedItems.length < 2) return [];
+
+    // Find tags that exist in ALL selected items
+    const allTags = selectedItems
+      .map(item => Array.isArray(item.tags) ? item.tags : []);
+
+    const firstItemTags = allTags[0] || [];
+    return firstItemTags.filter((tag: string) => 
+      allTags.every(itemTags => itemTags.includes(tag))
+    );
+  });
 
   // Computed filtered items (intermediate step)
   private filteredItems = computed(() => {
@@ -1152,12 +1170,64 @@ export class ModerateComponent implements OnInit, OnDestroy {
     this.bulkError.set(null);
   }
 
+  async removeCommonTag(tag: string): Promise<void> {
+    const ids = Array.from(this.selectedIds());
+    if (!ids.length) return;
+
+    this.bulkSaving.set(true);
+    this.bulkError.set(null);
+
+    const allItems = this.allFetchedItems();
+    const results = await Promise.all(ids.map(async id => {
+      try {
+        const item = allItems.find((entry: any) => entry._id === id);
+        if (!item) {
+          return { id, ok: false, error: 'Item not found' };
+        }
+
+        const creds = this.getItemCredentials(item);
+        if (!creds) {
+          return { id, ok: false, error: 'Missing credentials' };
+        }
+
+        // Remove the tag from the item's tags
+        const currentTags = Array.isArray(item.tags) ? item.tags : [];
+        const updatedTags = currentTags.filter((t: string) => t !== tag);
+        
+        await firstValueFrom(this.api.updateItem(creds.workspaceId, creds.apiKey, id, { tags: updatedTags }));
+        return { id, ok: true, updatedTags };
+      } catch (error: any) {
+        return { id, ok: false, error };
+      }
+    }));
+
+    const failed = results.filter(r => !r.ok);
+    if (failed.length) {
+      this.bulkError.set(`Failed to remove tag from ${failed.length} item(s).`);
+    }
+
+    // Update local state
+    const applyUpdates = (arr: any[]) => arr.map(item => {
+      if (ids.includes(item._id)) {
+        const result = results.find(r => r.id === item._id);
+        if (result && result.ok && 'updatedTags' in result) {
+          return { ...item, tags: result.updatedTags };
+        }
+      }
+      return item;
+    });
+    this.allFetchedItems.set(applyUpdates(this.allFetchedItems()));
+
+    this.bulkSaving.set(false);
+  }
+
   private resetBulkFields(): void {
     this.bulkStatus.set(null);
     this.bulkAuthor.set('');
     this.bulkPlausibility.set(null);
     this.bulkFavorable.set(null);
     this.bulkType.set(null);
+    this.bulkAddTags.set('');
   }
 
   async applyBulkChanges(): Promise<void> {
@@ -1167,26 +1237,31 @@ export class ModerateComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const updates: any = {};
+    const commonUpdates: any = {};
     const statusValue = this.bulkStatus();
     const moderationValue = statusValue !== null ? this.statusToModeration(statusValue) : null;
     if (moderationValue !== null) {
-      updates._private_moderation = moderationValue;
+      commonUpdates._private_moderation = moderationValue;
     }
     if (this.bulkAuthor()) {
-      updates.author_id = this.bulkAuthor();
+      commonUpdates.author_id = this.bulkAuthor();
     }
     if (this.bulkPlausibility() !== null) {
-      updates.plausibility = this.bulkPlausibility();
+      commonUpdates.plausibility = this.bulkPlausibility();
     }
     if (this.bulkFavorable()) {
-      updates.favorable_future = this.bulkFavorable();
+      commonUpdates.favorable_future = this.bulkFavorable();
     }
     if (this.bulkType()) {
-      updates.screenshot_type = this.bulkType();
+      commonUpdates.screenshot_type = this.bulkType();
     }
 
-    if (Object.keys(updates).length === 0) {
+    // Parse tags to add (comma or space separated)
+    const tagsToAdd = this.bulkAddTags() 
+      ? this.bulkAddTags().split(/[,\s]+/).map(t => t.trim()).filter(t => t.length > 0)
+      : [];
+
+    if (Object.keys(commonUpdates).length === 0 && tagsToAdd.length === 0) {
       this.bulkError.set('Choose at least one field to update.');
       return;
     }
@@ -1207,8 +1282,23 @@ export class ModerateComponent implements OnInit, OnDestroy {
           return { id, ok: false, error: 'Missing credentials for item workspace' };
         }
 
-        await firstValueFrom(this.api.updateItem(creds.workspaceId, creds.apiKey, id, updates));
-        return { id, ok: true };
+        // Build updates for this specific item
+        const itemUpdates = { ...commonUpdates };
+        
+        // Handle tags: add to existing tags
+        if (tagsToAdd.length > 0) {
+          const currentTags = Array.isArray(item.tags) ? item.tags : [];
+          const newTags = [...currentTags];
+          tagsToAdd.forEach(tag => {
+            if (!newTags.includes(tag)) {
+              newTags.push(tag);
+            }
+          });
+          itemUpdates.tags = newTags;
+        }
+
+        await firstValueFrom(this.api.updateItem(creds.workspaceId, creds.apiKey, id, itemUpdates));
+        return { id, ok: true, updates: itemUpdates };
       } catch (error: any) {
         return { id, ok: false, error };
       }
@@ -1219,7 +1309,16 @@ export class ModerateComponent implements OnInit, OnDestroy {
       this.bulkError.set(`Failed to update ${failed.length} item(s).`);
     }
 
-    const applyUpdates = (arr: any[]) => arr.map(item => ids.includes(item._id) ? { ...item, ...updates } : item);
+    // Apply updates to local state
+    const applyUpdates = (arr: any[]) => arr.map(item => {
+      if (ids.includes(item._id)) {
+        const result = results.find(r => r.id === item._id);
+        if (result && result.ok && 'updates' in result) {
+          return { ...item, ...result.updates };
+        }
+      }
+      return item;
+    });
     this.allFetchedItems.set(applyUpdates(this.allFetchedItems()));
     // No need to call applyFiltersAndSort - items are now computed automatically!
 

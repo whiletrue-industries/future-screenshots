@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, e
 import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { forkJoin, of } from 'rxjs';
-import { catchError, take } from 'rxjs/operators';
+import { forkJoin, of, firstValueFrom } from 'rxjs';
+import { catchError, take, map } from 'rxjs/operators';
 import { AdminApiService } from '../../../admin-api.service';
 import { AuthService } from '../../auth.service';
 import { FilterHelpers } from '../../shared/filters-bar/filters-bar.component';
@@ -61,8 +61,26 @@ export class ModerateAllComponent implements OnInit {
   multiSelectMode = signal<boolean>(false);
   selectedIds = signal<Set<string>>(new Set());
   bulkStatus = signal<number | null>(null);
+  bulkAddTags = signal<string>('');
   bulkSaving = signal<boolean>(false);
   bulkError = signal<string | null>(null);
+
+  // Computed common tags across selected items
+  commonTags = computed(() => {
+    const selectedItems = this.allItems()
+      .filter(item => this.selectedIds().has(item['_id']));
+
+    if (selectedItems.length < 2) return [];
+
+    // Find tags that exist in ALL selected items
+    const allTags = selectedItems
+      .map(item => Array.isArray(item.tags) ? item.tags : []);
+
+    const firstItemTags = allTags[0] || [];
+    return firstItemTags.filter((tag: string) => 
+      allTags.every(itemTags => itemTags.includes(tag))
+    );
+  });
 
   // Editing state
   editTagline = signal<string | null>(null);
@@ -423,6 +441,57 @@ export class ModerateAllComponent implements OnInit {
 
   clearBulkSelection(): void {
     this.selectedIds.set(new Set());
+    this.bulkStatus.set(null);
+    this.bulkAddTags.set('');
+    this.bulkError.set(null);
+    this.bulkSaving.set(false);
+  }
+
+  async removeCommonTag(tag: string): Promise<void> {
+    const ids = Array.from(this.selectedIds());
+    if (!ids.length) return;
+
+    this.bulkSaving.set(true);
+    this.bulkError.set(null);
+
+    const updatePromises = ids.map(async (itemId) => {
+      try {
+        const item = this.allItems().find(i => i['_id'] === itemId);
+        if (!item) return { id: itemId, ok: false, error: 'Item not found' };
+
+        const currentTags = Array.isArray(item.tags) ? item.tags : [];
+        const updatedTags = currentTags.filter(t => t !== tag);
+        
+        await firstValueFrom(
+          this.adminApi.updateItem(item._workspaceId, item._workspaceAdminKey, itemId, { tags: updatedTags })
+        );
+        return { id: itemId, ok: true, updatedTags };
+      } catch (error: any) {
+        return { id: itemId, ok: false, error };
+      }
+    });
+
+    const results = await Promise.all(updatePromises);
+    
+    const failed = results.filter(r => !r.ok);
+    if (failed.length) {
+      this.bulkError.set(`Failed to remove tag from ${failed.length} item(s).`);
+    }
+
+    // Update local state
+    this.allItems.update(items =>
+      items.map(item => {
+        if (ids.includes(item['_id'])) {
+          const result = results.find(r => r.id === item['_id']);
+          if (result && result.ok && 'updatedTags' in result) {
+            return { ...item, tags: result.updatedTags };
+          }
+        }
+        return item;
+      })
+    );
+
+    this.bulkSaving.set(false);
   }
 
   closeSidebar(): void {
@@ -490,7 +559,19 @@ export class ModerateAllComponent implements OnInit {
 
   applyBulkChanges(): void {
     const ids = Array.from(this.selectedIds());
-    if (ids.length === 0 || this.bulkStatus() === null) return;
+    if (ids.length === 0) return;
+
+    // Parse tags to add (comma or space separated)
+    const tagsToAdd = this.bulkAddTags() 
+      ? this.bulkAddTags().split(/[,\s]+/).map(t => t.trim()).filter(t => t.length > 0)
+      : [];
+
+    const hasStatusUpdate = this.bulkStatus() !== null;
+
+    if (!hasStatusUpdate && tagsToAdd.length === 0) {
+      this.bulkError.set('Choose at least one field to update.');
+      return;
+    }
 
     this.bulkSaving.set(true);
     this.bulkError.set(null);
@@ -498,24 +579,54 @@ export class ModerateAllComponent implements OnInit {
     const updateRequests = ids.map(itemId => {
       const item = this.allItems().find(i => i['_id'] === itemId);
       if (!item) return of(null);
-      return this.adminApi.updateItemModeration(
+
+      // Build update data for this item
+      const updateData: any = {};
+
+      // Add status update if specified
+      if (hasStatusUpdate) {
+        updateData._private_moderation = this.bulkStatus();
+      }
+
+      // Add tags if specified
+      if (tagsToAdd.length > 0) {
+        const currentTags = Array.isArray(item.tags) ? item.tags : [];
+        const newTags = [...currentTags];
+        tagsToAdd.forEach(tag => {
+          if (!newTags.includes(tag)) {
+            newTags.push(tag);
+          }
+        });
+        updateData.tags = newTags;
+      }
+
+      return this.adminApi.updateItem(
         item._workspaceId,
         item._workspaceAdminKey,
         itemId,
-        this.bulkStatus()!
+        updateData
+      ).pipe(
+        map(() => ({ itemId, updateData }))
       );
     });
 
     forkJoin(updateRequests).subscribe(
-      () => {
+      (results) => {
         // Update all items locally
         this.allItems.update(items =>
-          items.map(item =>
-            ids.includes(item['_id']) ? { ...item, _private_moderation: this.bulkStatus() } : item
-          )
+          items.map(item => {
+            if (ids.includes(item['_id'])) {
+              const result = results.find(r => r && r.itemId === item['_id']);
+              if (result) {
+                return { ...item, ...result.updateData };
+              }
+            }
+            return item;
+          })
         );
         this.selectedIds.set(new Set());
         this.bulkStatus.set(null);
+        this.bulkAddTags.set('');
         this.bulkSaving.set(false);
       },
       error => {

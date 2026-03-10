@@ -584,13 +584,17 @@
     <!-- Bulk edit panel -->
     @if (multiSelectMode()) {
       <div class="bulk-bar" role="region" aria-label="Bulk edit panel">
-        <div class="bulk-summary">
-          <strong>{{ selectedCount() }}</strong> selected
-          <button class="select-all-btn" (click)="selectAll()" [disabled]="filteredItems().length === 0" aria-label="Select all items">Select all</button>
+        <div class="bulk-header">
+          <div class="bulk-right">
+            <span class="count">{{ selectedCount() }}/{{ filteredItems().length }}</span>
+            <button class="bulk-btn ghost" (click)="selectAll()" [disabled]="filteredItems().length === 0">select all</button>
+            <button class="bulk-btn" (click)="applyBulkChanges()" [disabled]="bulkSaving() || selectedCount() === 0">apply</button>
+            <button class="bulk-btn close" (click)="toggleMultiSelectMode()" [disabled]="bulkSaving()" aria-label="Close bulk edit mode">×</button>
+          </div>
         </div>
         <div class="bulk-controls">
           <label>
-            Status
+            <span class="label-text">Status</span>
             <select [ngModel]="bulkStatus()" (ngModelChange)="bulkStatus.set($event)">
               <option [ngValue]="null">No change</option>
               <option [ngValue]="0">Rejected</option>
@@ -601,11 +605,25 @@
               <option [ngValue]="5">Highlighted</option>
             </select>
           </label>
-        </div>
-        <div class="bulk-actions">
-          <button class="bulk-btn" (click)="applyBulkChanges()" [disabled]="bulkSaving() || selectedCount() === 0">Apply to selected</button>
-          <button class="bulk-btn ghost" (click)="clearBulkSelection()" [disabled]="bulkSaving()">Clear selection</button>
-          <button class="bulk-btn ghost" (click)="toggleMultiSelectMode()" [disabled]="bulkSaving()">Exit</button>
+          <label class="tags-field">
+            <span class="label-text">Tags</span>
+            <div class="tags-input-wrapper">
+              @if (commonTags().length > 0) {
+                @for (tag of commonTags(); track tag) {
+                  <button class="tag-chip" (click)="removeCommonTag(tag)" [disabled]="bulkSaving()" [attr.aria-label]="'Remove ' + tag + ' from all selected items'">
+                    {{ tag }}
+                    <span class="tag-remove">×</span>
+                  </button>
+                }
+              }
+              <input 
+                type="text" 
+                [ngModel]="bulkAddTags()" 
+                (ngModelChange)="bulkAddTags.set($event || '')" 
+                placeholder="add tags..." 
+                aria-label="Add tags (comma or space separated)" />
+            </div>
+          </label>
         </div>
         @if (bulkError()) {
           <div class="bulk-error">{{ bulkError() }}</div>
