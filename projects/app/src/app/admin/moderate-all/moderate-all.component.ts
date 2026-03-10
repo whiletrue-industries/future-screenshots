@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, effect, HostListener } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, effect } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -26,6 +26,9 @@ interface EnrichedItem {
   templateUrl: './moderate-all.component.html',
   styleUrl: './moderate-all.component.less',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(document:click)': 'onDocumentClick($event)',
+  },
 })
 export class ModerateAllComponent implements OnInit {
 
@@ -319,7 +322,6 @@ export class ModerateAllComponent implements OnInit {
     this.statusDropdownOpen.update(v => !v);
   }
 
-  @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
     // Close dropdowns when clicking outside
     const target = event.target as HTMLElement;
