@@ -15,7 +15,6 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
   private readonly groupBuffer: number;
   private readonly photoBuffer: number;
   private readonly useFanLayout: boolean;
-  private readonly clusterBy: 'user' | 'workspace'; // How to group photos
   
   private photoGroups = new Map<string, PhotoData[]>();
   private groupPositions = new Map<string, { x: number; y: number; radius: number }>();
@@ -28,7 +27,6 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
     groupBuffer?: number;
     photoBuffer?: number;
     useFanLayout?: boolean; // When false (mobile), use simple circle packing within groups
-    clusterBy?: 'user' | 'workspace'; // How to group photos (default: user)
   } = {}) {
     super();
     
@@ -39,7 +37,6 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
     this.groupBuffer = options.groupBuffer ?? 2000; // Buffer between group circles
     this.photoBuffer = options.photoBuffer ?? 50;  // Buffer between photos within groups
     this.useFanLayout = options.useFanLayout ?? true;
-    this.clusterBy = options.clusterBy ?? 'user';
     
     // Calculate photo radius (use the larger dimension for circle packing)
     this.photoRadius = Math.sqrt(this.photoWidth ** 2 + this.photoHeight ** 2) / 2 + this.photoBuffer;
@@ -309,24 +306,16 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
   }
 
   /**
-   * Gets the group ID for a photo based on clusterBy setting and metadata
+   * Gets the group ID for a photo based on priority: author_id > random
    */
   private getGroupId(photo: PhotoData): string {
-    // If clustering by workspace, use workspace ID
-    if (this.clusterBy === 'workspace') {
-      const workspaceId = photo.metadata['_workspaceId'] || photo.metadata['workspace_id'];
-      if (workspaceId) {
-        return `workspace:${workspaceId}`;
-      }
-    }
-    
-    // Default: cluster by user (author_id)
+    // Priority 1: author_id from metadata
     const authorId = photo.metadata['author_id'];
     if (authorId) {
       return `author:${authorId}`;
     }
         
-    // Fallback: Generate random group ID and store it as a property
+    // Priority 3: Generate random group ID and store it as a property
     let randomId = photo.getProperty<string>('_circle_pack_group_id');
     if (!randomId) {
       randomId = Math.random().toString(36).substring(2, 15);
