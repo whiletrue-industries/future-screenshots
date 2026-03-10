@@ -43,6 +43,7 @@ export class ModerateAllComponent implements OnInit {
   workspaces = signal<any[]>([]);
   allItems = signal<EnrichedItem[]>([]);
   loading = signal<boolean>(true);
+  loadingMore = signal<boolean>(false);
   loadingProgress = signal<string>('');
 
   // Filters - now using arrays for multi-select
@@ -884,6 +885,9 @@ export class ModerateAllComponent implements OnInit {
 
       forkJoin(requests).subscribe((results: any[]) => {
         const enriched: EnrichedItem[] = [];
+        const PAGE_SIZE = 500;
+        const workspacesNeedingMore: { ws: any; name: string; page: number }[] = [];
+
         results.forEach((items: any[], idx: number) => {
           const ws = workspaces[idx];
           const name = this.getWorkspaceNameWithEmojis(ws);
@@ -891,12 +895,62 @@ export class ModerateAllComponent implements OnInit {
             items.forEach((item: any) => {
               enriched.push({ ...item, _workspaceId: ws.id, _workspaceName: name, _workspaceAdminKey: ws.keys?.admin || '' });
             });
+            if (items.length >= PAGE_SIZE) {
+              workspacesNeedingMore.push({ ws, name, page: 1 });
+            }
           }
         });
         this.allItems.set(enriched);
         this.loading.set(false);
         this.loadingProgress.set('');
+
+        if (workspacesNeedingMore.length > 0) {
+          this.loadRemainingPages(workspacesNeedingMore, PAGE_SIZE);
+        }
       });
+    });
+  }
+
+  private loadRemainingPages(
+    pending: { ws: any; name: string; page: number }[],
+    pageSize: number
+  ): void {
+    this.loadingMore.set(true);
+
+    const requests = pending.map(entry =>
+      this.adminApi.getItems(entry.ws.id, entry.ws.keys?.admin, entry.page, null).pipe(
+        catchError(() => of([])),
+        map((items: any[]) => ({ entry, items: Array.isArray(items) ? items : [] }))
+      )
+    );
+
+    forkJoin(requests).subscribe((results) => {
+      const newItems: EnrichedItem[] = [];
+      const nextPending: { ws: any; name: string; page: number }[] = [];
+
+      results.forEach(({ entry, items }) => {
+        items.forEach((item: any) => {
+          newItems.push({
+            ...item,
+            _workspaceId: entry.ws.id,
+            _workspaceName: entry.name,
+            _workspaceAdminKey: entry.ws.keys?.admin || ''
+          });
+        });
+        if (items.length >= pageSize) {
+          nextPending.push({ ...entry, page: entry.page + 1 });
+        }
+      });
+
+      if (newItems.length > 0) {
+        this.allItems.update(existing => [...existing, ...newItems]);
+      }
+
+      if (nextPending.length > 0) {
+        this.loadRemainingPages(nextPending, pageSize);
+      } else {
+        this.loadingMore.set(false);
+      }
     });
   }
 }
