@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, effect, HostListener } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, effect } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -12,13 +12,7 @@ import { AdminLightboxComponent } from '../admin-lightbox/admin-lightbox.compone
 import { ImageReplacementModalComponent } from '../image-replacement-modal/image-replacement-modal.component';
 import { QrCodeModalComponent } from '../qr-code-modal/qr-code-modal.component';
 import { ShowcaseExportModalComponent } from '../showcase-export-modal/showcase-export-modal.component';
-
-interface EnrichedItem {
-  _workspaceId: string;
-  _workspaceName: string;
-  _workspaceAdminKey: string;
-  [key: string]: any;
-}
+import { EnrichedItem } from '../workspace-metadata.interface';
 
 @Component({
   selector: 'app-moderate-all',
@@ -26,6 +20,9 @@ interface EnrichedItem {
   templateUrl: './moderate-all.component.html',
   styleUrl: './moderate-all.component.less',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(document:click)': 'onDocumentClick($event)',
+  },
 })
 export class ModerateAllComponent implements OnInit {
 
@@ -337,7 +334,6 @@ export class ModerateAllComponent implements OnInit {
     this.statusDropdownOpen.update(v => !v);
   }
 
-  @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
     // Close dropdowns when clicking outside
     const target = event.target as HTMLElement;

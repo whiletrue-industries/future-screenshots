@@ -1,4 +1,4 @@
-import { Component, effect, signal, computed, inject, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, signal, computed, inject, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AdminApiService } from '../../../admin-api.service';
 import { FormsModule } from '@angular/forms';
@@ -15,18 +15,12 @@ import { AuthService } from '../../auth.service';
 import { SkeletonLoaderComponent } from '../skeleton-loader/skeleton-loader.component';
 import { LazyLoadImageDirective } from '../lazy-load-image.directive';
 import { ShowcaseExportModalComponent } from '../showcase-export-modal/showcase-export-modal.component';
+import { EnrichedItem } from '../workspace-metadata.interface';
 
 export type Filter = {
   name: string;
   filter: string;
 };
-
-interface EnrichedItem {
-  _workspaceId?: string;
-  _workspaceName?: string;
-  _workspaceAdminKey?: string;
-  [key: string]: any;
-}
 
 @Component({
   selector: 'app-moderate',
@@ -46,7 +40,8 @@ interface EnrichedItem {
     ShowcaseExportModalComponent
   ],
   templateUrl: './moderate.component.html',
-  styleUrl: './moderate.component.less'
+  styleUrl: './moderate.component.less',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ModerateComponent implements OnInit, OnDestroy {
 

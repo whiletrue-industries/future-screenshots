@@ -1,4 +1,4 @@
-import { Component, computed, output, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, output, input, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -13,7 +13,8 @@ export interface ShowcaseExportSettings {
   selector: 'app-showcase-export-modal',
   imports: [CommonModule, FormsModule],
   templateUrl: './showcase-export-modal.component.html',
-  styleUrl: './showcase-export-modal.component.less'
+  styleUrl: './showcase-export-modal.component.less',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ShowcaseExportModalComponent {
   // Inputs
@@ -36,10 +37,8 @@ export class ShowcaseExportModalComponent {
     return workspaces.size;
   });
   
-  constructor(
-    private router: Router,
-    private exportCache: ExportCacheService
-  ) {}
+  private router = inject(Router);
+  private exportCache = inject(ExportCacheService);
   
   /**
    * Generate the showcase URL and navigate to it
