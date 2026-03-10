@@ -1,4 +1,4 @@
-import { Component, effect, signal, computed, inject, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, signal, computed, inject, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AdminApiService } from '../../../admin-api.service';
 import { FormsModule } from '@angular/forms';
@@ -40,7 +40,8 @@ export type Filter = {
     ShowcaseExportModalComponent
   ],
   templateUrl: './moderate.component.html',
-  styleUrl: './moderate.component.less'
+  styleUrl: './moderate.component.less',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ModerateComponent implements OnInit, OnDestroy {
 

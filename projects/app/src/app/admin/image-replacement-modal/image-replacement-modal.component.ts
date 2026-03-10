@@ -241,8 +241,6 @@ export class ImageReplacementModalComponent {
     
     // Load image as blob to avoid CORS issues
     const imageUrl = this.currentImageUrl();
-    console.log('🔄 Loading image as blob to avoid CORS:', imageUrl);
-    
     fetch(imageUrl)
       .then(response => {
         if (!response.ok) {
@@ -258,7 +256,6 @@ export class ImageReplacementModalComponent {
         }
         
         const blobUrl = URL.createObjectURL(blob);
-        console.log('✅ Image loaded as blob:', blobUrl);
         this.cropImageBlobUrl.set(blobUrl);
         requestAnimationFrame(() => this.initializeCropCorners());
       })
@@ -368,7 +365,6 @@ export class ImageReplacementModalComponent {
   }
 
   onCropImageLoaded() {
-    console.log('🖼️ Crop image loaded event fired');
     // Wait a moment for the image to fully render
     setTimeout(() => {
       this.initializeCropCorners();
@@ -379,21 +375,14 @@ export class ImageReplacementModalComponent {
     const frameEl = this.cropFrame?.nativeElement;
     const imageEl = this.cropImage?.nativeElement;
     if (!frameEl || !imageEl) {
-      console.log('⚠️ Frame or image not ready for corner initialization');
       return;
     }
-    
-    console.log('📐 Initializing crop corners');
-    console.log('Frame dimensions:', frameEl.clientWidth, 'x', frameEl.clientHeight);
-    console.log('Image natural dimensions:', imageEl.naturalWidth, 'x', imageEl.naturalHeight);
-    console.log('Image display dimensions:', imageEl.clientWidth, 'x', imageEl.clientHeight);
-    
+
     // Use image's display dimensions, not frame dimensions
     const width = imageEl.clientWidth;
     const height = imageEl.clientHeight;
     
     if (width <= 0 || height <= 0) {
-      console.log('⚠️ Image not yet visible, dimensions:', width, 'x', height);
       return;
     }
     
@@ -408,7 +397,6 @@ export class ImageReplacementModalComponent {
       { x: 0, y: height }
     ];
     
-    console.log('Initial corners (display space):', initialCorners);
     this.cropCorners.set(initialCorners);
     this.scheduleCropPreviewUpdate(true);
   }
@@ -493,11 +481,6 @@ export class ImageReplacementModalComponent {
       return null;
     }
 
-    console.log('Image natural dimensions:', imageEl.naturalWidth, 'x', imageEl.naturalHeight);
-    console.log('Image rendered dimensions (client):', imageEl.clientWidth, 'x', imageEl.clientHeight);
-    console.log('Image rendered dimensions (width/height):', imageEl.width, 'x', imageEl.height);
-    console.log('Frame client dimensions:', frameEl.clientWidth, 'x', frameEl.clientHeight);
-
     if (imageEl.naturalWidth === 0 || imageEl.naturalHeight === 0) {
       if (reportErrors) {
         this.cropError.set('Image not fully loaded. Please wait and try again.');
@@ -526,8 +509,6 @@ export class ImageReplacementModalComponent {
     const cvSourceWidth = imageEl.width || imageDisplayWidth;
     const cvSourceHeight = imageEl.height || imageDisplayHeight;
     
-    console.log('Image display size:', imageDisplayWidth, 'x', imageDisplayHeight);
-    
     if (imageDisplayWidth <= 0 || imageDisplayHeight <= 0) {
       if (reportErrors) {
         this.cropError.set('Image not fully loaded. Please try again.');
@@ -537,25 +518,12 @@ export class ImageReplacementModalComponent {
 
     const scaleX = cvSourceWidth / imageDisplayWidth;
     const scaleY = cvSourceHeight / imageDisplayHeight;
-    console.log('Source-space dimensions for OpenCV:', cvSourceWidth, 'x', cvSourceHeight);
-    console.log('Scale factors (display -> source) - X:', scaleX, 'Y:', scaleY);
-    
-    console.log('📍 Display space corners (what you see):');
-    corners.forEach((c, i) => {
-      console.log(`  Corner ${i}: (${c.x.toFixed(1)}, ${c.y.toFixed(1)})`);
-    });
-
     const mappedCorners = {
       topLeftCorner: { x: corners[0].x * scaleX, y: corners[0].y * scaleY },
       topRightCorner: { x: corners[1].x * scaleX, y: corners[1].y * scaleY },
       bottomRightCorner: { x: corners[2].x * scaleX, y: corners[2].y * scaleY },
       bottomLeftCorner: { x: corners[3].x * scaleX, y: corners[3].y * scaleY }
     };
-    console.log('Mapped corners (OpenCV source image space):');
-    console.log('  Top-Left:', mappedCorners.topLeftCorner);
-    console.log('  Top-Right:', mappedCorners.topRightCorner);
-    console.log('  Bottom-Right:', mappedCorners.bottomRightCorner);
-    console.log('  Bottom-Left:', mappedCorners.bottomLeftCorner);
 
     // Calculate natural dimensions from the corner positions
     const topWidth = Math.sqrt(
@@ -578,15 +546,11 @@ export class ImageReplacementModalComponent {
     // Use the average width and height to preserve natural aspect ratio
     const avgWidth = (topWidth + bottomWidth) / 2;
     const avgHeight = (leftHeight + rightHeight) / 2;
-    console.log('Calculated dimensions - Width:', avgWidth, 'Height:', avgHeight);
-    
     // Scale to a reasonable output size while maintaining aspect ratio
     const maxDimension = 2000;
     const scale = Math.min(maxDimension / avgWidth, maxDimension / avgHeight);
     const outputWidth = Math.round(avgWidth * scale);
     const outputHeight = Math.round(avgHeight * scale);
-    console.log('Output dimensions:', outputWidth, 'x', outputHeight);
-
     try {
       const scanner = new jscanify();
       const extractedCanvas = scanner.extractPaper(imageEl, outputWidth, outputHeight, mappedCorners);
@@ -659,7 +623,6 @@ export class ImageReplacementModalComponent {
       }
     }
     
-    console.log('🔄 Duplicate - cropped image length:', cropped?.length);
     if (!cropped) {
       console.error('❌ No cropped image available');
       return;
@@ -670,18 +633,11 @@ export class ImageReplacementModalComponent {
       return;
     }
 
-    console.log('📦 Building duplicate payload from current item:', current._id);
     const duplicatePayload = this.buildDuplicatePayload(current, cropped);
-    console.log('📦 Duplicate payload:', {
-      ...duplicatePayload,
-      screenshot_url: `[data URL, ${cropped.length} bytes]`
-    });
-    
+
     this.loading.set(true);
-    console.log('🚀 Calling createItem API...');
     this.adminApi.createItem(this.workspaceId(), this.apiKey(), duplicatePayload).subscribe({
       next: (response) => {
-        console.log('✅ Item duplicated successfully:', response);
         this.loading.set(false);
         this.itemDuplicated.emit({ item_id: response?.item_id || response?.item_key });
         alert(`Success! New item created with ID: ${response?.item_id || 'unknown'}`);
@@ -736,11 +692,6 @@ export class ImageReplacementModalComponent {
     if (!payload['_private_moderation']) {
       payload['_private_moderation'] = 2;
     }
-    
-    console.log('📋 Duplicate payload keys:', Object.keys(payload));
-    console.log('📋 Payload has screenshot_url:', !!payload['screenshot_url']);
-    console.log('📋 Payload has content:', !!payload['content']);
-    console.log('📋 Payload moderation status:', payload['_private_moderation']);
     
     return payload;
   }

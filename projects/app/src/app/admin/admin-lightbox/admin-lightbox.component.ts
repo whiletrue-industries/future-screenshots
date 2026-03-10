@@ -1,4 +1,4 @@
-import { Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LightboxNavControlsComponent } from '../lightbox-nav-controls/lightbox-nav-controls.component';
 
@@ -6,7 +6,8 @@ import { LightboxNavControlsComponent } from '../lightbox-nav-controls/lightbox-
   selector: 'app-admin-lightbox',
   imports: [CommonModule, LightboxNavControlsComponent],
   templateUrl: './admin-lightbox.component.html',
-  styleUrl: './admin-lightbox.component.less'
+  styleUrl: './admin-lightbox.component.less',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminLightboxComponent {
   // Inputs: state from parent

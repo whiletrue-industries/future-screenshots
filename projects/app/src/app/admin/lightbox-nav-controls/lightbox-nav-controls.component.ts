@@ -1,11 +1,12 @@
-import { Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-lightbox-nav-controls',
   imports: [CommonModule],
   templateUrl: './lightbox-nav-controls.component.html',
-  styleUrl: './lightbox-nav-controls.component.less'
+  styleUrl: './lightbox-nav-controls.component.less',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LightboxNavControlsComponent {
   // Inputs: state from parent

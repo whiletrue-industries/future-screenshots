@@ -21,7 +21,6 @@ import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
 import { ExportCacheService } from '../shared/export-cache.service';
-import e from 'express';
 
 @Component({
   selector: 'app-showcase-ws',
