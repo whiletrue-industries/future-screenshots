@@ -15,18 +15,12 @@ import { AuthService } from '../../auth.service';
 import { SkeletonLoaderComponent } from '../skeleton-loader/skeleton-loader.component';
 import { LazyLoadImageDirective } from '../lazy-load-image.directive';
 import { ShowcaseExportModalComponent } from '../showcase-export-modal/showcase-export-modal.component';
+import { EnrichedItem } from '../workspace-metadata.interface';
 
 export type Filter = {
   name: string;
   filter: string;
 };
-
-interface EnrichedItem {
-  _workspaceId?: string;
-  _workspaceName?: string;
-  _workspaceAdminKey?: string;
-  [key: string]: any;
-}
 
 @Component({
   selector: 'app-moderate',

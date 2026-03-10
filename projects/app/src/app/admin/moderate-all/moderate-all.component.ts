@@ -12,13 +12,7 @@ import { AdminLightboxComponent } from '../admin-lightbox/admin-lightbox.compone
 import { ImageReplacementModalComponent } from '../image-replacement-modal/image-replacement-modal.component';
 import { QrCodeModalComponent } from '../qr-code-modal/qr-code-modal.component';
 import { ShowcaseExportModalComponent } from '../showcase-export-modal/showcase-export-modal.component';
-
-interface EnrichedItem {
-  _workspaceId: string;
-  _workspaceName: string;
-  _workspaceAdminKey: string;
-  [key: string]: any;
-}
+import { EnrichedItem } from '../workspace-metadata.interface';
 
 @Component({
   selector: 'app-moderate-all',
