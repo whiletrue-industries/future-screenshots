@@ -7,9 +7,17 @@ import { catchError, take, map } from 'rxjs/operators';
 import { AdminApiService } from '../../../admin-api.service';
 import { AuthService } from '../../auth.service';
 import { FilterHelpers } from '../../shared/filters-bar/filters-bar.component';
-import { WorkspaceNameUtility } from '../../shared/workspace-name.utility';
 import { AdminLightboxComponent } from '../admin-lightbox/admin-lightbox.component';
 import { ImageReplacementModalComponent } from '../image-replacement-modal/image-replacement-modal.component';
+import {
+  PREFER_SLOT_MAP, PREVENT_SLOT_MAP, PLAUSIBILITY_LABEL_MAP,
+  LEVELS, ALL_STATUSES, STATUS_OPTIONS, STATUS_LABELS, TYPE_LABELS,
+  normalizeDirection, coerceValue, getAIConfidence, getConfidenceLevel,
+  getIndicatorSlot, getIndicatorLabel, isPreferDirection, isPreventDirection,
+  isMostlyPrefer, isMostlyPrevent, isNeutralDirection,
+  getDesirabilityClass, getPlausibilityClass, getEmail,
+  getWorkspaceNameWithEmojis, formatDate
+} from '../moderation-helpers';
 import { QrCodeModalComponent } from '../qr-code-modal/qr-code-modal.component';
 import { ShowcaseExportModalComponent } from '../showcase-export-modal/showcase-export-modal.component';
 import { EnrichedItem } from '../workspace-metadata.interface';
@@ -131,64 +139,11 @@ export class ModerateAllComponent implements OnInit {
   // Make Array available in template
   Array = Array;
 
-  // Constants for plausibility indicator
-  private readonly preferSlotMap = new Map<number, number>([
-    [0, 1],
-    [25, 2],
-    [50, 3],
-    [75, 4],
-    [100, 5],
-  ]);
-
-  private readonly preventSlotMap = new Map<number, number>([
-    [100, 5],
-    [75, 6],
-    [50, 7],
-    [25, 8],
-    [0, 9],
-  ]);
-
-  private readonly plausibilityLabelMap: Record<number, string> = {
-    100: 'projected',
-    75: 'probable',
-    50: 'plausible',
-    25: 'possible',
-    0: 'preposterous'
-  };
-
-  readonly LEVELS = ['rejected', 'flagged', 'pending', 'not-flagged', 'approved', 'highlighted'];
-
-  readonly STATUS_OPTIONS: { label: string; value: number }[] = [
-    { label: 'Highlighted', value: 5 },
-    { label: 'Approved', value: 4 },
-    { label: 'Not flagged', value: 3 },
-    { label: 'Pending', value: 2 },
-    { label: 'Flagged', value: 1 },
-    { label: 'Rejected', value: 0 },
-  ];
-
-  readonly STATUS_LABELS: Record<string, string> = {
-    highlighted: 'Highlighted',
-    approved: 'Approved',
-    'not-flagged': 'Not flagged',
-    pending: 'Pending',
-    flagged: 'Flagged',
-    rejected: 'Rejected',
-  };
-
-  readonly TYPE_LABELS: Record<string, string> = {
-    sign_in_a_demonstration: '🪧 Sign',
-    social_media_post: '📣 Social',
-    chat_conversation: '💬 Chat',
-    notification_alert: '🔔 Alert',
-    ai_agent_query: '🤖 AI',
-    review: '⭐ Review',
-    map_visualization: '🗺️ Map',
-    photograph: '📸 Photo',
-  };
-
-  // Status options in order
-  readonly ALL_STATUSES = ['highlighted', 'approved', 'not-flagged', 'pending', 'flagged', 'rejected'];
+  readonly LEVELS = LEVELS;
+  readonly STATUS_OPTIONS = STATUS_OPTIONS;
+  readonly STATUS_LABELS = STATUS_LABELS;
+  readonly TYPE_LABELS = TYPE_LABELS;
+  readonly ALL_STATUSES = ALL_STATUSES;
 
   constructor() {
     effect(() => {
@@ -319,11 +274,7 @@ export class ModerateAllComponent implements OnInit {
     return this.STATUS_LABELS[status] || status;
   }
 
-  formatDate(dateStr: string): string {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`;
-  }
+  formatDate = formatDate;
 
   // Multi-select filter methods
   toggleWorkspaceDropdown(): void {
@@ -705,16 +656,7 @@ export class ModerateAllComponent implements OnInit {
     this.updateItemData(current['_id'], { [key]: value });
   }
 
-  private coerceValue(original: any, rawValue: any): any {
-    if (typeof original === 'number') {
-      const num = Number(rawValue);
-      return Number.isNaN(num) ? original : num;
-    }
-    if (typeof original === 'boolean') {
-      return rawValue === true || rawValue === 'true';
-    }
-    return rawValue;
-  }
+  private coerceValue = coerceValue;
 
   // AI regeneration
   regenerateFromScratch(): void {
@@ -828,18 +770,13 @@ export class ModerateAllComponent implements OnInit {
     });
   }
 
-  // User info methods
-  getEmail(item: any): string {
-    return item._private_email || item.email || item.user_email || 'unknown@user.com';
-  }
+  getEmail = getEmail;
 
   getUserItemCount(authorId: string): number {
     return this.userItemCounts().get(authorId) || 0;
   }
 
-  getWorkspaceNameWithEmojis(workspace: any): string {
-    return WorkspaceNameUtility.formatWorkspaceNameWithEmojis(workspace);
-  }
+  getWorkspaceNameWithEmojis = getWorkspaceNameWithEmojis;
 
   filterByUser(authorId: string): void {
     // For multi-workspace view, we can add this to search text
@@ -847,103 +784,17 @@ export class ModerateAllComponent implements OnInit {
     this.searchText.set(email);
   }
 
-  // AI confidence methods
-  getAIConfidence(item: any): number {
-    const content = item.content_certainty || 0;
-    const transition = item.transition_bar_certainty || 0;
-    return Math.round((content + transition) / 2);
-  }
-
-  getConfidenceLevel(item: any): string {
-    const confidence = this.getAIConfidence(item);
-    if (confidence >= 80) return 'high';
-    if (confidence >= 50) return 'medium';
-    return 'low';
-  }
-
-  // Plausibility indicator methods
-  getIndicatorSlot(item: any | null): number | null {
-    if (!item) return null;
-    const plausibility = Number(item.plausibility);
-    if (!Number.isFinite(plausibility)) return null;
-
-    const direction = this.normalizeDirection(item.favorable_future);
-    if (direction === 'prefer' || direction === 'mostly-prefer') {
-      return this.preferSlotMap.get(plausibility) ?? null;
-    }
-    if (direction === 'prevent' || direction === 'mostly-prevent') {
-      return this.preventSlotMap.get(plausibility) ?? null;
-    }
-    return null;
-  }
-
-  getIndicatorLabel(item: any | null): string {
-    if (!item) return 'No score';
-    const plausibility = Number(item.plausibility);
-    const plausibilityLabel = this.plausibilityLabelMap[plausibility];
-    const direction = this.normalizeDirection(item.favorable_future);
-
-    if (!plausibilityLabel) return 'No plausibility score';
-
-    switch (direction) {
-      case 'prefer':
-        return `prefer ${plausibilityLabel}`;
-      case 'mostly-prefer':
-        return `mostly prefer ${plausibilityLabel}`;
-      case 'prevent':
-        return `prevent ${plausibilityLabel}`;
-      case 'mostly-prevent':
-        return `mostly prevent ${plausibilityLabel}`;
-      default:
-        return `uncertain ${plausibilityLabel}`;
-    }
-  }
-
-  isPreferDirection(item: any | null): boolean {
-    const direction = this.normalizeDirection(item?.favorable_future);
-    return direction === 'prefer' || direction === 'mostly-prefer';
-  }
-
-  isPreventDirection(item: any | null): boolean {
-    const direction = this.normalizeDirection(item?.favorable_future);
-    return direction === 'prevent' || direction === 'mostly-prevent';
-  }
-
-  isMostlyPrefer(item: any | null): boolean {
-    return this.normalizeDirection(item?.favorable_future) === 'mostly-prefer';
-  }
-
-  isMostlyPrevent(item: any | null): boolean {
-    return this.normalizeDirection(item?.favorable_future) === 'mostly-prevent';
-  }
-
-  isNeutralDirection(item: any | null): boolean {
-    return this.normalizeDirection(item?.favorable_future) === 'uncertain';
-  }
-
-  private normalizeDirection(value: string | null | undefined): 'prefer' | 'mostly-prefer' | 'prevent' | 'mostly-prevent' | 'uncertain' {
-    const normalized = (value || '').toLowerCase();
-    if (normalized === 'prefer') return 'prefer';
-    if (normalized === 'mostly prefer') return 'mostly-prefer';
-    if (normalized === 'mostly prevent') return 'mostly-prevent';
-    if (normalized === 'prevent') return 'prevent';
-    return 'uncertain';
-  }
-
-  // Style classes
-  getDesirabilityClass(value: string): string {
-    if (!value) return '';
-    if (value.includes('prefer')) return 'prefer';
-    if (value.includes('prevent')) return 'prevent';
-    return 'uncertain';
-  }
-
-  getPlausibilityClass(value: number): string {
-    if (!value) return '';
-    if (value >= 75) return 'high';
-    if (value >= 25) return 'medium';
-    return 'low';
-  }
+  getAIConfidence = getAIConfidence;
+  getConfidenceLevel = getConfidenceLevel;
+  getIndicatorSlot = getIndicatorSlot;
+  getIndicatorLabel = getIndicatorLabel;
+  isPreferDirection = isPreferDirection;
+  isPreventDirection = isPreventDirection;
+  isMostlyPrefer = isMostlyPrefer;
+  isMostlyPrevent = isMostlyPrevent;
+  isNeutralDirection = isNeutralDirection;
+  getDesirabilityClass = getDesirabilityClass;
+  getPlausibilityClass = getPlausibilityClass;
 
   // Image replacement modal methods
   openImageReplacementModal(itemId: string): void {

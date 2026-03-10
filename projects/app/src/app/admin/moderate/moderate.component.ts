@@ -3,8 +3,15 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AdminApiService } from '../../../admin-api.service';
 import { FormsModule } from '@angular/forms';
 import { FilterHelpers, FiltersBarComponent, FiltersBarState, FilterCounts } from '../../shared/filters-bar/filters-bar.component';
-import { WorkspaceNameUtility } from '../../shared/workspace-name.utility';
 import { ItemFilterService } from '../../shared/filters-bar/item-filter.service';
+import {
+  STATUS_OPTIONS,
+  coerceValue, getAIConfidence, getConfidenceLevel,
+  getIndicatorSlot, getIndicatorLabel, isPreferDirection, isPreventDirection,
+  isMostlyPrefer, isMostlyPrevent, isNeutralDirection,
+  getDesirabilityClass, getPlausibilityClass, getEmail,
+  getWorkspaceNameWithEmojis, formatDate
+} from '../moderation-helpers';
 import { firstValueFrom, catchError, of, forkJoin, take } from 'rxjs';
 import { ImageReplacementModalComponent } from '../image-replacement-modal/image-replacement-modal.component';
 import { QrCodeModalComponent } from '../qr-code-modal/qr-code-modal.component';
@@ -181,29 +188,6 @@ export class ModerateComponent implements OnInit, OnDestroy {
   
   indexLink = signal<string | null>(null);
 
-  private readonly preferSlotMap = new Map<number, number>([
-    [0, 1],
-    [25, 2],
-    [50, 3],
-    [75, 4],
-    [100, 5],
-  ]);
-
-  private readonly preventSlotMap = new Map<number, number>([
-    [100, 5],
-    [75, 6],
-    [50, 7],
-    [25, 8],
-    [0, 9],
-  ]);
-
-  private readonly plausibilityLabelMap: Record<number, string> = {
-    100: 'projected',
-    75: 'probable',
-    50: 'plausible',
-    25: 'possible',
-    0: 'preposterous'
-  };
 
   // Image replacement state
   replacingImageItemId = signal<string | null>(null);
@@ -232,14 +216,7 @@ export class ModerateComponent implements OnInit, OnDestroy {
     'highlighted',
   ];
 
-  STATUS_OPTIONS: { label: string; value: number }[] = [
-    { label: 'Highlighted', value: 5 },
-    { label: 'Approved', value: 4 },
-    { label: 'Not flagged', value: 3 },
-    { label: 'Pending', value: 2 },
-    { label: 'Flagged', value: 1 },
-    { label: 'Rejected', value: 0 },
-  ];
+  STATUS_OPTIONS = STATUS_OPTIONS;
 
   editableMetadata = computed<[string, any][]>(() => {
     const item = this.selectedItem();
@@ -605,20 +582,9 @@ export class ModerateComponent implements OnInit, OnDestroy {
     });
   }
 
-  private coerceValue(original: any, rawValue: any): any {
-    if (typeof original === 'number') {
-      const num = Number(rawValue);
-      return Number.isNaN(num) ? original : num;
-    }
-    if (typeof original === 'boolean') {
-      return rawValue === true || rawValue === 'true';
-    }
-    return rawValue;
-  }
+  private coerceValue = coerceValue;
 
-  getEmail(item: any): string {
-    return item._private_email || item.email || item.user_email || 'unknown@user.com';
-  }
+  getEmail = getEmail;
 
   getScreenshotTypeEmoji(type: string): string {
     const emojiMap: { [key: string]: string } = {
@@ -634,9 +600,7 @@ export class ModerateComponent implements OnInit, OnDestroy {
     return emojiMap[type] || '❓';
   }
 
-  getWorkspaceNameWithEmojis(workspace: any): string {
-    return WorkspaceNameUtility.formatWorkspaceNameWithEmojis(workspace);
-  }
+  getWorkspaceNameWithEmojis = getWorkspaceNameWithEmojis;
 
   filterByUser(authorId: string) {
     if (!authorId || authorId === 'unknown') {
@@ -650,112 +614,18 @@ export class ModerateComponent implements OnInit, OnDestroy {
     return this.userItemCounts().get(authorId) || 0;
   }
 
-  getAIConfidence(item: any): number {
-    // Calculate confidence based on content_certainty and transition_bar_certainty
-    const content = item.content_certainty || 0;
-    const transition = item.transition_bar_certainty || 0;
-    return Math.round((content + transition) / 2);
-  }
-
-  getConfidenceLevel(item: any): string {
-    const confidence = this.getAIConfidence(item);
-    if (confidence >= 80) return 'high';
-    if (confidence >= 50) return 'medium';
-    return 'low';
-  }
-
-  getDesirabilityClass(value: string): string {
-    if (!value) return '';
-    if (value.includes('prefer')) return 'prefer';
-    if (value.includes('prevent')) return 'prevent';
-    return 'uncertain';
-  }
-
-  getPlausibilityClass(value: number): string {
-    if (!value) return '';
-    if (value >= 75) return 'high';
-    if (value >= 25) return 'medium';
-    return 'low';
-  }
-
-  getIndicatorSlot(item: any | null): number | null {
-    if (!item) return null;
-    const plausibility = Number(item.plausibility);
-    if (!Number.isFinite(plausibility)) return null;
-
-    const direction = this.normalizeDirection(item.favorable_future);
-    if (direction === 'prefer' || direction === 'mostly-prefer') {
-      return this.preferSlotMap.get(plausibility) ?? null;
-    }
-    if (direction === 'prevent' || direction === 'mostly-prevent') {
-      return this.preventSlotMap.get(plausibility) ?? null;
-    }
-    return null;
-  }
-
-  getIndicatorLabel(item: any | null): string {
-    if (!item) return 'No score';
-    const plausibility = Number(item.plausibility);
-    const plausibilityLabel = this.plausibilityLabelMap[plausibility];
-    const direction = this.normalizeDirection(item.favorable_future);
-
-    if (!plausibilityLabel) return 'No plausibility score';
-
-    switch (direction) {
-      case 'prefer':
-        return `prefer ${plausibilityLabel}`;
-      case 'mostly-prefer':
-        return `mostly prefer ${plausibilityLabel}`;
-      case 'prevent':
-        return `prevent ${plausibilityLabel}`;
-      case 'mostly-prevent':
-        return `mostly prevent ${plausibilityLabel}`;
-      default:
-        return `uncertain ${plausibilityLabel}`;
-    }
-  }
-
-  isPreferDirection(item: any | null): boolean {
-    const direction = this.normalizeDirection(item?.favorable_future);
-    return direction === 'prefer' || direction === 'mostly-prefer';
-  }
-
-  isPreventDirection(item: any | null): boolean {
-    const direction = this.normalizeDirection(item?.favorable_future);
-    return direction === 'prevent' || direction === 'mostly-prevent';
-  }
-
-  isMostlyPrefer(item: any | null): boolean {
-    return this.normalizeDirection(item?.favorable_future) === 'mostly-prefer';
-  }
-
-  isMostlyPrevent(item: any | null): boolean {
-    return this.normalizeDirection(item?.favorable_future) === 'mostly-prevent';
-  }
-
-  isNeutralDirection(item: any | null): boolean {
-    return this.normalizeDirection(item?.favorable_future) === 'uncertain';
-  }
-
-  private normalizeDirection(value: string | null | undefined): 'prefer' | 'mostly-prefer' | 'prevent' | 'mostly-prevent' | 'uncertain' {
-    const normalized = (value || '').toLowerCase();
-    if (normalized === 'prefer') return 'prefer';
-    if (normalized === 'mostly prefer') return 'mostly-prefer';
-    if (normalized === 'mostly prevent') return 'mostly-prevent';
-    if (normalized === 'prevent') return 'prevent';
-    return 'uncertain';
-  }
-
-  formatDate(dateString: string): string {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = String(date.getFullYear()).slice(-2);
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${day}.${month}.${year} ${hours}:${minutes}`;
-  }
+  getAIConfidence = getAIConfidence;
+  getConfidenceLevel = getConfidenceLevel;
+  getDesirabilityClass = getDesirabilityClass;
+  getPlausibilityClass = getPlausibilityClass;
+  getIndicatorSlot = getIndicatorSlot;
+  getIndicatorLabel = getIndicatorLabel;
+  isPreferDirection = isPreferDirection;
+  isPreventDirection = isPreventDirection;
+  isMostlyPrefer = isMostlyPrefer;
+  isMostlyPrevent = isMostlyPrevent;
+  isNeutralDirection = isNeutralDirection;
+  formatDate = formatDate;
 
   fix_url(url: string | null | undefined): string {
     if (!url || typeof url !== 'string') {

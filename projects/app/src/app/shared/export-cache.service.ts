@@ -26,18 +26,16 @@ export class ExportCacheService {
    */
   getExportItems(): any[] | null {
     const items = this.exportedItems();
-    const timestamp = this.exportTimestamp();
-    
+
     if (items.length === 0) {
       return null;
     }
-    
-    // Check if cache expired
-    if (Date.now() - timestamp > this.CACHE_DURATION_MS) {
+
+    if (this.isExpired()) {
       this.clearExport();
       return null;
     }
-    
+
     return items;
   }
 
@@ -50,9 +48,14 @@ export class ExportCacheService {
   }
 
   /**
-   * Check if export cache has valid data
+   * Check if export cache has valid data (without triggering clearExport side effect)
    */
   hasValidExport(): boolean {
-    return this.getExportItems() !== null;
+    return this.exportedItems().length > 0 && !this.isExpired();
+  }
+
+  private isExpired(): boolean {
+    const timestamp = this.exportTimestamp();
+    return timestamp > 0 && Date.now() - timestamp > this.CACHE_DURATION_MS;
   }
 }
