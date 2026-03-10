@@ -4,7 +4,6 @@ import { LightboxNavControlsComponent } from '../lightbox-nav-controls/lightbox-
 
 @Component({
   selector: 'app-admin-lightbox',
-  standalone: true,
   imports: [CommonModule, LightboxNavControlsComponent],
   templateUrl: './admin-lightbox.component.html',
   styleUrl: './admin-lightbox.component.less'
