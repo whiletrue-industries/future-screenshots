@@ -628,6 +628,13 @@ export class ModerateComponent implements OnInit, OnDestroy {
     return url.replace('https://storage.googleapis.com/chronomaps3.firebasestorage.app/', 'https://storage.googleapis.com/chronomaps3-eu/');
   }
 
+  thumbnailUrl(url: string | null | undefined): string {
+    if (!url || typeof url !== 'string') {
+      return '';
+    }
+    return url.replace('.screenshot.jpeg', '.screenshot.thumbnail.jpeg');
+  }
+
   fix_favorable_future(future: any) {
     if (future) {
       future = future.replace('preferred', 'prefer');

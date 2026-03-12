@@ -783,6 +783,13 @@ export class ModerateAllComponent implements OnInit {
 
   getWorkspaceNameWithEmojis = getWorkspaceNameWithEmojis;
 
+  thumbnailUrl(url: string | null | undefined): string {
+    if (!url || typeof url !== 'string') {
+      return '';
+    }
+    return url.replace('.screenshot.jpeg', '.screenshot.thumbnail.jpeg');
+  }
+
   filterByUser(authorId: string): void {
     // For multi-workspace view, we can add this to search text
     const email = authorId === 'unknown' ? 'unknown' : authorId;

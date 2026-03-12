@@ -444,7 +444,7 @@
                 }
                 <img
                   appLazyLoad
-                  [dataSrc]="item.screenshot_url"
+                  [dataSrc]="thumbnailUrl(item.screenshot_url)"
                   [itemId]="item._id"
                   [observer]="imageObserver"
                   [onLoaded]="onImageLoaded.bind(this)"
@@ -592,7 +592,7 @@
               @if (!isShowingDescription(item._id)) {
               <div class="screenshot-image-wrapper">
                 <img
-                  [src]="item.screenshot_url"
+                  [src]="thumbnailUrl(item.screenshot_url)"
                   loading="lazy"
                   decoding="async"
                   fetchpriority="low"
