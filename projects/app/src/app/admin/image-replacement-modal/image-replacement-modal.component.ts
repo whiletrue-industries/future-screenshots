@@ -503,12 +503,12 @@ export class ImageReplacementModalComponent {
       return null;
     }
 
-    // IMPORTANT: jscanify/OpenCV reads from cv.imread(imageEl), which uses the image's rendered pixel space.
-    // Map corners into that same source space (not naturalWidth/naturalHeight) to avoid warped/black output.
+    // IMPORTANT: jscanify/OpenCV reads from cv.imread(imageEl), which uses the image's natural pixel dimensions.
+    // Map corners from display space to natural space so the crop aligns with the full-resolution image data.
     const imageDisplayWidth = imageEl.clientWidth;
     const imageDisplayHeight = imageEl.clientHeight;
-    const cvSourceWidth = imageEl.width || imageDisplayWidth;
-    const cvSourceHeight = imageEl.height || imageDisplayHeight;
+    const cvSourceWidth = imageEl.naturalWidth || imageDisplayWidth;
+    const cvSourceHeight = imageEl.naturalHeight || imageDisplayHeight;
     
     if (imageDisplayWidth <= 0 || imageDisplayHeight <= 0) {
       if (reportErrors) {

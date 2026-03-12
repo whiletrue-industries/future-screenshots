@@ -601,7 +601,7 @@ export class ModerateAllComponent implements OnInit {
   setTagline(item: any): void {
     const updateData: any = {
       future_scenario_tagline: item.future_scenario_tagline,
-      future_scenario_description: item.future_scenario_tagline,
+      future_scenario_description: item.future_scenario_description,
     };
     this.updateItemData(item['_id'], updateData);
     this.editTagline.set(null);
@@ -937,7 +937,8 @@ export class ModerateAllComponent implements OnInit {
             ...item,
             _workspaceId: entry.ws.id,
             _workspaceName: entry.name,
-            _workspaceAdminKey: entry.ws.keys?.admin || ''
+            _workspaceAdminKey: entry.ws.keys?.admin || '',
+            screenshot_thumbnail_url: this.thumbnailUrl(item.screenshot_url)
           });
         });
         if (items.length >= pageSize) {
