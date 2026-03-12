@@ -783,11 +783,15 @@ export class ModerateAllComponent implements OnInit {
 
   getWorkspaceNameWithEmojis = getWorkspaceNameWithEmojis;
 
+  private fixUrl(url: string): string {
+    return url.replace('https://storage.googleapis.com/chronomaps3.firebasestorage.app/', 'https://storage.googleapis.com/chronomaps3-eu/');
+  }
+
   thumbnailUrl(url: string | null | undefined): string {
     if (!url || typeof url !== 'string') {
       return '';
     }
-    return url.replace(/screenshot\.jpeg$/, 'screenshot.thumbnail.jpeg');
+    return this.fixUrl(url).replace(/screenshot\.jpeg$/, 'screenshot.thumbnail.jpeg');
   }
 
   filterByUser(authorId: string): void {
@@ -896,7 +900,8 @@ export class ModerateAllComponent implements OnInit {
           const name = this.getWorkspaceNameWithEmojis(ws);
           if (Array.isArray(items)) {
             items.forEach((item: any) => {
-              enriched.push({ ...item, _workspaceId: ws.id, _workspaceName: name, _workspaceAdminKey: ws.keys?.admin || '', screenshot_thumbnail_url: this.thumbnailUrl(item.screenshot_url) });
+              const fixedUrl = this.fixUrl(item.screenshot_url || '');
+              enriched.push({ ...item, screenshot_url: fixedUrl, _workspaceId: ws.id, _workspaceName: name, _workspaceAdminKey: ws.keys?.admin || '', screenshot_thumbnail_url: this.thumbnailUrl(fixedUrl) });
             });
             if (items.length >= PAGE_SIZE) {
               workspacesNeedingMore.push({ ws, name, page: 1 });
@@ -933,12 +938,14 @@ export class ModerateAllComponent implements OnInit {
 
       results.forEach(({ entry, items }) => {
         items.forEach((item: any) => {
+          const fixedUrl = this.fixUrl(item.screenshot_url || '');
           newItems.push({
             ...item,
+            screenshot_url: fixedUrl,
             _workspaceId: entry.ws.id,
             _workspaceName: entry.name,
             _workspaceAdminKey: entry.ws.keys?.admin || '',
-            screenshot_thumbnail_url: this.thumbnailUrl(item.screenshot_url)
+            screenshot_thumbnail_url: this.thumbnailUrl(fixedUrl)
           });
         });
         if (items.length >= pageSize) {
