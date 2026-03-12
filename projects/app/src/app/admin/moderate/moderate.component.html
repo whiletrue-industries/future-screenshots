@@ -73,15 +73,6 @@
       </div>
     </div>
     <div class="actions">
-      <button 
-        type="button"
-        class="export-btn"
-        (click)="openShowcaseExportModal()"
-        [disabled]="!multiWorkspaceMode() || items().length === 0"
-        [title]="!multiWorkspaceMode() ? 'Export not available in single workspace mode' : items().length === 0 ? 'No items to export' : 'Export to showcase'"
-        aria-label="Export items">
-        📊 Export
-      </button>
       <button class="multi-select-toggle" (click)="toggleMultiSelectMode(); $event.stopPropagation()" aria-label="Toggle multi-edit mode">
         <span class="icon">🗂</span>
         <span>{{ multiSelectMode() ? 'Close multi-edit' : 'Multi-edit' }}</span>
@@ -899,12 +890,4 @@
         <div class="bulk-progress">Applying changes...</div>
       }
     </div>
-  }
-  @if (showShowcaseExportModal()) {
-    <app-showcase-export-modal
-      [workspaceId]="'multi'"
-      [adminKey]="authToken()"
-      [filteredItems]="items()"
-      (close)="closeShowcaseExportModal()">
-    </app-showcase-export-modal>
   }

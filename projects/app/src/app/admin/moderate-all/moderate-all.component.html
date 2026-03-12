@@ -66,18 +66,6 @@
         </div>
       </h1>
     </div>
-    <div class="actions">
-      <button 
-        type="button"
-        class="export-btn"
-        (click)="openShowcaseExportModal()"
-        [disabled]="filteredItems().length === 0"
-        [title]="filteredItems().length === 0 ? 'No items to export' : 'Export to showcase'"
-        aria-label="Export filtered items to showcase">
-        <span class="icon">📤</span>
-        <span>Export</span>
-      </button>
-    </div>
   </header>
 
   @if (loading()) {
@@ -636,12 +624,3 @@
   }
 </div>
 
-<!-- Showcase Export Modal -->
-@if (showShowcaseExportModal()) {
-  <app-showcase-export-modal
-    [workspaceId]="'multi'"
-    [adminKey]="authToken()"
-    [filteredItems]="filteredItems()"
-    (close)="closeShowcaseExportModal()">
-  </app-showcase-export-modal>
-}
