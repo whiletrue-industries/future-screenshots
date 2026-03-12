@@ -258,7 +258,7 @@ export class ImageReplacementModalComponent {
         
         const blobUrl = URL.createObjectURL(blob);
         this.cropImageBlobUrl.set(blobUrl);
-        requestAnimationFrame(() => this.initializeCropCorners());
+        // Corners will be initialized when the image fires its load event (onCropImageLoaded)
       })
       .catch(error => {
         console.error('❌ Failed to load image as blob:', error);
@@ -341,7 +341,7 @@ export class ImageReplacementModalComponent {
         this.croppedImageDataUrl.set(null);
         this.cropError.set(null);
         this.activeTab.set('crop');
-        requestAnimationFrame(() => this.initializeCropCorners());
+        // Corners will be initialized when the image fires its load event (onCropImageLoaded)
       })
       .catch(error => {
         console.error('❌ Failed to convert uploaded image for cropping:', error);
@@ -366,10 +366,16 @@ export class ImageReplacementModalComponent {
   }
 
   onCropImageLoaded() {
-    // Wait a moment for the image to fully render
-    setTimeout(() => {
-      this.initializeCropCorners();
-    }, 100);
+    // Wait for the image to be fully laid out before reading dimensions
+    const tryInit = (retries = 5) => {
+      const imageEl = this.cropImage?.nativeElement;
+      if (imageEl && imageEl.clientWidth > 0 && imageEl.clientHeight > 0) {
+        this.initializeCropCorners();
+      } else if (retries > 0) {
+        requestAnimationFrame(() => tryInit(retries - 1));
+      }
+    };
+    requestAnimationFrame(() => tryInit());
   }
 
   private initializeCropCorners() {
@@ -390,12 +396,12 @@ export class ImageReplacementModalComponent {
     this.cropFrameWidth.set(width);
     this.cropFrameHeight.set(height);
     
-    // Default corners to image edges - no margin needed since handles can extend outside
+    // Default corners inset at 25%/75% so handles are clearly visible within the image
     const initialCorners = [
-      { x: 0, y: 0 },
-      { x: width, y: 0 },
-      { x: width, y: height },
-      { x: 0, y: height }
+      { x: width * 0.25, y: height * 0.25 },
+      { x: width * 0.75, y: height * 0.25 },
+      { x: width * 0.75, y: height * 0.75 },
+      { x: width * 0.25, y: height * 0.75 }
     ];
     
     this.cropCorners.set(initialCorners);
@@ -503,12 +509,12 @@ export class ImageReplacementModalComponent {
       return null;
     }
 
-    // IMPORTANT: jscanify/OpenCV reads from cv.imread(imageEl), which uses the image's natural pixel dimensions.
-    // Map corners from display space to natural space so the crop aligns with the full-resolution image data.
+    // IMPORTANT: jscanify/OpenCV reads from cv.imread(imageEl), which uses the image's rendered pixel space.
+    // Map corners into that same source space (not naturalWidth/naturalHeight) to avoid warped/black output.
     const imageDisplayWidth = imageEl.clientWidth;
     const imageDisplayHeight = imageEl.clientHeight;
-    const cvSourceWidth = imageEl.naturalWidth || imageDisplayWidth;
-    const cvSourceHeight = imageEl.naturalHeight || imageDisplayHeight;
+    const cvSourceWidth = imageEl.width || imageDisplayWidth;
+    const cvSourceHeight = imageEl.height || imageDisplayHeight;
     
     if (imageDisplayWidth <= 0 || imageDisplayHeight <= 0) {
       if (reportErrors) {
@@ -702,7 +708,7 @@ export class ImageReplacementModalComponent {
     if (!source) return;
 
     const currentItem = this.currentItem();
-    const itemKey = currentItem?.item_key || '';
+    const itemKey = currentItem?._key || '';
 
     this.loading.set(true);
 
