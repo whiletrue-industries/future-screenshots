@@ -122,6 +122,25 @@ export class AdminApiService {
     return this.http.post<{ item_id: string; screenshot_url: string }>(this.REPLACE_IMAGE_URL, formData, { params });
   }
 
+  getAllItems(page: number, pageSize: number, orderBy?: string, filters?: string): Observable<any[]> {
+    const headers = { 'Authorization': 'Bearer ' + this.auth.token() };
+    let params = new HttpParams()
+      .set('page', page)
+      .set('page_size', pageSize);
+    if (orderBy) {
+      params = params.set('order_by', orderBy);
+    }
+    if (filters) {
+      params = params.set('filters', filters);
+    }
+    return this.http.get<any[]>(`${this.CHRONOMAPS_API_URL}/all-items`, { headers, params }).pipe(
+      catchError((error) => {
+        console.error('Error fetching all items:', error);
+        return of([]);
+      })
+    );
+  }
+
   reanalyzeItem(workspace: string, apiKey: string, itemId: string, itemKey: string): Observable<any> {
     const params = new HttpParams()
       .set('workspace', workspace)

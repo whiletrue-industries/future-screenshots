@@ -1501,60 +1501,88 @@ export class ModerateComponent implements OnInit, OnDestroy {
     }
 
     this.workspacesLoading.set(true);
+    // Load workspaces (for filter UI, names, admin keys) then load all items via unified endpoint
     this.adminApi.listWorkspaces().subscribe(workspaces => {
       const fetchableWorkspaces = workspaces.filter((ws: any) => !!ws?.id && !!ws?.keys?.admin);
       this.workspaces.set(fetchableWorkspaces);
-      // Initialize workspace filter to include all workspaces
       this.filterWorkspaceIds.set(fetchableWorkspaces.map((ws: any) => ws.id));
-      
+
+      // Build workspace lookup maps
+      this.workspaceNameMap = new Map<string, string>();
+      this.workspaceAdminKeyMap = new Map<string, string>();
+      fetchableWorkspaces.forEach((ws: any) => {
+        this.workspaceNameMap.set(ws.id, this.getWorkspaceNameWithEmojis(ws));
+        this.workspaceAdminKeyMap.set(ws.id, ws.keys?.admin || '');
+      });
+
       if (!fetchableWorkspaces.length) {
         this.workspacesLoading.set(false);
         this.workspacesLoadingProgress.set('No accessible workspaces with admin keys found.');
         return;
       }
-      this.workspacesLoadingProgress.set(`Loading items from ${fetchableWorkspaces.length} workspace(s)…`);
 
-      const requests = fetchableWorkspaces.map((ws: any) =>
-        this.api.getItems(ws.id, ws.keys?.admin, 0, null).pipe(
-          catchError(() => of([]))
-        )
-      );
+      this.loadAllItemsPage(0);
+    });
+  }
 
-      forkJoin(requests).subscribe((results: any[]) => {
-        const enriched: EnrichedItem[] = [];
-        results.forEach((items: any[], idx: number) => {
-          const ws = fetchableWorkspaces[idx];
-          const name = this.getWorkspaceNameWithEmojis(ws);
-          if (Array.isArray(items)) {
-            items.forEach((item: any) => {
-              if (!item?.screenshot_url) {
-                return;
-              }
-              // Apply same transformations as single-workspace mode
-              item.screenshot_url = this.fix_url(item.screenshot_url);
-              item.favorable_future = this.fix_favorable_future(item.favorable_future);
-              const apiTags = item.tags || [];
-              let futureScenarioTopics = [];
-              if (item.future_scenario_topics) {
-                if (typeof item.future_scenario_topics === 'object' && !Array.isArray(item.future_scenario_topics)) {
-                  futureScenarioTopics.push(...Object.values(item.future_scenario_topics).filter((t: any) => t));
-                } else if (Array.isArray(item.future_scenario_topics)) {
-                  futureScenarioTopics = item.future_scenario_topics;
-                }
-              }
-              const mergedTags = [...new Set([...apiTags, ...futureScenarioTopics])];
-              item.tags = mergedTags;
-              item.future_scenario_topics = futureScenarioTopics;
-              
-              enriched.push({ ...item, _workspaceId: ws.id, _workspaceName: name, _workspaceAdminKey: ws.keys?.admin || '' });
-            });
-          }
-        });
-        this.allFetchedItems.set(enriched);
+  private workspaceNameMap = new Map<string, string>();
+  private workspaceAdminKeyMap = new Map<string, string>();
+  private readonly ALL_ITEMS_PAGE_SIZE = 1000;
+
+  private loadAllItemsPage(page: number): void {
+    this.workspacesLoadingProgress.set(`Loading items (page ${page + 1})…`);
+
+    this.adminApi.getAllItems(page, this.ALL_ITEMS_PAGE_SIZE).subscribe(items => {
+      if (!Array.isArray(items)) {
         this.workspacesLoading.set(false);
         this.workspacesLoadingProgress.set('');
-      });
+        return;
+      }
+
+      const enriched = items
+        .filter((item: any) => !!item?.screenshot_url)
+        .map((item: any) => this.enrichAllItem(item));
+
+      if (page === 0) {
+        this.allFetchedItems.set(enriched);
+        this.workspacesLoading.set(false);
+      } else {
+        this.allFetchedItems.update(existing => [...existing, ...enriched]);
+      }
+
+      if (items.length >= this.ALL_ITEMS_PAGE_SIZE) {
+        this.loadAllItemsPage(page + 1);
+      } else {
+        this.workspacesLoading.set(false);
+        this.workspacesLoadingProgress.set('');
+      }
     });
+  }
+
+  private enrichAllItem(item: any): EnrichedItem {
+    const workspaceId = item._workspace || '';
+    item.screenshot_url = this.fix_url(item.screenshot_url);
+    item.screenshot_thumbnail_url = this.thumbnailUrl(item.screenshot_url);
+    item.favorable_future = this.fix_favorable_future(item.favorable_future);
+    const apiTags = item.tags || [];
+    let futureScenarioTopics: string[] = [];
+    if (item.future_scenario_topics) {
+      if (typeof item.future_scenario_topics === 'object' && !Array.isArray(item.future_scenario_topics)) {
+        futureScenarioTopics.push(...Object.values(item.future_scenario_topics).filter((t: any) => t) as string[]);
+      } else if (Array.isArray(item.future_scenario_topics)) {
+        futureScenarioTopics = item.future_scenario_topics;
+      }
+    }
+    const mergedTags = [...new Set([...apiTags, ...futureScenarioTopics])];
+    item.tags = mergedTags;
+    item.future_scenario_topics = futureScenarioTopics;
+
+    return {
+      ...item,
+      _workspaceId: workspaceId,
+      _workspaceName: this.workspaceNameMap.get(workspaceId) || workspaceId,
+      _workspaceAdminKey: this.workspaceAdminKeyMap.get(workspaceId) || '',
+    };
   }
 
   private get adminApi(): AdminApiService {
