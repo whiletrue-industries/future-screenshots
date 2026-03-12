@@ -787,7 +787,7 @@ export class ModerateAllComponent implements OnInit {
     if (!url || typeof url !== 'string') {
       return '';
     }
-    return url.replace('.screenshot.jpeg', '.screenshot.thumbnail.jpeg');
+    return url.replace(/screenshot\.jpeg$/, 'screenshot.thumbnail.jpeg');
   }
 
   filterByUser(authorId: string): void {

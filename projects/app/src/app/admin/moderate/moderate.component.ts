@@ -632,7 +632,7 @@ export class ModerateComponent implements OnInit, OnDestroy {
     if (!url || typeof url !== 'string') {
       return '';
     }
-    return url.replace('.screenshot.jpeg', '.screenshot.thumbnail.jpeg');
+    return url.replace(/screenshot\.jpeg$/, 'screenshot.thumbnail.jpeg');
   }
 
   fix_favorable_future(future: any) {
