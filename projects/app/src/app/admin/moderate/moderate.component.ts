@@ -21,7 +21,7 @@ import { AdminLightboxComponent } from '../admin-lightbox/admin-lightbox.compone
 import { AuthService } from '../../auth.service';
 import { SkeletonLoaderComponent } from '../skeleton-loader/skeleton-loader.component';
 import { LazyLoadImageDirective } from '../lazy-load-image.directive';
-import { ShowcaseExportModalComponent } from '../showcase-export-modal/showcase-export-modal.component';
+
 import { EnrichedItem } from '../workspace-metadata.interface';
 
 export type Filter = {
@@ -44,7 +44,6 @@ export type Filter = {
     CommonModule,
     SkeletonLoaderComponent,
     LazyLoadImageDirective,
-    ShowcaseExportModalComponent
   ],
   templateUrl: './moderate.component.html',
   styleUrl: './moderate.component.less',
@@ -201,11 +200,6 @@ export class ModerateComponent implements OnInit, OnDestroy {
   });
   showQRModal = signal<boolean>(false);
   qrItemId = signal<string | null>(null);
-  showShowcaseExportModal = signal<boolean>(false);
-
-  authToken = computed(() => {
-    return this.auth.token() || '';
-  });
 
   LEVELS = [
     'banned',
@@ -674,36 +668,40 @@ export class ModerateComponent implements OnInit, OnDestroy {
   setTagline(item: any) {
     const creds = this.getItemCredentials(item);
     if (!creds) return;
-    
-    // Trigger re-analysis by clearing automated metadata
+
     const updateData: any = {
       future_scenario_tagline: item.future_scenario_tagline,
       future_scenario_description: item.future_scenario_tagline,
-      // Clear automated fields to trigger re-analysis
-      embedding: null,
-      future_scenario_topics: null,
     };
-    this.api.updateItem(creds.workspaceId, creds.apiKey, item._id, updateData).subscribe(data => {
-      console.log('item updated, re-analysis triggered', data);
-      this.editTagline.set(null);
+    this.api.updateItem(creds.workspaceId, creds.apiKey, item._id, updateData).subscribe({
+      next: () => {
+        this.editTagline.set(null);
+        this.api.reanalyzeItem(creds.workspaceId, creds.apiKey, item._id, item.item_key || '').subscribe({
+          next: () => console.log('Reanalysis triggered after tagline update'),
+          error: (err) => console.error('Error triggering reanalysis after tagline update', err)
+        });
+      },
+      error: (err) => console.error('Error updating tagline', err)
     });
   }
 
   setDescription(item: any) {
     const creds = this.getItemCredentials(item);
     if (!creds) return;
-    
-    // Trigger re-analysis by clearing automated metadata
+
     const updateData: any = {
       content: item.content,
       future_scenario_description: item.future_scenario_description,
-      // Clear automated fields to trigger re-analysis
-      embedding: null,
-      future_scenario_topics: null,
     };
-    this.api.updateItem(creds.workspaceId, creds.apiKey, item._id, updateData).subscribe(data => {
-      console.log('item content and description updated, re-analysis triggered', data);
-      this.editDescription.set(null);
+    this.api.updateItem(creds.workspaceId, creds.apiKey, item._id, updateData).subscribe({
+      next: () => {
+        this.editDescription.set(null);
+        this.api.reanalyzeItem(creds.workspaceId, creds.apiKey, item._id, item.item_key || '').subscribe({
+          next: () => console.log('Reanalysis triggered after description update'),
+          error: (err) => console.error('Error triggering reanalysis after description update', err)
+        });
+      },
+      error: (err) => console.error('Error updating description', err)
     });
   }
 
@@ -826,8 +824,8 @@ export class ModerateComponent implements OnInit, OnDestroy {
     const creds = this.getItemCredentials(current);
     if (!creds) return;
 
-    // Clear AI-generated fields and trigger full reprocessing but preserve user input (content, screenshot_type, tags, plausibility, favorable_future, email, etc.)
-    const updateData: any = {
+    // Clear AI-generated fields locally for immediate UI feedback
+    const clearedFields: any = {
       embedding: null,
       content_certainty: null,
       transition_bar_certainty: null,
@@ -836,15 +834,14 @@ export class ModerateComponent implements OnInit, OnDestroy {
       future_scenario_description: null,
       future_scenario_tagline: null,
       future_scenario_topics: null,
-      needs_processing: true,  // Trigger backend to reprocess the image with vision analysis
     };
 
-    this.api.updateItem(creds.workspaceId, creds.apiKey, current._id, updateData).subscribe({
-      next: () => {
-        this.allFetchedItems.update(items => items.map(item => item._id === current._id ? { ...item, ...updateData } : item));
-        this.selectedItem.update(item => item ? { ...item, ...updateData } : item);
-      },
-      error: (err) => console.error('Error regenerating AI fields from scratch', err)
+    this.allFetchedItems.update(items => items.map(item => item._id === current._id ? { ...item, ...clearedFields } : item));
+    this.selectedItem.update(item => item ? { ...item, ...clearedFields } : item);
+
+    this.api.reanalyzeItem(creds.workspaceId, creds.apiKey, current._id, current.item_key || '').subscribe({
+      next: () => console.log('Reanalyze request sent successfully'),
+      error: (err) => console.error('Error triggering reanalysis', err)
     });
   }
 
@@ -1555,11 +1552,4 @@ export class ModerateComponent implements OnInit, OnDestroy {
     return this.api;
   }
 
-  openShowcaseExportModal() {
-    this.showShowcaseExportModal.set(true);
-  }
-
-  closeShowcaseExportModal() {
-    this.showShowcaseExportModal.set(false);
-  }
 }

@@ -2,6 +2,7 @@ import { Component, output, input, signal, inject, effect, ChangeDetectionStrate
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { switchMap } from 'rxjs';
 import { AdminApiService } from '../../../admin-api.service';
 import { ImageComparisonComponent } from '../../shared/image-comparison/image-comparison.component';
 
@@ -700,43 +701,72 @@ export class ImageReplacementModalComponent {
     const source = this.pendingActionSource();
     if (!source) return;
 
+    const currentItem = this.currentItem();
+    const itemKey = currentItem?.item_key || '';
+
     this.loading.set(true);
 
-    const updatePayload: any = source === 'existing'
-      ? (() => {
-          const sourceItemId = this.selectedItemId();
-          const sourceItem = this.workspaceItems().find(item => item._id === sourceItemId);
-          return { screenshot_url: sourceItem?.screenshot_url || '' };
-        })()
-      : { screenshot_url: this.pendingNewImage() || '' };
-
-    if (!updatePayload.screenshot_url) {
-      this.loading.set(false);
-      return;
-    }
-
-    // Add reanalyze flag if checkbox is checked
-    // This triggers AI analysis while preserving user-generated fields like preference and potential
-    if (this.reanalyzeImage()) {
-      updatePayload._reanalyze_image = true;
-    }
-
-    this.adminApi.updateItem(this.workspaceId(), this.apiKey(), this.itemId(), updatePayload).subscribe({
-      next: () => {
-        this.loading.set(false);
-        // Update the displayed image immediately to show the new image
-        this.displayedImageUrl.set(updatePayload.screenshot_url);
-        this.imageReplaced.emit({ screenshot_url: updatePayload.screenshot_url });
-        this.pendingActionSource.set(null);
-        alert('Success! Image has been replaced.');
-        this.close();
-      },
-      error: (error) => {
-        console.error('Error updating item screenshot:', error);
-        this.loading.set(false);
-        alert('Failed to replace image. Please try again.');
+    // Get the image as a Blob
+    const getImageBlob = (): Promise<Blob> => {
+      if (source === 'existing') {
+        const sourceItemId = this.selectedItemId();
+        const sourceItem = this.workspaceItems().find(item => item._id === sourceItemId);
+        const url = sourceItem?.screenshot_url || '';
+        if (!url) return Promise.reject(new Error('No source image URL'));
+        return fetch(url).then(r => r.blob());
+      } else {
+        const dataUrl = this.pendingNewImage();
+        if (!dataUrl) return Promise.reject(new Error('No pending image'));
+        return Promise.resolve(this.base64ToBlob(dataUrl));
       }
+    };
+
+    getImageBlob().then(blob => {
+      let replace$ = this.adminApi.replaceImage(
+        this.workspaceId(), this.apiKey(), this.itemId(), itemKey, blob
+      );
+
+      if (this.reanalyzeImage()) {
+        replace$ = replace$.pipe(
+          switchMap((result) => this.adminApi.reanalyzeItem(
+            this.workspaceId(), this.apiKey(), this.itemId(), itemKey
+          ).pipe(switchMap(() => [result])))
+        );
+      }
+
+      replace$.subscribe({
+        next: (result) => {
+          this.loading.set(false);
+          const newUrl = result.screenshot_url || '';
+          this.displayedImageUrl.set(newUrl);
+          this.imageReplaced.emit({ screenshot_url: newUrl });
+          this.pendingActionSource.set(null);
+          alert('Success! Image has been replaced.');
+          this.close();
+        },
+        error: (error) => {
+          console.error('Error replacing item image:', error);
+          this.loading.set(false);
+          alert('Failed to replace image. Please try again.');
+        }
+      });
+    }).catch(error => {
+      console.error('Error preparing image blob:', error);
+      this.loading.set(false);
+      alert('Failed to prepare image. Please try again.');
     });
+  }
+
+  private base64ToBlob(dataUrl: string): Blob {
+    const parts = dataUrl.split(',');
+    const mimeMatch = parts[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    const byteString = atob(parts[1]);
+    const bytes = new Uint8Array(byteString.length);
+    for (let i = 0; i < byteString.length; i++) {
+      bytes[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([bytes], { type: mime });
   }
   
   scanAgain() {

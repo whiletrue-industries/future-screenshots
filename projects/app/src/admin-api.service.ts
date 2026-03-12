@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { catchError, map, Observable, of, switchMap } from 'rxjs';
 import { AuthService } from './app/auth.service';
@@ -10,6 +10,8 @@ import { CreateOrUpdateWorkspaceRequest, Workspace } from './app/admin/workspace
 export class AdminApiService {
 
   CHRONOMAPS_API_URL = 'https://chronomaps-api-qjzuw7ypfq-ez.a.run.app';
+  private REPLACE_IMAGE_URL = 'https://replace-image-qjzuw7ypfq-ez.a.run.app';
+  private REANALYZE_ITEM_URL = 'https://reanalyze-item-qjzuw7ypfq-ez.a.run.app';
 
   constructor(private http: HttpClient, private auth: AuthService) { }
 
@@ -107,6 +109,26 @@ export class AdminApiService {
     params.public = request.public;
     params.collaborate = request.collaborate;
     return this.http.put<any>(`${this.CHRONOMAPS_API_URL}/${workspaceId}`, request.metadata || {}, { headers, params });
+  }
+
+  replaceImage(workspace: string, apiKey: string, itemId: string, itemKey: string, image: Blob): Observable<{ item_id: string; screenshot_url: string }> {
+    const formData = new FormData();
+    formData.append('image', image);
+    const params = new HttpParams()
+      .set('workspace', workspace)
+      .set('api_key', apiKey)
+      .set('item_id', itemId)
+      .set('item_key', itemKey);
+    return this.http.post<{ item_id: string; screenshot_url: string }>(this.REPLACE_IMAGE_URL, formData, { params });
+  }
+
+  reanalyzeItem(workspace: string, apiKey: string, itemId: string, itemKey: string): Observable<any> {
+    const params = new HttpParams()
+      .set('workspace', workspace)
+      .set('api_key', apiKey)
+      .set('item_id', itemId)
+      .set('item_key', itemKey);
+    return this.http.post<any>(this.REANALYZE_ITEM_URL, null, { params });
   }
 
 }

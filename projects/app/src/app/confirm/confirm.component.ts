@@ -114,76 +114,93 @@ export class ConfirmComponent {
 
   upload() {
     const currentImage = this.state.currentImage();
-    if (currentImage) {
-      const metadata: any = {};
-
-      // Add preference if selected
-      const pref = this.state.batchPreference();
-      if (pref) {
-        metadata['favorable_future'] = pref;
-      }
-
-      // Add potential if selected
-      const pot = this.state.batchPotential();
-      if (pot !== null) {
-        metadata['plausibility'] = pot;
-      }
-
-      // Add textbox data if available
-      const textboxData = this.state.currentTextboxData();
-      if (textboxData) {
-        metadata.textbox_content = textboxData;
-      }
-      
-      // Add tags - merge batch tags with template tags
-      const tags = this.state.batchTags();
-      console.log('[CONFIRM] Current batch tags:', tags);
-      if (this.isTemplateFlow) {
-        // For template flow, combine no-paper tag with any batch tags
-        metadata.tags = ['no-paper', ...tags];
-      } else if (tags.length > 0) {
-        // For regular flow, just use batch tags
-        metadata.tags = tags;
-      }
-      console.log('[CONFIRM] Metadata.tags being sent:', metadata.tags);
-      console.log('[CONFIRM] Full metadata:', metadata);
-      
-      this.api.createItem(metadata).subscribe({
-        next: (res: any) => {
-          console.log('[CONFIRM] Item created successfully:', res);
-          const params: any = {
-            'item-id': res.item_id,
-            'key': res.item_key
-          };
-          // Preserve template flag for no-paper flow
-          if (this.isTemplateFlow) {
-            params['template'] = 'true';
-          }
-          if (!this.api.automatic()) {
-            this.api.uploadImage(currentImage, res.item_id, res.item_key);
-            this.router.navigate(['/props'], { queryParams: params, queryParamsHandling: 'merge'});
-          } else {
-            this.api.uploadImageAuto(currentImage, res.item_id, res.item_key).subscribe(() => {
-              console.log('[CONFIRM] Upload complete');                          
-              this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
-            });
-          }
-        },
-        error: (error) => {
-          console.error('[CONFIRM] Failed to create item:', error);
-          console.error('[CONFIRM] Error status:', error.status);
-          console.error('[CONFIRM] Error details:', error.error);
-          
-          // Show user-friendly error message
-          if (error.status === 403) {
-            alert('Access denied. Please check that you have the correct API key with write permissions for this workspace.');
-          } else {
-            alert('Failed to create item. Please try again or contact support.');
-          }
-        }
-      });
-    } else {
+    if (!currentImage) {
       this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
+      return;
     }
+
+    // Check if this is a replace flow (replacing an existing item's image)
+    const replaceItemId = this.api.replaceItemId();
+    if (replaceItemId) {
+      this.uploadReplace(currentImage, replaceItemId);
+      return;
+    }
+
+    const metadata: any = {};
+
+    // Add preference if selected
+    const pref = this.state.batchPreference();
+    if (pref) {
+      metadata['favorable_future'] = pref;
+    }
+
+    // Add potential if selected
+    const pot = this.state.batchPotential();
+    if (pot !== null) {
+      metadata['plausibility'] = pot;
+    }
+
+    // Add textbox data if available
+    const textboxData = this.state.currentTextboxData();
+    if (textboxData) {
+      metadata.textbox_content = textboxData;
+    }
+
+    // Add tags - merge batch tags with template tags
+    const tags = this.state.batchTags();
+    if (this.isTemplateFlow) {
+      metadata.tags = ['no-paper', ...tags];
+    } else if (tags.length > 0) {
+      metadata.tags = tags;
+    }
+
+    this.api.createItem(metadata).subscribe({
+      next: (res: any) => {
+        const params: any = {
+          'item-id': res.item_id,
+          'key': res.item_key
+        };
+        if (this.isTemplateFlow) {
+          params['template'] = 'true';
+        }
+        if (!this.api.automatic()) {
+          this.api.uploadImage(currentImage, res.item_id, res.item_key);
+          this.router.navigate(['/props'], { queryParams: params, queryParamsHandling: 'merge'});
+        } else {
+          this.api.uploadImageAuto(currentImage, res.item_id, res.item_key).subscribe(() => {
+            this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
+          });
+        }
+      },
+      error: (error) => {
+        console.error('[CONFIRM] Failed to create item:', error);
+        if (error.status === 403) {
+          alert('Access denied. Please check that you have the correct API key with write permissions for this workspace.');
+        } else {
+          alert('Failed to create item. Please try again or contact support.');
+        }
+      }
+    });
+  }
+
+  private uploadReplace(image: Blob, replaceItemId: string) {
+    this.api.replaceImage(image, replaceItemId).subscribe({
+      next: () => {
+        if (this.api.automatic()) {
+          this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
+        } else {
+          alert('Image replaced successfully.');
+          this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
+        }
+      },
+      error: (error) => {
+        console.error('[CONFIRM] Failed to replace image:', error);
+        if (error.status === 403) {
+          alert('Access denied. Please check that you have the correct API key.');
+        } else {
+          alert('Failed to replace image. Please try again.');
+        }
+      }
+    });
   }
 }

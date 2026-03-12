@@ -19,12 +19,12 @@ import {
   getWorkspaceNameWithEmojis, formatDate
 } from '../moderation-helpers';
 import { QrCodeModalComponent } from '../qr-code-modal/qr-code-modal.component';
-import { ShowcaseExportModalComponent } from '../showcase-export-modal/showcase-export-modal.component';
+
 import { EnrichedItem } from '../workspace-metadata.interface';
 
 @Component({
   selector: 'app-moderate-all',
-  imports: [CommonModule, FormsModule, RouterLink, AdminLightboxComponent, ImageReplacementModalComponent, QrCodeModalComponent, ShowcaseExportModalComponent],
+  imports: [CommonModule, FormsModule, RouterLink, AdminLightboxComponent, ImageReplacementModalComponent, QrCodeModalComponent],
   templateUrl: './moderate-all.component.html',
   styleUrl: './moderate-all.component.less',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -123,11 +123,6 @@ export class ModerateAllComponent implements OnInit {
     return this.allItems().find(i => i['_id'] === id) || null;
   });
   
-  // Showcase export modal state
-  showShowcaseExportModal = signal<boolean>(false);
-  
-  // Auth token for templates
-  authToken = computed(() => this.auth.token() || '');
 
   // Editable metadata computed
   editableMetadata = computed<[string, any][]>(() => {
@@ -607,11 +602,13 @@ export class ModerateAllComponent implements OnInit {
     const updateData: any = {
       future_scenario_tagline: item.future_scenario_tagline,
       future_scenario_description: item.future_scenario_tagline,
-      embedding: null,
-      future_scenario_topics: null,
     };
     this.updateItemData(item['_id'], updateData);
     this.editTagline.set(null);
+    this.adminApi.reanalyzeItem(item._workspaceId, item._workspaceAdminKey, item['_id'], item['item_key'] || '').subscribe({
+      next: () => console.log('Reanalysis triggered after tagline update'),
+      error: (err) => console.error('Error triggering reanalysis after tagline update', err)
+    });
   }
 
   // Tags management
@@ -664,8 +661,8 @@ export class ModerateAllComponent implements OnInit {
     const current = this.selectedItem();
     if (!current) return;
 
-    // Clear AI-generated fields and trigger full reprocessing but preserve user input (content, screenshot_type, tags, plausibility, favorable_future, email, etc.)
-    const updateData: any = {
+    // Clear AI-generated fields locally for immediate UI feedback
+    const clearedFields: any = {
       embedding: null,
       content_certainty: null,
       transition_bar_certainty: null,
@@ -674,10 +671,17 @@ export class ModerateAllComponent implements OnInit {
       future_scenario_description: null,
       future_scenario_tagline: null,
       future_scenario_topics: null,
-      needs_processing: true,  // Trigger backend to reprocess the image with vision analysis
     };
 
-    this.updateItemData(current['_id'], updateData);
+    this.allItems.update(items =>
+      items.map(i => i['_id'] === current['_id'] ? { ...i, ...clearedFields } : i)
+    );
+    this.selectedItem.update(si => si && si['_id'] === current['_id'] ? { ...si, ...clearedFields } : si);
+
+    this.adminApi.reanalyzeItem(current._workspaceId, current._workspaceAdminKey, current['_id'], current['item_key'] || '').subscribe({
+      next: () => console.log('Reanalyze request sent successfully'),
+      error: (err) => console.error('Error triggering reanalysis', err)
+    });
   }
 
   regenerateMetaFields(): void {
@@ -833,15 +837,6 @@ export class ModerateAllComponent implements OnInit {
     this.qrItemId.set(null);
   }
   
-  // Showcase export modal methods
-  openShowcaseExportModal(): void {
-    this.showShowcaseExportModal.set(true);
-  }
-  
-  closeShowcaseExportModal(): void {
-    this.showShowcaseExportModal.set(false);
-  }
-
   ngOnInit(): void {
     this.auth.user.pipe(take(1)).subscribe(user => {
       if (!user) {
