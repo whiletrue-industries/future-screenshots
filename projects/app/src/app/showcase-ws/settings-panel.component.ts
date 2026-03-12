@@ -1,6 +1,7 @@
-import { Component, output, input, signal, OnDestroy, AfterViewInit, OnInit } from '@angular/core';
+import { Component, output, input, signal, inject, OnDestroy, AfterViewInit, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { PlatformService } from '../../platform.service';
 
 export interface FisheyeSettings {
   enabled: boolean;         // enable/disable fisheye effect
@@ -361,7 +362,8 @@ export class SettingsPanelComponent implements AfterViewInit, OnDestroy, OnInit 
   isCollapsed = signal(true);
 
   // Drag state
-  panelX = signal(window.innerWidth ? window.innerWidth - 300 : 0);
+  private platform = inject(PlatformService);
+  panelX = signal(this.platform.browser() ? window.innerWidth - 300 : 0);
   panelY = signal(20);
   private isDragging = false;
   private dragOffsetX = 0;
