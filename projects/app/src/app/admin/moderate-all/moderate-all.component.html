@@ -204,7 +204,7 @@
             (keydown.space)="selectItem(item)">
 
             <div class="thumbnail-image">
-              <img [src]="thumbnailUrl(item['screenshot_url'])" [alt]="item['future_scenario_tagline'] || 'Future scenario screenshot'" loading="lazy" />
+              <img [src]="item['screenshot_thumbnail_url']" [alt]="item['future_scenario_tagline'] || 'Future scenario screenshot'" loading="lazy" />
               @if (multiSelectMode()) {
                 <div class="checkbox-overlay">
                   <input 

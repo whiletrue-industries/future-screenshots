@@ -1258,10 +1258,11 @@ export class ModerateComponent implements OnInit, OnDestroy {
 
   onImageReplaced(itemId: string, data: { screenshot_url: string }): void {
     const url = data.screenshot_url;
+    const thumbUrl = this.thumbnailUrl(url);
     // Update source data - items will be recomputed automatically
-    this.allFetchedItems.update(items => items.map(item => item._id === itemId ? { ...item, screenshot_url: url } : item));
+    this.allFetchedItems.update(items => items.map(item => item._id === itemId ? { ...item, screenshot_url: url, screenshot_thumbnail_url: thumbUrl } : item));
     if (this.selectedItem() && this.selectedItem()._id === itemId) {
-      this.selectedItem.update(item => item ? { ...item, screenshot_url: url } : item);
+      this.selectedItem.update(item => item ? { ...item, screenshot_url: url, screenshot_thumbnail_url: thumbUrl } : item);
     }
     this.replacingImageItemId.set(null);
   }
@@ -1379,6 +1380,7 @@ export class ModerateComponent implements OnInit, OnDestroy {
         // Process items
         filtered.forEach((item: any) => {
           item.screenshot_url = this.fix_url(item.screenshot_url);
+          item.screenshot_thumbnail_url = this.thumbnailUrl(item.screenshot_url);
           item.favorable_future = this.fix_favorable_future(item.favorable_future);
           const apiTags = item.tags || [];
           let futureScenarioTopics = [];

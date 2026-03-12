@@ -819,9 +819,10 @@ export class ModerateAllComponent implements OnInit {
 
   onImageReplaced(itemId: string, data: { screenshot_url: string }): void {
     const url = data.screenshot_url;
-    this.allItems.update(items => items.map(item => item['_id'] === itemId ? { ...item, screenshot_url: url } : item));
+    const thumbUrl = this.thumbnailUrl(url);
+    this.allItems.update(items => items.map(item => item['_id'] === itemId ? { ...item, screenshot_url: url, screenshot_thumbnail_url: thumbUrl } : item));
     if (this.selectedItem() && this.selectedItem()!['_id'] === itemId) {
-      this.selectedItem.update(item => item ? { ...item, screenshot_url: url } : item);
+      this.selectedItem.update(item => item ? { ...item, screenshot_url: url, screenshot_thumbnail_url: thumbUrl } : item);
     }
     this.replacingImageItemId.set(null);
   }
@@ -895,7 +896,7 @@ export class ModerateAllComponent implements OnInit {
           const name = this.getWorkspaceNameWithEmojis(ws);
           if (Array.isArray(items)) {
             items.forEach((item: any) => {
-              enriched.push({ ...item, _workspaceId: ws.id, _workspaceName: name, _workspaceAdminKey: ws.keys?.admin || '' });
+              enriched.push({ ...item, _workspaceId: ws.id, _workspaceName: name, _workspaceAdminKey: ws.keys?.admin || '', screenshot_thumbnail_url: this.thumbnailUrl(item.screenshot_url) });
             });
             if (items.length >= PAGE_SIZE) {
               workspacesNeedingMore.push({ ws, name, page: 1 });
