@@ -1,0 +1,20 @@
+<div class="lightbox-overlay" (click)="onClose()" role="dialog" aria-modal="true" aria-labelledby="lightbox-title">
+  <div class="lightbox-container" [class.sidebar-open]="lightboxSidebarOpen()">
+    <div class="lightbox-content" (click)="$event.stopPropagation()">
+      <button class="lightbox-close-btn" (click)="onClose()" aria-label="Close lightbox">×</button>
+      <button class="lightbox-sidebar-toggle-btn" (click)="onToggleSidebar()" aria-label="Toggle sidebar">⋮</button>
+
+      <!-- Content projection for image and sidebar -->
+      <ng-content></ng-content>
+
+      <app-lightbox-nav-controls
+        [selectedItemIndex]="selectedItemIndex()"
+        [totalItems]="totalItems()"
+        [prevDisabled]="isPrevDisabled()"
+        [nextDisabled]="isNextDisabled()"
+        (prevItem)="onPrevItem()"
+        (nextItem)="onNextItem()">
+      </app-lightbox-nav-controls>
+    </div>
+  </div>
+</div>

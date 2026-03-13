@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, computed, effect, Inject, Input, LOCALE_ID, OnChanges, OnInit, signal } from '@angular/core';
+import { Component, computed, effect, inject, Inject, Input, LOCALE_ID, OnChanges, OnInit, signal } from '@angular/core';
 import { marked } from 'marked';
+import { PlatformService } from '../../platform.service';
 
 @Component({
   selector: 'app-about',
@@ -25,12 +26,13 @@ export class AboutComponent implements OnChanges, OnInit {
   content = signal('');
   prefix_ = signal<string | null>(null);
 
-  constructor(@Inject(LOCALE_ID) public locale_: string, private http: HttpClient) {    
-    this.locale.set(locale_.split('-')[0]); // Use the first part of the locale, e.g., 'nl' from 'nl-NL'
+  private platform = inject(PlatformService);
+
+  constructor(@Inject(LOCALE_ID) public locale_: string, private http: HttpClient) {
+    this.locale.set(locale_.split('-')[0]);
     effect(() => {
       const url = this.aboutUrl();
-      console.log('About URL:', url);
-      if (url) {
+      if (url && this.platform.browser()) {
         this.http.get(url, { responseType: 'text' }).subscribe(
           (data) => {
             const html = marked(data);

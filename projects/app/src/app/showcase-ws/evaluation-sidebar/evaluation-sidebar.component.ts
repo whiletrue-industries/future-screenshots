@@ -77,8 +77,9 @@ export class EvaluationSidebarComponent implements OnDestroy {
         
         // Ensure proper path separator for lang prefix
         const langPath = langValue ? `${langValue}/` : '';
-        const urlString = window.location.host.startsWith('localhost')
-          ? `http://${window.location.host}/props?${params.toString()}`
+        const host = this.platform.browser() ? window.location.host : '';
+        const urlString = host.startsWith('localhost')
+          ? `http://${host}/props?${params.toString()}`
           : `https://mapfutur.es/${langPath}props?${params.toString()}`;
         const safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(urlString);
         this.iframeUrl.set(safeUrl);

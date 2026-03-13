@@ -1,5 +1,6 @@
-import { AfterViewInit, Component, computed, effect, ElementRef, signal, ViewChild, inject, OnDestroy, ChangeDetectorRef } from '@angular/core';
-import { catchError, distinctUntilChanged, filter, forkJoin, from, interval, Observable, of, Subject, timer, takeUntil } from 'rxjs';
+import { AfterViewInit, Component, computed, effect, ElementRef, signal, ViewChild, inject, OnDestroy, ChangeDetectorRef, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { catchError, distinctUntilChanged, filter, forkJoin, from, fromEvent, interval, Observable, of, Subject, timer } from 'rxjs';
 import { PlatformService } from '../../platform.service';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -28,9 +29,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   @ViewChild('container', { static: true }) container!: ElementRef;
   @ViewChild('titleElement') titleElement?: ElementRef;
   private router = inject(Router);
+  private destroyRef = inject(DestroyRef);
   private photoRepository: PhotoDataRepository;
   private activatedRoute: ActivatedRoute;
-  private destroy$ = new Subject<void>();
   loop = new Subject<any[]>();
   lastCreatedAt = '0';
   qrSmall = signal(false);
@@ -242,22 +243,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   // Check if device is mobile
   isMobile = computed(() => this.platform.isMobile);
 
-  private onMessageFromChild = (event: MessageEvent) => {
-    const data = event.data;
-    if (!data || typeof data !== 'object') {
-      return;
-    }
-    if (data.type === 'show-on-map') {
-      const itemId = typeof data.itemId === 'string' ? data.itemId : null;
-      if (!itemId) {
-        return;
-      }
-      this.sidebarOpen.set(false);
-      this.selectedItemId.set(null);
-      // Trigger animated focus from "show on map" click
-      this.focusOnItem(itemId, { animateFromFull: true, fromShowOnMap: true });
-    }
-  };
 
   constructor(
     private route: ActivatedRoute,
@@ -290,9 +275,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       }
     });
     this.loop.pipe(
-      distinctUntilChanged()
+      distinctUntilChanged(),
+      takeUntilDestroyed(this.destroyRef)
     ).subscribe(async (items) => {
-      items = items.sort((item1, item2) => item1.created_at.localeCompare(item2.created_at));
+      items = items.sort((item1, item2) => {
+        const createdAt1 = typeof item1?.created_at === 'string' ? item1.created_at : '';
+        const createdAt2 = typeof item2?.created_at === 'string' ? item2.created_at : '';
+        return createdAt1.localeCompare(createdAt2);
+      });
       
       // First pass: load existing photos immediately
       if (this.lastCreatedAt === '0' && items.length > 0) {
@@ -422,11 +412,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       
       // Schedule next poll (avoid recursive loop)
       setTimeout(() => {
-        if (!this.destroy$.closed) {
-          this.getItems().subscribe(items_ => {
-            this.loop.next(items_);
-          });
-        }
+        this.getItems().pipe(
+          takeUntilDestroyed(this.destroyRef)
+        ).subscribe(items_ => {
+          this.loop.next(items_);
+        });
       }, ANIMATION_CONSTANTS.API_POLLING_INTERVAL);
     });
     
@@ -629,8 +619,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       headers: { 'Authorization': apiKey }
     };
     
-    this.http.get<any>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${workspaceId}`, httpOptions)
-      .subscribe({
+    this.http.get<any>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${workspaceId}`, httpOptions).pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe({
         next: (workspace) => {
           if (workspace) {
             const displayTitle = workspace.source || workspace.title || '';
@@ -663,16 +654,32 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
   async ngAfterViewInit() {
     if (this.platform.browser()) {
-      window.addEventListener('message', this.onMessageFromChild);
-      // Listen for hash changes to update z-index
-      window.addEventListener('hashchange', () => this.updateActiveItemZIndex());
-      // Listen for resize to re-measure title
-      window.addEventListener('resize', () => this.measureTitle());
-      // Listen for keyboard shortcuts
-      window.addEventListener('keydown', this.onKeyDown.bind(this));
+      fromEvent<MessageEvent>(window, 'message').pipe(
+        takeUntilDestroyed(this.destroyRef)
+      ).subscribe((event) => {
+        const data = event.data;
+        if (!data || typeof data !== 'object') return;
+        if (data.type === 'show-on-map') {
+          const itemId = typeof data.itemId === 'string' ? data.itemId : null;
+          if (!itemId) return;
+          this.sidebarOpen.set(false);
+          this.selectedItemId.set(null);
+          this.focusOnItem(itemId, { animateFromFull: true, fromShowOnMap: true });
+        }
+      });
+      fromEvent(window, 'hashchange').pipe(
+        takeUntilDestroyed(this.destroyRef)
+      ).subscribe(() => this.updateActiveItemZIndex());
+      fromEvent(window, 'resize').pipe(
+        takeUntilDestroyed(this.destroyRef)
+      ).subscribe(() => this.measureTitle());
+      fromEvent<KeyboardEvent>(window, 'keydown').pipe(
+        takeUntilDestroyed(this.destroyRef)
+      ).subscribe((event) => this.onKeyDown(event));
+
       this.measureTitle();
       await this.initialize(this.container.nativeElement);
-      
+
       // Mark view as initialized (safe to render filters bar in lazy-loaded context)
       this.viewInitialized.set(true);
     }
@@ -784,25 +791,25 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
     // Set up repository event subscriptions
     this.photoRepository.photoAdded$
-      .pipe(takeUntil(this.destroy$))
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((photoData) => {
       });
 
     this.photoRepository.photoRemoved$
-      .pipe(takeUntil(this.destroy$))
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((photoId) => {
 
       });
 
     this.photoRepository.layoutChanged$
-      .pipe(takeUntil(this.destroy$))
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
 
       });
     
     // Poll zoom level every 500ms for UI display (non-critical update)
     interval(500)
-      .pipe(takeUntil(this.destroy$))
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
         this.currentZoomLevel.set(this.rendererService.getCurrentZoomLevel());
       });
@@ -821,8 +828,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         }
       }
       
-      timer(ANIMATION_CONSTANTS.INITIAL_POLLING_DELAY).subscribe(() => {
-        this.getItems().subscribe((items) => {
+      timer(ANIMATION_CONSTANTS.INITIAL_POLLING_DELAY).pipe(
+        takeUntilDestroyed(this.destroyRef)
+      ).subscribe(() => {
+        this.getItems().pipe(
+          takeUntilDestroyed(this.destroyRef)
+        ).subscribe((items) => {
           this.loop.next(items);
         });
       });
@@ -1563,11 +1574,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
 
   ngOnDestroy() {
-    if (this.platform.browser()) {
-      window.removeEventListener('message', this.onMessageFromChild);
-    }
     this.rendererService.dispose();
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 }

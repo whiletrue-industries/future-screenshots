@@ -18,6 +18,8 @@ export class ApiService {
   COMPLETE_FLOW_URL = 'https://complete-flow-qjzuw7ypfq-ez.a.run.app';
   SCREENSHOT_HANDLER_URL = 'https://screenshot-handler-qjzuw7ypfq-ez.a.run.app';
   ITEM_INGRES_AGENT_URL = 'https://item-ingress-agent-qjzuw7ypfq-ez.a.run.app';
+  private REPLACE_IMAGE_URL = 'https://replace-image-qjzuw7ypfq-ez.a.run.app';
+  private REANALYZE_ITEM_URL = 'https://reanalyze-item-qjzuw7ypfq-ez.a.run.app';
 
   // WORKSPACE = '4d2c04b0-51b7-4aa2-a234-0e4be53447de';
   // API_KEY = 'f290c30a-8819-42a0-aa0b-77f5582b4a2f';
@@ -29,6 +31,8 @@ export class ApiService {
   itemKey = signal<string | null>(null);
   automatic = signal<boolean>(false);
   demo = signal<boolean>(false);
+  replaceItemId = signal<string | null>(null);
+  replaceItemKey = signal<string | null>(null);
   workspace = signal<any>({});
   isWorkshop = signal<boolean>(false);
   isWorkshopFollowup = signal<boolean>(false);
@@ -81,6 +85,15 @@ export class ApiService {
     }
     if (workspace) {
       this.workspaceId.set(workspace);
+    }
+
+    const replaceItem = route.queryParams['replace_item'];
+    if (replaceItem) {
+      this.replaceItemId.set(replaceItem);
+    }
+    const replaceItemKey = route.queryParams['replace_item_key'];
+    if (replaceItemKey) {
+      this.replaceItemKey.set(replaceItemKey);
     }
 
     const isWorkshop = !!route.queryParams['ws'];
@@ -292,6 +305,32 @@ export class ApiService {
         eventSource.close();
       };
     });    
+  }
+
+  replaceImage(image: Blob, itemId: string, itemKey?: string): Observable<{ item_id: string; screenshot_url: string }> {
+    const formData = new FormData();
+    formData.append('image', image);
+    const params: any = {
+      workspace: this.workspaceId(),
+      api_key: this.api_key(),
+      item_id: itemId,
+    };
+    if (itemKey) {
+      params.item_key = itemKey;
+    }
+    return this.http.post<{ item_id: string; screenshot_url: string }>(this.REPLACE_IMAGE_URL, formData, { params });
+  }
+
+  reanalyzeItem(itemId: string, itemKey?: string): Observable<any> {
+    const params: any = {
+      workspace: this.workspaceId(),
+      api_key: this.api_key(),
+      item_id: itemId,
+    };
+    if (itemKey) {
+      params.item_key = itemKey;
+    }
+    return this.http.post<any>(this.REANALYZE_ITEM_URL, null, { params });
   }
 
   getAvailableTags(): string[] {

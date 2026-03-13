@@ -59,7 +59,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
     // Center item: viewport is 100vw, item is 75vw, so center offset is 12.5vw
     // Item n is at position n*75vw, so translate to 12.5vw: translateX(12.5vw - n*75vw)
     const baseOffset = 12.5 - (index * 75);
-    const dragOffsetVw = (dragOffset / window.innerWidth) * 100;
+    const viewportWidth = this.platform.browser() ? window.innerWidth : 1;
+    const dragOffsetVw = (dragOffset / viewportWidth) * 100;
     return `translateX(calc(${baseOffset}vw + ${dragOffsetVw}vw))`;
   });
   carouselTransition = computed(() => {
@@ -635,25 +636,29 @@ export class CanvasCreatorComponent implements AfterViewInit {
     // Otherwise keep default (Caveat)
     
     this.preloadFonts();
-    
-    // Set up resize handler with RxJS
-    fromEvent(window, 'resize')
-      .pipe(
-        debounceTime(250),
-        takeUntilDestroyed(this.destroyRef)
-      )
-      .subscribe(() => {
-        this.resizeCanvas();
-      });
-    
-    // Set up keyboard event handler with RxJS
-    fromEvent<KeyboardEvent>(window, 'keydown')
-      .pipe(
-        takeUntilDestroyed(this.destroyRef)
-      )
-      .subscribe((event) => {
-        this.handleKeyboardEvent(event);
-      });
+
+    if (this.platform.browser()) {
+      // Set up resize handler with RxJS
+      fromEvent(window, 'resize')
+        .pipe(
+          debounceTime(250),
+          takeUntilDestroyed(this.destroyRef)
+        )
+        .subscribe(() => {
+          this.resizeCanvas();
+        });
+    }
+
+    if (this.platform.browser()) {
+      // Set up keyboard event handler with RxJS
+      fromEvent<KeyboardEvent>(window, 'keydown')
+        .pipe(
+          takeUntilDestroyed(this.destroyRef)
+        )
+        .subscribe((event) => {
+          this.handleKeyboardEvent(event);
+        });
+    }
   }
   
   ngAfterViewInit(): void {

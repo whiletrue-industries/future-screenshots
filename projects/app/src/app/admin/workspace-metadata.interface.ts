@@ -28,6 +28,15 @@ export interface Workspace {
   };
   item_count?: number;
   reviewed_count?: number;
+  public?: boolean; // Whether the workspace allows public visibility
+  collaborate?: boolean; // Whether the workspace allows collaboration/new items
+}
+
+export interface EnrichedItem {
+  _workspaceId?: string;
+  _workspaceName?: string;
+  _workspaceAdminKey?: string;
+  [key: string]: any;
 }
 
 export interface CreateOrUpdateWorkspaceRequest {

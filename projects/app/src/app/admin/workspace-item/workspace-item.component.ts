@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { WorkspaceNameUtility } from '../../shared/workspace-name.utility';
 
 @Component({
   selector: 'app-workspace-item',
@@ -65,6 +66,10 @@ export class WorkspaceItemComponent {
     const country = meta.country || '';
     if (city && country) return `${city}, ${country}`;
     return city || country;
+  });
+
+  workspaceNameWithEmojis = computed(() => {
+    return WorkspaceNameUtility.formatWorkspaceNameWithEmojis(this.workspace());
   });
   
   toggleIngestMenu(event: Event) {
