@@ -136,6 +136,7 @@ export class ThreeRendererService {
   private lastClientX: number | null = null;
   private lastClientY: number | null = null;
   private meshToUrl = new Map<THREE.Mesh, string>();
+  private meshToEnhancedUrl = new Map<THREE.Mesh, string>();
   private highResActive = new Set<THREE.Mesh>();
   private lodAccumTime = 0;
 
@@ -243,8 +244,9 @@ export class ThreeRendererService {
     photoData.setMesh(mesh);
     // Track PhotoData for hover/fisheye so positions stay current after layout changes
     this.meshToPhotoData.set(mesh, photoData);
-    // Track URL for LOD decisions
+    // Track URLs for LOD decisions (thumbnail for low-res, enhanced for high-res)
     this.meshToUrl.set(mesh, photoData.url);
+    this.meshToEnhancedUrl.set(mesh, photoData.enhancedUrl);
     
     return mesh;
   }
@@ -276,6 +278,7 @@ export class ThreeRendererService {
     }
     this.meshToPhotoData.delete(photoData.mesh);
     this.meshToUrl.delete(photoData.mesh);
+    this.meshToEnhancedUrl.delete(photoData.mesh);
     const photoId = this.meshToPhotoId.get(photoData.mesh);
     if (photoId) {
       this.photoIdToMesh.delete(photoId);
@@ -2389,6 +2392,7 @@ export class ThreeRendererService {
     this.renderer?.dispose();
     this.scene?.clear();
     this.meshToUrl.clear();
+    this.meshToEnhancedUrl.clear();
     this.highResActive.clear();
     
     this.rafRunning = false;
@@ -3223,8 +3227,9 @@ export class ThreeRendererService {
       // Skip invisible meshes (culled by frustum)
       if (!mesh.visible) continue;
       
-      const url = this.meshToUrl.get(mesh);
-      if (!url) continue;
+      const thumbnailUrl = this.meshToUrl.get(mesh);
+      if (!thumbnailUrl) continue;
+      const enhancedUrl = this.meshToEnhancedUrl.get(mesh) || thumbnailUrl;
 
       const isHigh = this.highResActive.has(mesh);
 
@@ -3244,7 +3249,7 @@ export class ThreeRendererService {
 
       if (!eligibleForHighRes) {
         if (isHigh) {
-          this.downgradeToLowResTexture(mesh, url)
+          this.downgradeToLowResTexture(mesh, thumbnailUrl)
             .then(() => this.highResActive.delete(mesh))
             .catch(() => {/* keep current */});
         }
@@ -3252,13 +3257,13 @@ export class ThreeRendererService {
       }
 
       if (!isHigh && photoWidthPx >= UPGRADE_THRESHOLD) {
-        this.upgradeToHighResTexture(mesh, url)
+        this.upgradeToHighResTexture(mesh, enhancedUrl)
           .then(() => {
             this.highResActive.add(mesh);
           })
           .catch(() => {/* keep low-res */});
       } else if (isHigh && photoWidthPx <= DOWNGRADE_THRESHOLD) {
-        this.downgradeToLowResTexture(mesh, url)
+        this.downgradeToLowResTexture(mesh, thumbnailUrl)
           .then(() => {
             this.highResActive.delete(mesh);
           })
