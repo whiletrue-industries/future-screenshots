@@ -32,6 +32,7 @@ export class ApiService {
   automatic = signal<boolean>(false);
   demo = signal<boolean>(false);
   replaceItemId = signal<string | null>(null);
+  replaceItemKey = signal<string | null>(null);
   workspace = signal<any>({});
   isWorkshop = signal<boolean>(false);
   isWorkshopFollowup = signal<boolean>(false);
@@ -89,6 +90,10 @@ export class ApiService {
     const replaceItem = route.queryParams['replace_item'];
     if (replaceItem) {
       this.replaceItemId.set(replaceItem);
+    }
+    const replaceItemKey = route.queryParams['replace_item_key'];
+    if (replaceItemKey) {
+      this.replaceItemKey.set(replaceItemKey);
     }
 
     const isWorkshop = !!route.queryParams['ws'];

@@ -122,7 +122,7 @@ export class ConfirmComponent {
     // Check if this is a replace flow (replacing an existing item's image)
     const replaceItemId = this.api.replaceItemId();
     if (replaceItemId) {
-      this.uploadReplace(currentImage, replaceItemId);
+      this.uploadReplace(currentImage, replaceItemId, this.api.replaceItemKey() || undefined);
       return;
     }
 
@@ -183,14 +183,19 @@ export class ConfirmComponent {
     });
   }
 
-  private uploadReplace(image: Blob, replaceItemId: string) {
-    this.api.replaceImage(image, replaceItemId).subscribe({
+  private uploadReplace(image: Blob, replaceItemId: string, itemKey?: string) {
+    this.api.replaceImage(image, replaceItemId, itemKey).subscribe({
       next: () => {
+        this.api.replaceItemId.set(null);
+        this.api.replaceItemKey.set(null);
+        const cleanParams = { ...this.route.snapshot.queryParams };
+        delete cleanParams['replace_item'];
+        delete cleanParams['replace_item_key'];
         if (this.api.automatic()) {
-          this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
+          this.router.navigate(['/scan'], { queryParams: cleanParams });
         } else {
           alert('Image replaced successfully.');
-          this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
+          this.router.navigate(['/scan'], { queryParams: cleanParams });
         }
       },
       error: (error) => {

@@ -351,11 +351,16 @@ export class ImageReplacementModalComponent {
 
   scanUrl(): string {
     if (typeof window === 'undefined') return '';
-    const query = new URLSearchParams({
+    const params: Record<string, string> = {
       workspace: this.workspaceId(),
       api_key: this.apiKey(),
       replace_item: this.itemId()
-    });
+    };
+    const itemKey = this.currentItem()?._key;
+    if (itemKey) {
+      params['replace_item_key'] = itemKey;
+    }
+    const query = new URLSearchParams(params);
     return `${window.location.origin}/scan?${query.toString()}`;
   }
 
@@ -776,13 +781,16 @@ export class ImageReplacementModalComponent {
   }
   
   scanAgain() {
-    this.router.navigate(['/scan'], {
-      queryParams: {
-        workspace: this.workspaceId(),
-        api_key: this.apiKey(),
-        replace_item: this.itemId()
-      }
-    });
+    const queryParams: Record<string, string> = {
+      workspace: this.workspaceId(),
+      api_key: this.apiKey(),
+      replace_item: this.itemId()
+    };
+    const itemKey = this.currentItem()?._key;
+    if (itemKey) {
+      queryParams['replace_item_key'] = itemKey;
+    }
+    this.router.navigate(['/scan'], { queryParams });
   }
   
   private fixUrl(url: string): string {
