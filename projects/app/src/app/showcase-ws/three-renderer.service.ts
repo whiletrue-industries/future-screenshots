@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Injectable, inject } from '@angular/core';
 import { signal, Signal } from '@angular/core';
+import { fromEvent, Subject, takeUntil } from 'rxjs';
 import { PhotoData, PhotoAnimationState } from './photo-data';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { FisheyeEffectService } from './fisheye-effect.service';
@@ -63,6 +64,7 @@ export class ThreeRendererService {
   private targetCamZ = 1200;
   private zSpawn = 700;
   private isInitialized = false;
+  private destroy$ = new Subject<void>();
 
   // Texture cache
   private textureCache = new Map<string, THREE.Texture>();
@@ -1856,19 +1858,23 @@ export class ThreeRendererService {
     });
 
     // Keyboard controls
-    window.addEventListener('keydown', (event) => {
-      this.onKeyDown(event);
-    });
+    fromEvent<KeyboardEvent>(window, 'keydown').pipe(
+      takeUntil(this.destroy$)
+    ).subscribe((event) => this.onKeyDown(event));
 
     // Window-level mouseup as fallback (handles release outside canvas)
-    window.addEventListener('mouseup', () => {
+    fromEvent(window, 'mouseup').pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(() => {
       if (this.isDragging) {
         this.cleanupDragState();
       }
     });
 
     // Window-level touchend as fallback (handles release outside canvas)
-    window.addEventListener('touchend', () => {
+    fromEvent(window, 'touchend').pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(() => {
       if (this.isDragging) {
         this.cleanupDragState();
       }
@@ -2350,7 +2356,9 @@ export class ThreeRendererService {
   dispose(): void {
     if (!this.isInitialized) return;
 
-    window.removeEventListener('resize', this.onResize);
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.destroy$ = new Subject<void>();
     
     // Clear textures
     this.textureCache.forEach(texture => texture.dispose());
@@ -2454,7 +2462,9 @@ export class ThreeRendererService {
     this.texLoader.setCrossOrigin('anonymous');
 
     // Event listeners
-    window.addEventListener('resize', this.onResize);
+    fromEvent(window, 'resize').pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(() => this.onResize());
 
     // Start render loop
     this.clock = new THREE.Clock();

@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, computed, effect, ElementRef, signal, ViewChild, inject, OnDestroy, ChangeDetectorRef, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { catchError, distinctUntilChanged, filter, forkJoin, from, interval, Observable, of, Subject, timer } from 'rxjs';
+import { catchError, distinctUntilChanged, filter, forkJoin, from, fromEvent, interval, Observable, of, Subject, timer } from 'rxjs';
 import { PlatformService } from '../../platform.service';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -243,26 +243,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   // Check if device is mobile
   isMobile = computed(() => this.platform.isMobile);
 
-  private readonly onHashChange = () => this.updateActiveItemZIndex();
-  private readonly onResize = () => this.measureTitle();
-  private readonly onKeyDownBound = (event: KeyboardEvent) => this.onKeyDown(event);
-
-  private onMessageFromChild = (event: MessageEvent) => {
-    const data = event.data;
-    if (!data || typeof data !== 'object') {
-      return;
-    }
-    if (data.type === 'show-on-map') {
-      const itemId = typeof data.itemId === 'string' ? data.itemId : null;
-      if (!itemId) {
-        return;
-      }
-      this.sidebarOpen.set(false);
-      this.selectedItemId.set(null);
-      // Trigger animated focus from "show on map" click
-      this.focusOnItem(itemId, { animateFromFull: true, fromShowOnMap: true });
-    }
-  };
 
   constructor(
     private route: ActivatedRoute,
@@ -674,13 +654,32 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
   async ngAfterViewInit() {
     if (this.platform.browser()) {
-      window.addEventListener('message', this.onMessageFromChild);
-      window.addEventListener('hashchange', this.onHashChange);
-      window.addEventListener('resize', this.onResize);
-      window.addEventListener('keydown', this.onKeyDownBound);
+      fromEvent<MessageEvent>(window, 'message').pipe(
+        takeUntilDestroyed(this.destroyRef)
+      ).subscribe((event) => {
+        const data = event.data;
+        if (!data || typeof data !== 'object') return;
+        if (data.type === 'show-on-map') {
+          const itemId = typeof data.itemId === 'string' ? data.itemId : null;
+          if (!itemId) return;
+          this.sidebarOpen.set(false);
+          this.selectedItemId.set(null);
+          this.focusOnItem(itemId, { animateFromFull: true, fromShowOnMap: true });
+        }
+      });
+      fromEvent(window, 'hashchange').pipe(
+        takeUntilDestroyed(this.destroyRef)
+      ).subscribe(() => this.updateActiveItemZIndex());
+      fromEvent(window, 'resize').pipe(
+        takeUntilDestroyed(this.destroyRef)
+      ).subscribe(() => this.measureTitle());
+      fromEvent<KeyboardEvent>(window, 'keydown').pipe(
+        takeUntilDestroyed(this.destroyRef)
+      ).subscribe((event) => this.onKeyDown(event));
+
       this.measureTitle();
       await this.initialize(this.container.nativeElement);
-      
+
       // Mark view as initialized (safe to render filters bar in lazy-loaded context)
       this.viewInitialized.set(true);
     }
@@ -1575,12 +1574,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
 
   ngOnDestroy() {
-    if (this.platform.browser()) {
-      window.removeEventListener('message', this.onMessageFromChild);
-      window.removeEventListener('hashchange', this.onHashChange);
-      window.removeEventListener('resize', this.onResize);
-      window.removeEventListener('keydown', this.onKeyDownBound);
-    }
     this.rendererService.dispose();
   }
 }
