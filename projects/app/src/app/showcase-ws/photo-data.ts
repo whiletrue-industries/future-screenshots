@@ -13,6 +13,8 @@ export interface PhotoMetadata {
   url: string;
   created_at: string;
   screenshot_url?: string;
+  thumbnail_url?: string;
+  enhanced_url?: string;
   [key: string]: any; // Allow for additional metadata from web service
 }
 
@@ -45,6 +47,14 @@ export class PhotoData {
 
   get url(): string {
     return this._metadata.url;
+  }
+
+  get thumbnailUrl(): string {
+    return this._metadata.thumbnail_url || this._metadata.url;
+  }
+
+  get enhancedUrl(): string {
+    return this._metadata.enhanced_url || this._metadata.url;
   }
 
   get metadata(): Readonly<PhotoMetadata> {

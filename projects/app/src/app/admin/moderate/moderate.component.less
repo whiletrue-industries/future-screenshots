@@ -1326,6 +1326,7 @@
     align-items: flex-start;
     flex: 1;
     width: 100%;
+    flex-flow: column;
 }
 
 .loading-indicator {
@@ -1913,6 +1914,7 @@
     border: 1px solid @color-primary-100;
     align-content: start;
     justify-content: start;
+    width: 100%;
 
     .thumbnail-item.select-mode {
         position: relative;
@@ -2784,7 +2786,6 @@
 // Responsive adjustments
 @media (max-width: 768px) {
     .grid-layout {
-        flex-direction: column;
         min-height: calc(100vh - 160px);
     }
 

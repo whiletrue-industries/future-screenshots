@@ -125,6 +125,12 @@
             <p>{{ workspacesLoadingProgress() || 'Loading workspaces...' }}</p>
           </div>
         }
+        @if (itemsLoading() && !multiWorkspaceMode()) {
+          <div class="loading-indicator items-loading">
+            <div class="spinner"></div>
+            <p>Loading more items...</p>
+          </div>
+        }
         @if (selectedItem()) {
           <app-admin-lightbox 
             [selectedItemIndex]="selectedItemIndex()"
@@ -557,14 +563,7 @@
               />
             }
           }
-        </div>
-        
-        @if (itemsLoading() && !multiWorkspaceMode()) {
-          <div class="loading-indicator items-loading">
-            <div class="spinner"></div>
-            <p>Loading more items...</p>
-          </div>
-        }
+        </div>        
       </div>
     } @else {
       <div class="items-grid" role="list">

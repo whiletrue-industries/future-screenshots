@@ -291,19 +291,23 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         const photoPromises = items.map(async (item) => {
           const id = item._id;
           const placeholderUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y21DLsAAAAASUVORK5CYII=';
-          const url = item.screenshot_url || placeholderUrl;
+          const screenshotUrl = item.screenshot_url || placeholderUrl;
           if (!item.screenshot_url) {
             console.warn('[SHOWCASE_WS] Missing screenshot_url for item', id, 'using placeholder image');
           }
+          const thumbnailUrl = this.deriveThumbnailUrl(screenshotUrl);
+          const enhancedUrl = this.deriveEnhancedUrl(screenshotUrl);
           // Generate transition_bar_position if not provided by API
           const transitionBarPosition = item.transition_bar_position || this.getDefaultTransitionBarPosition(item);
           // Include all item fields to make search work across every string field
           const metadata: PhotoMetadata = {
             ...item,
             id,
-            url,
+            url: thumbnailUrl,
             created_at: item.created_at,
-            screenshot_url: url,
+            screenshot_url: screenshotUrl,
+            thumbnail_url: thumbnailUrl,
+            enhanced_url: enhancedUrl,
             layout_x: item.layout_x,
             layout_y: item.layout_y,
             plausibility: item.plausibility,
@@ -375,18 +379,22 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           const photoPromises = newItems.map(async (item) => {
             const id = item._id;
             const placeholderUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y21DLsAAAAASUVORK5CYII=';
-            const url = item.screenshot_url || placeholderUrl;
+            const screenshotUrl = item.screenshot_url || placeholderUrl;
             if (!item.screenshot_url) {
               console.warn('[SHOWCASE_WS] Missing screenshot_url for item', id, 'using placeholder image');
             }
+            const thumbnailUrl = this.deriveThumbnailUrl(screenshotUrl);
+            const enhancedUrl = this.deriveEnhancedUrl(screenshotUrl);
             // Generate transition_bar_position if not provided by API
             const transitionBarPosition = item.transition_bar_position || this.getDefaultTransitionBarPosition(item);
             const metadata: PhotoMetadata = {
               ...item,
               id,
-              url,
+              url: thumbnailUrl,
               created_at: item.created_at,
-              screenshot_url: url,
+              screenshot_url: screenshotUrl,
+              thumbnail_url: thumbnailUrl,
+              enhanced_url: enhancedUrl,
               plausibility: item.plausibility,
               favorable_future: item.favorable_future,
               transition_bar_position: transitionBarPosition,
@@ -561,6 +569,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     // Distribute evenly across the three positions
     const index = Math.abs(hash) % 3;
     return positions[index];
+  }
+
+  private deriveThumbnailUrl(screenshotUrl: string): string {
+    return screenshotUrl.replace(/screenshot\.jpeg$/, 'screenshot.thumbnail.jpeg');
+  }
+
+  private deriveEnhancedUrl(screenshotUrl: string): string {
+    return screenshotUrl.replace(/screenshot\.jpeg$/, 'screenshot.enhanced.jpeg');
   }
 
   /**

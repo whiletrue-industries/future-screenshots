@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, signal, computed, inject, OnDestroy, OnInit, DestroyRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, signal, computed, inject, OnDestroy, OnInit, DestroyRef, untracked } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AdminApiService } from '../../../admin-api.service';
@@ -17,7 +17,6 @@ import { firstValueFrom, catchError, of, forkJoin, take, filter, timeout } from 
 import { ImageReplacementModalComponent } from '../image-replacement-modal/image-replacement-modal.component';
 import { QrCodeModalComponent } from '../qr-code-modal/qr-code-modal.component';
 import { CommonModule } from '@angular/common';
-import { PlatformService } from '../../../platform.service';
 import { AdminLightboxComponent } from '../admin-lightbox/admin-lightbox.component';
 import { AuthService } from '../../auth.service';
 import { SkeletonLoaderComponent } from '../skeleton-loader/skeleton-loader.component';
@@ -76,6 +75,7 @@ export class ModerateComponent implements OnInit, OnDestroy {
   private auth = inject(AuthService);
   private router = inject(Router);
   private destroyRef = inject(DestroyRef);
+  private authToken$ = toObservable(this.auth.token);
   
   // Single workspace mode
   workspaceId = signal<string | null>(null);
@@ -370,7 +370,7 @@ export class ModerateComponent implements OnInit, OnDestroy {
         // Initial load: reset items and load first page
         this.allFetchedItems.set([]);
         this.hasMoreItems.set(true);
-        this.loadMoreItems();
+        untracked(() => this.loadMoreItems());
       }
     });
     effect(() => {
@@ -1472,7 +1472,7 @@ export class ModerateComponent implements OnInit, OnDestroy {
       // Multi-workspace mode - wait for auth token, then load all workspaces
       this.multiWorkspaceMode.set(true);
       this.workspacesLoadingProgress.set('Authenticating…');
-      toObservable(this.auth.token).pipe(
+      this.authToken$.pipe(
         filter((token): token is string => !!token),
         take(1),
         timeout(5000),

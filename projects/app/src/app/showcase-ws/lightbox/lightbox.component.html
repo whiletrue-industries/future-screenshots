@@ -44,7 +44,7 @@
       <!-- Photo Content -->
       <div class='lightbox-content'>
         <img 
-          [src]='photo.screenshot_url || photo.url' 
+          [src]='photo.enhanced_url || photo.screenshot_url || photo.url'
           [alt]='"Photo " + photo.id'
           class='lightbox-image'/>
         
