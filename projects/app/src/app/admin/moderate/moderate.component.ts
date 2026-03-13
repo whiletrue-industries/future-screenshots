@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, effect, signal, computed, inject, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, signal, computed, inject, OnDestroy, OnInit, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AdminApiService } from '../../../admin-api.service';
 import { FormsModule } from '@angular/forms';
@@ -12,7 +13,7 @@ import {
   getDesirabilityClass, getPlausibilityClass, getEmail,
   getWorkspaceNameWithEmojis, formatDate
 } from '../moderation-helpers';
-import { firstValueFrom, catchError, of, forkJoin, take } from 'rxjs';
+import { firstValueFrom, catchError, of, forkJoin, take, filter, timeout } from 'rxjs';
 import { ImageReplacementModalComponent } from '../image-replacement-modal/image-replacement-modal.component';
 import { QrCodeModalComponent } from '../qr-code-modal/qr-code-modal.component';
 import { CommonModule } from '@angular/common';
@@ -71,11 +72,10 @@ export class ModerateComponent implements OnInit, OnDestroy {
   workspaceSearchText = signal<string>('');
   workspacesLoading = signal<boolean>(false);
   workspacesLoadingProgress = signal<string>('');
-  private tokenWaitRetries = 0;
-  private readonly maxTokenWaitRetries = 50;
-  
+
   private auth = inject(AuthService);
   private router = inject(Router);
+  private destroyRef = inject(DestroyRef);
   
   // Single workspace mode
   workspaceId = signal<string | null>(null);
@@ -1469,14 +1469,20 @@ export class ModerateComponent implements OnInit, OnDestroy {
     const isMultiWorkspace = snapshotData['multiWorkspace'] === true;
     
     if (isMultiWorkspace) {
-      // Multi-workspace mode - load all workspaces
+      // Multi-workspace mode - wait for auth token, then load all workspaces
       this.multiWorkspaceMode.set(true);
-      this.auth.user.pipe(take(1)).subscribe(user => {
-        if (!user) {
-          this.router.navigate(['/admin/login']);
-          return;
+      this.workspacesLoadingProgress.set('Authenticating…');
+      toObservable(this.auth.token).pipe(
+        filter((token): token is string => !!token),
+        take(1),
+        timeout(5000),
+        takeUntilDestroyed(this.destroyRef),
+      ).subscribe({
+        next: () => this.loadAllWorkspaces(),
+        error: () => {
+          this.workspacesLoading.set(false);
+          this.workspacesLoadingProgress.set('Authentication timed out. Please refresh.');
         }
-        this.loadWorkspacesWhenTokenReady();
       });
     }
     // else: single workspace mode - parameters are already read in constructor
@@ -1486,22 +1492,8 @@ export class ModerateComponent implements OnInit, OnDestroy {
     this.imageObserver?.disconnect();
   }
 
-  private loadWorkspacesWhenTokenReady(): void {
-    const token = this.auth.token();
-    if (!token) {
-      if (this.tokenWaitRetries >= this.maxTokenWaitRetries) {
-        this.workspacesLoading.set(false);
-        this.workspacesLoadingProgress.set('Authentication timed out. Please refresh.');
-        return;
-      }
-      this.tokenWaitRetries += 1;
-      this.workspacesLoadingProgress.set('Authenticating…');
-      setTimeout(() => this.loadWorkspacesWhenTokenReady(), 100);
-      return;
-    }
-
+  private loadAllWorkspaces(): void {
     this.workspacesLoading.set(true);
-    // Load workspaces (for filter UI, names, admin keys) then load all items via unified endpoint
     this.adminApi.listWorkspaces().subscribe(workspaces => {
       const fetchableWorkspaces = workspaces.filter((ws: any) => !!ws?.id && !!ws?.keys?.admin);
       this.workspaces.set(fetchableWorkspaces);
