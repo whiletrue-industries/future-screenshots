@@ -257,13 +257,56 @@
     </div>
 
     <div class="filter-group search-group">
-      <label for="filter-search">Search:</label>
-      <input 
-        id="filter-search" 
-        type="text" 
-        [ngModel]="searchText()" 
-        (ngModelChange)="onSearchChange($event)" 
-        placeholder="any text" />
+      <label for="filter-search">Search: <span class="search-hint">{{ getSearchHintText() }}</span></label>
+      <div class="search-token-box" (click)="$event.stopPropagation()">
+        <div class="search-token-input" (click)="onSearchInputFocus()">
+          @for (token of searchTokens(); track token.value + '-' + token.type + '-' + (token.operator || '')) {
+            @if ($index > 0 && hasSearchTokenMark(token)) {
+              <span class="chip-separator" aria-hidden="true">{{ getSearchTokenMark(token) }}</span>
+            }
+            <span class="chip" [class]="'chip ' + getSearchTokenPillClass(token)">
+              <span class="chip-label">{{ getSearchTokenLabel(token) }}</span>
+              <button
+                type="button"
+                class="chip-remove"
+                (click)="removeSearchToken($index)"
+                [attr.aria-label]="'Remove search token ' + getSearchTokenLabel(token)">
+                ×
+              </button>
+            </span>
+          }
+          <input
+            id="filter-search"
+            type="text"
+            [ngModel]="searchInput()"
+            (ngModelChange)="onSearchChange($event)"
+            (focus)="onSearchInputFocus()"
+            (keydown)="onSearchInputKeydown($event)"
+            placeholder="Type tags, languages, or text. Use comma for next token" />
+        </div>
+
+        @if (searchDropdownOpen()) {
+          <div class="search-suggestions" role="listbox" aria-label="Search suggestions">
+            @if (getSearchSuggestions().length === 0) {
+              <div class="search-suggestion search-suggestion-empty">Press Enter or comma to add text</div>
+            } @else {
+              @for (suggestion of getSearchSuggestions(); track suggestion.type + '-' + suggestion.value) {
+                <button
+                  type="button"
+                  class="search-suggestion"
+                  [class.suggestion-tag]="suggestion.type === 'tag'"
+                  [class.suggestion-language]="suggestion.type === 'language'"
+                  [class.suggestion-text]="suggestion.type === 'text'"
+                  [class.active]="activeSearchSuggestionIndex() === $index"
+                  (click)="addSearchTokenFromSuggestion(suggestion)">
+                  <span class="suggestion-label">{{ suggestion.label }}</span>
+                  <span class="suggestion-type">{{ getSuggestionTypeLabel(suggestion) }}</span>
+                </button>
+              }
+            }
+          </div>
+        }
+      </div>
     </div>
 
     @if (showOrderBy()) {

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { FilterHelpers, FiltersBarState } from './filters-bar.component';
+import { FilterHelpers, FiltersBarState, parseSearchTokens } from './filters-bar.component';
 
 /**
  * Service for applying filters and sorting to items
@@ -68,12 +68,53 @@ export class ItemFilterService {
 
     // Search filter
     if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
+      const tokens = parseSearchTokens(filters.search);
+      const tagTokens = tokens.filter(token => token.type === 'tag');
+      const languageTokens = tokens.filter(token => token.type === 'language');
+      const textTokens = tokens.filter(token => token.type === 'text');
+
+      const tagOrSet = new Set(tagTokens.filter(token => token.operator !== 'and').map(token => token.value.toLowerCase()));
+      const tagAndSet = new Set(tagTokens.filter(token => token.operator === 'and').map(token => token.value.toLowerCase()));
+      const languageSet = new Set(languageTokens.map(token => token.value.toLowerCase()));
+      const textTerms = textTokens.map(token => token.value.toLowerCase());
+
       filtered = filtered.filter(item => {
+        const itemTags = Array.isArray(item.tags)
+          ? item.tags.map((tag: any) => String(tag).toLowerCase())
+          : [];
+        const itemLanguage = String(item.detected_language || 'en').toLowerCase();
         const tagline = (item.future_scenario_tagline || '').toLowerCase();
         const description = (item.future_scenario_description || '').toLowerCase();
         const content = (item.content || '').toLowerCase();
-        return tagline.includes(searchLower) || description.includes(searchLower) || content.includes(searchLower);
+
+        if (tagAndSet.size > 0) {
+          const matchesAllAndTags = Array.from(tagAndSet).every(tag => itemTags.includes(tag));
+          if (!matchesAllAndTags) {
+            return false;
+          }
+        }
+
+        if (tagOrSet.size > 0) {
+          const matchesAnyOrTag = Array.from(tagOrSet).some(tag => itemTags.includes(tag));
+          if (!matchesAnyOrTag) {
+            return false;
+          }
+        }
+
+        if (languageSet.size > 0 && !languageSet.has(itemLanguage)) {
+          return false;
+        }
+
+        if (textTerms.length > 0) {
+          const matchesAnyTextTerm = textTerms.some(term =>
+            tagline.includes(term) || description.includes(term) || content.includes(term)
+          );
+          if (!matchesAnyTextTerm) {
+            return false;
+          }
+        }
+
+        return true;
       });
     }
 

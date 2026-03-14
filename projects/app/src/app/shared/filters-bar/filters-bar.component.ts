@@ -14,6 +14,78 @@ export interface FiltersBarState {
   view?: string;
 }
 
+export type SearchTokenType = 'tag' | 'language' | 'text';
+export type SearchTokenOperator = 'or' | 'and';
+
+export interface SearchToken {
+  type: SearchTokenType;
+  value: string;
+  operator?: SearchTokenOperator;
+  operatorMark?: '+' | '&';
+}
+
+type SearchSuggestion = {
+  type: 'tag' | 'language' | 'text';
+  value: string;
+  label: string;
+  operator?: SearchTokenOperator;
+};
+
+export function serializeSearchTokens(tokens: SearchToken[]): string {
+  if (!tokens.length) {
+    return '';
+  }
+
+  return tokens
+    .map((token) => {
+      const value = encodeURIComponent(token.value);
+      if (token.type === 'tag') {
+        return token.operator === 'and' ? `tag&=${value}` : `tag=${value}`;
+      }
+      if (token.type === 'language') {
+        return `lang=${value}`;
+      }
+      return `text=${value}`;
+    })
+    .join(';;');
+}
+
+export function parseSearchTokens(search: string): SearchToken[] {
+  const raw = (search || '').trim();
+  if (!raw) {
+    return [];
+  }
+
+  // Backward compatibility: old free-text search values.
+  if (!raw.includes('=')) {
+    return [{ type: 'text', value: raw }];
+  }
+
+  const tokens: SearchToken[] = [];
+  raw.split(';;').forEach((part) => {
+    const [key, encodedValue] = part.split('=');
+    if (!key || encodedValue === undefined) {
+      return;
+    }
+    const value = decodeURIComponent(encodedValue).trim();
+    if (!value) {
+      return;
+    }
+
+    if (key === 'tag') {
+      tokens.push({ type: 'tag', value, operator: 'or' });
+    } else if (key === 'tag&') {
+      tokens.push({ type: 'tag', value, operator: 'and', operatorMark: '&' });
+    } else if (key === 'lang') {
+      tokens.push({ type: 'language', value });
+    } else if (key === 'text') {
+      tokens.push({ type: 'text', value });
+    }
+  });
+
+  return tokens;
+}
+
 export interface FilterCounts {
   status: Map<string, number>;
   author: Map<string, number>;
@@ -209,6 +281,8 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
   showViewToggle = input<boolean>(false);
   showOrderBy = input<boolean>(true);
   initialState = input<FiltersBarState | null>(null);
+  tagSuggestions = input<string[]>([]);
+  languageSuggestions = input<string[]>([]);
   
   // Outputs
   filtersChange = output<FiltersBarState>();
@@ -223,6 +297,12 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
   searchText = signal<string>('');
   orderBy = signal<string>('date');
   viewMode = signal<'grid' | 'list'>('grid');
+
+  // Tokenized search state
+  searchTokens = signal<SearchToken[]>([]);
+  searchInput = signal<string>('');
+  searchDropdownOpen = signal<boolean>(false);
+  activeSearchSuggestionIndex = signal<number>(-1);
   
   // Dropdown state
   statusDropdownOpen = signal<boolean>(false);
@@ -259,6 +339,171 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
   private readonly DEBOUNCE_DELAY = 300; // 300ms debounce for view updates
   private documentClickListener?: (event: MouseEvent) => void;
 
+  private normalizeForMatch(value: string): string {
+    return value.trim().toLowerCase();
+  }
+
+  private getSearchInputPayload(): { operator: SearchTokenOperator; query: string; operatorMark?: '+' | '&' } {
+    const raw = this.searchInput().trim();
+    if (!raw) {
+      return { operator: 'or', query: '' };
+    }
+
+    const firstChar = raw[0];
+    if (firstChar === '+' || firstChar === '&') {
+      return {
+        operator: 'and',
+        operatorMark: firstChar,
+        query: raw.slice(1).trim()
+      };
+    }
+
+    return { operator: 'or', query: raw };
+  }
+
+  private hasToken(type: SearchTokenType, value: string): boolean {
+    const normalized = this.normalizeForMatch(value);
+    return this.searchTokens().some(token => token.type === type && this.normalizeForMatch(token.value) === normalized);
+  }
+
+  private syncSearchTextFromTokens(): void {
+    this.searchText.set(serializeSearchTokens(this.searchTokens()));
+  }
+
+  private setSearchFromSerialized(search: string): void {
+    const tokens = parseSearchTokens(search);
+    this.searchTokens.set(tokens);
+    this.syncSearchTextFromTokens();
+    this.searchInput.set('');
+    this.searchDropdownOpen.set(false);
+    this.activeSearchSuggestionIndex.set(-1);
+  }
+
+  private tagSuggestionsFiltered(): string[] {
+    const payload = this.getSearchInputPayload();
+    const query = this.normalizeForMatch(payload.query);
+    return this.tagSuggestions()
+      .filter(tag => {
+        if (this.hasToken('tag', tag)) {
+          return false;
+        }
+        return !query || this.normalizeForMatch(tag).includes(query);
+      })
+      .slice(0, 8);
+  }
+
+  private languageSuggestionsFiltered(): string[] {
+    const payload = this.getSearchInputPayload();
+    const query = this.normalizeForMatch(payload.query);
+    return this.languageSuggestions()
+      .filter(language => {
+        if (this.hasToken('language', language)) {
+          return false;
+        }
+        return !query || this.normalizeForMatch(language).includes(query);
+      })
+      .slice(0, 6);
+  }
+
+  private buildSearchSuggestion(type: SearchSuggestion['type'], value: string, operator?: SearchTokenOperator): SearchSuggestion {
+    return {
+      type,
+      value,
+      label: value,
+      operator,
+    };
+  }
+
+  private buildTextSuggestion(): SearchSuggestion | null {
+    const payload = this.getSearchInputPayload();
+    const value = payload.query.trim();
+    if (!value || this.hasToken('text', value)) {
+      return null;
+    }
+    return this.buildSearchSuggestion('text', value, payload.operator);
+  }
+
+  getSearchSuggestions(): SearchSuggestion[] {
+    const textSuggestion = this.buildTextSuggestion();
+    const tags: SearchSuggestion[] = this.tagSuggestionsFiltered().map(tag => this.buildSearchSuggestion('tag', tag, this.getSearchInputPayload().operator));
+    const languages: SearchSuggestion[] = this.languageSuggestionsFiltered().map(language => this.buildSearchSuggestion('language', language));
+    return [...tags, ...languages, ...(textSuggestion ? [textSuggestion] : [])];
+  }
+
+  private inferSuggestionFromRawValue(rawValue: string): SearchSuggestion | null {
+    const trimmed = rawValue.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    const operatorMark = (trimmed[0] === '+' || trimmed[0] === '&') ? (trimmed[0] as '+' | '&') : undefined;
+    const operator: SearchTokenOperator = operatorMark ? 'and' : 'or';
+    const value = trimmed.replace(/^[+&]/, '').trim();
+    if (!value) {
+      return null;
+    }
+
+    const normalizedValue = this.normalizeForMatch(value);
+    const matchingTag = this.tagSuggestions().find(tag => this.normalizeForMatch(tag) === normalizedValue);
+    if (matchingTag && !this.hasToken('tag', matchingTag)) {
+      return { type: 'tag', value: matchingTag, label: matchingTag, operator };
+    }
+
+    const matchingLanguage = this.languageSuggestions().find(language => this.normalizeForMatch(language) === normalizedValue);
+    if (matchingLanguage && !this.hasToken('language', matchingLanguage)) {
+      return this.buildSearchSuggestion('language', matchingLanguage);
+    }
+
+    if (!this.hasToken('text', value)) {
+      return this.buildSearchSuggestion('text', value);
+    }
+
+    return null;
+  }
+
+  private addSearchToken(token: SearchToken, shouldEmit = true): void {
+    if (this.hasToken(token.type, token.value)) {
+      return;
+    }
+
+    this.searchTokens.update(tokens => [...tokens, token]);
+    this.syncSearchTextFromTokens();
+
+    if (shouldEmit) {
+      this.emitDebouncedChange();
+    }
+  }
+
+  private consumeDelimitedSearchInput(value: string): boolean {
+    if (!value.includes(',')) {
+      return false;
+    }
+
+    const segments = value.split(',');
+    const hasTrailingComma = value.endsWith(',');
+    const completedSegments = hasTrailingComma ? segments : segments.slice(0, -1);
+    const remainder = hasTrailingComma ? '' : (segments[segments.length - 1] || '');
+
+    let addedTokens = false;
+    completedSegments.forEach(segment => {
+      const suggestion = this.inferSuggestionFromRawValue(segment);
+      if (suggestion) {
+        this.addSearchTokenFromSuggestion(suggestion, false);
+        addedTokens = true;
+      }
+    });
+
+    this.searchInput.set(remainder);
+    this.searchDropdownOpen.set(true);
+    this.activeSearchSuggestionIndex.set(0);
+
+    if (addedTokens) {
+      this.emitDebouncedChange();
+    }
+
+    return addedTokens;
+  }
+
   constructor(private platform: PlatformService) {
     // Set initial state from parent if provided
     effect(() => {
@@ -270,7 +515,7 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
         this.filterPreference.set(state.preference);
         this.filterPotential.set(state.potential);
         this.filterType.set(state.type);
-        this.searchText.set(state.search);
+        this.setSearchFromSerialized(state.search);
         this.orderBy.set(state.orderBy);
         if (state.view) {
           this.viewMode.set(state.view as 'grid' | 'list');
@@ -289,7 +534,7 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
 
   private onDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
-    if (target && !target.closest('.custom-multiselect')) {
+    if (target && !target.closest('.custom-multiselect') && !target.closest('.search-token-box')) {
       const wasOpen = this.statusDropdownOpen() || this.preferenceDropdownOpen() || this.potentialDropdownOpen();
       this.statusDropdownOpen.set(false);
       this.preferenceDropdownOpen.set(false);
@@ -299,6 +544,11 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
       if (wasOpen && this.hasEmittedOnce) {
         this.commitFilters();
       }
+    }
+
+    if (target && !target.closest('.search-token-box')) {
+      this.searchDropdownOpen.set(false);
+      this.activeSearchSuggestionIndex.set(-1);
     }
   }
   
@@ -674,8 +924,158 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
   }
   
   onSearchChange(value: string): void {
-    this.searchText.set(value);
+    if (this.consumeDelimitedSearchInput(value)) {
+      return;
+    }
+
+    this.searchInput.set(value);
+    this.searchDropdownOpen.set(true);
+    this.activeSearchSuggestionIndex.set(this.getSearchSuggestions().length > 0 ? 0 : -1);
+  }
+
+  onSearchInputFocus(): void {
+    this.searchDropdownOpen.set(true);
+    this.activeSearchSuggestionIndex.set(0);
+  }
+
+  removeSearchToken(index: number): void {
+    this.searchTokens.update(tokens => tokens.filter((_, i) => i !== index));
+    this.syncSearchTextFromTokens();
     this.emitDebouncedChange();
+  }
+
+  addSearchTokenFromSuggestion(suggestion: SearchSuggestion, shouldEmit = true): void {
+    const payload = this.getSearchInputPayload();
+    if (suggestion.type === 'tag') {
+      this.addSearchToken({
+        type: 'tag',
+        value: suggestion.value,
+        operator: suggestion.operator || payload.operator,
+        operatorMark: suggestion.operator === 'and' ? (payload.operatorMark || '&') : payload.operatorMark,
+      }, false);
+    } else if (suggestion.type === 'language') {
+      this.addSearchToken({ type: 'language', value: suggestion.value }, false);
+    } else {
+      this.addSearchToken({ type: 'text', value: suggestion.value }, false);
+    }
+
+    this.searchInput.set('');
+    this.searchDropdownOpen.set(false);
+    this.activeSearchSuggestionIndex.set(-1);
+    if (shouldEmit) {
+      this.emitDebouncedChange();
+    }
+  }
+
+  addFreeTextToken(): void {
+    const payload = this.getSearchInputPayload();
+    const value = payload.query.trim();
+    if (!value) {
+      return;
+    }
+    this.addSearchToken({ type: 'text', value }, false);
+    this.searchInput.set('');
+    this.searchDropdownOpen.set(false);
+    this.activeSearchSuggestionIndex.set(-1);
+    this.emitDebouncedChange();
+  }
+
+  onSearchInputKeydown(event: KeyboardEvent): void {
+    const suggestions = this.getSearchSuggestions();
+
+    if (event.key === 'Backspace' && !this.searchInput().trim() && this.searchTokens().length > 0) {
+      event.preventDefault();
+      this.removeSearchToken(this.searchTokens().length - 1);
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      if (!this.searchDropdownOpen()) {
+        this.searchDropdownOpen.set(true);
+      }
+      if (suggestions.length > 0) {
+        const current = this.activeSearchSuggestionIndex();
+        this.activeSearchSuggestionIndex.set((current + 1 + suggestions.length) % suggestions.length);
+      }
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (suggestions.length > 0) {
+        const current = this.activeSearchSuggestionIndex();
+        this.activeSearchSuggestionIndex.set((current - 1 + suggestions.length) % suggestions.length);
+      }
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      this.searchDropdownOpen.set(false);
+      this.activeSearchSuggestionIndex.set(-1);
+      return;
+    }
+
+    if (event.key === ',') {
+      event.preventDefault();
+      const suggestion = this.inferSuggestionFromRawValue(this.searchInput());
+      if (suggestion) {
+        this.addSearchTokenFromSuggestion(suggestion);
+      }
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const activeIndex = this.activeSearchSuggestionIndex();
+      if (this.searchDropdownOpen() && suggestions.length > 0 && activeIndex >= 0 && activeIndex < suggestions.length) {
+        this.addSearchTokenFromSuggestion(suggestions[activeIndex]);
+        return;
+      }
+
+      if (this.searchDropdownOpen() && suggestions.length > 0 && activeIndex === -1) {
+        this.addSearchTokenFromSuggestion(suggestions[0]);
+        return;
+      }
+
+      this.addFreeTextToken();
+    }
+  }
+
+  getSearchTokenLabel(token: SearchToken): string {
+    return token.value;
+  }
+
+  hasSearchTokenMark(token: SearchToken): boolean {
+    return token.type === 'tag' && token.operator === 'and';
+  }
+
+  getSearchTokenMark(token: SearchToken): string {
+    return token.operatorMark || '&';
+  }
+
+  getSearchTokenPillClass(token: SearchToken): string {
+    if (token.type === 'tag') {
+      return token.operator === 'and' ? 'chip-tag chip-tag-and' : 'chip-tag';
+    }
+    if (token.type === 'language') {
+      return 'chip-language';
+    }
+    return 'chip-text';
+  }
+
+  getSearchHintText(): string {
+    return 'Tags match any. Use +tag or &tag to require all.';
+  }
+
+  getSuggestionTypeLabel(suggestion: SearchSuggestion): string {
+    if (suggestion.type === 'tag') {
+      return suggestion.operator === 'and' ? 'Tag all' : 'Tag';
+    }
+    if (suggestion.type === 'language') {
+      return 'Language';
+    }
+    return 'Text';
   }
   
   onOrderByChange(value: string): void {

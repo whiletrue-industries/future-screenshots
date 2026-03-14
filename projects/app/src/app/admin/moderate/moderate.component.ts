@@ -114,6 +114,30 @@ export class ModerateComponent implements OnInit, OnDestroy {
   preferenceCounts = computed(() => this.filterCountsData().preference);
   potentialCounts = computed(() => this.filterCountsData().potential);
   typeCounts = computed(() => this.filterCountsData().type);
+
+  availableTagSuggestions = computed(() => {
+    const tags = new Set<string>();
+    this.workspaceFilteredItems().forEach((item: any) => {
+      if (Array.isArray(item?.tags)) {
+        item.tags.forEach((tag: any) => {
+          const normalized = String(tag || '').trim();
+          if (normalized) {
+            tags.add(normalized);
+          }
+        });
+      }
+    });
+    return Array.from(tags).sort((a, b) => a.localeCompare(b));
+  });
+
+  availableLanguageSuggestions = computed(() => {
+    const langs = new Set<string>();
+    this.workspaceFilteredItems().forEach((item: any) => {
+      const detected = String(item?.detected_language || 'en').trim().toLowerCase();
+      langs.add(detected || 'en');
+    });
+    return Array.from(langs).sort((a, b) => a.localeCompare(b));
+  });
   
   editTagline = signal<string | null>(null);
   editDescription = signal<string | null>(null);
@@ -292,10 +316,9 @@ export class ModerateComponent implements OnInit, OnDestroy {
           this.filterType.set(typeParam);
         }
         const searchParam = params.get('search');
-          if (searchParam) {
-            const searchText = searchParam.replace(/\+/g, ' ');
-            this.searchText.set(searchText);
-          }
+        if (searchParam) {
+          this.searchText.set(searchParam);
+        }
         const orderParam = params.get('order');
         if (orderParam) {
           this.orderBy.set(orderParam);
@@ -354,7 +377,7 @@ export class ModerateComponent implements OnInit, OnDestroy {
         this.filterPotential.set(potentialParam ? potentialParam.split(',') : [...this.potentialOptions]);
         this.filterType.set(params.get('type') || 'all');
         const searchParam = params.get('search');
-        this.searchText.set(searchParam ? searchParam.replace(/\+/g, ' ') : '');
+        this.searchText.set(searchParam || '');
         this.orderBy.set(params.get('order') || 'date');
         const view = params.get('view');
         if (view === 'grid' || view === 'list') {
@@ -511,8 +534,7 @@ export class ModerateComponent implements OnInit, OnDestroy {
     if (this.filterPreference().length > 0 && this.filterPreference().length < this.preferenceOptions.length) params.set('preference', this.filterPreference().join(','));
     if (this.filterPotential().length > 0 && this.filterPotential().length < this.potentialOptions.length) params.set('potential', this.filterPotential().join(','));
     if (this.filterType() !== 'all') params.set('type', this.filterType());
-    // Encode search with + for spaces
-    if (this.searchText()) params.set('search', this.searchText().replace(/ /g, '+'));
+    if (this.searchText()) params.set('search', this.searchText());
     if (this.orderBy() !== 'date') params.set('order', this.orderBy());
     params.set('view', this.viewMode());
     

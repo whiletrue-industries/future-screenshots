@@ -106,6 +106,8 @@
       [filteredCount]="items().length"
       [showViewToggle]="true"
       [initialState]="filterState()"
+      [tagSuggestions]="availableTagSuggestions()"
+      [languageSuggestions]="availableLanguageSuggestions()"
       (filtersChange)="onFiltersChange($event)"
       (filtersCommit)="onFiltersCommit($event)"
     ></app-filters-bar>

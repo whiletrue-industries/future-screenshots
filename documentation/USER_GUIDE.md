@@ -7,6 +7,7 @@ This guide provides instructions for using the Future Screenshots platform, incl
 - [Getting Started](#getting-started)
 - [Language Toggle](#language-toggle)
 - [Template Editor](#template-editor)
+- [Moderation Search](#moderation-search)
 - [Navigating Showcase Views](#navigating-showcase-views)
 - [Understanding Layouts](#understanding-layouts)
 - [Tips and Tricks](#tips-and-tricks)
@@ -32,6 +33,27 @@ The Canvas Creator lets you compose a screenshot using templates:
 - Drawing and text layers use multiply blending for natural results.
 - When typing Hebrew or Arabic, appropriate fallback fonts are applied automatically.
 - After confirming, the re-edit button returns you to the same template via a preserved `template_id` in the URL.
+
+## Moderation Search
+
+In the admin moderation view, the Search control supports token pills for tags, languages, and free text.
+
+- Start typing to get autocomplete suggestions for tags and languages.
+- Selecting a suggestion creates a pill: tags and languages use the same pill UI but different colors.
+- Press Enter to add plain free-text search when no suggestion is selected.
+- You can combine multiple filters in one query: tags, languages, and free text together.
+
+Tag matching behavior:
+
+- Multiple tag pills are OR by default.
+- Prefix `+` or `&` before selecting a tag to make that tag an AND condition.
+- Language pills are always OR.
+
+Examples:
+
+- `climate` (picked as a tag) OR `housing` (picked as a tag)
+- `+climate` (picked as a tag) AND `+housing` (picked as a tag)
+- language `he` plus free text `public transit`
 
 ## Navigating Showcase Views
 
