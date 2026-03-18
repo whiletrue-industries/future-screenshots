@@ -197,7 +197,7 @@
         transform: translateX(-50%);
         z-index: 1000;
         display: flex;
-        flex-direction: row;
+        flex-direction: column;
         gap: 16px;
         align-items: center;
         
@@ -267,6 +267,32 @@
                     white-space: nowrap;
                 }
 
+                .map-drag-counter {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-width: 52px;
+                    padding: 4px 10px;
+                    border-radius: 999px;
+                    background: rgba(78, 2, 178, 0.12);
+                    color: #4E02B2;
+                    font-size: 12px;
+                    font-weight: 700;
+                    font-variant-numeric: tabular-nums;
+                    letter-spacing: 0.02em;
+                    box-shadow: inset 0 0 0 1px rgba(78, 2, 178, 0.15);
+
+                    &.breathing {
+                        animation: dragCounterBreathing 1.8s ease-in-out infinite;
+                    }
+
+                    @media (max-width: 768px) {
+                        min-width: 44px;
+                        padding: 3px 8px;
+                        font-size: 11px;
+                    }
+                }
+
                 .button-icon {
                     width: 20px;
                     height: 20px;
@@ -299,6 +325,11 @@
                     opacity: 1;
                     color: #4E02B2;
                     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+                    .map-drag-counter {
+                        background: linear-gradient(135deg, rgba(78, 2, 178, 0.16), rgba(250, 181, 83, 0.18));
+                        box-shadow: inset 0 0 0 1px rgba(78, 2, 178, 0.18), 0 2px 6px rgba(78, 2, 178, 0.14);
+                    }
                 }
 
                 &.map-button {
@@ -345,6 +376,75 @@
                     color: white;
                     box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
                 }
+            }
+        }
+
+        .drag-all-admin-controls-inline {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: rgba(255, 253, 246, 0.92);
+            border: 1px solid #F1E5F3;
+            border-radius: 999px;
+            box-shadow: 0 8px 24px rgba(78, 2, 178, 0.12);
+            backdrop-filter: blur(12px);
+
+            .drag-time-btn {
+                background: rgba(78, 2, 178, 0.08);
+                border: 1px solid rgba(78, 2, 178, 0.14);
+                color: #4E02B2;
+                border-radius: 999px;
+                padding: 5px 10px;
+                font-size: 12px;
+                font-weight: 700;
+                cursor: pointer;
+                transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+
+                &:hover {
+                    background: rgba(78, 2, 178, 0.14);
+                    box-shadow: 0 4px 10px rgba(78, 2, 178, 0.14);
+                }
+
+                &:active {
+                    transform: scale(0.96);
+                }
+            }
+
+            .drag-stop-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                background: #4E02B2;
+                border: 1px solid #4E02B2;
+                color: #fff;
+                border-radius: 999px;
+                padding: 5px 12px;
+                font-size: 12px;
+                font-weight: 700;
+                cursor: pointer;
+                transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+
+                .button-icon {
+                    width: 14px;
+                    height: 14px;
+                }
+
+                &:hover {
+                    background: #5d15c8;
+                    box-shadow: 0 6px 14px rgba(78, 2, 178, 0.24);
+                }
+
+                &:active {
+                    transform: scale(0.96);
+                }
+            }
+
+            @media (max-width: 768px) {
+                gap: 6px;
+                padding: 6px 8px;
+                flex-wrap: wrap;
+                justify-content: center;
             }
         }
     }
@@ -532,118 +632,6 @@
         }
     }
     
-    // ─── drag_all banner ────────────────────────────────────────────────────────
-    .drag-all-banner {
-        position: absolute;
-        top: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        background: rgba(78, 2, 178, 0.92);
-        color: #fff;
-        padding: 8px 16px;
-        border-radius: 0 0 16px 16px;
-        font-size: 14px;
-        font-weight: 600;
-        z-index: 1100;
-        box-shadow: 0 4px 16px rgba(78, 2, 178, 0.35);
-        backdrop-filter: blur(8px);
-        white-space: nowrap;
-
-        .drag-all-icon {
-            width: 20px;
-            height: 20px;
-            flex-shrink: 0;
-        }
-
-        .drag-all-label {
-            font-size: 13px;
-            opacity: 0.9;
-        }
-
-        .drag-all-timer {
-            font-variant-numeric: tabular-nums;
-            font-size: 16px;
-            font-weight: 700;
-            min-width: 40px;
-            text-align: center;
-        }
-
-        .drag-all-admin-controls {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-left: 8px;
-            padding-left: 8px;
-            border-left: 1px solid rgba(255, 255, 255, 0.3);
-        }
-
-        .drag-time-btn {
-            background: rgba(255, 255, 255, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: #fff;
-            border-radius: 6px;
-            padding: 3px 8px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.15s ease;
-
-            &:hover {
-                background: rgba(255, 255, 255, 0.28);
-            }
-
-            &:active {
-                transform: scale(0.96);
-            }
-        }
-
-        .drag-stop-btn {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            background: rgba(255, 80, 80, 0.25);
-            border: 1px solid rgba(255, 80, 80, 0.5);
-            color: #fff;
-            border-radius: 6px;
-            padding: 3px 10px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.15s ease;
-
-            .button-icon {
-                width: 14px;
-                height: 14px;
-            }
-
-            &:hover {
-                background: rgba(255, 80, 80, 0.5);
-            }
-
-            &:active {
-                transform: scale(0.96);
-            }
-        }
-
-        // Mobile: collapse to minimal display
-        @media (max-width: 768px) {
-            font-size: 12px;
-            padding: 6px 12px;
-            gap: 6px;
-
-            .drag-all-label {
-                display: none;
-            }
-
-            .drag-all-admin-controls {
-                gap: 4px;
-            }
-        }
-    }
-
     // ─── drag_all enable button (in zoom-controls) ──────────────────────────────
     .drag-all-toggle {
         width: 44px;
@@ -690,6 +678,19 @@
         &.open {
             transform: translateY(0);
         }
+    }
+}
+
+@keyframes dragCounterBreathing {
+    0%,
+    100% {
+        transform: scale(1);
+        box-shadow: inset 0 0 0 1px rgba(78, 2, 178, 0.15), 0 0 0 0 rgba(78, 2, 178, 0.12);
+    }
+
+    50% {
+        transform: scale(1.06);
+        box-shadow: inset 0 0 0 1px rgba(78, 2, 178, 0.22), 0 0 0 10px rgba(78, 2, 178, 0.04);
     }
 }
 

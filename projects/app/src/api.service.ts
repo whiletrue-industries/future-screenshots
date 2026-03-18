@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { computed, effect, Inject, Injectable, LOCALE_ID, NgZone, signal } from '@angular/core';
 import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
-import { map, Observable, ReplaySubject, switchMap, tap, timer } from 'rxjs';
+import { catchError, map, Observable, of, ReplaySubject, switchMap, tap, timer } from 'rxjs';
 
 export type DiscussResult = {
   complete: boolean;
@@ -71,7 +71,7 @@ export class ApiService {
 
   updateFromRoute(route: ActivatedRouteSnapshot) {
     const workspace = route.queryParams['workspace'] || this.workspaceId();
-    const api_key = route.queryParams['api_key'] || this.api_key();
+    const api_key = route.queryParams['api_key'] || route.queryParams['admin_key'] || this.api_key();
     const automatic = route.queryParams['automatic'] || this.automatic();
     const demo = route.queryParams['demo'] || this.demo();
     if (automatic) {
@@ -111,10 +111,20 @@ export class ApiService {
   }
 
   fetchWorkspace(workspaceId: string): Observable<any> {
-    return this.http.get(`${this.CHRONOMAPS_API_URL}/${workspaceId}`).pipe(
+    const apiKey = this.api_key();
+    const headers: Record<string, string> = {};
+    if (apiKey) {
+      headers['Authorization'] = apiKey;
+    }
+
+    return this.http.get(`${this.CHRONOMAPS_API_URL}/${workspaceId}`, { headers }).pipe(
       map((response: any) => {
         this.workspace.set(response);
         return response;
+      }),
+      catchError((error) => {
+        console.error('Error fetching workspace:', error);
+        return of(null);
       })
     );
   }

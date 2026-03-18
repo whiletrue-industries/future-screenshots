@@ -742,41 +742,37 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     if (!workspaceId || workspaceId === 'WORKSPACE_NOT_SET') {
       return;
     }
-    
-    const httpOptions: { headers?: Record<string, string> } = {};
-    const apiKey = this.resolveAuthToken();
-    if (apiKey) {
-      httpOptions.headers = { 'Authorization': apiKey };
+
+    const authToken = this.resolveAuthToken();
+    if (authToken) {
+      this.apiService.api_key.set(authToken);
     }
-    
-    this.http.get<any>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${workspaceId}`, httpOptions).pipe(
+
+    this.apiService.fetchWorkspace(workspaceId).pipe(
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
         next: (workspace) => {
-          if (workspace) {
-            const displayTitle = workspace.source || workspace.title || '';
-            this.workspaceTitle.set(displayTitle);
-            
-            // Check if additional contributions are allowed
-            const allowContributions = workspace.collaborate !== false; // Default to true if not specified
-            this.allowAdditionalContributions.set(allowContributions);
+          if (!workspace) {
+            return;
+          }
 
-            // Read drag_all_until from workspace metadata
-            const dragAllUntilRaw = workspace.drag_all_until;
-            if (dragAllUntilRaw) {
-              const until = new Date(dragAllUntilRaw);
-              if (!isNaN(until.getTime()) && until.getTime() > Date.now()) {
-                this.dragAllUntil.set(until);
-              } else {
-                this.dragAllUntil.set(null);
-              }
+          const displayTitle = workspace.source || workspace.title || '';
+          this.workspaceTitle.set(displayTitle);
+
+          const allowContributions = workspace.collaborate !== false;
+          this.allowAdditionalContributions.set(allowContributions);
+
+          const dragAllUntilRaw = workspace.drag_all_until;
+          if (dragAllUntilRaw) {
+            const until = new Date(dragAllUntilRaw);
+            if (!isNaN(until.getTime()) && until.getTime() > Date.now()) {
+              this.dragAllUntil.set(until);
             } else {
               this.dragAllUntil.set(null);
             }
+          } else {
+            this.dragAllUntil.set(null);
           }
-        },
-        error: (error) => {
-          console.error('Error fetching workspace data:', error);
         }
       });
   }
@@ -1105,6 +1101,15 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         }
 
         const oldAuthorId = photo.metadata['author_id'] as string;
+        const previousMetadata: Record<string, any> = {
+          layout_x: photo.metadata['layout_x'],
+          layout_y: photo.metadata['layout_y']
+        };
+        if (hotspotData) {
+          Object.keys(hotspotData).forEach((key) => {
+            previousMetadata[key] = photo.metadata[key];
+          });
+        }
 
         // Build a single metadata payload for the API
         const metadataToSave: { [key: string]: string | number | null } = {};
@@ -1142,14 +1147,16 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
         const hasAdminKey = adminKey && adminKey !== 'ADMIN_KEY_NOT_SET';
         const hasApiKey = apiKey && apiKey !== 'API_KEY_NOT_SET';
-        // Use item_key for the author dragging their own item, or when drag_all is active
-        const useItemKey: string | undefined =
-          (!hasAdminKey && !hasApiKey && photoItemKey) ? photoItemKey :
-          (!hasAdminKey && !hasApiKey && userKey) ? userKey :
-          undefined;
+        // Collaborator updates require the per-item key. Prefer the dragged photo's key,
+        // then fall back to the viewer's URL key for same-author item access.
+        const useItemKey: string | undefined = !hasAdminKey
+          ? (photoItemKey || userKey || undefined)
+          : undefined;
 
         const canSave = workspace && workspace !== 'WORKSPACE_NOT_SET'
           && (hasAdminKey || hasApiKey || !!useItemKey);
+
+        let saveSucceeded = false;
 
         if (canSave) {
           try {
@@ -1162,16 +1169,51 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
                 }
               });
             });
+            saveSucceeded = true;
           } catch (error) {
             console.error('[DRAG] Error saving to API:', error);
           }
         }
 
-        // Recalculate layout for affected cluster(s)
-        await this.recalculateClusterLayout(oldAuthorId);
-        const newAuthorId = photo.metadata['author_id'] as string;
-        if (newAuthorId && newAuthorId !== oldAuthorId) {
-          await this.recalculateClusterLayout(newAuthorId);
+        if (!saveSucceeded) {
+          if (!canSave) {
+            console.warn('[DRAG] Skipping save due to missing authorization context', {
+              hasAdminKey,
+              hasApiKey,
+              hasItemKey: !!useItemKey
+            });
+          }
+
+          // Do not keep a local-only state that never reaches other clients.
+          // Revert metadata and visual position if persistence failed.
+          photo.updateMetadata(previousMetadata);
+
+          const prevLayoutX = previousMetadata['layout_x'];
+          const prevLayoutY = previousMetadata['layout_y'];
+          if (this.svgBackgroundStrategy
+            && typeof prevLayoutX === 'number'
+            && typeof prevLayoutY === 'number') {
+            const previousWorld = this.svgBackgroundStrategy.normalizedToWorld(prevLayoutX, prevLayoutY);
+            const previousPosition = { x: previousWorld.x, y: previousWorld.y, z: 0 };
+            photo.setTargetPosition(previousPosition);
+            photo.setCurrentPosition(previousPosition);
+            if (photo.mesh) {
+              photo.mesh.position.set(previousPosition.x, previousPosition.y, previousPosition.z);
+            }
+          } else {
+            await this.repositionPhoto(photo);
+          }
+          return;
+        }
+
+        // In SVG mode the dropped coordinates are the source of truth. Avoid cluster-style
+        // relayout there, otherwise free drops can snap back off the map.
+        if (this.currentLayout() !== 'svg') {
+          await this.recalculateClusterLayout(oldAuthorId);
+          const newAuthorId = photo.metadata['author_id'] as string;
+          if (newAuthorId && newAuthorId !== oldAuthorId) {
+            await this.recalculateClusterLayout(newAuthorId);
+          }
         }
 
         // Reposition the dragged photo (handles photos with no author_id,
