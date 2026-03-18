@@ -475,25 +475,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     const isAdminUser = adminKeyValue !== '' && adminKeyValue !== 'ADMIN_KEY_NOT_SET';
     this.photoRepository.setDragEnabled(isAdminUser);
     
-    // Effect: propagate drag_all and author permission changes to the repository
+    // Effect: propagate drag_all and author permission changes to the repository atomically
     effect(() => {
-      this.photoRepository.setDragAllEnabled(this.dragAllActive());
-    });
-    effect(() => {
-      this.photoRepository.setUserAuthorId(this.userAuthorId());
-    });
-
-    // Effect: update countdown every second while drag_all is active
-    effect(() => {
-      if (this.dragAllActive()) {
-        const until = this.dragAllUntil();
-        if (until) {
-          const remaining = Math.max(0, Math.ceil((until.getTime() - Date.now()) / 1000));
-          this.dragAllRemainingSeconds.set(remaining);
-        }
-      } else {
-        this.dragAllRemainingSeconds.set(0);
-      }
+      this.photoRepository.updateDragPermissions(this.dragAllActive(), this.userAuthorId());
     });
     
     // Check for item permalink in URL hash (e.g. #item-id)

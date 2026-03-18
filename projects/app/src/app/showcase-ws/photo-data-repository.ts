@@ -521,6 +521,17 @@ export class PhotoDataRepository {
   }
 
   /**
+   * Update drag_all mode and user author simultaneously with a single permissions refresh.
+   */
+  updateDragPermissions(dragAllEnabled: boolean, authorId: string | null): void {
+    this.isDragAllEnabled = dragAllEnabled;
+    this.userAuthorId = authorId;
+    if (this.svgVisible) {
+      this.refreshDragPermissions();
+    }
+  }
+
+  /**
    * Check if the current user can drag a specific photo.
    * Admin → all; drag_all active → all; author key match → same-author items.
    */
@@ -534,16 +545,22 @@ export class PhotoDataRepository {
   /**
    * Re-evaluate drag permissions for all photos that are currently visible.
    * Called when any permission signal changes (drag_all toggled, author set, etc.).
+   * Uses restoreDragForMesh when a callback is already registered to avoid
+   * creating redundant closures.
    */
   refreshDragPermissions(): void {
     if (!this.renderer) return;
     this.photos.forEach(photoData => {
       if (!photoData.mesh) return;
       if (this.canDragPhoto(photoData)) {
-        this.renderer!.enableDragForMesh(photoData.mesh, (position) => {
-          photoData.setCurrentPosition(position);
-          photoData.setTargetPosition(position);
-        });
+        // Prefer restoring from existing callback; only re-register if needed
+        const restored = this.renderer!.restoreDragForMesh(photoData.mesh);
+        if (!restored) {
+          this.renderer!.enableDragForMesh(photoData.mesh, (position) => {
+            photoData.setCurrentPosition(position);
+            photoData.setTargetPosition(position);
+          });
+        }
       } else {
         this.renderer!.disableDragForMesh(photoData.mesh);
       }

@@ -1414,6 +1414,16 @@ export class ThreeRendererService {
   }
 
   /**
+   * Re-enable drag for a mesh that already has a registered callback.
+   * More efficient than enableDragForMesh when the callback doesn't need to change.
+   */
+  restoreDragForMesh(mesh: THREE.Mesh): boolean {
+    if (!this.dragCallbacks.has(mesh)) return false;
+    this.hoverOnlyMeshes.delete(mesh);
+    return true;
+  }
+
+  /**
    * Enable hover detection for a mesh without enabling drag functionality
    * This allows cursor feedback and click detection without allowing dragging
    */
