@@ -48,6 +48,10 @@ export class ThreeRendererService {
   private readonly BG: number;
   private readonly FISHEYE_SCALE_DAMPING = 5; // Lower = slower/smoother animation
 
+  // SVG rendering resolution constants
+  private static readonly SVG_TARGET_RESOLUTION = 4000;
+  private static readonly SVG_HOVER_OVERLAY_RESOLUTION = 1024;
+
   // Three.js objects
   private container: HTMLElement | null = null;
   private renderer!: THREE.WebGLRenderer;
@@ -102,6 +106,16 @@ export class ThreeRendererService {
   
   // SVG Container for hotspot detection
   private svgContainer: HTMLElement | null = null;
+  private svgHoverOverlayElement: SVGSVGElement | null = null;
+  private svgHoverOverlayGroups = new Map<string, SVGElement>();
+  private svgHoverOverlayCanvas: HTMLCanvasElement | null = null;
+  private svgHoverOverlayContext: CanvasRenderingContext2D | null = null;
+  private svgHoverOverlayTexture?: THREE.CanvasTexture;
+  private svgHoverOverlayPlane?: THREE.Mesh;
+  private activeHoverGroupId: string | null = null;
+  private hoverOverlayRenderToken = 0;
+  private svgHoverOverlayCachedImages = new Map<string | null, ImageData>();
+  private svgHoverOverlayPendingImage: HTMLImageElement | null = null;
   
   // Unified drag-complete callback (position + hotspot data in one call)
   private onDragCompleteCallback?: (photoId: string, result: {
@@ -1395,6 +1409,7 @@ export class ThreeRendererService {
       this.isDragging = false;
       this.draggedMesh = null;
       this.hoveredMesh = null;
+      this.setSvgHoverOverlayHotspot(null);
 
       // Reset cursor
       if (this.container) {
@@ -1516,6 +1531,249 @@ export class ThreeRendererService {
     
     this.svgContainer.appendChild(svgClone);
     this.container.appendChild(this.svgContainer);
+
+    // Best-effort overlay used during hotspot hover/drag to show only the active hotspot area.
+    void this.createSvgHoverOverlay();
+  }
+
+  private getSvgDimensions(svg: SVGSVGElement): { width: number; height: number } {
+    const parsedWidth = parseInt(svg.getAttribute('width') || '', 10);
+    const parsedHeight = parseInt(svg.getAttribute('height') || '', 10);
+    return {
+      width: (Number.isFinite(parsedWidth) && parsedWidth > 0) ? parsedWidth : (this.container?.clientWidth ?? 0),
+      height: (Number.isFinite(parsedHeight) && parsedHeight > 0) ? parsedHeight : (this.container?.clientHeight ?? 0),
+    };
+  }
+
+  private async createSvgHoverOverlay(): Promise<void> {
+    if (!this.container || !this.scene) {
+      return;
+    }
+
+    this.disposeSvgHoverOverlay();
+
+    try {
+      const response = await fetch('/showcase-bg-hover.svg');
+      if (!response.ok) {
+        return;
+      }
+
+      const svgText = await response.text();
+      const parser = new DOMParser();
+      const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
+      const overlaySvg = svgDoc.documentElement as unknown as SVGSVGElement;
+
+      // Start with all hotspot groups hidden; we reveal only the currently hovered one.
+      const groups = overlaySvg.querySelectorAll('[id^="s-"]');
+      groups.forEach((groupNode) => {
+        const group = groupNode as SVGElement;
+        group.style.visibility = 'hidden';
+        this.svgHoverOverlayGroups.set(group.id, group);
+      });
+
+      this.svgHoverOverlayElement = overlaySvg;
+
+      // Build a canvas texture at a reduced resolution (the overlay is translucent and
+      // doesn't need the same fidelity as the base background).
+      const { width: svgWidth, height: svgHeight } = this.getSvgDimensions(overlaySvg);
+
+      const overlayRes = ThreeRendererService.SVG_HOVER_OVERLAY_RESOLUTION;
+      const canvas = document.createElement('canvas');
+      canvas.width = overlayRes;
+      canvas.height = overlayRes;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        return;
+      }
+
+      this.svgHoverOverlayCanvas = canvas;
+      this.svgHoverOverlayContext = ctx;
+
+      this.svgHoverOverlayTexture = new THREE.CanvasTexture(canvas);
+      this.svgHoverOverlayTexture.colorSpace = THREE.SRGBColorSpace;
+      this.svgHoverOverlayTexture.needsUpdate = true;
+
+      const backgroundRadius = this.svgBackgroundOptions?.radius || 20000;
+      const geometry = new THREE.PlaneGeometry(backgroundRadius * 2, backgroundRadius * 2);
+      const material = new THREE.MeshBasicMaterial({
+        map: this.svgHoverOverlayTexture,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false
+      });
+
+      this.svgHoverOverlayPlane = new THREE.Mesh(geometry, material);
+      this.svgHoverOverlayPlane.position.set(0, 0, -0.95);
+      this.svgHoverOverlayPlane.renderOrder = -999;
+
+      if (this.svgBackgroundOptions?.offsetX) this.svgHoverOverlayPlane.position.x += this.svgBackgroundOptions.offsetX;
+      if (this.svgBackgroundOptions?.offsetY) this.svgHoverOverlayPlane.position.y += this.svgBackgroundOptions.offsetY;
+      if (this.svgBackgroundOptions?.scale) this.svgHoverOverlayPlane.scale.setScalar(this.svgBackgroundOptions.scale);
+
+      this.scene.add(this.svgHoverOverlayPlane);
+
+      // Initial render (all groups hidden) — cache it so the first hide is instant.
+      const dpiScaleX = overlayRes / svgWidth;
+      const dpiScaleY = overlayRes / svgHeight;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.setTransform(dpiScaleX, 0, 0, dpiScaleY, 0, 0);
+      this.svgHoverOverlayCachedImages.set(null, ctx.getImageData(0, 0, canvas.width, canvas.height));
+      this.svgHoverOverlayTexture.needsUpdate = true;
+    } catch {
+      // Overlay is optional; keep normal behavior if loading fails.
+    }
+  }
+
+  private disposeSvgHoverOverlay(): void {
+    if (this.svgHoverOverlayPlane) {
+      this.scene.remove(this.svgHoverOverlayPlane);
+      this.svgHoverOverlayPlane.geometry.dispose();
+      if (this.svgHoverOverlayPlane.material instanceof THREE.Material) {
+        this.svgHoverOverlayPlane.material.dispose();
+      }
+      this.svgHoverOverlayPlane = undefined;
+    }
+
+    if (this.svgHoverOverlayTexture) {
+      this.svgHoverOverlayTexture.dispose();
+      this.svgHoverOverlayTexture = undefined;
+    }
+
+    this.svgHoverOverlayCanvas = null;
+    this.svgHoverOverlayContext = null;
+    this.svgHoverOverlayElement = null;
+    this.svgHoverOverlayGroups.clear();
+    this.activeHoverGroupId = null;
+    this.hoverOverlayRenderToken++;
+    this.svgHoverOverlayCachedImages.clear();
+    if (this.svgHoverOverlayPendingImage) {
+      this.svgHoverOverlayPendingImage.onload = null;
+      this.svgHoverOverlayPendingImage.onerror = null;
+      this.svgHoverOverlayPendingImage = null;
+    }
+  }
+
+  private async renderSvgHoverOverlayTexture(groupId: string | null): Promise<void> {
+    if (!this.svgHoverOverlayElement || !this.svgHoverOverlayCanvas || !this.svgHoverOverlayContext || !this.svgHoverOverlayTexture) {
+      return;
+    }
+
+    // Fast path: use cached ImageData if this group has been rendered before.
+    const cached = this.svgHoverOverlayCachedImages.get(groupId);
+    if (cached) {
+      this.svgHoverOverlayContext.putImageData(cached, 0, 0);
+      this.svgHoverOverlayTexture.needsUpdate = true;
+      return;
+    }
+
+    // Guard: if the component was destroyed before we reach the async section, bail out.
+    if (!this.container) {
+      return;
+    }
+
+    // Cancel any previous in-flight image decode so we don't queue stale work.
+    if (this.svgHoverOverlayPendingImage) {
+      this.svgHoverOverlayPendingImage.onload = null;
+      this.svgHoverOverlayPendingImage.onerror = null;
+      this.svgHoverOverlayPendingImage = null;
+    }
+
+    const renderToken = ++this.hoverOverlayRenderToken;
+    const svgString = new XMLSerializer().serializeToString(this.svgHoverOverlayElement);
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    const img = new Image();
+    this.svgHoverOverlayPendingImage = img;
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = (error) => reject(error);
+        img.src = url;
+      });
+
+      // Drop stale renders (a newer call has already taken over).
+      if (renderToken !== this.hoverOverlayRenderToken) {
+        return;
+      }
+
+      // Guard against component being destroyed while the image was loading.
+      if (!this.container || !this.svgHoverOverlayCanvas || !this.svgHoverOverlayContext || !this.svgHoverOverlayTexture) {
+        return;
+      }
+
+      const { width: svgWidth, height: svgHeight } = this.getSvgDimensions(this.svgHoverOverlayElement);
+      const dpiScaleX = this.svgHoverOverlayCanvas.width / svgWidth;
+      const dpiScaleY = this.svgHoverOverlayCanvas.height / svgHeight;
+
+      this.svgHoverOverlayContext.setTransform(1, 0, 0, 1, 0, 0);
+      this.svgHoverOverlayContext.clearRect(0, 0, this.svgHoverOverlayCanvas.width, this.svgHoverOverlayCanvas.height);
+      this.svgHoverOverlayContext.setTransform(dpiScaleX, 0, 0, dpiScaleY, 0, 0);
+      this.svgHoverOverlayContext.drawImage(img, 0, 0, svgWidth, svgHeight);
+
+      // Cache the result: subsequent hovers on the same group are instant.
+      this.svgHoverOverlayContext.setTransform(1, 0, 0, 1, 0, 0);
+      this.svgHoverOverlayCachedImages.set(
+        groupId,
+        this.svgHoverOverlayContext.getImageData(0, 0, this.svgHoverOverlayCanvas.width, this.svgHoverOverlayCanvas.height)
+      );
+
+      this.svgHoverOverlayTexture.needsUpdate = true;
+    } catch {
+      // Ignore overlay rendering errors and keep default behavior.
+    } finally {
+      URL.revokeObjectURL(url);
+      // Only clear the pending reference if it's still the Image we created for this render.
+      if (this.svgHoverOverlayPendingImage === img) {
+        this.svgHoverOverlayPendingImage = null;
+      }
+    }
+  }
+
+  private setSvgHoverOverlayHotspot(groupId: string | null): void {
+    if (!this.svgHoverOverlayElement || !this.svgHoverOverlayPlane) {
+      return;
+    }
+
+    const material = this.svgHoverOverlayPlane.material as THREE.MeshBasicMaterial;
+
+    if (groupId === this.activeHoverGroupId) {
+      return;
+    }
+
+    if (!groupId) {
+      if (this.activeHoverGroupId) {
+        const previous = this.svgHoverOverlayGroups.get(this.activeHoverGroupId);
+        if (previous) {
+          previous.style.visibility = 'hidden';
+        }
+      }
+      this.activeHoverGroupId = null;
+      material.opacity = 0;
+      material.needsUpdate = true;
+      void this.renderSvgHoverOverlayTexture(null);
+      return;
+    }
+
+    const next = this.svgHoverOverlayGroups.get(groupId);
+    if (!next) {
+      this.setSvgHoverOverlayHotspot(null);
+      return;
+    }
+
+    if (this.activeHoverGroupId && this.activeHoverGroupId !== groupId) {
+      const previous = this.svgHoverOverlayGroups.get(this.activeHoverGroupId);
+      if (previous) {
+        previous.style.visibility = 'hidden';
+      }
+    }
+
+    next.style.visibility = 'visible';
+    this.activeHoverGroupId = groupId;
+    material.opacity = 1;
+    material.needsUpdate = true;
+    void this.renderSvgHoverOverlayTexture(groupId);
   }
 
   private animateMaterialOpacity(material: THREE.Material, targetOpacity: number, durationMs = 600): void {
@@ -1593,17 +1851,25 @@ export class ThreeRendererService {
    * Find hotspot at mesh position (for live detection during drag)
    * Returns the parsed hotspot data if found, null otherwise
    */
-  private findHotspotAtMeshPosition(mesh: THREE.Mesh, photoId: string): { [key: string]: string | number } | null {
+  private findHotspotMatchAtMeshPosition(mesh: THREE.Mesh, photoId: string): {
+    groupId: string;
+    hotspotData: { [key: string]: string | number };
+  } | null {
+    const meshCenterWorld = new THREE.Vector3();
+    mesh.getWorldPosition(meshCenterWorld);
+    return this.findHotspotMatchAtWorldPosition(meshCenterWorld.x, meshCenterWorld.y);
+  }
+
+  private findHotspotMatchAtWorldPosition(worldX: number, worldY: number): {
+    groupId: string;
+    hotspotData: { [key: string]: string | number };
+  } | null {
     if (!this.svgContainer) {
       return null;
     }
     
-    const svgElement = this.svgContainer.querySelector('svg');
+    const svgElement = this.svgContainer.querySelector('svg') as SVGSVGElement | null;
     if (!svgElement) return null;
-
-    // Get the mesh's center world position
-    const meshCenterWorld = new THREE.Vector3();
-    mesh.getWorldPosition(meshCenterWorld);
 
     // Direct world-to-SVG coordinate transformation
     // The SVG plane in 3D: center at (offsetX, offsetY), size = 2*radius x 2*radius
@@ -1612,8 +1878,8 @@ export class ThreeRendererService {
     const radius = this.svgBackgroundOptions?.radius || 15000;
 
     // Normalize to [0,1] within the plane (Y flipped: Three.js Y-up, SVG Y-down)
-    const normalizedX = (meshCenterWorld.x - offsetX + radius) / (2 * radius);
-    const normalizedY = (radius - (meshCenterWorld.y - offsetY)) / (2 * radius);
+    const normalizedX = (worldX - offsetX + radius) / (2 * radius);
+    const normalizedY = (radius - (worldY - offsetY)) / (2 * radius);
 
     // Convert to SVG viewBox coordinates
     const viewBox = svgElement.viewBox.baseVal;
@@ -1622,7 +1888,14 @@ export class ThreeRendererService {
     }
     const svgX = viewBox.x + normalizedX * viewBox.width;
     const svgY = viewBox.y + normalizedY * viewBox.height;
-    
+
+    return this.findHotspotMatchAtSvgCoordinates(svgElement, svgX, svgY);
+  }
+
+  private findHotspotMatchAtSvgCoordinates(svgElement: SVGSVGElement, svgX: number, svgY: number): {
+    groupId: string;
+    hotspotData: { [key: string]: string | number };
+  } | null {
     // Test hotspots
     const hotspots = svgElement.querySelectorAll('[id^="hit"]');
     
@@ -1649,20 +1922,32 @@ export class ThreeRendererService {
       }
       
       if (isInside) {
-        const parentGroup = hotspot.parentElement?.closest('g');
+        const parentGroup = hotspot.parentElement?.closest('g[id^="s-"]')
+          || hotspot.parentElement?.closest('g');
         if (parentGroup && parentGroup.id) {
           // Parse the group ID immediately and return parsed data
           const parsedHotspot = this.parseHotspotGroupId(parentGroup.id);
           if (parsedHotspot) {
-            return parsedHotspot;
+            return {
+              groupId: parentGroup.id,
+              hotspotData: parsedHotspot
+            };
           }
           // Fallback: return raw ID as single-key object
-          return { 'hotspot': parentGroup.id };
+          return {
+            groupId: parentGroup.id,
+            hotspotData: { 'hotspot': parentGroup.id }
+          };
         }
       }
     }
     
     return null;
+  }
+
+  private findHotspotAtMeshPosition(mesh: THREE.Mesh, photoId: string): { [key: string]: string | number } | null {
+    const match = this.findHotspotMatchAtMeshPosition(mesh, photoId);
+    return match ? match.hotspotData : null;
   }
 
   /**
@@ -1737,6 +2022,8 @@ export class ThreeRendererService {
       if (this.isDragging) {
         this.cleanupDragState();
       }
+
+      this.setSvgHoverOverlayHotspot(null);
       
       // Only reset if fisheye is enabled and there are affected meshes
       if (this.fisheyeEnabled && this.fisheyeAffectedMeshes.size > 0) {
@@ -1991,17 +2278,19 @@ export class ThreeRendererService {
         // Check for hotspot collision during drag and apply rotation preview
         const photoId = this.findPhotoIdForMesh(this.draggedMesh);
         if (photoId) {
-          const matchedHotspot = this.findHotspotAtMeshPosition(this.draggedMesh, photoId);
+          const matchedHotspot = this.findHotspotMatchAtMeshPosition(this.draggedMesh, photoId);
           if (matchedHotspot && this.draggedMesh) {
             const photoData = this.meshToPhotoData.get(this.draggedMesh);
             if (photoData) {
               if (this.draggedMesh.userData['previewOriginalRotation'] === undefined) {
                 this.draggedMesh.userData['previewOriginalRotation'] = this.draggedMesh.rotation.z;
               }
-              this.draggedMesh.rotation.z = this.calculatePreviewRotation(photoData, matchedHotspot);
+              this.draggedMesh.rotation.z = this.calculatePreviewRotation(photoData, matchedHotspot.hotspotData);
             }
+            this.setSvgHoverOverlayHotspot(matchedHotspot.groupId);
           } else if (this.draggedMesh?.userData['previewOriginalRotation'] !== undefined) {
             this.draggedMesh.rotation.z = this.draggedMesh.userData['previewOriginalRotation'];
+            this.setSvgHoverOverlayHotspot(null);
           }
         }
         
@@ -2038,6 +2327,7 @@ export class ThreeRendererService {
       // Check for hover effects
       this.raycaster.setFromCamera(this.mouse, this.camera);
       const intersects = this.raycaster.intersectObjects(this.root.children, false);
+      let didSetPointerCursor = false;
       
       if (intersects.length > 0) {
         const mesh = intersects[0].object as THREE.Mesh;
@@ -2048,6 +2338,7 @@ export class ThreeRendererService {
           // Set cursor based on whether the mesh is draggable or just hoverable
           if (this.container) {
             this.container.style.cursor = isDraggable ? 'grab' : 'pointer';
+            didSetPointerCursor = true;
           }
           
           if (this.hoveredMesh !== mesh) {
@@ -2060,6 +2351,21 @@ export class ThreeRendererService {
           this.hoveredMesh = null;
           this.hoveredItemSignal.set(false);
         }
+      }
+
+      // Hotspot hover follows cursor position, even when not hovering or dragging an item.
+      if (this.isInteractiveLayout()) {
+        const cursorWorld = this.screenToWorld(this.mouse.x, this.mouse.y, 0);
+        const hoverHotspot = this.findHotspotMatchAtWorldPosition(cursorWorld.x, cursorWorld.y);
+        this.setSvgHoverOverlayHotspot(hoverHotspot?.groupId ?? null);
+
+        if (!didSetPointerCursor && hoverHotspot && this.container) {
+          this.container.style.cursor = 'pointer';
+        } else if (!didSetPointerCursor && this.container) {
+          this.container.style.cursor = 'default';
+        }
+      } else {
+        this.setSvgHoverOverlayHotspot(null);
       }
 
       // Apply fisheye effect during normal mouse movement
@@ -2136,6 +2442,7 @@ export class ThreeRendererService {
       this.draggedMesh = null;
       this.hoveredMesh = null;
       this.hoveredItemSignal.set(false);
+      this.setSvgHoverOverlayHotspot(null);
       
       // Re-enable fisheye if it was enabled before dragging
       if (this.wasFisheyeEnabled) {
@@ -2326,6 +2633,8 @@ export class ThreeRendererService {
       this.svgContainer.remove();
       this.svgContainer = null;
     }
+
+    this.disposeSvgHoverOverlay();
     
     this.svgBackgroundOptions = undefined;
   }
@@ -2921,14 +3230,10 @@ export class ThreeRendererService {
     
     // Set canvas size based on SVG dimensions or container
     // Use SVG width/height attributes since getBoundingClientRect() returns 0 for non-DOM elements
-    const svgWidthAttr = svgOptions.svgElement.getAttribute('width');
-    const svgHeightAttr = svgOptions.svgElement.getAttribute('height');
+    const { width: svgWidth, height: svgHeight } = this.getSvgDimensions(svgOptions.svgElement);
     
-    const svgWidth = parseInt(svgWidthAttr || '0') || this.container!.clientWidth;
-    const svgHeight = parseInt(svgHeightAttr || '0') || this.container!.clientHeight;
-    
-    // Render at high resolution (4000x4000)
-    const targetResolution = 4000;
+    // Render at high resolution
+    const targetResolution = ThreeRendererService.SVG_TARGET_RESOLUTION;
     const dpiScaleX = targetResolution / svgWidth;
     const dpiScaleY = targetResolution / svgHeight;
     canvas.width = targetResolution;
@@ -2944,6 +3249,10 @@ export class ThreeRendererService {
       
       // Create texture from canvas
       this.svgBackgroundTexture = new THREE.CanvasTexture(canvas);
+      // CanvasTexture defaults to LinearSRGBColorSpace but the canvas holds sRGB data
+      // (the browser rasterises SVG in sRGB). Marking it as sRGB tells Three.js not to
+      // apply an extra gamma-expand step, which would otherwise wash out the colours.
+      this.svgBackgroundTexture.colorSpace = THREE.SRGBColorSpace;
       this.svgBackgroundTexture.needsUpdate = true;
       
       // Create plane geometry sized to match the coordinate system used by photos
