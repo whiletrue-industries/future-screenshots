@@ -173,9 +173,11 @@ export class ApiService {
   }
 
   updateProperties(metadata: any, item_id: string, item_key?: string): Observable<any> {
-    const headers = {
-      'Authorization': this.api_key() as string,
-    };
+    const headers: Record<string, string> = {};
+    const apiKey = this.api_key();
+    if (apiKey) {
+      headers['Authorization'] = apiKey;
+    }
     let params: any = {};
     if (item_key) {
       params['item-key'] = item_key;  
@@ -185,6 +187,15 @@ export class ApiService {
         return true;
       })
     );
+  }
+
+  /**
+   * Update workspace-level settings (requires admin key).
+   * Used to set/clear the drag_all_until timestamp and other workspace flags.
+   */
+  updateWorkspaceSettings(workspaceId: string, adminKey: string, settings: Record<string, any>): Observable<any> {
+    const headers = { 'Authorization': adminKey };
+    return this.http.put(`${this.CHRONOMAPS_API_URL}/${workspaceId}`, settings, { headers });
   }
 
   uploadImage(image: Blob, item_id: string, item_key: string): void {

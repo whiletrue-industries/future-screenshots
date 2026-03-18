@@ -19,6 +19,9 @@ import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
 
+/** Duration of the drag_all countdown in minutes when first enabled. */
+const DRAG_ALL_DEFAULT_MINUTES = 15;
+
 @Component({
   selector: 'app-showcase-ws',
   imports: [QrcodeComponent, EvaluationSidebarComponent, FiltersBarComponent],
@@ -53,6 +56,30 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   
   // Permalink support - item to focus on after load
   focusItemId = signal<string | null>(null);
+
+  // Item_key for the current viewer (from URL ?key= param)
+  // Allows authors to drag items belonging to their author_id
+  userItemKey = signal<string>('');
+  // Author ID resolved from userItemKey after items are loaded
+  userAuthorId = signal<string | null>(null);
+
+  // drag_all mode – expiry timestamp stored in workspace metadata
+  dragAllUntil = signal<Date | null>(null);
+  // Whether drag_all is currently active (expiry is in the future)
+  dragAllActive = computed(() => {
+    const until = this.dragAllUntil();
+    if (!until) return false;
+    return until.getTime() > Date.now();
+  });
+  // Remaining seconds in the drag_all countdown (updated every second)
+  dragAllRemainingSeconds = signal(0);
+  // Formatted remaining time string (MM:SS)
+  dragAllRemainingFormatted = computed(() => {
+    const secs = this.dragAllRemainingSeconds();
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  });
   
   // Get the selected item's key (if available)
   selectedItemKey = computed(() => {
@@ -327,6 +354,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         await Promise.all(photoPromises);
         this.searchIndex.clear();
         
+        // Resolve author_id for the current viewer's item_key.
+        // This enables authors to drag all their own items.
+        this.resolveUserAuthorId(items);
+
         this.qrSmall.set(true);
         this.isLoading.set(false); // Content is now loaded
         
@@ -433,12 +464,37 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.api_key.set(qp['api_key'] || 'API_KEY_NOT_SET');
     this.admin_key.set(qp['admin_key'] || 'ADMIN_KEY_NOT_SET');
     this.lang.set(qp['lang'] ? qp['lang'] + '/' : '');
+
+    // Parse item_key from URL ?key= param (authors visiting showcase with their key)
+    const urlItemKey = qp['key'] || '';
+    this.userItemKey.set(urlItemKey);
     
     // Set drag permissions immediately based on admin status
     // This must be done before photos are added to the repository
     const adminKeyValue = this.admin_key();
     const isAdminUser = adminKeyValue !== '' && adminKeyValue !== 'ADMIN_KEY_NOT_SET';
     this.photoRepository.setDragEnabled(isAdminUser);
+    
+    // Effect: propagate drag_all and author permission changes to the repository
+    effect(() => {
+      this.photoRepository.setDragAllEnabled(this.dragAllActive());
+    });
+    effect(() => {
+      this.photoRepository.setUserAuthorId(this.userAuthorId());
+    });
+
+    // Effect: update countdown every second while drag_all is active
+    effect(() => {
+      if (this.dragAllActive()) {
+        const until = this.dragAllUntil();
+        if (until) {
+          const remaining = Math.max(0, Math.ceil((until.getTime() - Date.now()) / 1000));
+          this.dragAllRemainingSeconds.set(remaining);
+        }
+      } else {
+        this.dragAllRemainingSeconds.set(0);
+      }
+    });
     
     // Check for item permalink in URL hash (e.g. #item-id)
     if (this.platform.browser()) {
@@ -454,7 +510,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       this.enableSvgAutoPositioning.set(true);
     }
     
-    // Fetch workspace data to get title
+    // Fetch workspace data to get title and drag_all_until flag
     if (this.workspace() !== 'WORKSPACE_NOT_SET') {
       this.fetchWorkspaceData();
     }
@@ -484,6 +540,62 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   toggleQrSize() {
     this.qrSmall.set(!this.qrSmall());
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // drag_all management (admin-only controls)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Enable drag_all mode for the given number of minutes (default 15).
+   * Stores drag_all_until in workspace metadata so all connected clients see it.
+   */
+  enableDragAllMode(minutes: number = DRAG_ALL_DEFAULT_MINUTES): void {
+    const until = new Date(Date.now() + minutes * 60 * 1000);
+    this.dragAllUntil.set(until);
+    this.saveDragAllUntil(until);
+  }
+
+  /**
+   * Disable drag_all mode immediately.
+   */
+  disableDragAllMode(): void {
+    this.dragAllUntil.set(null);
+    this.saveDragAllUntil(null);
+  }
+
+  /**
+   * Adjust the drag_all countdown by the given number of minutes (positive or negative).
+   */
+  adjustDragAllTime(minutes: number): void {
+    const current = this.dragAllUntil();
+    const base = current && current.getTime() > Date.now() ? current : new Date();
+    const newUntil = new Date(base.getTime() + minutes * 60 * 1000);
+    if (newUntil.getTime() <= Date.now()) {
+      this.disableDragAllMode();
+    } else {
+      this.dragAllUntil.set(newUntil);
+      this.saveDragAllUntil(newUntil);
+    }
+  }
+
+  /**
+   * Persist drag_all_until to workspace metadata via the API.
+   * Only called when the current user is an admin.
+   */
+  private saveDragAllUntil(until: Date | null): void {
+    const workspaceId = this.workspace();
+    const adminKey = this.admin_key();
+    if (!workspaceId || workspaceId === 'WORKSPACE_NOT_SET'
+        || !adminKey || adminKey === 'ADMIN_KEY_NOT_SET') {
+      return;
+    }
+    const payload = { drag_all_until: until ? until.toISOString() : null };
+    this.apiService.updateWorkspaceSettings(workspaceId, adminKey, payload)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        error: (err) => console.error('[DRAG_ALL] Error saving drag_all_until:', err)
+      });
   }
 
   /**
@@ -621,19 +733,37 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
+   * Resolve the author_id for the current viewer based on their URL item_key.
+   * The item whose _key or item_key matches the viewer's key determines the author_id.
+   * Once resolved, the repository allows dragging of all same-author items.
+   */
+  private resolveUserAuthorId(items: any[]): void {
+    const key = this.userItemKey();
+    if (!key || this.userAuthorId()) return; // already resolved or no key
+    const match = items.find(item =>
+      (item._key && item._key === key) || (item.item_key && item.item_key === key)
+    );
+    if (match?.author_id) {
+      this.userAuthorId.set(match.author_id);
+    }
+  }
+
+  /**
    * Fetch workspace data to get the display title (workspace source preferred)
+   * and the drag_all_until timestamp for drag_all mode.
+   * Called on init and polled periodically to pick up admin-set flags.
    */
   private fetchWorkspaceData(): void {
     const workspaceId = this.workspace();
-    const apiKey = this.resolveAuthToken();
-    
-    if (!workspaceId || workspaceId === 'WORKSPACE_NOT_SET' || !apiKey) {
+    if (!workspaceId || workspaceId === 'WORKSPACE_NOT_SET') {
       return;
     }
     
-    const httpOptions = {
-      headers: { 'Authorization': apiKey }
-    };
+    const httpOptions: { headers?: Record<string, string> } = {};
+    const apiKey = this.resolveAuthToken();
+    if (apiKey) {
+      httpOptions.headers = { 'Authorization': apiKey };
+    }
     
     this.http.get<any>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${workspaceId}`, httpOptions).pipe(
       takeUntilDestroyed(this.destroyRef)
@@ -646,6 +776,19 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             // Check if additional contributions are allowed
             const allowContributions = workspace.collaborate !== false; // Default to true if not specified
             this.allowAdditionalContributions.set(allowContributions);
+
+            // Read drag_all_until from workspace metadata
+            const dragAllUntilRaw = workspace.drag_all_until;
+            if (dragAllUntilRaw) {
+              const until = new Date(dragAllUntilRaw);
+              if (!isNaN(until.getTime()) && until.getTime() > Date.now()) {
+                this.dragAllUntil.set(until);
+              } else {
+                this.dragAllUntil.set(null);
+              }
+            } else {
+              this.dragAllUntil.set(null);
+            }
           }
         },
         error: (error) => {
@@ -829,6 +972,30 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       .subscribe(() => {
         this.currentZoomLevel.set(this.rendererService.getCurrentZoomLevel());
       });
+
+    // Update drag_all countdown every second
+    interval(1000)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        const until = this.dragAllUntil();
+        if (until) {
+          const remaining = Math.max(0, Math.ceil((until.getTime() - Date.now()) / 1000));
+          this.dragAllRemainingSeconds.set(remaining);
+          // Auto-clear expired flag
+          if (remaining === 0) {
+            this.dragAllUntil.set(null);
+          }
+        }
+      });
+
+    // Poll workspace metadata every 30 seconds to pick up drag_all_until changes
+    interval(ANIMATION_CONSTANTS.API_POLLING_INTERVAL)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        if (this.workspace() !== 'WORKSPACE_NOT_SET') {
+          this.fetchWorkspaceData();
+        }
+      });
     
     // Start initial polling after component is ready
     if (this.platform.browser()) {
@@ -980,13 +1147,30 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           }
         }
 
-        // Single API call with all metadata
+        // Single API call with all metadata.
+        // Determine auth: prefer admin/api_key; fall back to photo's item_key for authors
+        // and drag_all participants.
         const workspace = this.workspace();
         const adminKey = this.admin_key();
-        if (workspace && adminKey && workspace !== 'WORKSPACE_NOT_SET' && adminKey !== 'ADMIN_KEY_NOT_SET') {
+        const apiKey = this.api_key();
+        const photoItemKey = photo.metadata['item_key'] as string | null | undefined;
+        const userKey = this.userItemKey();
+
+        const hasAdminKey = adminKey && adminKey !== 'ADMIN_KEY_NOT_SET';
+        const hasApiKey = apiKey && apiKey !== 'API_KEY_NOT_SET';
+        // Use item_key for the author dragging their own item, or when drag_all is active
+        const useItemKey: string | undefined =
+          (!hasAdminKey && !hasApiKey && photoItemKey) ? photoItemKey :
+          (!hasAdminKey && !hasApiKey && userKey) ? userKey :
+          undefined;
+
+        const canSave = workspace && workspace !== 'WORKSPACE_NOT_SET'
+          && (hasAdminKey || hasApiKey || !!useItemKey);
+
+        if (canSave) {
           try {
             await new Promise<void>((resolve, reject) => {
-              this.apiService.updateProperties(metadataToSave, photoId).subscribe({
+              this.apiService.updateProperties(metadataToSave, photoId, useItemKey).subscribe({
                 next: () => resolve(),
                 error: (error) => {
                   console.error('[DRAG] Error saving to API:', error);

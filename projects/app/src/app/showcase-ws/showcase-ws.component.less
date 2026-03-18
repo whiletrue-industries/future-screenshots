@@ -532,6 +532,150 @@
         }
     }
     
+    // ─── drag_all banner ────────────────────────────────────────────────────────
+    .drag-all-banner {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: rgba(78, 2, 178, 0.92);
+        color: #fff;
+        padding: 8px 16px;
+        border-radius: 0 0 16px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        z-index: 1100;
+        box-shadow: 0 4px 16px rgba(78, 2, 178, 0.35);
+        backdrop-filter: blur(8px);
+        white-space: nowrap;
+
+        .drag-all-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+
+        .drag-all-label {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+
+        .drag-all-timer {
+            font-variant-numeric: tabular-nums;
+            font-size: 16px;
+            font-weight: 700;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .drag-all-admin-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 8px;
+            padding-left: 8px;
+            border-left: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .drag-time-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #fff;
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease;
+
+            &:hover {
+                background: rgba(255, 255, 255, 0.28);
+            }
+
+            &:active {
+                transform: scale(0.96);
+            }
+        }
+
+        .drag-stop-btn {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(255, 80, 80, 0.25);
+            border: 1px solid rgba(255, 80, 80, 0.5);
+            color: #fff;
+            border-radius: 6px;
+            padding: 3px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease;
+
+            .button-icon {
+                width: 14px;
+                height: 14px;
+            }
+
+            &:hover {
+                background: rgba(255, 80, 80, 0.5);
+            }
+
+            &:active {
+                transform: scale(0.96);
+            }
+        }
+
+        // Mobile: collapse to minimal display
+        @media (max-width: 768px) {
+            font-size: 12px;
+            padding: 6px 12px;
+            gap: 6px;
+
+            .drag-all-label {
+                display: none;
+            }
+
+            .drag-all-admin-controls {
+                gap: 4px;
+            }
+        }
+    }
+
+    // ─── drag_all enable button (in zoom-controls) ──────────────────────────────
+    .drag-all-toggle {
+        width: 44px;
+        height: 44px;
+        border: none;
+        background: white;
+        cursor: pointer;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        color: #666;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+        .button-icon {
+            width: 24px;
+            height: 24px;
+        }
+
+        &:hover {
+            color: #4E02B2;
+            background: rgba(78, 2, 178, 0.06);
+            transform: scale(1.05);
+            box-shadow: 0 3px 12px rgba(78, 2, 178, 0.2);
+        }
+
+        &:active {
+            transform: scale(0.95);
+        }
+    }
+
     .filters-bar-container {
         position: absolute;
         top: 0;

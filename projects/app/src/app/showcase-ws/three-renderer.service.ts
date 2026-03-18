@@ -346,8 +346,9 @@ export class ThreeRendererService {
     this.meshToUrl.delete(mesh);
     this.highResActive.delete(mesh);
     
-    // Clean up drag callback
-    this.disableDragForMesh(mesh);
+    // Clean up drag state for this mesh
+    this.dragCallbacks.delete(mesh);
+    this.hoverOnlyMeshes.delete(mesh);
     
     // Dispose of geometry and material
     mesh.geometry.dispose();
@@ -1421,6 +1422,14 @@ export class ThreeRendererService {
   }
 
   /**
+   * Disable drag for a mesh (reverts to hover-only mode).
+   * The drag callback is kept so it can be re-enabled without re-registration.
+   */
+  disableDragForMesh(mesh: THREE.Mesh): void {
+    this.hoverOnlyMeshes.add(mesh);
+  }
+
+  /**
    * Set the photo ID for a mesh (for hotspot detection)
    */
   setMeshPhotoId(mesh: THREE.Mesh, photoId: string): void {
@@ -1685,13 +1694,6 @@ export class ThreeRendererService {
     const isOutside = distance > radius;
 
     return isOutside;
-  }
-
-  /**
-   * Disable drag functionality for a mesh
-   */
-  disableDragForMesh(mesh: THREE.Mesh): void {
-    this.dragCallbacks.delete(mesh);
   }
 
   /**
