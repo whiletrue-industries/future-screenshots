@@ -20,7 +20,7 @@ import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
 
 /** Duration of the drag_all countdown in minutes when first enabled. */
-const DRAG_ALL_DEFAULT_MINUTES = 15;
+const DRAG_ALL_DEFAULT_MINUTES = 5;
 
 @Component({
   selector: 'app-showcase-ws',
@@ -80,6 +80,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     const s = secs % 60;
     return `${m}:${s.toString().padStart(2, '0')}`;
   });
+  dragAllControlsOpen = signal(false);
+  private dragModeDefaultLayoutApplied = false;
   
   // Get the selected item's key (if available)
   selectedItemKey = computed(() => {
@@ -531,7 +533,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   // ─────────────────────────────────────────────────────────────────────────────
 
   /**
-   * Enable drag_all mode for the given number of minutes (default 15).
+   * Enable drag_all mode for the given number of minutes (default 5).
    * Stores drag_all_until in workspace metadata so all connected clients see it.
    */
   enableDragAllMode(minutes: number = DRAG_ALL_DEFAULT_MINUTES): void {
@@ -545,7 +547,20 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   disableDragAllMode(): void {
     this.dragAllUntil.set(null);
+    this.dragAllControlsOpen.set(false);
     this.saveDragAllUntil(null);
+  }
+
+  toggleDragAllControls(event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+    this.dragAllControlsOpen.update((open) => !open);
+  }
+
+  closeDragAllControls(): void {
+    this.dragAllControlsOpen.set(false);
   }
 
   /**
@@ -574,7 +589,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         || !adminKey || adminKey === 'ADMIN_KEY_NOT_SET') {
       return;
     }
-    const payload = { drag_all_until: until ? until.toISOString() : null };
+    // Send an already-expired timestamp (epoch 0) rather than null so that
+    // Firestore servers which ignore null values still see a cleared/expired field.
+    const payload = { drag_all_until: until ? until.toISOString() : new Date(0).toISOString() };
     this.apiService.updateWorkspaceSettings(workspaceId, adminKey, payload)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
@@ -602,31 +619,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  /**
-   * Toggle SVG auto-positioning based on metadata
-   */
-  async toggleSvgAutoPositioning() {
-    if (this.layoutChangeInProgress) {
-      console.warn('[TOGGLE] Layout change in progress, ignoring auto-position toggle');
-      return;
-    }
 
-    const wasEnabled = this.enableSvgAutoPositioning();
-    const willBeEnabled = !wasEnabled;
-    
-    
-    this.enableSvgAutoPositioning.set(willBeEnabled);
-    this.photoRepository.setSvgAutoPositioningEnabled(willBeEnabled);
-    
-    if (this.currentLayout() === 'svg') {
-      this.layoutChangeInProgress = true;
-      try {
-        await this.applySvgLayoutMode(willBeEnabled);
-      } finally {
-        this.layoutChangeInProgress = false;
-      }
-    }
-  }
 
   private async applySvgLayoutMode(enableAutoPositioning: boolean): Promise<void> {
     if (!this.svgBackgroundStrategy || !this.circlePackingForSvg) {
@@ -767,11 +760,25 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             const until = new Date(dragAllUntilRaw);
             if (!isNaN(until.getTime()) && until.getTime() > Date.now()) {
               this.dragAllUntil.set(until);
+              if (!this.dragModeDefaultLayoutApplied) {
+                this.dragModeDefaultLayoutApplied = true;
+                if (this.currentLayout() !== 'svg') {
+                  if (this.isLoading()) {
+                    this.currentLayout.set('svg');
+                  } else {
+                    void this.switchToSvgLayout();
+                  }
+                }
+              }
             } else {
               this.dragAllUntil.set(null);
+              this.dragAllControlsOpen.set(false);
+              this.dragModeDefaultLayoutApplied = false;
             }
           } else {
             this.dragAllUntil.set(null);
+            this.dragAllControlsOpen.set(false);
+            this.dragModeDefaultLayoutApplied = false;
           }
         }
       });
