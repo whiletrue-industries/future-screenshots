@@ -48,6 +48,10 @@ export class ThreeRendererService {
   private readonly BG: number;
   private readonly FISHEYE_SCALE_DAMPING = 5; // Lower = slower/smoother animation
 
+  // SVG rendering resolution constants
+  private static readonly SVG_TARGET_RESOLUTION = 4000;
+  private static readonly SVG_HOVER_OVERLAY_RESOLUTION = 1024;
+
   // Three.js objects
   private container: HTMLElement | null = null;
   private renderer!: THREE.WebGLRenderer;
@@ -110,6 +114,8 @@ export class ThreeRendererService {
   private svgHoverOverlayPlane?: THREE.Mesh;
   private activeHoverGroupId: string | null = null;
   private hoverOverlayRenderToken = 0;
+  private svgHoverOverlayCachedImages = new Map<string | null, ImageData>();
+  private svgHoverOverlayPendingImage: HTMLImageElement | null = null;
   
   // Unified drag-complete callback (position + hotspot data in one call)
   private onDragCompleteCallback?: (photoId: string, result: {
@@ -1530,6 +1536,15 @@ export class ThreeRendererService {
     void this.createSvgHoverOverlay();
   }
 
+  private getSvgDimensions(svg: SVGSVGElement): { width: number; height: number } {
+    const parsedWidth = parseInt(svg.getAttribute('width') || '', 10);
+    const parsedHeight = parseInt(svg.getAttribute('height') || '', 10);
+    return {
+      width: (Number.isFinite(parsedWidth) && parsedWidth > 0) ? parsedWidth : (this.container?.clientWidth ?? 0),
+      height: (Number.isFinite(parsedHeight) && parsedHeight > 0) ? parsedHeight : (this.container?.clientHeight ?? 0),
+    };
+  }
+
   private async createSvgHoverOverlay(): Promise<void> {
     if (!this.container || !this.scene) {
       return;
@@ -1558,16 +1573,14 @@ export class ThreeRendererService {
 
       this.svgHoverOverlayElement = overlaySvg;
 
-      // Build a canvas texture and place it on a plane aligned with the base SVG plane.
-      const svgWidthAttr = overlaySvg.getAttribute('width');
-      const svgHeightAttr = overlaySvg.getAttribute('height');
-      const svgWidth = parseInt(svgWidthAttr || '0', 10) || this.container.clientWidth;
-      const svgHeight = parseInt(svgHeightAttr || '0', 10) || this.container.clientHeight;
+      // Build a canvas texture at a reduced resolution (the overlay is translucent and
+      // doesn't need the same fidelity as the base background).
+      const { width: svgWidth, height: svgHeight } = this.getSvgDimensions(overlaySvg);
 
-      const targetResolution = 4000;
+      const overlayRes = ThreeRendererService.SVG_HOVER_OVERLAY_RESOLUTION;
       const canvas = document.createElement('canvas');
-      canvas.width = targetResolution;
-      canvas.height = targetResolution;
+      canvas.width = overlayRes;
+      canvas.height = overlayRes;
       const ctx = canvas.getContext('2d');
       if (!ctx) {
         return;
@@ -1599,12 +1612,13 @@ export class ThreeRendererService {
 
       this.scene.add(this.svgHoverOverlayPlane);
 
-      // Initial render (all groups hidden).
-      const dpiScaleX = targetResolution / svgWidth;
-      const dpiScaleY = targetResolution / svgHeight;
+      // Initial render (all groups hidden) — cache it so the first hide is instant.
+      const dpiScaleX = overlayRes / svgWidth;
+      const dpiScaleY = overlayRes / svgHeight;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.setTransform(dpiScaleX, 0, 0, dpiScaleY, 0, 0);
+      this.svgHoverOverlayCachedImages.set(null, ctx.getImageData(0, 0, canvas.width, canvas.height));
       this.svgHoverOverlayTexture.needsUpdate = true;
     } catch {
       // Overlay is optional; keep normal behavior if loading fails.
@@ -1632,34 +1646,64 @@ export class ThreeRendererService {
     this.svgHoverOverlayGroups.clear();
     this.activeHoverGroupId = null;
     this.hoverOverlayRenderToken++;
+    this.svgHoverOverlayCachedImages.clear();
+    if (this.svgHoverOverlayPendingImage) {
+      this.svgHoverOverlayPendingImage.onload = null;
+      this.svgHoverOverlayPendingImage.onerror = null;
+      this.svgHoverOverlayPendingImage = null;
+    }
   }
 
-  private async renderSvgHoverOverlayTexture(): Promise<void> {
+  private async renderSvgHoverOverlayTexture(groupId: string | null): Promise<void> {
     if (!this.svgHoverOverlayElement || !this.svgHoverOverlayCanvas || !this.svgHoverOverlayContext || !this.svgHoverOverlayTexture) {
       return;
+    }
+
+    // Fast path: use cached ImageData if this group has been rendered before.
+    const cached = this.svgHoverOverlayCachedImages.get(groupId);
+    if (cached) {
+      this.svgHoverOverlayContext.putImageData(cached, 0, 0);
+      this.svgHoverOverlayTexture.needsUpdate = true;
+      return;
+    }
+
+    // Guard: if the component was destroyed before we reach the async section, bail out.
+    if (!this.container) {
+      return;
+    }
+
+    // Cancel any previous in-flight image decode so we don't queue stale work.
+    if (this.svgHoverOverlayPendingImage) {
+      this.svgHoverOverlayPendingImage.onload = null;
+      this.svgHoverOverlayPendingImage.onerror = null;
+      this.svgHoverOverlayPendingImage = null;
     }
 
     const renderToken = ++this.hoverOverlayRenderToken;
     const svgString = new XMLSerializer().serializeToString(this.svgHoverOverlayElement);
     const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(svgBlob);
+    const img = new Image();
+    this.svgHoverOverlayPendingImage = img;
 
     try {
-      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const image = new Image();
-        image.onload = () => resolve(image);
-        image.onerror = (error) => reject(error);
-        image.src = url;
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = (error) => reject(error);
+        img.src = url;
       });
 
+      // Drop stale renders (a newer call has already taken over).
       if (renderToken !== this.hoverOverlayRenderToken) {
         return;
       }
 
-      const svgWidthAttr = this.svgHoverOverlayElement.getAttribute('width');
-      const svgHeightAttr = this.svgHoverOverlayElement.getAttribute('height');
-      const svgWidth = parseInt(svgWidthAttr || '0', 10) || this.container!.clientWidth;
-      const svgHeight = parseInt(svgHeightAttr || '0', 10) || this.container!.clientHeight;
+      // Guard against component being destroyed while the image was loading.
+      if (!this.container || !this.svgHoverOverlayCanvas || !this.svgHoverOverlayContext || !this.svgHoverOverlayTexture) {
+        return;
+      }
+
+      const { width: svgWidth, height: svgHeight } = this.getSvgDimensions(this.svgHoverOverlayElement);
       const dpiScaleX = this.svgHoverOverlayCanvas.width / svgWidth;
       const dpiScaleY = this.svgHoverOverlayCanvas.height / svgHeight;
 
@@ -1667,11 +1711,23 @@ export class ThreeRendererService {
       this.svgHoverOverlayContext.clearRect(0, 0, this.svgHoverOverlayCanvas.width, this.svgHoverOverlayCanvas.height);
       this.svgHoverOverlayContext.setTransform(dpiScaleX, 0, 0, dpiScaleY, 0, 0);
       this.svgHoverOverlayContext.drawImage(img, 0, 0, svgWidth, svgHeight);
+
+      // Cache the result: subsequent hovers on the same group are instant.
+      this.svgHoverOverlayContext.setTransform(1, 0, 0, 1, 0, 0);
+      this.svgHoverOverlayCachedImages.set(
+        groupId,
+        this.svgHoverOverlayContext.getImageData(0, 0, this.svgHoverOverlayCanvas.width, this.svgHoverOverlayCanvas.height)
+      );
+
       this.svgHoverOverlayTexture.needsUpdate = true;
     } catch {
       // Ignore overlay rendering errors and keep default behavior.
     } finally {
       URL.revokeObjectURL(url);
+      // Only clear the pending reference if it's still the Image we created for this render.
+      if (this.svgHoverOverlayPendingImage === img) {
+        this.svgHoverOverlayPendingImage = null;
+      }
     }
   }
 
@@ -1696,7 +1752,7 @@ export class ThreeRendererService {
       this.activeHoverGroupId = null;
       material.opacity = 0;
       material.needsUpdate = true;
-      void this.renderSvgHoverOverlayTexture();
+      void this.renderSvgHoverOverlayTexture(null);
       return;
     }
 
@@ -1717,7 +1773,7 @@ export class ThreeRendererService {
     this.activeHoverGroupId = groupId;
     material.opacity = 1;
     material.needsUpdate = true;
-    void this.renderSvgHoverOverlayTexture();
+    void this.renderSvgHoverOverlayTexture(groupId);
   }
 
   private animateMaterialOpacity(material: THREE.Material, targetOpacity: number, durationMs = 600): void {
@@ -3174,14 +3230,10 @@ export class ThreeRendererService {
     
     // Set canvas size based on SVG dimensions or container
     // Use SVG width/height attributes since getBoundingClientRect() returns 0 for non-DOM elements
-    const svgWidthAttr = svgOptions.svgElement.getAttribute('width');
-    const svgHeightAttr = svgOptions.svgElement.getAttribute('height');
+    const { width: svgWidth, height: svgHeight } = this.getSvgDimensions(svgOptions.svgElement);
     
-    const svgWidth = parseInt(svgWidthAttr || '0') || this.container!.clientWidth;
-    const svgHeight = parseInt(svgHeightAttr || '0') || this.container!.clientHeight;
-    
-    // Render at high resolution (4000x4000)
-    const targetResolution = 4000;
+    // Render at high resolution
+    const targetResolution = ThreeRendererService.SVG_TARGET_RESOLUTION;
     const dpiScaleX = targetResolution / svgWidth;
     const dpiScaleY = targetResolution / svgHeight;
     canvas.width = targetResolution;
@@ -3608,4 +3660,3 @@ export class ThreeRendererService {
     }
   }
 }
-
