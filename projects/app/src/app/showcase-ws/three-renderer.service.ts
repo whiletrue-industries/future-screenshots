@@ -3660,4 +3660,3 @@ export class ThreeRendererService {
     }
   }
 }
-
