@@ -436,7 +436,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
               transition_bar_position: transitionBarPosition,
               item_key: item._key ?? item.item_key ?? item._key
             };
-            
+
             try {
               await this.photoRepository.addPhoto(metadata); // Add to queue for showcase
               this.loadedPhotoIds.add(id);
@@ -445,8 +445,40 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
               console.error('Error adding photo to queue:', error);
             }
           });
-          
+
           await Promise.all(photoPromises);
+          this.searchIndex.clear();
+        }
+
+        // Sync tracked properties on existing items from the latest API data
+        const SYNC_PROPERTIES = ['layout_x', 'layout_y', 'plausibility', 'favorable_future', 'transition_bar_position'] as const;
+        let metadataChanged = false;
+        for (const item of items) {
+          const id = item._id;
+          if (!this.loadedPhotoIds.has(id)) continue;
+          const photo = this.photoRepository.getPhoto(id);
+          if (!photo) continue;
+
+          const updates: Partial<PhotoMetadata> = {};
+          let hasChanges = false;
+          for (const prop of SYNC_PROPERTIES) {
+            const newVal = item[prop] ?? (prop === 'transition_bar_position' ? this.getDefaultTransitionBarPosition(item) : undefined);
+            if (photo.metadata[prop] !== newVal) {
+              (updates as any)[prop] = newVal;
+              hasChanges = true;
+            }
+          }
+
+          if (hasChanges) {
+            photo.updateMetadata(updates);
+            metadataChanged = true;
+            if ((updates['layout_x'] !== undefined || updates['layout_y'] !== undefined)
+                && this.currentLayout() === 'svg') {
+              this.repositionPhoto(photo);
+            }
+          }
+        }
+        if (metadataChanged) {
           this.searchIndex.clear();
         }
       }
