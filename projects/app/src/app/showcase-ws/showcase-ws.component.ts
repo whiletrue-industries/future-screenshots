@@ -20,7 +20,7 @@ import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
 
 /** Duration of the drag_all countdown in minutes when first enabled. */
-const DRAG_ALL_DEFAULT_MINUTES = 5;
+const DRAG_ALL_DEFAULT_MINUTES = 15;
 
 @Component({
   selector: 'app-showcase-ws',
@@ -619,7 +619,30 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Toggle SVG auto-positioning based on metadata
+   */
+  async toggleSvgAutoPositioning() {
+    if (this.layoutChangeInProgress) {
+      console.warn('[TOGGLE] Layout change in progress, ignoring auto-position toggle');
+      return;
+    }
 
+    const wasEnabled = this.enableSvgAutoPositioning();
+    const willBeEnabled = !wasEnabled;
+
+    this.enableSvgAutoPositioning.set(willBeEnabled);
+    this.photoRepository.setSvgAutoPositioningEnabled(willBeEnabled);
+
+    if (this.currentLayout() === 'svg') {
+      this.layoutChangeInProgress = true;
+      try {
+        await this.applySvgLayoutMode(willBeEnabled);
+      } finally {
+        this.layoutChangeInProgress = false;
+      }
+    }
+  }
 
   private async applySvgLayoutMode(enableAutoPositioning: boolean): Promise<void> {
     if (!this.svgBackgroundStrategy || !this.circlePackingForSvg) {
@@ -736,12 +759,17 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
+    // Build HTTP options with auth header directly — do NOT write to the shared
+    // apiService.api_key signal here, as resolveAuthToken() may return the admin
+    // key and overwriting the singleton would cause privilege escalation for other
+    // parts of the app that read apiService.api_key.
+    const httpOptions: { headers?: Record<string, string> } = {};
     const authToken = this.resolveAuthToken();
     if (authToken) {
-      this.apiService.api_key.set(authToken);
+      httpOptions.headers = { 'Authorization': authToken };
     }
 
-    this.apiService.fetchWorkspace(workspaceId).pipe(
+    this.http.get<any>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${workspaceId}`, httpOptions).pipe(
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
         next: (workspace) => {
@@ -779,6 +807,17 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             this.dragAllUntil.set(null);
             this.dragAllControlsOpen.set(false);
             this.dragModeDefaultLayoutApplied = false;
+          }
+        },
+        error: (error) => {
+          // Log but don't surface to user – transient errors (network, server) are
+          // expected during polling. Auth failures (401/403) are also handled here;
+          // they do not reset workspace state so the UI remains functional.
+          const status = error?.status;
+          if (status === 401 || status === 403) {
+            console.warn('[WORKSPACE] Auth error fetching workspace data (status:', status, ')');
+          } else {
+            console.error('[WORKSPACE] Error fetching workspace data:', error);
           }
         }
       });
