@@ -360,8 +360,9 @@ export class ThreeRendererService {
     this.meshToUrl.delete(mesh);
     this.highResActive.delete(mesh);
     
-    // Clean up drag callback
-    this.disableDragForMesh(mesh);
+    // Clean up drag state for this mesh
+    this.dragCallbacks.delete(mesh);
+    this.hoverOnlyMeshes.delete(mesh);
     
     // Dispose of geometry and material
     mesh.geometry.dispose();
@@ -1428,10 +1429,28 @@ export class ThreeRendererService {
   }
 
   /**
+   * Re-enable drag for a mesh that already has a registered callback.
+   * More efficient than enableDragForMesh when the callback doesn't need to change.
+   */
+  restoreDragForMesh(mesh: THREE.Mesh): boolean {
+    if (!this.dragCallbacks.has(mesh)) return false;
+    this.hoverOnlyMeshes.delete(mesh);
+    return true;
+  }
+
+  /**
    * Enable hover detection for a mesh without enabling drag functionality
    * This allows cursor feedback and click detection without allowing dragging
    */
   enableHoverForMesh(mesh: THREE.Mesh) {
+    this.hoverOnlyMeshes.add(mesh);
+  }
+
+  /**
+   * Disable drag for a mesh (reverts to hover-only mode).
+   * The drag callback is kept so it can be re-enabled without re-registration.
+   */
+  disableDragForMesh(mesh: THREE.Mesh): void {
     this.hoverOnlyMeshes.add(mesh);
   }
 
@@ -1970,13 +1989,6 @@ export class ThreeRendererService {
     const isOutside = distance > radius;
 
     return isOutside;
-  }
-
-  /**
-   * Disable drag functionality for a mesh
-   */
-  disableDragForMesh(mesh: THREE.Mesh): void {
-    this.dragCallbacks.delete(mesh);
   }
 
   /**

@@ -55,6 +55,8 @@ The Showcase WS view provides an interactive 3D visualization of all submitted p
 **Photo Interaction (SVG Layout Only):**
 - Click and drag photos to reposition them on the canvas
 - Photos can be dropped on designated hotspots for categorization
+- When participant drag mode is active, the remaining time appears inside the `Map` tab as a live countdown badge
+- Dropped photos stay on the SVG map and their saved position/category metadata is persisted
 
 ### Keyboard Controls
 

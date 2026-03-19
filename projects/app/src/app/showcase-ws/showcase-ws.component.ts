@@ -19,6 +19,12 @@ import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
 
+/** Duration of the drag_all countdown in minutes when first enabled. */
+const DRAG_ALL_DEFAULT_MINUTES = 5;
+
+/** Properties that collaborators may update during temporary collaboration (drag_all). */
+const DRAG_ALL_ALLOWED_PROPERTIES = 'layout_x,layout_y,plausibility,favorable_future,transition_bar_position';
+
 @Component({
   selector: 'app-showcase-ws',
   imports: [QrcodeComponent, EvaluationSidebarComponent, FiltersBarComponent],
@@ -53,6 +59,32 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   
   // Permalink support - item to focus on after load
   focusItemId = signal<string | null>(null);
+
+  // Item_key for the current viewer (from URL ?key= param)
+  // Allows authors to drag items belonging to their author_id
+  userItemKey = signal<string>('');
+  // Author ID resolved from userItemKey after items are loaded
+  userAuthorId = signal<string | null>(null);
+
+  // drag_all mode – expiry timestamp stored in workspace metadata
+  dragAllUntil = signal<Date | null>(null);
+  // Whether drag_all is currently active (expiry is in the future)
+  dragAllActive = computed(() => {
+    const until = this.dragAllUntil();
+    if (!until) return false;
+    return until.getTime() > Date.now();
+  });
+  // Remaining seconds in the drag_all countdown (updated every second)
+  dragAllRemainingSeconds = signal(0);
+  // Formatted remaining time string (MM:SS)
+  dragAllRemainingFormatted = computed(() => {
+    const secs = this.dragAllRemainingSeconds();
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  });
+  dragAllControlsOpen = signal(false);
+  private dragModeDefaultLayoutApplied = false;
   
   // Get the selected item's key (if available)
   selectedItemKey = computed(() => {
@@ -327,6 +359,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         await Promise.all(photoPromises);
         this.searchIndex.clear();
         
+        // Resolve author_id for the current viewer's item_key.
+        // This enables authors to drag all their own items.
+        this.resolveUserAuthorId(items);
+
         this.qrSmall.set(true);
         this.isLoading.set(false); // Content is now loaded
         
@@ -433,12 +469,21 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.api_key.set(qp['api_key'] || 'API_KEY_NOT_SET');
     this.admin_key.set(qp['admin_key'] || 'ADMIN_KEY_NOT_SET');
     this.lang.set(qp['lang'] ? qp['lang'] + '/' : '');
+
+    // Parse item_key from URL ?key= param (authors visiting showcase with their key)
+    const urlItemKey = qp['key'] || '';
+    this.userItemKey.set(urlItemKey);
     
     // Set drag permissions immediately based on admin status
     // This must be done before photos are added to the repository
     const adminKeyValue = this.admin_key();
     const isAdminUser = adminKeyValue !== '' && adminKeyValue !== 'ADMIN_KEY_NOT_SET';
     this.photoRepository.setDragEnabled(isAdminUser);
+    
+    // Effect: propagate drag_all and author permission changes to the repository atomically
+    effect(() => {
+      this.photoRepository.updateDragPermissions(this.dragAllActive(), this.userAuthorId());
+    });
     
     // Check for item permalink in URL hash (e.g. #item-id)
     if (this.platform.browser()) {
@@ -454,7 +499,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       this.enableSvgAutoPositioning.set(true);
     }
     
-    // Fetch workspace data to get title
+    // Fetch workspace data to get title and drag_all_until flag
     if (this.workspace() !== 'WORKSPACE_NOT_SET') {
       this.fetchWorkspaceData();
     }
@@ -484,6 +529,92 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   toggleQrSize() {
     this.qrSmall.set(!this.qrSmall());
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // drag_all management (admin-only controls)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Enable temporary collaboration for the given number of minutes (default 15).
+   * Uses POST /temporary-collaboration with properties to set allowed fields.
+   */
+  enableDragAllMode(minutes: number = DRAG_ALL_DEFAULT_MINUTES): void {
+    const workspaceId = this.workspace();
+    const adminKey = this.admin_key();
+    if (!workspaceId || workspaceId === 'WORKSPACE_NOT_SET'
+        || !adminKey || adminKey === 'ADMIN_KEY_NOT_SET') {
+      return;
+    }
+    const timeSeconds = minutes * 60;
+    this.apiService.setTemporaryCollaboration(workspaceId, adminKey, timeSeconds, DRAG_ALL_ALLOWED_PROPERTIES)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (resp) => {
+          this.dragAllUntil.set(new Date(Date.now() + resp.ttl * 1000));
+        },
+        error: (err) => console.error('[DRAG_ALL] Error enabling temporary collaboration:', err)
+      });
+  }
+
+  /**
+   * Disable temporary collaboration immediately via DELETE.
+   */
+  disableDragAllMode(): void {
+    const workspaceId = this.workspace();
+    const adminKey = this.admin_key();
+    if (!workspaceId || workspaceId === 'WORKSPACE_NOT_SET'
+        || !adminKey || adminKey === 'ADMIN_KEY_NOT_SET') {
+      return;
+    }
+    this.apiService.deleteTemporaryCollaboration(workspaceId, adminKey)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.dragAllUntil.set(null);
+          this.dragAllControlsOpen.set(false);
+        },
+        error: (err) => console.error('[DRAG_ALL] Error disabling temporary collaboration:', err)
+      });
+  }
+
+  toggleDragAllControls(event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+    this.dragAllControlsOpen.update((open) => !open);
+  }
+
+  closeDragAllControls(): void {
+    this.dragAllControlsOpen.set(false);
+  }
+
+  /**
+   * Adjust the temporary collaboration countdown by the given number of minutes.
+   * Omits properties so the server treats time as a delta on existing expiry.
+   */
+  adjustDragAllTime(minutes: number): void {
+    const workspaceId = this.workspace();
+    const adminKey = this.admin_key();
+    if (!workspaceId || workspaceId === 'WORKSPACE_NOT_SET'
+        || !adminKey || adminKey === 'ADMIN_KEY_NOT_SET') {
+      return;
+    }
+    const deltaSeconds = minutes * 60;
+    this.apiService.setTemporaryCollaboration(workspaceId, adminKey, deltaSeconds)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (resp) => {
+          if (resp.ttl <= 0) {
+            this.dragAllUntil.set(null);
+            this.dragAllControlsOpen.set(false);
+          } else {
+            this.dragAllUntil.set(new Date(Date.now() + resp.ttl * 1000));
+          }
+        },
+        error: (err) => console.error('[DRAG_ALL] Error adjusting temporary collaboration:', err)
+      });
   }
 
   /**
@@ -517,11 +648,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
     const wasEnabled = this.enableSvgAutoPositioning();
     const willBeEnabled = !wasEnabled;
-    
-    
+
     this.enableSvgAutoPositioning.set(willBeEnabled);
     this.photoRepository.setSvgAutoPositioningEnabled(willBeEnabled);
-    
+
     if (this.currentLayout() === 'svg') {
       this.layoutChangeInProgress = true;
       try {
@@ -621,35 +751,65 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Fetch workspace data to get the display title (workspace source preferred)
+   * Resolve the author_id for the current viewer based on their URL item_key.
+   * The item whose _key or item_key matches the viewer's key determines the author_id.
+   * Once resolved, the repository allows dragging of all same-author items.
+   */
+  private resolveUserAuthorId(items: any[]): void {
+    const key = this.userItemKey();
+    if (!key || this.userAuthorId()) return; // already resolved or no key
+    const match = items.find(item =>
+      (item._key && item._key === key) || (item.item_key && item.item_key === key)
+    );
+    if (match?.author_id) {
+      this.userAuthorId.set(match.author_id);
+    }
+  }
+
+  /**
+   * Fetch workspace data to get the display title and temporary_collaboration_ttl.
+   * Called on init and polled periodically to pick up admin-set flags.
    */
   private fetchWorkspaceData(): void {
     const workspaceId = this.workspace();
-    const apiKey = this.resolveAuthToken();
-    
-    if (!workspaceId || workspaceId === 'WORKSPACE_NOT_SET' || !apiKey) {
+    if (!workspaceId || workspaceId === 'WORKSPACE_NOT_SET') {
       return;
     }
-    
-    const httpOptions = {
-      headers: { 'Authorization': apiKey }
-    };
-    
-    this.http.get<any>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${workspaceId}`, httpOptions).pipe(
+
+    const authToken = this.resolveAuthToken() ?? undefined;
+
+    this.apiService.fetchWorkspaceRaw(workspaceId, authToken).pipe(
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
         next: (workspace) => {
-          if (workspace) {
-            const displayTitle = workspace.source || workspace.title || '';
-            this.workspaceTitle.set(displayTitle);
-            
-            // Check if additional contributions are allowed
-            const allowContributions = workspace.collaborate !== false; // Default to true if not specified
-            this.allowAdditionalContributions.set(allowContributions);
+          if (!workspace) {
+            return;
           }
-        },
-        error: (error) => {
-          console.error('Error fetching workspace data:', error);
+
+          const displayTitle = workspace.source || workspace.title || '';
+          this.workspaceTitle.set(displayTitle);
+
+          const allowContributions = workspace.collaborate !== false;
+          this.allowAdditionalContributions.set(allowContributions);
+
+          const ttl = workspace.temporary_collaboration_ttl;
+          if (typeof ttl === 'number' && ttl > 0) {
+            this.dragAllUntil.set(new Date(Date.now() + ttl * 1000));
+            if (!this.dragModeDefaultLayoutApplied) {
+              this.dragModeDefaultLayoutApplied = true;
+              if (this.currentLayout() !== 'svg') {
+                if (this.isLoading()) {
+                  this.currentLayout.set('svg');
+                } else {
+                  void this.switchToSvgLayout();
+                }
+              }
+            }
+          } else {
+            this.dragAllUntil.set(null);
+            this.dragAllControlsOpen.set(false);
+            this.dragModeDefaultLayoutApplied = false;
+          }
         }
       });
   }
@@ -829,6 +989,30 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       .subscribe(() => {
         this.currentZoomLevel.set(this.rendererService.getCurrentZoomLevel());
       });
+
+    // Update drag_all countdown every second
+    interval(1000)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        const until = this.dragAllUntil();
+        if (until) {
+          const remaining = Math.max(0, Math.ceil((until.getTime() - Date.now()) / 1000));
+          this.dragAllRemainingSeconds.set(remaining);
+          // Auto-clear expired flag
+          if (remaining === 0) {
+            this.dragAllUntil.set(null);
+          }
+        }
+      });
+
+    // Poll workspace metadata every 30 seconds to pick up drag_all_until changes
+    interval(ANIMATION_CONSTANTS.API_POLLING_INTERVAL)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        if (this.workspace() !== 'WORKSPACE_NOT_SET') {
+          this.fetchWorkspaceData();
+        }
+      });
     
     // Start initial polling after component is ready
     if (this.platform.browser()) {
@@ -954,6 +1138,15 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         }
 
         const oldAuthorId = photo.metadata['author_id'] as string;
+        const previousMetadata: Record<string, any> = {
+          layout_x: photo.metadata['layout_x'],
+          layout_y: photo.metadata['layout_y']
+        };
+        if (hotspotData) {
+          Object.keys(hotspotData).forEach((key) => {
+            previousMetadata[key] = photo.metadata[key];
+          });
+        }
 
         // Build a single metadata payload for the API
         const metadataToSave: { [key: string]: string | number | null } = {};
@@ -980,13 +1173,33 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           }
         }
 
-        // Single API call with all metadata
+        // Single API call with all metadata.
+        // Determine auth: prefer admin/api_key; fall back to photo's item_key for authors
+        // and drag_all participants.
         const workspace = this.workspace();
         const adminKey = this.admin_key();
-        if (workspace && adminKey && workspace !== 'WORKSPACE_NOT_SET' && adminKey !== 'ADMIN_KEY_NOT_SET') {
+        const apiKey = this.api_key();
+        const photoItemKey = photo.metadata['item_key'] as string | null | undefined;
+        const userKey = this.userItemKey();
+
+        const hasAdminKey = adminKey && adminKey !== 'ADMIN_KEY_NOT_SET';
+        const hasApiKey = apiKey && apiKey !== 'API_KEY_NOT_SET';
+        // During temporary collaboration, the collaborate key (api_key) can update
+        // any item's allowed properties without needing an item_key.
+        const tempCollabActive = this.dragAllActive();
+        const useItemKey: string | undefined = (!hasAdminKey && !tempCollabActive)
+          ? (photoItemKey || userKey || undefined)
+          : undefined;
+
+        const canSave = workspace && workspace !== 'WORKSPACE_NOT_SET'
+          && (hasAdminKey || hasApiKey || !!useItemKey);
+
+        let saveSucceeded = false;
+
+        if (canSave) {
           try {
             await new Promise<void>((resolve, reject) => {
-              this.apiService.updateProperties(metadataToSave, photoId).subscribe({
+              this.apiService.updateProperties(metadataToSave, photoId, useItemKey).subscribe({
                 next: () => resolve(),
                 error: (error) => {
                   console.error('[DRAG] Error saving to API:', error);
@@ -994,16 +1207,51 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
                 }
               });
             });
+            saveSucceeded = true;
           } catch (error) {
             console.error('[DRAG] Error saving to API:', error);
           }
         }
 
-        // Recalculate layout for affected cluster(s)
-        await this.recalculateClusterLayout(oldAuthorId);
-        const newAuthorId = photo.metadata['author_id'] as string;
-        if (newAuthorId && newAuthorId !== oldAuthorId) {
-          await this.recalculateClusterLayout(newAuthorId);
+        if (!saveSucceeded) {
+          if (!canSave) {
+            console.warn('[DRAG] Skipping save due to missing authorization context', {
+              hasAdminKey,
+              hasApiKey,
+              hasItemKey: !!useItemKey
+            });
+          }
+
+          // Do not keep a local-only state that never reaches other clients.
+          // Revert metadata and visual position if persistence failed.
+          photo.updateMetadata(previousMetadata);
+
+          const prevLayoutX = previousMetadata['layout_x'];
+          const prevLayoutY = previousMetadata['layout_y'];
+          if (this.svgBackgroundStrategy
+            && typeof prevLayoutX === 'number'
+            && typeof prevLayoutY === 'number') {
+            const previousWorld = this.svgBackgroundStrategy.normalizedToWorld(prevLayoutX, prevLayoutY);
+            const previousPosition = { x: previousWorld.x, y: previousWorld.y, z: 0 };
+            photo.setTargetPosition(previousPosition);
+            photo.setCurrentPosition(previousPosition);
+            if (photo.mesh) {
+              photo.mesh.position.set(previousPosition.x, previousPosition.y, previousPosition.z);
+            }
+          } else {
+            await this.repositionPhoto(photo);
+          }
+          return;
+        }
+
+        // In SVG mode the dropped coordinates are the source of truth. Avoid cluster-style
+        // relayout there, otherwise free drops can snap back off the map.
+        if (this.currentLayout() !== 'svg') {
+          await this.recalculateClusterLayout(oldAuthorId);
+          const newAuthorId = photo.metadata['author_id'] as string;
+          if (newAuthorId && newAuthorId !== oldAuthorId) {
+            await this.recalculateClusterLayout(newAuthorId);
+          }
         }
 
         // Reposition the dragged photo (handles photos with no author_id,

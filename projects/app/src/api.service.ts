@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { computed, effect, Inject, Injectable, LOCALE_ID, NgZone, signal } from '@angular/core';
 import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
-import { map, Observable, ReplaySubject, switchMap, tap, timer } from 'rxjs';
+import { catchError, map, Observable, of, ReplaySubject, switchMap, tap, timer } from 'rxjs';
 
 export type DiscussResult = {
   complete: boolean;
@@ -71,7 +71,7 @@ export class ApiService {
 
   updateFromRoute(route: ActivatedRouteSnapshot) {
     const workspace = route.queryParams['workspace'] || this.workspaceId();
-    const api_key = route.queryParams['api_key'] || this.api_key();
+    const api_key = route.queryParams['api_key'] || route.queryParams['admin_key'] || this.api_key();
     const automatic = route.queryParams['automatic'] || this.automatic();
     const demo = route.queryParams['demo'] || this.demo();
     if (automatic) {
@@ -111,10 +111,20 @@ export class ApiService {
   }
 
   fetchWorkspace(workspaceId: string): Observable<any> {
-    return this.http.get(`${this.CHRONOMAPS_API_URL}/${workspaceId}`).pipe(
+    const apiKey = this.api_key();
+    const headers: Record<string, string> = {};
+    if (apiKey) {
+      headers['Authorization'] = apiKey;
+    }
+
+    return this.http.get(`${this.CHRONOMAPS_API_URL}/${workspaceId}`, { headers }).pipe(
       map((response: any) => {
         this.workspace.set(response);
         return response;
+      }),
+      catchError((error) => {
+        console.error('Error fetching workspace:', error);
+        return of(null);
       })
     );
   }
@@ -173,9 +183,11 @@ export class ApiService {
   }
 
   updateProperties(metadata: any, item_id: string, item_key?: string): Observable<any> {
-    const headers = {
-      'Authorization': this.api_key() as string,
-    };
+    const headers: Record<string, string> = {};
+    const apiKey = this.api_key();
+    if (apiKey) {
+      headers['Authorization'] = apiKey;
+    }
     let params: any = {};
     if (item_key) {
       params['item-key'] = item_key;  
@@ -183,6 +195,48 @@ export class ApiService {
     return this.http.put(`${this.CHRONOMAPS_API_URL}/${this.workspaceId()}/${item_id}`, metadata, { headers, params }).pipe(
       map(() => {
         return true;
+      })
+    );
+  }
+
+  /**
+   * Activate or adjust temporary collaboration for a workspace.
+   * When `properties` IS provided, `timeSeconds` is duration from now.
+   * When `properties` is OMITTED, `timeSeconds` is a delta on the existing expiry.
+   */
+  setTemporaryCollaboration(
+    workspaceId: string, adminKey: string, timeSeconds: number, properties?: string
+  ): Observable<{ expiry: string; ttl: number; allowed_properties: string[] }> {
+    const headers = { 'Authorization': adminKey };
+    const params: Record<string, string> = { time: String(timeSeconds) };
+    if (properties !== undefined) {
+      params['properties'] = properties;
+    }
+    return this.http.post<{ expiry: string; ttl: number; allowed_properties: string[] }>(
+      `${this.CHRONOMAPS_API_URL}/${workspaceId}/temporary-collaboration`, null, { headers, params }
+    );
+  }
+
+  /**
+   * Delete (cancel) temporary collaboration for a workspace immediately.
+   */
+  deleteTemporaryCollaboration(workspaceId: string, adminKey: string): Observable<any> {
+    const headers = { 'Authorization': adminKey };
+    return this.http.delete(`${this.CHRONOMAPS_API_URL}/${workspaceId}/temporary-collaboration`, { headers });
+  }
+
+  /**
+   * Fetch workspace data with an explicit auth token (no signal side-effects).
+   */
+  fetchWorkspaceRaw(workspaceId: string, authToken?: string): Observable<any> {
+    const headers: Record<string, string> = {};
+    if (authToken) {
+      headers['Authorization'] = authToken;
+    }
+    return this.http.get(`${this.CHRONOMAPS_API_URL}/${workspaceId}`, { headers }).pipe(
+      catchError((error) => {
+        console.error('Error fetching workspace:', error);
+        return of(null);
       })
     );
   }

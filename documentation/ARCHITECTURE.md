@@ -341,22 +341,39 @@ Base URL: Configured via environment/workspace settings
 
 #### Access Control
 
-The showcase supports three levels of access:
+The showcase supports four levels of access:
 
-1. **Visitors** (no admin_key)
+1. **Visitors** (no admin_key, no item_key)
    - Can view items in the showcase
-   - Can click items to view details in sidebar
+   - Can click items to trigger focus animation
    - Cannot drag items or edit evaluations
-   - Read-only mode
+   - When `drag_all` mode is active, can drag any item to the SVG map
 
 2. **Editors** (with admin_key) 
-   - Can drag items in interactive layouts (SVG)
+   - Can drag all items in interactive layouts (SVG) at any time
    - Can click items to edit evaluations in sidebar
    - Full editing permissions for all items
+   - Can enable/disable/adjust the `drag_all` countdown timer
 
-3. **Authors** (with item_key)
-   - Can edit their own items via special edit link
-   - Edit link includes item-specific key for authentication
+3. **Authors** (with `?key=<item_key>` URL parameter)
+   - Can drag all items belonging to the same author_id
+   - Positions are saved to the API using the item_key for authentication
+   - Author identity is resolved by matching the item_key against loaded items
+
+#### drag_all Mode
+
+The `drag_all` mode is a temporary workshop feature that allows any participant (even unauthenticated) to drag screenshots onto the SVG map:
+
+- **Activated by** an admin from the showcase UI (button in the controls panel)
+- **Duration**: 15 minutes by default; the admin can add/subtract minutes or stop early
+- **Expiry**: Stored as `drag_all_until` (ISO timestamp) in the workspace metadata
+- **Cross-client sync**: All clients poll workspace metadata every 30 seconds and pick up the flag
+- **Countdown banner**: Shown to all viewers while active; admin controls are embedded
+- **Position saves**: Positions are persisted using the best available credential:
+  1. Admin key (if present)
+  2. API key / collaborate key (if present in URL)
+  3. Photo's own item_key (for authors)
+  4. Graceful silent failure (visual drag only, no server persistence)
 
 #### Workspace Management
 
