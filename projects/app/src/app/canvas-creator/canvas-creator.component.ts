@@ -82,6 +82,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
   private touchStartX: number | null = null;
   private touchDeltaX = 0;
   private isSwiping = false;
+  private suppressTemplateSelection = false;
   private drawerTouchStartY: number | null = null;
   private drawerTouchDeltaY = 0;
   private placeholderTexts: any[] = [];
@@ -884,6 +885,16 @@ export class CanvasCreatorComponent implements AfterViewInit {
     }, 800);
   }
 
+  onTemplateSelect(index: number) {
+    if (this.suppressTemplateSelection) {
+      this.suppressTemplateSelection = false;
+      return;
+    }
+
+    this.currentTemplateIndex.set(index);
+    this.useCurrentTemplate();
+  }
+
   private spinCarouselToRandomTemplate() {
     if (!this.platform.browser()) return;
     if (this.templates().length === 0) return;
@@ -1570,34 +1581,42 @@ export class CanvasCreatorComponent implements AfterViewInit {
   }
 
   // ----- Carousel swipe handlers -----
-  onCarouselTouchStart(ev: TouchEvent) {
-    if (ev.touches.length !== 1 || this.isCarouselAnimating()) return;
-    this.touchStartX = ev.touches[0].clientX;
+  private startCarouselDrag(clientX: number) {
+    this.touchStartX = clientX;
     this.touchDeltaX = 0;
     this.isSwiping = true;
+    this.suppressTemplateSelection = false;
     this.carouselDragging.set(true);
     this.carouselDragOffset.set(0);
   }
 
-  onCarouselTouchMove(ev: TouchEvent) {
+  private moveCarouselDrag(clientX: number) {
     if (!this.isSwiping || this.touchStartX === null) return;
-    this.touchDeltaX = ev.touches[0].clientX - this.touchStartX;
+    this.touchDeltaX = clientX - this.touchStartX;
+
+    if (Math.abs(this.touchDeltaX) > 8) {
+      this.suppressTemplateSelection = true;
+    }
+
     this.carouselDragOffset.set(this.touchDeltaX);
   }
 
-  onCarouselTouchEnd() {
+  private endCarouselDrag() {
     if (!this.isSwiping) return;
+
     const threshold = 75; // 75px swipe distance to trigger navigation
     const velocity = Math.abs(this.touchDeltaX);
-    
+
     // Determine if we should navigate based on distance and velocity
     // Reset drag state before triggering navigation so guards don't block
     this.isSwiping = false;
     this.carouselDragging.set(false);
 
     if (this.touchDeltaX > threshold || (velocity > 30 && this.touchDeltaX > 0)) {
+      this.suppressTemplateSelection = true;
       this.previousTemplate();
     } else if (this.touchDeltaX < -threshold || (velocity > 30 && this.touchDeltaX < 0)) {
+      this.suppressTemplateSelection = true;
       this.nextTemplate();
     }
 
@@ -1605,6 +1624,52 @@ export class CanvasCreatorComponent implements AfterViewInit {
     this.touchStartX = null;
     this.touchDeltaX = 0;
     this.carouselDragOffset.set(0);
+
+    if (this.suppressTemplateSelection) {
+      setTimeout(() => {
+        this.suppressTemplateSelection = false;
+      }, 0);
+    }
+  }
+
+  onCarouselTouchStart(ev: TouchEvent) {
+    if (ev.touches.length !== 1 || this.isCarouselAnimating()) return;
+    this.startCarouselDrag(ev.touches[0].clientX);
+  }
+
+  onCarouselTouchMove(ev: TouchEvent) {
+    if (!this.isSwiping) return;
+    this.moveCarouselDrag(ev.touches[0].clientX);
+
+    // Prevent native scrolling while performing a horizontal swipe
+    if (Math.abs(this.touchDeltaX) > 8) {
+      ev.preventDefault();
+    }
+  }
+
+  onCarouselTouchEnd() {
+    this.endCarouselDrag();
+  }
+
+  onCarouselMouseDown(ev: MouseEvent) {
+    if (ev.button !== 0 || this.isCarouselAnimating()) return;
+    ev.preventDefault();
+    this.startCarouselDrag(ev.clientX);
+  }
+
+  onCarouselMouseMove(ev: MouseEvent) {
+    if (!this.isSwiping) return;
+    this.moveCarouselDrag(ev.clientX);
+  }
+
+  onCarouselMouseUp() {
+    this.endCarouselDrag();
+  }
+
+  onCarouselMouseLeave() {
+    if (this.isSwiping) {
+      this.endCarouselDrag();
+    }
   }
 
   // ----- Drawer helpers -----

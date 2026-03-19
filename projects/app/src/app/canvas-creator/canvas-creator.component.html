@@ -17,8 +17,13 @@
           @if (templates().length > 0) {
             <div class="carousel"
                  [class.animating]="isCarouselAnimating()"
+                [class.dragging]="carouselDragging()"
                  [style.transform]="carouselTransform()"
                  [style.transition]="carouselTransition()"
+                (mousedown)="onCarouselMouseDown($event)"
+                (mousemove)="onCarouselMouseMove($event)"
+                (mouseup)="onCarouselMouseUp()"
+                (mouseleave)="onCarouselMouseLeave()"
                  (touchstart)="onCarouselTouchStart($event)"
                  (touchmove)="onCarouselTouchMove($event)"
                  (touchend)="onCarouselTouchEnd()">
@@ -26,7 +31,7 @@
                 <div class="carousel-item"
                      [class.active]="i === currentTemplateIndex()"
                      [class.expanding]="isTemplateExpanding() && i === currentTemplateIndex()"
-                     (click)="currentTemplateIndex.set(i); useCurrentTemplate()">
+                 (click)="onTemplateSelect(i)">
                   <div class="carousel-item-content">
                     <img [src]="template.preview" [alt]="template.name" loading="lazy">
                     <div class="template-label">{{ template.name }}</div>
