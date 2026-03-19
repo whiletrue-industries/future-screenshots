@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, DestroyRef, ElementRef, signal, ViewChild, computed, afterNextRender, Injector, inject } from '@angular/core';
+import { AfterViewInit, Component, DestroyRef, ElementRef, signal, ViewChild, computed, afterNextRender, Injector, inject, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
@@ -15,6 +15,11 @@ interface Template {
   url: string;
   preview: string;
 }
+
+const DEFAULT_ACTIVE_TEMPLATE_IDS = [
+  'post', 'chat', 'notification', 'review', 'prompt',
+  'photo', 'sign', 'holyland', 'world'
+];
 
 @Component({
   selector: 'app-canvas-creator',
@@ -109,16 +114,28 @@ export class CanvasCreatorComponent implements AfterViewInit {
     { id: 'prompt', name: 'Prompt', url: '/templates/FS_template_prompt.png', preview: '/templates/FS_template_prompt.png' },
     { id: 'photo', name: 'Photo', url: '/templates/FS_template_photo.png', preview: '/templates/FS_template_photo.png' },
     { id: 'sign', name: 'Sign', url: '/templates/FS_template_sign.png', preview: '/templates/FS_template_sign.png' },
-    // { id: 'holyland', name: 'Holy Land', url: '/templates/FS_template_holyland.png', preview: '/templates/FS_template_holyland.png' },
+    { id: 'holyland', name: 'Holy Land', url: '/templates/FS_template_holyland.png', preview: '/templates/FS_template_holyland.png' },
     { id: 'world', name: 'World', url: '/templates/FS_template_world.png', preview: '/templates/FS_template_world.png' },
-    // { id: 'jerusalem', name: 'Jerusalem', url: '/templates/FS_template_jerusalem.png', preview: '/templates/FS_template_jerusalem.png' },
+    { id: 'jerusalem', name: 'Jerusalem', url: '/templates/FS_template_jerusalem.png', preview: '/templates/FS_template_jerusalem.png' },
     { id: 'us', name: 'United States', url: '/templates/FS_template_US.png', preview: '/templates/FS_template_US.png' },
     { id: 'europe', name: 'Europe', url: '/templates/FS_template_europe.png', preview: '/templates/FS_template_europe.png' },
   ];
 
-  // Show all templates (filtering disabled)
+  activeTemplateIds = computed(() => {
+    const workspace = this.api.workspace();
+    const rawTemplates = workspace?.active_templates ?? workspace?.metadata?.active_templates;
+
+    if (Array.isArray(rawTemplates)) {
+      return rawTemplates.filter((templateId): templateId is string => typeof templateId === 'string');
+    }
+
+    return DEFAULT_ACTIVE_TEMPLATE_IDS;
+  });
+
   templates = computed(() => {
-    return this.allTemplates;
+    const activeTemplateIds = this.activeTemplateIds();
+    const allowedTemplates = new Set(activeTemplateIds);
+    return this.allTemplates.filter((template) => allowedTemplates.has(template.id));
   });
 
   // Template presets: GeoJSON with textbox positions and properties
@@ -659,6 +676,20 @@ export class CanvasCreatorComponent implements AfterViewInit {
           this.handleKeyboardEvent(event);
         });
     }
+
+    effect(() => {
+      const availableTemplates = this.templates();
+      const currentIndex = this.currentTemplateIndex();
+
+      if (availableTemplates.length === 0) {
+        this.currentTemplateIndex.set(0);
+        return;
+      }
+
+      if (currentIndex >= availableTemplates.length) {
+        this.currentTemplateIndex.set(availableTemplates.length - 1);
+      }
+    });
   }
   
   ngAfterViewInit(): void {
@@ -667,12 +698,15 @@ export class CanvasCreatorComponent implements AfterViewInit {
     }
     // If a specific template was requested (re-edit flow), open it
     const requestedId = this.route.snapshot.queryParamMap.get('template_id');
-    if (requestedId && this.templates().length > 0) {
-      const idx = this.templates().findIndex(t => t.id === requestedId);
-      if (idx >= 0) {
-        this.currentTemplateIndex.set(idx);
+    if (requestedId) {
+      const requestedTemplate = this.allTemplates.find((template) => template.id === requestedId);
+      if (requestedTemplate) {
+        const visibleIndex = this.templates().findIndex((template) => template.id === requestedId);
+        if (visibleIndex >= 0) {
+          this.currentTemplateIndex.set(visibleIndex);
+        }
         // Open editor directly with the requested template
-        this.useCurrentTemplate();
+        this.selectTemplate(requestedTemplate);
         // After canvas initializes, restore state if available
         setTimeout(() => {
           this.restoreCanvasState();
@@ -680,6 +714,11 @@ export class CanvasCreatorComponent implements AfterViewInit {
         return;
       }
     }
+
+    if (this.templates().length === 0) {
+      return;
+    }
+
     // Otherwise start carousel spin animation
     this.spinCarouselToRandomTemplate();
   }
@@ -791,12 +830,14 @@ export class CanvasCreatorComponent implements AfterViewInit {
   }
   
   previousTemplate() {
+    if (this.templates().length === 0) return;
     if (this.isCarouselAnimating() || this.carouselDragging()) return;
     const index = this.currentTemplateIndex();
     this.currentTemplateIndex.set(index > 0 ? index - 1 : this.templates().length - 1);
   }
 
   nextTemplate() {
+    if (this.templates().length === 0) return;
     if (this.isCarouselAnimating() || this.carouselDragging()) return;
     const index = this.currentTemplateIndex();
     this.currentTemplateIndex.set((index + 1) % this.templates().length);
@@ -823,6 +864,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
 
   useCurrentTemplate() {
     const template = this.currentTemplate();
+    if (!template) {
+      return;
+    }
     this.selectTemplate(template);
     this.isTemplateExpanding.set(true);
     this.isTransitioning.set(true);
@@ -842,6 +886,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
 
   private spinCarouselToRandomTemplate() {
     if (!this.platform.browser()) return;
+    if (this.templates().length === 0) return;
     
     const randomIndex = Math.floor(Math.random() * this.templates().length);
     // Make animation slower, softer, and shorter - only go through templates once plus landing

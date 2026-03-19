@@ -27,6 +27,7 @@ The language menu reflects the active workspace's supported languages (e.g., Eng
 
 The Canvas Creator lets you compose a screenshot using templates:
 - Swipe or tap arrows to browse templates; dragging snaps to the next/previous item.
+- The gallery only shows templates enabled in the active workspace's settings.
 - The active template is centered; tap to enter the editor.
 - The canvas auto-resizes to fit the visible area and avoids being covered by the bottom controls.
 - Drawing and text layers use multiply blending for natural results.

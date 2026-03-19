@@ -143,6 +143,20 @@
       justify-content: center;
       overflow: hidden;
       flex: 1;
+
+      .carousel-empty-state {
+        width: min(520px, calc(100vw - 48px));
+        margin: 0 auto;
+        padding: 24px 28px;
+        border-radius: 24px;
+        background: rgba(255, 253, 246, 0.12);
+        border: 1px solid rgba(255, 253, 246, 0.22);
+        color: #fffdf6;
+        text-align: center;
+        font-size: 18px;
+        line-height: 1.4;
+        backdrop-filter: blur(12px);
+      }
     }
 
     .carousel {
@@ -224,12 +238,11 @@
         max-height: 85%;
         object-fit: contain;
         border-radius: 12px;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-        transition: box-shadow 0.3s ease;
+
       }
 
       &.active img {
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        
       }
     }
 
