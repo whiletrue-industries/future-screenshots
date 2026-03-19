@@ -20,7 +20,7 @@ import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
 
 /** Duration of the drag_all countdown in minutes when first enabled. */
-const DRAG_ALL_DEFAULT_MINUTES = 15;
+const DRAG_ALL_DEFAULT_MINUTES = 5;
 
 /** Properties that collaborators may update during temporary collaboration (drag_all). */
 const DRAG_ALL_ALLOWED_PROPERTIES = 'layout_x,layout_y,plausibility,favorable_future,transition_bar_position';
