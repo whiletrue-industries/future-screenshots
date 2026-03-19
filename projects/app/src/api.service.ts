@@ -241,57 +241,69 @@ export class ApiService {
     );
   }
 
-  uploadImage(image: Blob, item_id: string, item_key: string): void {
+  uploadImage(image: Blob, metadata?: Record<string, any>): Observable<{ item_id: string; item_key: string }> {
     this.uploadImageInProgress.next(true);
-    this.startDiscussion(image, item_id, item_key).pipe(
-      switchMap((ret: any) => {
+    return this.startDiscussion(image).pipe(
+      map((data: any) => {
+        const item_id = data.item_id || data.metadata?.item_id;
+        const item_key = data.item_key || data.metadata?.item_key;
         this.uploadImageInProgress.next(false);
-        return this.sendInitMessageNoStream(item_id, item_key);
+        // Fire background work: apply metadata then send init message
+        const background$ = (metadata && Object.keys(metadata).length > 0)
+          ? this.updateProperties(metadata, item_id, item_key).pipe(
+              switchMap(() => this.sendInitMessageNoStream(item_id, item_key))
+            )
+          : this.sendInitMessageNoStream(item_id, item_key);
+        background$.subscribe();
+        return { item_id, item_key };
       })
-    ).subscribe((x: any) => {
-    });
-  }    
+    );
+  }
 
-  uploadImageAuto(image: Blob, item_id: string, item_key: string): Observable<any> {
+  uploadImageAuto(image: Blob, metadata?: Record<string, any>): Observable<any> {
     this.uploadImageInProgress.next(true);
-    this.startDiscussion(image, item_id, item_key).pipe(
-      tap(() => {
+    this.startDiscussion(image).pipe(
+      switchMap((data: any) => {
+        const item_id = data.item_id || data.metadata?.item_id;
+        const item_key = data.item_key || data.metadata?.item_key;
         this.uploadImageInProgress.next(false);
-        // After AI processing, save the item with preserved tags back to database
-        const currentItem = this.item();
-        if (currentItem && currentItem.tags && currentItem.tags.length > 0) {
-          console.log('[API] Saving item with preserved tags:', currentItem.tags);
-          // Send tags to database via updateItem to persist them
-          this.updateItem({ tags: currentItem.tags }, item_id, item_key).subscribe(
-            () => console.log('[API] Tags saved to database successfully'),
-            (err) => console.error('[API] Failed to save tags to database:', err)
-          );
+        if (metadata && Object.keys(metadata).length > 0) {
+          return this.updateProperties(metadata, item_id, item_key);
         }
+        return of(true);
       })
     ).subscribe(() => {
       console.log('Auto upload image complete');
     });
     return timer(2000);
-  }    
+  }
 
-  startDiscussion(image: Blob, item_id: string, item_key: string): Observable<any> {
+  startDiscussion(image: Blob, item_id?: string, item_key?: string): Observable<any> {
     const formData = new FormData();
     formData.append('image', image);
     const params: any = {
       workspace: this.workspaceId(),
       api_key: this.api_key(),
-      item_id: item_id,
-      item_key: item_key,
     };
+    if (item_id) {
+      params['item_id'] = item_id;
+    }
+    if (item_key) {
+      params['item_key'] = item_key;
+    }
     if (this.automatic()) {
       params['automatic'] = 'true';
     }
     return this.http.post(this.SCREENSHOT_HANDLER_URL, formData, { params }).pipe(
       tap((data: any) => {
         console.log('Screenshot uploaded successfully', data.metadata);
+        const item_id = data.item_id || data.metadata?.item_id;
+        const item_key = data.item_key || data.metadata?.item_key;
         this.item.update((item: any) => {
-          return Object.assign({}, item, data.metadata);
+          return Object.assign({}, item, data.metadata, { item_id, item_key });
         });
+        this.itemId.set(item_id);
+        this.itemKey.set(item_key);
       })
     );
   }
