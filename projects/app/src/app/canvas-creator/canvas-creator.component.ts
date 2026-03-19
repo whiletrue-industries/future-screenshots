@@ -74,9 +74,13 @@ export class CanvasCreatorComponent implements AfterViewInit {
   showAlignmentToggle = signal(false);
   drawerDragOffset = signal<number>(0);
   drawerDragging = signal<boolean>(false);
+  canUndo = signal(false);
   private touchStartX: number | null = null;
   private touchDeltaX = 0;
   private isSwiping = false;
+  private undoHistory: string[] = [];
+  private isRestoringUndoState = false;
+  private readonly UNDO_HISTORY_LIMIT = 60;
   private drawerTouchStartY: number | null = null;
   private drawerTouchDeltaY = 0;
   private placeholderTexts: any[] = [];
@@ -97,6 +101,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
   private readonly LINE_HEIGHT_SCALE_HEBREW = 1.38;
   private readonly LINE_HEIGHT_SCALE_ARABIC = 1.38;
   private readonly LINE_HEIGHT_SCALE_ENGLISH = 1.0;
+  private readonly CANVAS_STATE_PROPS = ['globalCompositeOperation', 'paintFirst', '_placeholder', '_placeholderText'];
   
   private injector = inject(Injector);
   
@@ -685,6 +690,14 @@ export class CanvasCreatorComponent implements AfterViewInit {
   }
   
   private handleKeyboardEvent(event: KeyboardEvent) {
+    if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
+      if (!this.showTemplateGallery()) {
+        event.preventDefault();
+        this.undo();
+      }
+      return;
+    }
+
     if (event.ctrlKey && event.shiftKey && event.key === 'E') {
       event.preventDefault();
       this.exportTextboxesAsGeoJSON();
@@ -1006,6 +1019,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
     // Place initial chat placeholders (needs canvas to be registered first)
     this.placeInitialChatBoxes(fabricCanvas);
     this.updatePlaceholderVisibility(this.currentMode() === 'type');
+    this.bindUndoTracking(fabricCanvas);
+    this.resetUndoHistory(fabricCanvas);
     
     // Expose console debug helpers directly
     (window as any).textboxDebug = {
@@ -1444,12 +1459,16 @@ export class CanvasCreatorComponent implements AfterViewInit {
   clearCanvas() {
     const fabricCanvas = this.canvas();
     if (!fabricCanvas) return;
-    
+
+    this.isRestoringUndoState = true;
     // Remove all objects except background
     fabricCanvas.getObjects().forEach((obj: any) => {
       fabricCanvas.remove(obj);
     });
-    this.hasContent.set(false);
+    this.isRestoringUndoState = false;
+    this.placeholderTexts = [];
+    this.updateHasContentFromCanvas(fabricCanvas);
+    this.resetUndoHistory(fabricCanvas);
   }
   
   restart() {
@@ -1516,12 +1535,12 @@ export class CanvasCreatorComponent implements AfterViewInit {
   
   undo() {
     const fabricCanvas = this.canvas();
-    if (!fabricCanvas) return;
-    
-    const objects = fabricCanvas.getObjects();
-    if (objects.length > 0) {
-      fabricCanvas.remove(objects[objects.length - 1]);
-    }
+    if (!fabricCanvas || this.undoHistory.length <= 1 || this.isRestoringUndoState) return;
+
+    // Drop current state and restore the previous one.
+    this.undoHistory.pop();
+    const previousState = this.undoHistory[this.undoHistory.length - 1];
+    this.restoreUndoState(fabricCanvas, previousState);
   }
 
   // ----- Carousel swipe handlers -----
@@ -1670,54 +1689,10 @@ export class CanvasCreatorComponent implements AfterViewInit {
       _placeholderText: placeholderText, // Store original placeholder
     });
     this.configureTextbox(text);
-    // Placeholder behavior - select all on focus so typing replaces it
-    text.on('editing:entered', () => {
-      if ((text as any)._placeholder) {
-        text.set({ fill: this.currentColor(), _placeholder: false });
-        // Select all text so first keystroke replaces it
-        text.selectAll();
-        targetCanvas.requestRenderAll();
-      }
-    });
-    // Detect text direction on change
-    text.on('changed', () => {
-      const effectiveText = text.text || '';
-      const isRTL = this.detectRTL(effectiveText);
-      
-      // Determine which RTL font to use based on character set
-      let rtlFont = this.selectedFont();
-      if (isRTL) {
-        // Check if Hebrew or Arabic
-        const hasHebrew = /[\u0590-\u05FF]/.test(effectiveText);
-        const hasArabic = /[\u0600-\u06FF]/.test(effectiveText);
-        if (hasHebrew) {
-          rtlFont = 'Gadi Almog, Miriam Libre, serif';
-        } else if (hasArabic) {
-          rtlFont = 'Mikhak, Readex Pro, sans-serif';
-        }
-      }
-      
-      // Apply font size scaling when switching fonts
-      this.applyFontScaling(text, rtlFont);
-      
-      text.set({ 
-        direction: isRTL ? 'rtl' : 'ltr',
-        textAlign: isRTL ? 'right' : 'left',
-        fontFamily: rtlFont
-      });
-      targetCanvas.requestRenderAll();
-    });
-    // Restore placeholder if empty
-    text.on('editing:exited', () => {
-      const content = text.text || '';
-      if (content.trim() === '') {
-        const originalPlaceholder = (text as any)._placeholderText || 'Type here...';
-        text.set({ text: originalPlaceholder, fill: placeholderColor, _placeholder: true });
-      }
-    });
+    this.attachTextboxLifecycle(text, targetCanvas, placeholderColor);
 
     targetCanvas.add(text);
-    this.hasContent.set(true);
+    this.updateHasContentFromCanvas(targetCanvas);
     if (focus) {
       targetCanvas.setActiveObject(text);
       text.enterEditing();
@@ -1984,6 +1959,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
 
     try {
       const stateObj = JSON.parse(savedState);
+      this.isRestoringUndoState = true;
       // Clear current objects (keep background)
       const existingObjects = fabricCanvas.getObjects();
       existingObjects.forEach((obj: any) => fabricCanvas.remove(obj));
@@ -2012,59 +1988,21 @@ export class CanvasCreatorComponent implements AfterViewInit {
               }
               
               // Re-attach event handlers
-              obj.on('editing:entered', () => {
-                if ((obj as any)._placeholder) {
-                  obj.set({ fill: this.currentColor(), _placeholder: false });
-                  obj.selectAll();
-                  fabricCanvas.requestRenderAll();
-                }
-              });
-              obj.on('changed', () => {
-                const effectiveText = obj.text || '';
-                const isRTL = this.detectRTL(effectiveText);
-                
-                let rtlFont = this.selectedFont();
-                if (isRTL) {
-                  const hasHebrew = /[\u0590-\u05FF]/.test(effectiveText);
-                  const hasArabic = /[\u0600-\u06FF]/.test(effectiveText);
-                  if (hasHebrew) {
-                    rtlFont = 'Gadi Almog, Miriam Libre, serif';
-                  } else if (hasArabic) {
-                    rtlFont = 'Mikhak, Readex Pro, sans-serif';
-                  }
-                }
-                
-                // Apply font size scaling when switching fonts
-                this.applyFontScaling(obj, rtlFont);
-                
-                obj.set({ 
-                  direction: isRTL ? 'rtl' : 'ltr',
-                  textAlign: isRTL ? 'right' : 'left',
-                  fontFamily: rtlFont
-                });
-                fabricCanvas.requestRenderAll();
-              });
-              obj.on('editing:exited', () => {
-                const content = obj.text || '';
-                if (content.trim() === '') {
-                  const originalPlaceholder = (obj as any)._placeholderText || 'Type here...';
-                  obj.set({ text: originalPlaceholder, fill: '#9aa0a6', _placeholder: true });
-                }
-              });
+              this.attachTextboxLifecycle(obj, fabricCanvas, '#9aa0a6');
             }
           });
           
           this.placeholderTexts = textboxes;
           // Count only non-placeholder objects for hasContent
-          const contentObjects = allObjects.filter((obj: any) => 
-            obj.type !== 'textbox' || (!(obj as any)._placeholder && obj.text && obj.text.trim() !== '')
-          );
-          this.hasContent.set(contentObjects.length > 0);
+          this.updateHasContentFromCanvas(fabricCanvas);
           fabricCanvas.renderAll();
+          this.isRestoringUndoState = false;
+          this.resetUndoHistory(fabricCanvas);
           console.log('Canvas state restored successfully with', textboxes.length, 'textboxes');
         }, 100);
       });
     } catch (error) {
+      this.isRestoringUndoState = false;
       console.error('Failed to restore canvas state:', error);
     }
   }
@@ -2110,5 +2048,149 @@ export class CanvasCreatorComponent implements AfterViewInit {
 
     console.log('Textbox Positions (GeoJSON)');
     console.log(JSON.stringify(geojson, null, 2));
+  }
+
+  private bindUndoTracking(fabricCanvas: any) {
+    const track = () => {
+      if (this.isRestoringUndoState) return;
+      this.pushUndoState(fabricCanvas);
+      this.updateHasContentFromCanvas(fabricCanvas);
+    };
+
+    fabricCanvas.on('object:added', track);
+    fabricCanvas.on('object:removed', track);
+    fabricCanvas.on('object:modified', track);
+    fabricCanvas.on('text:editing:exited', track);
+  }
+
+  private resetUndoHistory(fabricCanvas: any) {
+    this.undoHistory = [];
+    this.pushUndoState(fabricCanvas);
+    this.canUndo.set(false);
+  }
+
+  private pushUndoState(fabricCanvas: any) {
+    const nextState = this.serializeCanvasObjects(fabricCanvas);
+    const lastState = this.undoHistory[this.undoHistory.length - 1];
+
+    if (nextState === lastState) {
+      this.canUndo.set(this.undoHistory.length > 1);
+      return;
+    }
+
+    this.undoHistory.push(nextState);
+    if (this.undoHistory.length > this.UNDO_HISTORY_LIMIT) {
+      this.undoHistory.shift();
+    }
+    this.canUndo.set(this.undoHistory.length > 1);
+  }
+
+  private serializeCanvasObjects(fabricCanvas: any): string {
+    const json = fabricCanvas.toJSON(this.CANVAS_STATE_PROPS);
+    return JSON.stringify(json.objects || []);
+  }
+
+  private restoreUndoState(fabricCanvas: any, serializedObjects: string) {
+    let objects: any[] = [];
+    try {
+      const parsed = JSON.parse(serializedObjects);
+      if (Array.isArray(parsed)) {
+        objects = parsed;
+      }
+    } catch {
+      objects = [];
+    }
+
+    const backgroundImage = fabricCanvas.backgroundImage;
+    const backgroundState = (backgroundImage && typeof (backgroundImage as any).toObject === 'function')
+      ? (backgroundImage as any).toObject(this.CANVAS_STATE_PROPS)
+      : null;
+    this.isRestoringUndoState = true;
+
+    fabricCanvas.discardActiveObject();
+    const nextState = backgroundState
+      ? { objects, backgroundImage: backgroundState }
+      : { objects };
+
+    fabricCanvas.loadFromJSON(nextState, () => {
+      // Fallback: if fabric failed to revive background from JSON, keep prior background.
+      if (!fabricCanvas.backgroundImage && backgroundImage) {
+        fabricCanvas.set('backgroundImage', backgroundImage);
+      }
+
+      const textboxes = fabricCanvas.getObjects().filter((obj: any) => obj.type === 'textbox');
+      textboxes.forEach((textbox: any) => {
+        this.configureTextbox(textbox);
+        this.attachTextboxLifecycle(textbox, fabricCanvas, '#9aa0a6');
+      });
+
+      this.placeholderTexts = textboxes;
+      this.updateHasContentFromCanvas(fabricCanvas);
+      fabricCanvas.requestRenderAll();
+
+      this.isRestoringUndoState = false;
+      this.canUndo.set(this.undoHistory.length > 1);
+    });
+  }
+
+  private updateHasContentFromCanvas(fabricCanvas: any) {
+    const contentObjects = fabricCanvas.getObjects().filter((obj: any) => {
+      if (obj.type !== 'textbox') {
+        return true;
+      }
+
+      const text = (obj.text || '').trim();
+      return !(obj as any)._placeholder && text.length > 0;
+    });
+
+    this.hasContent.set(contentObjects.length > 0);
+  }
+
+  private attachTextboxLifecycle(text: any, targetCanvas: any, placeholderColor: string) {
+    text.off('editing:entered');
+    text.off('changed');
+    text.off('editing:exited');
+
+    text.on('editing:entered', () => {
+      if ((text as any)._placeholder) {
+        text.set({ fill: this.currentColor(), _placeholder: false });
+        text.selectAll();
+        targetCanvas.requestRenderAll();
+      }
+    });
+
+    text.on('changed', () => {
+      const effectiveText = text.text || '';
+      const isRTL = this.detectRTL(effectiveText);
+
+      let rtlFont = this.selectedFont();
+      if (isRTL) {
+        const hasHebrew = /[\u0590-\u05FF]/.test(effectiveText);
+        const hasArabic = /[\u0600-\u06FF]/.test(effectiveText);
+        if (hasHebrew) {
+          rtlFont = 'Gadi Almog, Miriam Libre, serif';
+        } else if (hasArabic) {
+          rtlFont = 'Mikhak, Readex Pro, sans-serif';
+        }
+      }
+
+      this.applyFontScaling(text, rtlFont);
+
+      text.set({
+        direction: isRTL ? 'rtl' : 'ltr',
+        textAlign: isRTL ? 'right' : 'left',
+        fontFamily: rtlFont,
+      });
+      targetCanvas.requestRenderAll();
+    });
+
+    text.on('editing:exited', () => {
+      const content = text.text || '';
+      if (content.trim() === '') {
+        const originalPlaceholder = (text as any)._placeholderText || 'Type here...';
+        text.set({ text: originalPlaceholder, fill: placeholderColor, _placeholder: true });
+      }
+      targetCanvas.requestRenderAll();
+    });
   }
 }
