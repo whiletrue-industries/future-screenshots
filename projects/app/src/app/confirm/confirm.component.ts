@@ -154,33 +154,32 @@ export class ConfirmComponent {
       metadata.tags = tags;
     }
 
-    this.api.createItem(metadata).subscribe({
-      next: (res: any) => {
-        const params: any = {
-          'item-id': res.item_id,
-          'key': res.item_key
-        };
-        if (this.isTemplateFlow) {
-          params['template'] = 'true';
+    if (!this.api.automatic()) {
+      this.api.uploadImage(currentImage, metadata).subscribe({
+        next: (res) => {
+          const params: any = {
+            'item-id': res.item_id,
+            'key': res.item_key
+          };
+          if (this.isTemplateFlow) {
+            params['template'] = 'true';
+          }
+          this.router.navigate(['/props'], { queryParams: params, queryParamsHandling: 'merge' });
+        },
+        error: (error) => {
+          console.error('[CONFIRM] Failed to upload image:', error);
+          if (error.status === 403) {
+            alert('Access denied. Please check that you have the correct API key with write permissions for this workspace.');
+          } else {
+            alert('Failed to upload image. Please try again or contact support.');
+          }
         }
-        if (!this.api.automatic()) {
-          this.api.uploadImage(currentImage, res.item_id, res.item_key);
-          this.router.navigate(['/props'], { queryParams: params, queryParamsHandling: 'merge'});
-        } else {
-          this.api.uploadImageAuto(currentImage, res.item_id, res.item_key).subscribe(() => {
-            this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
-          });
-        }
-      },
-      error: (error) => {
-        console.error('[CONFIRM] Failed to create item:', error);
-        if (error.status === 403) {
-          alert('Access denied. Please check that you have the correct API key with write permissions for this workspace.');
-        } else {
-          alert('Failed to create item. Please try again or contact support.');
-        }
-      }
-    });
+      });
+    } else {
+      this.api.uploadImageAuto(currentImage, metadata).subscribe(() => {
+        this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
+      });
+    }
   }
 
   private uploadReplace(image: Blob, replaceItemId: string, itemKey?: string) {
