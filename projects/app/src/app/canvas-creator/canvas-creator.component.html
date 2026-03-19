@@ -14,34 +14,43 @@
           <div class="spacer"></div>
         </div>
         <div class="carousel-wrapper">
-          <div class="carousel"
-               [class.animating]="isCarouselAnimating()"
-               [style.transform]="carouselTransform()"
-               [style.transition]="carouselTransition()"
-               (touchstart)="onCarouselTouchStart($event)"
-               (touchmove)="onCarouselTouchMove($event)"
-               (touchend)="onCarouselTouchEnd()">
-            @for (template of templates(); track template.id; let i = $index) {
-              <div class="carousel-item"
-                   [class.active]="i === currentTemplateIndex()"
-                   [class.expanding]="isTemplateExpanding() && i === currentTemplateIndex()"
-                   (click)="currentTemplateIndex.set(i); useCurrentTemplate()">
-                <div class="carousel-item-content">
-                  <img [src]="template.preview" [alt]="template.name" loading="lazy">
-                  <div class="template-label">{{ template.name }}</div>
+          @if (templates().length > 0) {
+            <div class="carousel"
+                 [class.animating]="isCarouselAnimating()"
+                [class.dragging]="carouselDragging()"
+                 [style.transform]="carouselTransform()"
+                 [style.transition]="carouselTransition()"
+                (mousedown)="onCarouselMouseDown($event)"
+                (mousemove)="onCarouselMouseMove($event)"
+                (mouseup)="onCarouselMouseUp()"
+                (mouseleave)="onCarouselMouseLeave()"
+                 (touchstart)="onCarouselTouchStart($event)"
+                 (touchmove)="onCarouselTouchMove($event)"
+                 (touchend)="onCarouselTouchEnd()">
+              @for (template of templates(); track template.id; let i = $index) {
+                <div class="carousel-item"
+                     [class.active]="i === currentTemplateIndex()"
+                     [class.expanding]="isTemplateExpanding() && i === currentTemplateIndex()"
+                 (click)="onTemplateSelect(i)">
+                  <div class="carousel-item-content">
+                    <img [src]="template.preview" [alt]="template.name" loading="lazy">
+                    <div class="template-label">{{ template.name }}</div>
+                  </div>
                 </div>
-              </div>
-            }
-          </div>
+              }
+            </div>
+          } @else {
+            <div class="carousel-empty-state" i18n>No templates are enabled for this workspace.</div>
+          }
         </div>
         <div class="carousel-controls">
           <button class="carousel-nav prev" 
                   (click)="previousTemplate()"
-                  [disabled]="isCarouselAnimating()"
+                  [disabled]="isCarouselAnimating() || templates().length === 0"
                   aria-label="Previous template">‹</button>
           <button class="carousel-nav next" 
                   (click)="nextTemplate()"
-                  [disabled]="isCarouselAnimating()"
+                  [disabled]="isCarouselAnimating() || templates().length === 0"
                   aria-label="Next template">›</button>
         </div>
       </div>
