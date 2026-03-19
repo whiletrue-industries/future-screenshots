@@ -200,12 +200,45 @@ export class ApiService {
   }
 
   /**
-   * Update workspace-level settings (requires admin key).
-   * Used to set/clear the drag_all_until timestamp and other workspace flags.
+   * Activate or adjust temporary collaboration for a workspace.
+   * When `properties` IS provided, `timeSeconds` is duration from now.
+   * When `properties` is OMITTED, `timeSeconds` is a delta on the existing expiry.
    */
-  updateWorkspaceSettings(workspaceId: string, adminKey: string, settings: Record<string, any>): Observable<any> {
+  setTemporaryCollaboration(
+    workspaceId: string, adminKey: string, timeSeconds: number, properties?: string
+  ): Observable<{ expiry: string; ttl: number; allowed_properties: string[] }> {
     const headers = { 'Authorization': adminKey };
-    return this.http.put(`${this.CHRONOMAPS_API_URL}/${workspaceId}`, settings, { headers });
+    const params: Record<string, string> = { time: String(timeSeconds) };
+    if (properties !== undefined) {
+      params['properties'] = properties;
+    }
+    return this.http.post<{ expiry: string; ttl: number; allowed_properties: string[] }>(
+      `${this.CHRONOMAPS_API_URL}/${workspaceId}/temporary-collaboration`, null, { headers, params }
+    );
+  }
+
+  /**
+   * Delete (cancel) temporary collaboration for a workspace immediately.
+   */
+  deleteTemporaryCollaboration(workspaceId: string, adminKey: string): Observable<any> {
+    const headers = { 'Authorization': adminKey };
+    return this.http.delete(`${this.CHRONOMAPS_API_URL}/${workspaceId}/temporary-collaboration`, { headers });
+  }
+
+  /**
+   * Fetch workspace data with an explicit auth token (no signal side-effects).
+   */
+  fetchWorkspaceRaw(workspaceId: string, authToken?: string): Observable<any> {
+    const headers: Record<string, string> = {};
+    if (authToken) {
+      headers['Authorization'] = authToken;
+    }
+    return this.http.get(`${this.CHRONOMAPS_API_URL}/${workspaceId}`, { headers }).pipe(
+      catchError((error) => {
+        console.error('Error fetching workspace:', error);
+        return of(null);
+      })
+    );
   }
 
   uploadImage(image: Blob, item_id: string, item_key: string): void {

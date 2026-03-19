@@ -22,6 +22,9 @@ import { ApiService } from '../../api.service';
 /** Duration of the drag_all countdown in minutes when first enabled. */
 const DRAG_ALL_DEFAULT_MINUTES = 15;
 
+/** Properties that collaborators may update during temporary collaboration (drag_all). */
+const DRAG_ALL_ALLOWED_PROPERTIES = 'layout_x,layout_y,plausibility,favorable_future,transition_bar_position';
+
 @Component({
   selector: 'app-showcase-ws',
   imports: [QrcodeComponent, EvaluationSidebarComponent, FiltersBarComponent],
@@ -533,22 +536,46 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   // ─────────────────────────────────────────────────────────────────────────────
 
   /**
-   * Enable drag_all mode for the given number of minutes (default 5).
-   * Stores drag_all_until in workspace metadata so all connected clients see it.
+   * Enable temporary collaboration for the given number of minutes (default 15).
+   * Uses POST /temporary-collaboration with properties to set allowed fields.
    */
   enableDragAllMode(minutes: number = DRAG_ALL_DEFAULT_MINUTES): void {
-    const until = new Date(Date.now() + minutes * 60 * 1000);
-    this.dragAllUntil.set(until);
-    this.saveDragAllUntil(until);
+    const workspaceId = this.workspace();
+    const adminKey = this.admin_key();
+    if (!workspaceId || workspaceId === 'WORKSPACE_NOT_SET'
+        || !adminKey || adminKey === 'ADMIN_KEY_NOT_SET') {
+      return;
+    }
+    const timeSeconds = minutes * 60;
+    this.apiService.setTemporaryCollaboration(workspaceId, adminKey, timeSeconds, DRAG_ALL_ALLOWED_PROPERTIES)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (resp) => {
+          this.dragAllUntil.set(new Date(Date.now() + resp.ttl * 1000));
+        },
+        error: (err) => console.error('[DRAG_ALL] Error enabling temporary collaboration:', err)
+      });
   }
 
   /**
-   * Disable drag_all mode immediately.
+   * Disable temporary collaboration immediately via DELETE.
    */
   disableDragAllMode(): void {
-    this.dragAllUntil.set(null);
-    this.dragAllControlsOpen.set(false);
-    this.saveDragAllUntil(null);
+    const workspaceId = this.workspace();
+    const adminKey = this.admin_key();
+    if (!workspaceId || workspaceId === 'WORKSPACE_NOT_SET'
+        || !adminKey || adminKey === 'ADMIN_KEY_NOT_SET') {
+      return;
+    }
+    this.apiService.deleteTemporaryCollaboration(workspaceId, adminKey)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.dragAllUntil.set(null);
+          this.dragAllControlsOpen.set(false);
+        },
+        error: (err) => console.error('[DRAG_ALL] Error disabling temporary collaboration:', err)
+      });
   }
 
   toggleDragAllControls(event?: Event): void {
@@ -564,38 +591,29 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Adjust the drag_all countdown by the given number of minutes (positive or negative).
+   * Adjust the temporary collaboration countdown by the given number of minutes.
+   * Omits properties so the server treats time as a delta on existing expiry.
    */
   adjustDragAllTime(minutes: number): void {
-    const current = this.dragAllUntil();
-    const base = current && current.getTime() > Date.now() ? current : new Date();
-    const newUntil = new Date(base.getTime() + minutes * 60 * 1000);
-    if (newUntil.getTime() <= Date.now()) {
-      this.disableDragAllMode();
-    } else {
-      this.dragAllUntil.set(newUntil);
-      this.saveDragAllUntil(newUntil);
-    }
-  }
-
-  /**
-   * Persist drag_all_until to workspace metadata via the API.
-   * Only called when the current user is an admin.
-   */
-  private saveDragAllUntil(until: Date | null): void {
     const workspaceId = this.workspace();
     const adminKey = this.admin_key();
     if (!workspaceId || workspaceId === 'WORKSPACE_NOT_SET'
         || !adminKey || adminKey === 'ADMIN_KEY_NOT_SET') {
       return;
     }
-    // Send an already-expired timestamp (epoch 0) rather than null so that
-    // Firestore servers which ignore null values still see a cleared/expired field.
-    const payload = { drag_all_until: until ? until.toISOString() : new Date(0).toISOString() };
-    this.apiService.updateWorkspaceSettings(workspaceId, adminKey, payload)
+    const deltaSeconds = minutes * 60;
+    this.apiService.setTemporaryCollaboration(workspaceId, adminKey, deltaSeconds)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        error: (err) => console.error('[DRAG_ALL] Error saving drag_all_until:', err)
+        next: (resp) => {
+          if (resp.ttl <= 0) {
+            this.dragAllUntil.set(null);
+            this.dragAllControlsOpen.set(false);
+          } else {
+            this.dragAllUntil.set(new Date(Date.now() + resp.ttl * 1000));
+          }
+        },
+        error: (err) => console.error('[DRAG_ALL] Error adjusting temporary collaboration:', err)
       });
   }
 
@@ -749,8 +767,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Fetch workspace data to get the display title (workspace source preferred)
-   * and the drag_all_until timestamp for drag_all mode.
+   * Fetch workspace data to get the display title and temporary_collaboration_ttl.
    * Called on init and polled periodically to pick up admin-set flags.
    */
   private fetchWorkspaceData(): void {
@@ -759,17 +776,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    // Build HTTP options with auth header directly — do NOT write to the shared
-    // apiService.api_key signal here, as resolveAuthToken() may return the admin
-    // key and overwriting the singleton would cause privilege escalation for other
-    // parts of the app that read apiService.api_key.
-    const httpOptions: { headers?: Record<string, string> } = {};
-    const authToken = this.resolveAuthToken();
-    if (authToken) {
-      httpOptions.headers = { 'Authorization': authToken };
-    }
+    const authToken = this.resolveAuthToken() ?? undefined;
 
-    this.http.get<any>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${workspaceId}`, httpOptions).pipe(
+    this.apiService.fetchWorkspaceRaw(workspaceId, authToken).pipe(
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
         next: (workspace) => {
@@ -783,41 +792,23 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           const allowContributions = workspace.collaborate !== false;
           this.allowAdditionalContributions.set(allowContributions);
 
-          const dragAllUntilRaw = workspace.drag_all_until;
-          if (dragAllUntilRaw) {
-            const until = new Date(dragAllUntilRaw);
-            if (!isNaN(until.getTime()) && until.getTime() > Date.now()) {
-              this.dragAllUntil.set(until);
-              if (!this.dragModeDefaultLayoutApplied) {
-                this.dragModeDefaultLayoutApplied = true;
-                if (this.currentLayout() !== 'svg') {
-                  if (this.isLoading()) {
-                    this.currentLayout.set('svg');
-                  } else {
-                    void this.switchToSvgLayout();
-                  }
+          const ttl = workspace.temporary_collaboration_ttl;
+          if (typeof ttl === 'number' && ttl > 0) {
+            this.dragAllUntil.set(new Date(Date.now() + ttl * 1000));
+            if (!this.dragModeDefaultLayoutApplied) {
+              this.dragModeDefaultLayoutApplied = true;
+              if (this.currentLayout() !== 'svg') {
+                if (this.isLoading()) {
+                  this.currentLayout.set('svg');
+                } else {
+                  void this.switchToSvgLayout();
                 }
               }
-            } else {
-              this.dragAllUntil.set(null);
-              this.dragAllControlsOpen.set(false);
-              this.dragModeDefaultLayoutApplied = false;
             }
           } else {
             this.dragAllUntil.set(null);
             this.dragAllControlsOpen.set(false);
             this.dragModeDefaultLayoutApplied = false;
-          }
-        },
-        error: (error) => {
-          // Log but don't surface to user – transient errors (network, server) are
-          // expected during polling. Auth failures (401/403) are also handled here;
-          // they do not reset workspace state so the UI remains functional.
-          const status = error?.status;
-          if (status === 401 || status === 403) {
-            console.warn('[WORKSPACE] Auth error fetching workspace data (status:', status, ')');
-          } else {
-            console.error('[WORKSPACE] Error fetching workspace data:', error);
           }
         }
       });
@@ -1193,9 +1184,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
         const hasAdminKey = adminKey && adminKey !== 'ADMIN_KEY_NOT_SET';
         const hasApiKey = apiKey && apiKey !== 'API_KEY_NOT_SET';
-        // Collaborator updates require the per-item key. Prefer the dragged photo's key,
-        // then fall back to the viewer's URL key for same-author item access.
-        const useItemKey: string | undefined = !hasAdminKey
+        // During temporary collaboration, the collaborate key (api_key) can update
+        // any item's allowed properties without needing an item_key.
+        const tempCollabActive = this.dragAllActive();
+        const useItemKey: string | undefined = (!hasAdminKey && !tempCollabActive)
           ? (photoItemKey || userKey || undefined)
           : undefined;
 
