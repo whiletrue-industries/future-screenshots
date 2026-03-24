@@ -22,59 +22,12 @@
             white-space: nowrap;
         }
     }
-
-    .bottom-bar {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        z-index: 2;
-        display: flex;
-        flex-flow: row nowrap;
-        align-items: center;
-        justify-content: center;
-        padding: 16px 24px 32px;
-        gap: 24px;
-        pointer-events: none;
-    }
-
-    .manual-crop-button {
-        pointer-events: all;
-        display: flex;
-        flex-flow: row nowrap;
-        align-items: center;
-        gap: 6px;
-        padding: 10px 18px;
-        border: 1.5px solid fade(white, 60%);
-        border-radius: 24px;
-        background: fade(@color-dark-purple, 70%);
-        color: white;
-        .font-sans;
-        font-size: 14px;
-        font-weight: 500;
-        cursor: pointer;
-        backdrop-filter: blur(4px);
-        transition: background 0.2s, border-color 0.2s;
-        animation: popIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
-
-        svg {
-            flex: 0 0 auto;
-        }
-
-        &:hover, &:focus-visible {
-            background: fade(@color-dark-purple, 90%);
-            border-color: white;
-            outline: none;
-        }
-
-        &:focus-visible {
-            outline: 2px solid white;
-            outline-offset: 2px;
-        }
-    }
-
     .camera-button {
-        pointer-events: all;
+        position: absolute;
+        bottom: 32px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1;
         width: 66px;
         height: 66px;
         .background-image;
@@ -82,12 +35,10 @@
         background-size: 66px;
         transform-origin: center;
         will-change: transform, opacity;
+        // Elegant pop-in to draw attention when the button appears
         animation: popIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        // Subtle elevation for visibility
         filter: drop-shadow(0 8px 24px fade(@color-dark-purple, 30%));
-        border: none;
-        background-color: transparent;
-        cursor: pointer;
-        padding: 0;
     }
 
     .close {
@@ -100,7 +51,7 @@
     .action {
         position: relative;
         flex: 1 1 auto;
-
+    
         video, canvas, svg {
             width: 100%;
             height: 100%;
@@ -129,6 +80,7 @@
     }
 }
 
+// Use the example from above but change it to start at translateX(-50%)translateY(300%) and end at translateX(-50%)translateY(0%)
 @keyframes showElastic {
     0% {
         transform: translateY(-300%);
@@ -163,24 +115,25 @@
     }
 }
 
+// Accessible, subtle attention animation for the camera button
 @keyframes popIn {
     0% {
-        transform: scale(0.92);
+        transform: translateX(-50%) scale(0.92);
         opacity: 0;
     }
     60% {
-        transform: scale(1.06);
+        transform: translateX(-50%) scale(1.06);
         opacity: 1;
     }
     100% {
-        transform: scale(1);
+        transform: translateX(-50%) scale(1);
         opacity: 1;
     }
 }
 
+// Reduced motion: prefer minimal fade without scale/bounce
 @media (prefers-reduced-motion: reduce) {
-    :host .camera-button,
-    :host .manual-crop-button {
+    :host .camera-button {
         animation: popFade 160ms ease-out both;
     }
 }

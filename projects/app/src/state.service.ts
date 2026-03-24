@@ -1,13 +1,6 @@
 import { computed, effect, Injectable, signal } from '@angular/core';
 import { PlatformService } from './platform.service';
 
-export type CropCornerPoints = {
-  topLeftCorner: { x: number; y: number };
-  topRightCorner: { x: number; y: number };
-  bottomLeftCorner: { x: number; y: number };
-  bottomRightCorner: { x: number; y: number };
-};
-
 @Injectable({
   providedIn: 'root'
 })
@@ -24,37 +17,6 @@ export class StateService {
   batchPotential = signal<number | null>(null);
   batchTags = signal<string[]>([]);
   batchTagsInput = signal<string>('');
-
-  /** Full-resolution uncropped image captured from the camera */
-  rawCapturedImage = signal<Blob | null>(null);
-  /** Raw image URL for display in crop editor */
-  rawCapturedImageUrl = signal<string | null>(null);
-  /** Whether the confirm screen should show interactive crop handles */
-  pendingManualCrop = signal<boolean>(false);
-  /** Auto-detected corner points (in raw image coordinates) to pre-populate crop handles */
-  pendingCropCorners = signal<CropCornerPoints | null>(null);
-
-  setRawImage(image: Blob, corners: CropCornerPoints | null = null, needsManualCrop = false) {
-    this.rawCapturedImage.set(image);
-    const prev = this.rawCapturedImageUrl();
-    if (prev) {
-      URL.revokeObjectURL(prev);
-    }
-    this.rawCapturedImageUrl.set(URL.createObjectURL(image));
-    this.pendingCropCorners.set(corners);
-    this.pendingManualCrop.set(needsManualCrop);
-  }
-
-  clearRawImage() {
-    const prev = this.rawCapturedImageUrl();
-    if (prev) {
-      URL.revokeObjectURL(prev);
-    }
-    this.rawCapturedImageUrl.set(null);
-    this.rawCapturedImage.set(null);
-    this.pendingCropCorners.set(null);
-    this.pendingManualCrop.set(false);
-  }
 
   constructor(private platform: PlatformService) {
     // Restore tags from localStorage on init
