@@ -249,6 +249,7 @@
         overflow: hidden;
 
         .inner {
+            position: relative;
             width: 100%;
             height: 100%;
             display: flex;
@@ -260,8 +261,74 @@
                 object-position: center;
                 max-width: 100%;
                 max-height: 100%;
-            }    
+                display: block;
+            }
+
+            .crop-overlay {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                pointer-events: none;
+                overflow: visible;
+
+                .crop-polygon {
+                    fill: fade(@color-light-purple, 20%);
+                    stroke: @color-light-purple;
+                    stroke-width: 2;
+                }
+            }
+
+            .corner-handle {
+                position: absolute;
+                width: 28px;
+                height: 28px;
+                transform: translate(-50%, -50%);
+                border-radius: 50%;
+                background: @color-light-purple;
+                border: 3px solid white;
+                cursor: grab;
+                touch-action: none;
+                padding: 0;
+                box-shadow: 0 2px 6px fade(#000, 40%);
+                transition: transform 0.1s, background 0.1s;
+
+                &:hover, &:focus-visible {
+                    background: white;
+                    transform: translate(-50%, -50%) scale(1.2);
+                    outline: none;
+                }
+
+                &:active {
+                    cursor: grabbing;
+                    transform: translate(-50%, -50%) scale(1.1);
+                }
+            }
+
+            .crop-error {
+                position: absolute;
+                bottom: 8px;
+                left: 8px;
+                right: 8px;
+                background: fade(@color-dark-purple, 80%);
+                color: @color-creme;
+                border-radius: 8px;
+                padding: 8px 12px;
+                .font-sans;
+                font-size: 13px;
+                margin: 0;
+                text-align: center;
+            }
         }
+    }
+
+    .crop-instruction {
+        flex: 0 0 auto;
+        text-align: center;
+        padding: 8px 16px 0;
+        .font-sans;
+        font-size: 13px;
+        color: @color-accent;
     }
 
     .confirm-buttons {

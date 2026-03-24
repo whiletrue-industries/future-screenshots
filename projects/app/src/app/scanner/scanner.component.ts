@@ -4,7 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { debounceTime, delay, distinctUntilChanged, filter, interval, map, Subject, take, takeUntil, tap, timer } from 'rxjs';
 import { ApiService } from '../../api.service';
 import { PlatformService } from '../../platform.service';
-import { StateService } from '../../state.service';
+import { StateService, CropCornerPoints } from '../../state.service';
 import { LtrDirective } from '../ltr.directive';
 
 declare const jscanify: any;
@@ -13,12 +13,7 @@ declare const window: any;
 
 type Point = { x: number, y: number };
 
-type CornerPoints = {
-  topLeftCorner: Point;
-  topRightCorner: Point;
-  bottomLeftCorner: Point;
-  bottomRightCorner: Point;
-};
+type CornerPoints = CropCornerPoints;
 
 
 @Component({
@@ -38,7 +33,6 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
 
   COUNTDOWN_INITIAL = 30;
   FRAME_COUNT_DARKER = 100;
-  TIMEOUT_DURATION = 5000; // 5 seconds in milliseconds
   DEFAULT_CORNER_MARGIN = 0.15; // 15% margin for default corner points
   countDown = this.COUNTDOWN_INITIAL;
   scanState = null;
@@ -67,8 +61,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   points = signal<{x: number, y: number}[]>([]);
   cameraClicked = signal<boolean>(false);
   displayCameraButton = signal<boolean>(false);
-  scanStartTime: number = 0;
-  timeoutReached = signal<boolean>(false);
+  /** Last validated corner points (in full video resolution) from edge detection */
+  lastValidCornerPoints: CornerPoints | null = null;
 
   constructor(
     private el: ElementRef, 
@@ -132,6 +126,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  private imageCapture: any = null; // ImageCapture instance
+
   startScanner() {
     const constraints: any = {
       audio: false,
@@ -143,6 +139,10 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
         this.stream = stream;
         this.videoEl.nativeElement.srcObject = stream;
         const track = stream.getVideoTracks()[0];
+        // Set up ImageCapture for high-resolution stills
+        if (typeof (window as any).ImageCapture !== 'undefined') {
+          this.imageCapture = new (window as any).ImageCapture(track);
+        }
         const capabilities: any = track.getCapabilities();
         if (capabilities.torch) {
           // Turn on the flash by applying the constraint
@@ -262,12 +262,10 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     this.videoWidthM.set(videoWidth);
     this.canvasEl.nativeElement.width = videoWidth;
     this.canvasEl.nativeElement.height = videoHeight;
-    const ratio = Math.min(this.el.nativeElement.clientWidth / videoWidth, this.el.nativeElement.clientHeight / videoHeight);
     const sampleRatio = Math.floor(Math.min(videoHeight / 640, videoWidth / 480));
     console.log('SAMPLE RATIO', sampleRatio);
 
     let count = 0;
-    this.scanStartTime = Date.now();
     interval(33).pipe(
       takeUntilDestroyed(this.destroyRef),
       takeUntil(this.stopScannerSubject),
@@ -321,20 +319,9 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     ).subscribe((shape: {valid: boolean, snap: boolean, blurry: boolean, cornerPoints: CornerPoints} | null) => {
       this.setPoints(shape?.snap ? shape?.cornerPoints || null : null);
 
-      // Check if timeout has elapsed and no valid edges found yet
-      if (this.shouldShowTimeoutButton(shape)) {
-        this.timeoutReached.set(true);
-        this.displayCameraButton.set(true);
-        this.displayMsgSubject.next($localize`Edges not detected. You can submit anyway.`);
-      }
-      
-      // Hide camera button and reset timeout if valid edges are found after timeout
-      if (shape?.valid && this.timeoutReached()) {
-        this.timeoutReached.set(false);
-        this.displayCameraButton.set(false);
-      }
-
       if (shape?.cornerPoints) {
+        // Scale detected corners from the downsampled frame back to full video resolution.
+        // Both the display overlay and the high-res capture use the full-resolution coordinates.
         shape.cornerPoints.topLeftCorner.x *= sampleRatio;
         shape.cornerPoints.topLeftCorner.y *= sampleRatio;
         shape.cornerPoints.topRightCorner.x *= sampleRatio;
@@ -343,6 +330,9 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
         shape.cornerPoints.bottomLeftCorner.y *= sampleRatio;
         shape.cornerPoints.bottomRightCorner.x *= sampleRatio;
         shape.cornerPoints.bottomRightCorner.y *= sampleRatio;
+        if (shape.valid) {
+          this.lastValidCornerPoints = { ...shape.cornerPoints };
+        }
       }
       if (shape?.valid) {
         this.displayMsgSubject.next($localize`hold still...`);
@@ -356,21 +346,10 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
           this.displayCameraButton.set(true);
         }
         if (this.cameraClicked()) {
-          this.extractAndNavigate(scanner, shape.cornerPoints);
+          this.captureAndNavigate(scanner, shape.cornerPoints, false);
         }
       } else {
         this.countDown = this.COUNTDOWN_INITIAL;
-      }
-
-      // Handle camera click when timeout was reached (use default corners)
-      if (this.cameraClicked() && this.timeoutReached()) {
-        const defaultCornerPoints = {
-          topLeftCorner: { x: videoWidth * this.DEFAULT_CORNER_MARGIN, y: videoHeight * this.DEFAULT_CORNER_MARGIN },
-          topRightCorner: { x: videoWidth * (1 - this.DEFAULT_CORNER_MARGIN), y: videoHeight * this.DEFAULT_CORNER_MARGIN },
-          bottomLeftCorner: { x: videoWidth * this.DEFAULT_CORNER_MARGIN, y: videoHeight * (1 - this.DEFAULT_CORNER_MARGIN) },
-          bottomRightCorner: { x: videoWidth * (1 - this.DEFAULT_CORNER_MARGIN), y: videoHeight * (1 - this.DEFAULT_CORNER_MARGIN) }
-        };
-        this.extractAndNavigate(scanner, defaultCornerPoints);
       }
     });
   }
@@ -395,31 +374,133 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     ]);
   }
 
-  extractAndNavigate(scanner: any, cornerPoints: CornerPoints) {
+  /**
+   * Capture a high-resolution still image (via ImageCapture API when available,
+   * falling back to the current canvas frame) and navigate to confirm.
+   *
+   * @param scanner  jscanify instance for perspective extraction
+   * @param cornerPoints  Detected corner points in full video-resolution coordinates
+   * @param manualCrop  When true, skip perspective extraction and let the user
+   *                    adjust the crop handles on the confirm screen instead
+   */
+  captureAndNavigate(scanner: any, cornerPoints: CornerPoints, manualCrop: boolean) {
     this.countDown = -1;
-    const frame = scanner.extractPaper(this.canvasEl.nativeElement, 1060, 2000, cornerPoints);
-    console.log('Extraction result:', frame);
-    this.stream?.getTracks().forEach((track) => {
-      if (track.readyState == 'live') {
-          track.stop();
-      }
-    });
-    this.videoEl.nativeElement.pause();
-    this.stream = null;
-    // Convert the result to a JPEG image
-    frame.toBlob((blob: Blob) => {
-      if (blob) {
-        this.state.setImage(blob);
+    this.stopScanner();
+
+    if (manualCrop) {
+      // Capture the full-res photo and pass it to the confirm screen as a raw image
+      // so the user can adjust the crop interactively.
+      this.captureHighResBlob().then((blob) => {
+        const corners = this.lastValidCornerPoints;
+        this.state.setRawImage(blob, corners, true);
         this.router.navigate(['/confirm'], { queryParamsHandling: 'merge' });
-      }
-    }, 'image/jpeg', 0.95);
+      });
+      return;
+    }
+
+    // Auto-crop: take a high-res still and perform perspective extraction immediately.
+    this.captureHighResBlob().then((blob) => {
+      this.extractFromBlob(scanner, blob, cornerPoints);
+    });
   }
 
-  shouldShowTimeoutButton(shape: {valid: boolean} | null): boolean {
-    const elapsedTime = Date.now() - this.scanStartTime;
-    return elapsedTime >= this.TIMEOUT_DURATION && 
-           !shape?.valid && 
-           !this.timeoutReached();
+  /**
+   * Capture a high-resolution still from the camera track.
+   * Uses ImageCapture.takePhoto() when supported, otherwise falls back
+   * to ImageCapture.grabFrame() and finally to the current canvas frame.
+   */
+  private captureHighResBlob(): Promise<Blob> {
+    if (this.imageCapture) {
+      // Prefer takePhoto() – it triggers a hardware still and can be significantly
+      // higher resolution than the live video stream.
+      return (this.imageCapture.takePhoto() as Promise<Blob>).catch(() => {
+        // grabFrame() as secondary fallback (returns an ImageBitmap)
+        return (this.imageCapture.grabFrame() as Promise<ImageBitmap>).then((bitmap: ImageBitmap) => {
+          const offscreen = document.createElement('canvas');
+          offscreen.width = bitmap.width;
+          offscreen.height = bitmap.height;
+          const ctx = offscreen.getContext('2d')!;
+          ctx.drawImage(bitmap, 0, 0);
+          bitmap.close();
+          return new Promise<Blob>((resolve, reject) => {
+            offscreen.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/jpeg', 0.95);
+          });
+        });
+      }).catch(() => this.canvasToBlob());
+    }
+    return this.canvasToBlob();
+  }
+
+  /** Convert the current canvas contents to a JPEG Blob. */
+  private canvasToBlob(): Promise<Blob> {
+    return new Promise<Blob>((resolve, reject) => {
+      this.canvasEl.nativeElement.toBlob(
+        (b) => b ? resolve(b) : reject(new Error('toBlob failed')),
+        'image/jpeg',
+        0.95
+      );
+    });
+  }
+
+  /**
+   * Draw the blob onto an offscreen canvas, apply perspective extraction with
+   * jscanify, convert to JPEG, and navigate to /confirm.
+   */
+  private extractFromBlob(scanner: any, blob: Blob, cornerPoints: CornerPoints) {
+    const img = new Image();
+    const url = URL.createObjectURL(blob);
+    img.onload = () => {
+      // Draw the blob image into an offscreen canvas at its natural resolution
+      const offscreen = document.createElement('canvas');
+      offscreen.width = img.naturalWidth;
+      offscreen.height = img.naturalHeight;
+      const ctx = offscreen.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+
+      // Scale corner points from the original video dimensions to the blob dimensions
+      const scaleX = img.naturalWidth / this.videoWidthM();
+      const scaleY = img.naturalHeight / this.videoHeightM();
+      const scaledCorners: CornerPoints = {
+        topLeftCorner:     { x: cornerPoints.topLeftCorner.x * scaleX,     y: cornerPoints.topLeftCorner.y * scaleY },
+        topRightCorner:    { x: cornerPoints.topRightCorner.x * scaleX,    y: cornerPoints.topRightCorner.y * scaleY },
+        bottomLeftCorner:  { x: cornerPoints.bottomLeftCorner.x * scaleX,  y: cornerPoints.bottomLeftCorner.y * scaleY },
+        bottomRightCorner: { x: cornerPoints.bottomRightCorner.x * scaleX, y: cornerPoints.bottomRightCorner.y * scaleY },
+      };
+
+      const frame = scanner.extractPaper(offscreen, 1060, 2000, scaledCorners);
+      console.log('Extraction result:', frame);
+      frame.toBlob((result: Blob) => {
+        if (result) {
+          this.state.setImage(result);
+          this.router.navigate(['/confirm'], { queryParamsHandling: 'merge' });
+        }
+      }, 'image/jpeg', 0.95);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      // Fallback: use canvas frame for extraction
+      const frame = scanner.extractPaper(this.canvasEl.nativeElement, 1060, 2000, cornerPoints);
+      frame.toBlob((result: Blob) => {
+        if (result) {
+          this.state.setImage(result);
+          this.router.navigate(['/confirm'], { queryParamsHandling: 'merge' });
+        }
+      }, 'image/jpeg', 0.95);
+    };
+    img.src = url;
+  }
+
+  /** Called when the user clicks the manual-crop button to skip auto-detection. */
+  onManualCropClicked() {
+    const scanner = new jscanify();
+    const defaultCornerPoints: CornerPoints = {
+      topLeftCorner:     { x: this.videoWidthM() * this.DEFAULT_CORNER_MARGIN,       y: this.videoHeightM() * this.DEFAULT_CORNER_MARGIN },
+      topRightCorner:    { x: this.videoWidthM() * (1 - this.DEFAULT_CORNER_MARGIN), y: this.videoHeightM() * this.DEFAULT_CORNER_MARGIN },
+      bottomLeftCorner:  { x: this.videoWidthM() * this.DEFAULT_CORNER_MARGIN,       y: this.videoHeightM() * (1 - this.DEFAULT_CORNER_MARGIN) },
+      bottomRightCorner: { x: this.videoWidthM() * (1 - this.DEFAULT_CORNER_MARGIN), y: this.videoHeightM() * (1 - this.DEFAULT_CORNER_MARGIN) },
+    };
+    this.captureAndNavigate(scanner, defaultCornerPoints, true);
   }
 
   ngOnDestroy() {
@@ -442,8 +523,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   restartScanner() {
     this.stopScanner();
     this.countDown = this.COUNTDOWN_INITIAL;
-    this.timeoutReached.set(false);
-    this.scanStartTime = 0;
+    this.lastValidCornerPoints = null;
     console.log('RESTARTING SCANNER');
     timer(500).subscribe(() => {
       this.startScanner();
