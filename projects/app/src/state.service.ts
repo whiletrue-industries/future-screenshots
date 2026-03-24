@@ -1,6 +1,13 @@
 import { computed, effect, Injectable, signal } from '@angular/core';
 import { PlatformService } from './platform.service';
 
+export type CropCornerPoints = {
+  topLeftCorner: { x: number; y: number };
+  topRightCorner: { x: number; y: number };
+  bottomLeftCorner: { x: number; y: number };
+  bottomRightCorner: { x: number; y: number };
+};
+
 @Injectable({
   providedIn: 'root'
 })
@@ -17,6 +24,11 @@ export class StateService {
   batchPotential = signal<number | null>(null);
   batchTags = signal<string[]>([]);
   batchTagsInput = signal<string>('');
+
+  // Raw captured image for manual crop flow
+  rawCapturedImage = signal<Blob | null>(null);
+  rawCapturedImageUrl = signal<string | null>(null);
+  pendingCropCorners = signal<CropCornerPoints | null>(null);
 
   constructor(private platform: PlatformService) {
     // Restore tags from localStorage on init
@@ -46,5 +58,25 @@ export class StateService {
       URL.revokeObjectURL(currentImageUrl);
     }
     this.currentImageUrl.set(URL.createObjectURL(image));
+  }
+
+  setRawImage(image: Blob, corners?: CropCornerPoints) {
+    this.rawCapturedImage.set(image);
+    const existing = this.rawCapturedImageUrl();
+    if (existing) {
+      URL.revokeObjectURL(existing);
+    }
+    this.rawCapturedImageUrl.set(URL.createObjectURL(image));
+    this.pendingCropCorners.set(corners ?? null);
+  }
+
+  clearRawImage() {
+    const url = this.rawCapturedImageUrl();
+    if (url) {
+      URL.revokeObjectURL(url);
+    }
+    this.rawCapturedImageUrl.set(null);
+    this.rawCapturedImage.set(null);
+    this.pendingCropCorners.set(null);
   }
 }

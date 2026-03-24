@@ -4,7 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { debounceTime, delay, distinctUntilChanged, filter, interval, map, Subject, take, takeUntil, tap, timer } from 'rxjs';
 import { ApiService } from '../../api.service';
 import { PlatformService } from '../../platform.service';
-import { StateService } from '../../state.service';
+import { CropCornerPoints, StateService } from '../../state.service';
 import { LtrDirective } from '../ltr.directive';
 
 declare const jscanify: any;
@@ -36,11 +36,9 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvas', { static: true }) canvasEl!: ElementRef<HTMLCanvasElement>;
   canvasCtx: CanvasRenderingContext2D | null;
 
-  COUNTDOWN_INITIAL = 30;
   FRAME_COUNT_DARKER = 100;
   TIMEOUT_DURATION = 5000; // 5 seconds in milliseconds
   DEFAULT_CORNER_MARGIN = 0.15; // 15% margin for default corner points
-  countDown = this.COUNTDOWN_INITIAL;
   scanState = null;
   stream: MediaStream | null = null;
   stopScannerSubject = new Subject<void>();
@@ -65,10 +63,10 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     return `M${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y} L ${points[2].x} ${points[2].y} L ${points[3].x} ${points[3].y} Z`;
   });
   points = signal<{x: number, y: number}[]>([]);
-  cameraClicked = signal<boolean>(false);
-  displayCameraButton = signal<boolean>(false);
+  buttonReady = signal<boolean>(false);
   scanStartTime: number = 0;
-  timeoutReached = signal<boolean>(false);
+  lastValidCorners: CropCornerPoints | null = null;
+  private navigating = false;
 
   constructor(
     private el: ElementRef, 
@@ -271,7 +269,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     interval(33).pipe(
       takeUntilDestroyed(this.destroyRef),
       takeUntil(this.stopScannerSubject),
-      filter(() => this.countDown >= 0),
+      filter(() => !this.navigating),
       map(() => {
         let frame: any = null;
         let resampledFrame: any = null;
@@ -321,19 +319,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     ).subscribe((shape: {valid: boolean, snap: boolean, blurry: boolean, cornerPoints: CornerPoints} | null) => {
       this.setPoints(shape?.snap ? shape?.cornerPoints || null : null);
 
-      // Check if timeout has elapsed and no valid edges found yet
-      if (this.shouldShowTimeoutButton(shape)) {
-        this.timeoutReached.set(true);
-        this.displayCameraButton.set(true);
-        this.displayMsgSubject.next($localize`Edges not detected. You can submit anyway.`);
-      }
-      
-      // Hide camera button and reset timeout if valid edges are found after timeout
-      if (shape?.valid && this.timeoutReached()) {
-        this.timeoutReached.set(false);
-        this.displayCameraButton.set(false);
-      }
-
+      // Scale corner points from display-resolution back to video-resolution
       if (shape?.cornerPoints) {
         shape.cornerPoints.topLeftCorner.x *= sampleRatio;
         shape.cornerPoints.topLeftCorner.y *= sampleRatio;
@@ -344,33 +330,23 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
         shape.cornerPoints.bottomRightCorner.x *= sampleRatio;
         shape.cornerPoints.bottomRightCorner.y *= sampleRatio;
       }
+
       if (shape?.valid) {
+        this.buttonReady.set(true);
+        if (shape.cornerPoints) {
+          this.lastValidCorners = {
+            topLeftCorner: { ...shape.cornerPoints.topLeftCorner },
+            topRightCorner: { ...shape.cornerPoints.topRightCorner },
+            bottomLeftCorner: { ...shape.cornerPoints.bottomLeftCorner },
+            bottomRightCorner: { ...shape.cornerPoints.bottomRightCorner },
+          };
+        }
         this.displayMsgSubject.next($localize`hold still...`);
-        if (this.countDown > 0) {
-          this.countDown -= 1;
-        }
-        if (!shape.blurry && this.countDown > 5) {
-          this.countDown = 0;
-        }
-        if (this.countDown === 0) {
-          this.displayCameraButton.set(true);
-        }
-        if (this.cameraClicked()) {
-          this.extractAndNavigate(scanner, shape.cornerPoints);
-        }
-      } else {
-        this.countDown = this.COUNTDOWN_INITIAL;
       }
 
-      // Handle camera click when timeout was reached (use default corners)
-      if (this.cameraClicked() && this.timeoutReached()) {
-        const defaultCornerPoints = {
-          topLeftCorner: { x: videoWidth * this.DEFAULT_CORNER_MARGIN, y: videoHeight * this.DEFAULT_CORNER_MARGIN },
-          topRightCorner: { x: videoWidth * (1 - this.DEFAULT_CORNER_MARGIN), y: videoHeight * this.DEFAULT_CORNER_MARGIN },
-          bottomLeftCorner: { x: videoWidth * this.DEFAULT_CORNER_MARGIN, y: videoHeight * (1 - this.DEFAULT_CORNER_MARGIN) },
-          bottomRightCorner: { x: videoWidth * (1 - this.DEFAULT_CORNER_MARGIN), y: videoHeight * (1 - this.DEFAULT_CORNER_MARGIN) }
-        };
-        this.extractAndNavigate(scanner, defaultCornerPoints);
+      // Unlock the button after timeout even without detected edges
+      if (!this.buttonReady() && Date.now() - this.scanStartTime >= this.TIMEOUT_DURATION) {
+        this.buttonReady.set(true);
       }
     });
   }
@@ -395,31 +371,31 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     ]);
   }
 
-  extractAndNavigate(scanner: any, cornerPoints: CornerPoints) {
-    this.countDown = -1;
-    const frame = scanner.extractPaper(this.canvasEl.nativeElement, 1060, 2000, cornerPoints);
-    console.log('Extraction result:', frame);
-    this.stream?.getTracks().forEach((track) => {
-      if (track.readyState == 'live') {
-          track.stop();
-      }
-    });
-    this.videoEl.nativeElement.pause();
-    this.stream = null;
-    // Convert the result to a JPEG image
-    frame.toBlob((blob: Blob) => {
+  captureAndNavigate() {
+    if (this.navigating) return;
+    this.navigating = true;
+    this.stopScannerSubject.next();
+    // Ensure the canvas has the latest video frame
+    this.canvasCtx?.drawImage(this.videoEl.nativeElement, 0, 0);
+    this.canvasEl.nativeElement.toBlob((blob: Blob | null) => {
       if (blob) {
-        this.state.setImage(blob);
+        this.state.setRawImage(blob, this.lastValidCorners || undefined);
+        this.stopCamera();
         this.router.navigate(['/confirm'], { queryParamsHandling: 'merge' });
+      } else {
+        this.navigating = false;
       }
     }, 'image/jpeg', 0.95);
   }
 
-  shouldShowTimeoutButton(shape: {valid: boolean} | null): boolean {
-    const elapsedTime = Date.now() - this.scanStartTime;
-    return elapsedTime >= this.TIMEOUT_DURATION && 
-           !shape?.valid && 
-           !this.timeoutReached();
+  private stopCamera() {
+    this.stream?.getTracks().forEach((track) => {
+      if (track.readyState === 'live') {
+        track.stop();
+      }
+    });
+    this.videoEl.nativeElement.pause();
+    this.stream = null;
   }
 
   ngOnDestroy() {
@@ -441,8 +417,9 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
 
   restartScanner() {
     this.stopScanner();
-    this.countDown = this.COUNTDOWN_INITIAL;
-    this.timeoutReached.set(false);
+    this.buttonReady.set(false);
+    this.lastValidCorners = null;
+    this.navigating = false;
     this.scanStartTime = 0;
     console.log('RESTARTING SCANNER');
     timer(500).subscribe(() => {
