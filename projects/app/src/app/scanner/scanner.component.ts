@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, computed, DestroyRef, ElementRef, OnDestroy, signal, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, computed, DestroyRef, ElementRef, inject, OnDestroy, signal, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { debounceTime, delay, distinctUntilChanged, filter, interval, map, Subject, take, takeUntil, tap, timer } from 'rxjs';
@@ -6,6 +6,7 @@ import { ApiService } from '../../api.service';
 import { PlatformService } from '../../platform.service';
 import { CropCornerPoints, StateService } from '../../state.service';
 import { LtrDirective } from '../ltr.directive';
+import { ScanEnhancementService } from './scan-enhancement.service';
 
 declare const jscanify: any;
 declare const cv: any;
@@ -67,6 +68,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   scanStartTime: number = 0;
   lastValidCorners: CropCornerPoints | null = null;
   private navigating = false;
+  private readonly scanEnhancement = inject(ScanEnhancementService);
 
   constructor(
     private el: ElementRef, 
@@ -175,7 +177,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       if (frameCount < this.FRAME_COUNT_DARKER) {
         this.displayMsgSubject.next($localize`fit the page to the frame`);
       } else {
-        this.displayMsgSubject.next($localize`try on a darker background`);
+        this.displayMsgSubject.next($localize`make sure the page edges are visible`);
       }
       return {valid: false, snap: false};
     }
@@ -196,7 +198,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       if (frameCount < this.FRAME_COUNT_DARKER) {
         this.displayMsgSubject.next($localize`fit the page to the frame`);
       } else {
-        this.displayMsgSubject.next($localize`try on a darker background`);
+        this.displayMsgSubject.next($localize`make sure the page edges are visible`);
       }
       // console.log('averageRatio is not in range');
       return {valid: false, snap: false};
@@ -290,7 +292,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
           this.displayHeight.set(height);      
           const dsize = new cv.Size(width, height);
           cv.resize(frame, resampledFrame, dsize, 0, 0, cv.INTER_NEAREST);      
-          const maxContour = scanner.findPaperContour(resampledFrame);
+          const maxContour = this.scanEnhancement.findPaperContour(resampledFrame, scanner);
           if (maxContour) {
             const cornerPoints = this.checkCornerPoints(scanner.getCornerPoints(maxContour, resampledFrame) as CornerPoints);          
             const {valid, snap} = this.checkDimensions(cornerPoints, width, height, count);
