@@ -8,6 +8,8 @@ export class StateService {
 
   currentImage = signal<Blob | null>(null);
   currentImageUrl = signal<string | null>(null);
+  scanCropCorners = signal<{x: number, y: number}[] | null>(null);
+  edgesWellDetected = signal<boolean>(false);
   currentTextboxData = signal<string | null>(null);
   currentCanvasState = signal<string | null>(null); // Fabric.js canvas JSON
   mainMenuHeight = signal<number>(348);

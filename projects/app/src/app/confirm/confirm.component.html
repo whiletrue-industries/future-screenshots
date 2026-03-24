@@ -75,8 +75,29 @@
   </div>
 }
 <div class='img'>
-  <div class='inner'>
-      <img [src]="state.currentImageUrl()" alt="Confirmation Image">
+  <div class='inner crop-frame'>
+      <img #cropImageEl [src]="state.currentImageUrl()" alt="Confirmation Image" (load)="onImageLoaded()">
+      @if (cropCorners().length === 4) {
+        <svg
+          #cropOverlaySvg
+          class="crop-overlay"
+          [attr.viewBox]="cropViewBox()"
+          preserveAspectRatio="none"
+          aria-hidden="true">
+          <polygon class="crop-polygon" [attr.points]="cropPolygonPoints()" />
+        </svg>
+        @for (corner of cropCorners(); track $index; let idx = $index) {
+          <button
+            type="button"
+            class="crop-handle"
+            [style.left.px]="corner.x"
+            [style.top.px]="corner.y"
+            (pointerdown)="startDraggingCorner(idx, $event)"
+            aria-label="Move crop corner"
+            i18n-aria-label>
+          </button>
+        }
+      }
   </div>
 </div>
 <div class="confirm-buttons" ltr>
