@@ -66,6 +66,16 @@ export class ItemFilterService {
       filtered = filtered.filter(item => item.screenshot_type === filters.type);
     }
 
+    // Topic filter (filterTopic stores full sub-theme paths like "theme-id/sub-theme-id")
+    if (filters.topic && filters.topic.length > 0) {
+      filtered = filtered.filter(item => {
+        const topics: string[] = item.topics || [];
+        // Items with no topics are always shown (taxonomy may not have tagged them yet)
+        if (topics.length === 0) return true;
+        return topics.some((t: string) => filters.topic.includes(t));
+      });
+    }
+
     // Search filter
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
@@ -138,6 +148,13 @@ export class ItemFilterService {
           return prefOrder.indexOf(prefA) - prefOrder.indexOf(prefB);
         });
 
+      case 'topic':
+        return sorted.sort((a, b) => {
+          const topicA = a.topics?.[0]?.split('/')[0] || '\uffff';
+          const topicB = b.topics?.[0]?.split('/')[0] || '\uffff';
+          return topicA.localeCompare(topicB);
+        });
+
       default:
         return sorted;
     }
@@ -152,12 +169,14 @@ export class ItemFilterService {
     preference: Map<string, number>;
     potential: Map<string, number>;
     type: Map<string, number>;
+    topic: Map<string, number>;
   } {
     const status = new Map<string, number>();
     const author = new Map<string, number>();
     const preference = new Map<string, number>();
     const potential = new Map<string, number>();
     const type = new Map<string, number>();
+    const topic = new Map<string, number>();
 
     data.forEach((item: any) => {
       // Status counts using FilterHelpers
@@ -183,9 +202,24 @@ export class ItemFilterService {
       if (item.screenshot_type) {
         type.set(item.screenshot_type, (type.get(item.screenshot_type) || 0) + 1);
       }
+
+      // Topic counts (per theme and per sub-theme)
+      const topics: string[] = item.topics || [];
+      if (topics.length === 0) {
+        topic.set('none', (topic.get('none') || 0) + 1);
+      } else {
+        const themes = new Set<string>();
+        topics.forEach((t: string) => {
+          // Count by full sub-theme path
+          topic.set(t, (topic.get(t) || 0) + 1);
+          // Also count by theme
+          themes.add(t.split('/')[0]);
+        });
+        themes.forEach(theme => topic.set(theme, (topic.get(theme) || 0) + 1));
+      }
     });
 
-    return { status, author, preference, potential, type };
+    return { status, author, preference, potential, type, topic };
   }
 
   private getAIConfidence(item: any): number {

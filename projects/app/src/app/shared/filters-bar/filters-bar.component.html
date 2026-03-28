@@ -256,13 +256,95 @@
       </select>
     </div>
 
+    @if (topicTree().length > 0) {
+      <div class="filter-group custom-multiselect topic-multiselect">
+        <label>Topic:</label>
+        <div class="multiselect-container">
+          <button
+            type="button"
+            class="multiselect-trigger"
+            (click)="toggleTopicDropdown()">
+            <div class="multiselect-content">
+              @switch (getTopicChipSummary().mode) {
+                @case ('none') {
+                  <span class="multiselect-placeholder">Select topic...</span>
+                }
+                @case ('all') {
+                  <span class="multiselect-text">All topics</span>
+                }
+                @default {
+                  <div class="multiselect-chips">
+                    @for (chip of getTopicChipSummary().chips; track chip) {
+                      <span class="chip">{{ chip }}</span>
+                    }
+                  </div>
+                }
+              }
+            </div>
+            <span class="multiselect-arrow">&#x25BC;</span>
+          </button>
+          @if (topicDropdownOpen()) {
+            <div class="topic-dropdown" (click)="$event.stopPropagation()">
+              <div class="topic-toolbar">
+                <input
+                  type="text"
+                  class="topic-search"
+                  placeholder="Filter topics..."
+                  [ngModel]="topicSearchText()"
+                  (ngModelChange)="topicSearchText.set($event)"
+                  (click)="$event.stopPropagation()" />
+                <button type="button" class="topic-toggle-all" (click)="getSelectedTopicCount() === getTotalSubThemeCount() ? deselectAllTopics() : selectAllTopics()">
+                  {{ getSelectedTopicCount() === getTotalSubThemeCount() ? 'None' : 'All' }}
+                </button>
+              </div>
+              <div class="topic-tree">
+                @for (theme of getFilteredTopicTree(); track theme.id) {
+                  <div class="theme-group" [class.expanded]="isThemeExpanded(theme.id)">
+                    <div class="theme-row" (click)="toggleThemeExpanded(theme.id)">
+                      <input
+                        type="checkbox"
+                        [checked]="isThemeFullySelected(theme)"
+                        [indeterminate]="isThemePartiallySelected(theme)"
+                        (click)="$event.stopPropagation()"
+                        (change)="toggleTopicTheme(theme)" />
+                      <span class="theme-name">{{ theme.name }}</span>
+                      <span class="theme-count">{{ getCount(counts().topic, theme.id) }}</span>
+                      <span class="theme-chevron">
+                        <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+                          <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </span>
+                    </div>
+                    @if (isThemeExpanded(theme.id)) {
+                      <div class="sub-theme-list">
+                        @for (sub of theme.children; track sub.id) {
+                          <label class="sub-theme-row">
+                            <input
+                              type="checkbox"
+                              [checked]="isSubThemeSelected(sub.id)"
+                              (change)="toggleTopicSubTheme(sub.id)" />
+                            <span class="sub-theme-name">{{ sub.name }}</span>
+                            <span class="sub-theme-count">{{ getCount(counts().topic, sub.id) }}</span>
+                          </label>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
     <div class="filter-group search-group">
       <label for="filter-search">Search:</label>
-      <input 
-        id="filter-search" 
-        type="text" 
-        [ngModel]="searchText()" 
-        (ngModelChange)="onSearchChange($event)" 
+      <input
+        id="filter-search"
+        type="text"
+        [ngModel]="searchText()"
+        (ngModelChange)="onSearchChange($event)"
         placeholder="any text" />
     </div>
 
@@ -276,6 +358,7 @@
           <option value="confidence">AI Confidence</option>
           <option value="type">Type</option>
           <option value="preference">Preference</option>
+          <option value="topic">Topic</option>
         </select>
       </div>
     }

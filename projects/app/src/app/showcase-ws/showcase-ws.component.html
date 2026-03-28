@@ -39,6 +39,7 @@
       [showViewToggle]='false'
       [showOrderBy]='false'
       [initialState]='currentFilters()'
+      [topicTree]='taxonomyService.topicTree()'
       (filtersChange)='onFiltersChange($event)'
       (filtersCommit)='onFiltersChange($event)'
     ></app-filters-bar>

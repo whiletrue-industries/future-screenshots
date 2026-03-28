@@ -159,6 +159,7 @@ The application uses Angular standalone components organized by feature:
     - Content moderation interface
     - Approve/reject items
     - Edit item properties
+    - Display and filter by auto-assigned taxonomy topics
 
 12. **Workspace Form** (`/admin/workspace-form`)
     - Workspace creation and configuration
@@ -239,6 +240,11 @@ The application uses Angular standalone components organized by feature:
 - Admin-specific operations
 - Moderation actions
 - Workspace management
+
+**TaxonomyService** (`projects/app/src/app/shared/taxonomy.service.ts`)
+- Fetches and caches the cross-workspace taxonomy from `GET /taxonomy`
+- Resolves topic IDs (e.g. `"climate-disaster/rising-sea-levels"`) to localized display names
+- Provides theme options for the topic filter in admin views
 
 ## Data Flow
 
