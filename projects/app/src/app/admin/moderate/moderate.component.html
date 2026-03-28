@@ -106,6 +106,8 @@
       [filteredCount]="items().length"
       [showViewToggle]="true"
       [initialState]="filterState()"
+      [topicOptions]="taxonomyService.themes()"
+      [topicTree]="taxonomyService.topicTree()"
       (filtersChange)="onFiltersChange($event)"
       (filtersCommit)="onFiltersCommit($event)"
     ></app-filters-bar>
@@ -336,16 +338,28 @@
                             }
                           }
                           <div class="tag-input-wrapper">
-                            <input 
+                            <input
                               #tagInput
-                              type="text" 
-                              class="tag-input" 
+                              type="text"
+                              class="tag-input"
                               placeholder="+ Add tag"
                               (keydown.enter)="addTag(selectedItem(), tagInput)"
                               aria-label="Add new tag" />
                           </div>
                         </div>
                       </div>
+
+                      @if (selectedItem().topics?.length) {
+                        <div class="topics-section">
+                          <div class="topics-container">
+                            @for (topic of selectedItem().topics; track $index) {
+                              <span class="topic-chip" [class.primary]="$index === 0" [title]="topic">
+                                {{ resolveTopic(topic) }}
+                              </span>
+                            }
+                          </div>
+                        </div>
+                      }
 
                       <div class="properties-selectors">
                         <div class="property-selector">
@@ -462,6 +476,9 @@
                       <h4 class="hover-title">{{ item.future_scenario_tagline }}</h4>
                     } @else {
                       <h4 class="hover-title no-title">No title</h4>
+                    }
+                    @if (item.topics?.length) {
+                      <span class="hover-topic-chip" [title]="item.topics[0]">{{ resolveTopic(item.topics[0]) }}</span>
                     }
                     <div class="hover-button-group">
                       <button 
@@ -732,16 +749,28 @@
                   }
                 }
                 <div class="tag-input-wrapper">
-                  <input 
+                  <input
                     #tagInput
-                    type="text" 
-                    class="tag-input" 
+                    type="text"
+                    class="tag-input"
                     placeholder="+ Add tag"
                     (keydown.enter)="addTag(item, tagInput)"
                     aria-label="Add new tag" />
                 </div>
               </div>
             </div>
+
+            @if (item.topics?.length) {
+              <div class="topics-section">
+                <div class="topics-container">
+                  @for (topic of item.topics; track $index) {
+                    <span class="topic-chip" [class.primary]="$index === 0" [title]="topic">
+                      {{ resolveTopic(topic) }}
+                    </span>
+                  }
+                </div>
+              </div>
+            }
 
             <div class="properties-selectors">
               <div class="property-selector">

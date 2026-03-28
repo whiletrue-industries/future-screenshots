@@ -1,7 +1,8 @@
-import { Component, input, output, signal, effect, OnDestroy, AfterViewInit } from '@angular/core';
+import { Component, input, output, signal, effect, OnDestroy, AfterViewInit, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PlatformService } from '../../../platform.service';
 import { CommonModule } from '@angular/common';
+import { TopicOption, TopicTreeNode } from '../taxonomy.service';
 
 export interface FiltersBarState {
   status: string[];
@@ -9,6 +10,7 @@ export interface FiltersBarState {
   preference: string[];
   potential: string[];
   type: string;
+  topic: string[];
   search: string;
   orderBy: string;
   view?: string;
@@ -20,6 +22,7 @@ export interface FilterCounts {
   preference: Map<string, number>;
   potential: Map<string, number>;
   type: Map<string, number>;
+  topic: Map<string, number>;
 }
 
 /**
@@ -201,8 +204,11 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
     author: new Map(),
     preference: new Map(),
     potential: new Map(),
-    type: new Map()
+    type: new Map(),
+    topic: new Map()
   });
+  topicOptions = input<TopicOption[]>([]);
+  topicTree = input<TopicTreeNode[]>([]);
   
   totalCount = input<number>(0);
   filteredCount = input<number>(0);
@@ -220,19 +226,22 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
   filterPreference = signal<string[]>(['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent']);
   filterPotential = signal<string[]>(['100', '75', '50', '25', '0']);
   filterType = signal<string>('all');
+  filterTopic = signal<string[]>([]);
   searchText = signal<string>('');
   orderBy = signal<string>('date');
   viewMode = signal<'grid' | 'list'>('grid');
-  
+
   // Dropdown state
   statusDropdownOpen = signal<boolean>(false);
   preferenceDropdownOpen = signal<boolean>(false);
   potentialDropdownOpen = signal<boolean>(false);
-  
+  topicDropdownOpen = signal<boolean>(false);
+
   // Search text for filtering dropdown options
   statusSearchText = signal<string>('');
   preferenceSearchText = signal<string>('');
   potentialSearchText = signal<string>('');
+  topicSearchText = signal<string>('');
   
   // Options
   preferenceOptions = ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent', 'none'];
@@ -270,6 +279,7 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
         this.filterPreference.set(state.preference);
         this.filterPotential.set(state.potential);
         this.filterType.set(state.type);
+        this.filterTopic.set(state.topic);
         this.searchText.set(state.search);
         this.orderBy.set(state.orderBy);
         if (state.view) {
@@ -290,10 +300,11 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
   private onDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
     if (target && !target.closest('.custom-multiselect')) {
-      const wasOpen = this.statusDropdownOpen() || this.preferenceDropdownOpen() || this.potentialDropdownOpen();
+      const wasOpen = this.statusDropdownOpen() || this.preferenceDropdownOpen() || this.potentialDropdownOpen() || this.topicDropdownOpen();
       this.statusDropdownOpen.set(false);
       this.preferenceDropdownOpen.set(false);
       this.potentialDropdownOpen.set(false);
+      this.topicDropdownOpen.set(false);
       
       // Commit changes when dropdown closes
       if (wasOpen && this.hasEmittedOnce) {
@@ -310,12 +321,13 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
       preference: this.filterPreference(),
       potential: this.filterPotential(),
       type: this.filterType(),
+      topic: this.filterTopic(),
       search: this.searchText(),
       orderBy: this.orderBy(),
       view: this.viewMode()
     });
   }
-  
+
   private commitFilters(): void {
     this.hasEmittedOnce = true;
     this.filtersCommit.emit({
@@ -324,6 +336,7 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
       preference: this.filterPreference(),
       potential: this.filterPotential(),
       type: this.filterType(),
+      topic: this.filterTopic(),
       search: this.searchText(),
       orderBy: this.orderBy(),
       view: this.viewMode()
@@ -603,6 +616,144 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
 
   clearPotentialSearch(): void {
     this.potentialSearchText.set('');
+  }
+
+  // Topic filter methods (multi-level: filterTopic stores full sub-theme paths like "theme-id/sub-theme-id")
+  allTopicIds = computed(() => this.topicTree().flatMap(t => t.children.map(c => c.id)));
+  expandedThemes = signal<Set<string>>(new Set());
+
+  toggleTopicDropdown(): void {
+    const wasOpen = this.topicDropdownOpen();
+    const next = !wasOpen;
+    this.topicDropdownOpen.set(next);
+    if (next) {
+      this.statusDropdownOpen.set(false);
+      this.preferenceDropdownOpen.set(false);
+      this.potentialDropdownOpen.set(false);
+      this.clearTopicSearch();
+    } else {
+      this.clearTopicSearch();
+      if (wasOpen && this.hasEmittedOnce) {
+        this.commitFilters();
+      }
+    }
+  }
+
+  toggleTopicSubTheme(subThemeId: string): void {
+    const current = this.filterTopic();
+    if (current.includes(subThemeId)) {
+      this.filterTopic.set(current.filter(t => t !== subThemeId));
+    } else {
+      this.filterTopic.set([...current, subThemeId]);
+    }
+    this.emitDebouncedChange();
+  }
+
+  toggleTopicTheme(theme: TopicTreeNode): void {
+    const current = this.filterTopic();
+    const childIds = theme.children.map(c => c.id);
+    const allSelected = childIds.every(id => current.includes(id));
+    if (allSelected) {
+      // Deselect all children
+      this.filterTopic.set(current.filter(t => !childIds.includes(t)));
+    } else {
+      // Select all children
+      const toAdd = childIds.filter(id => !current.includes(id));
+      this.filterTopic.set([...current, ...toAdd]);
+    }
+    this.emitDebouncedChange();
+  }
+
+  isThemeFullySelected(theme: TopicTreeNode): boolean {
+    const current = this.filterTopic();
+    return theme.children.length > 0 && theme.children.every(c => current.includes(c.id));
+  }
+
+  isThemePartiallySelected(theme: TopicTreeNode): boolean {
+    const current = this.filterTopic();
+    const selectedCount = theme.children.filter(c => current.includes(c.id)).length;
+    return selectedCount > 0 && selectedCount < theme.children.length;
+  }
+
+  isSubThemeSelected(subThemeId: string): boolean {
+    return this.filterTopic().includes(subThemeId);
+  }
+
+  toggleThemeExpanded(themeId: string): void {
+    this.expandedThemes.update(set => {
+      const next = new Set(set);
+      if (next.has(themeId)) {
+        next.delete(themeId);
+      } else {
+        next.add(themeId);
+      }
+      return next;
+    });
+  }
+
+  isThemeExpanded(themeId: string): boolean {
+    return this.expandedThemes().has(themeId);
+  }
+
+  getSelectedTopicCount(): number {
+    return this.filterTopic().length;
+  }
+
+  getTotalSubThemeCount(): number {
+    return this.allTopicIds().length;
+  }
+
+  /** Summary chips: show deselected theme names when only 1-2 themes are fully deselected */
+  getTopicChipSummary(): { mode: 'all' | 'none' | 'chips'; chips: string[] } {
+    const selected = this.filterTopic();
+    const all = this.allTopicIds();
+    if (selected.length === 0) return { mode: 'none', chips: [] };
+    if (selected.length === all.length) return { mode: 'all', chips: [] };
+    // Summarise at theme level
+    const tree = this.topicTree();
+    const fullyDeselected = tree.filter(t => t.children.every(c => !selected.includes(c.id)));
+    const partiallySelected = tree.filter(t => {
+      const sel = t.children.filter(c => selected.includes(c.id)).length;
+      return sel > 0 && sel < t.children.length;
+    });
+    if (fullyDeselected.length <= 2 && partiallySelected.length === 0) {
+      return { mode: 'chips', chips: fullyDeselected.map(t => t.name) };
+    }
+    const fullySelected = tree.filter(t => t.children.every(c => selected.includes(c.id)));
+    if (fullySelected.length <= 3) {
+      return { mode: 'chips', chips: fullySelected.map(t => t.name + (partiallySelected.length > 0 ? '' : '')) };
+    }
+    return { mode: 'chips', chips: [`${fullySelected.length} themes`] };
+  }
+
+  selectAllTopics(): void {
+    this.filterTopic.set([...this.allTopicIds()]);
+    this.emitDebouncedChange();
+  }
+
+  deselectAllTopics(): void {
+    this.filterTopic.set([]);
+    this.emitDebouncedChange();
+  }
+
+  getFilteredTopicTree(): TopicTreeNode[] {
+    const searchTerm = this.topicSearchText().toLowerCase();
+    if (!searchTerm) {
+      return this.topicTree();
+    }
+    return this.topicTree()
+      .map(theme => {
+        const themeMatches = theme.name.toLowerCase().includes(searchTerm);
+        const matchingChildren = theme.children.filter(c => c.name.toLowerCase().includes(searchTerm));
+        if (themeMatches) return theme; // Show full theme if theme name matches
+        if (matchingChildren.length > 0) return { ...theme, children: matchingChildren };
+        return null;
+      })
+      .filter((t): t is TopicTreeNode => t !== null);
+  }
+
+  clearTopicSearch(): void {
+    this.topicSearchText.set('');
   }
 
   // Get status options - shows all known status types

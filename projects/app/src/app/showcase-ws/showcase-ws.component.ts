@@ -111,7 +111,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         author: new Map<string, number>(),
         preference: new Map<string, number>(),
         potential: new Map<string, number>(),
-        type: new Map<string, number>()
+        type: new Map<string, number>(),
+        topic: new Map<string, number>()
       };
     }
     
@@ -164,7 +165,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       author: authorMap,
       preference: preferenceMap,
       potential: potentialMap,
-      type: typeMap
+      type: typeMap,
+      topic: new Map<string, number>()
     };
   });
   
@@ -193,6 +195,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     preference: ['prefer', 'mostly prefer', 'uncertain', 'mostly prevent', 'prevent', 'none'],
     potential: ['100', '75', '50', '25', '0', 'none'],
     type: 'all',
+    topic: [],
     search: '',
     orderBy: 'date'
   });
