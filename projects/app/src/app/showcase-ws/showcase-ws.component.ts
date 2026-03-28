@@ -7,6 +7,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { QrcodeComponent } from "./qrcode/qrcode.component";
 import { EvaluationSidebarComponent } from "./evaluation-sidebar/evaluation-sidebar.component";
 import { FiltersBarComponent, FiltersBarState } from '../shared/filters-bar/filters-bar.component';
+import { TaxonomyService } from '../shared/taxonomy.service';
 import { FisheyeSettings } from './settings-panel.component';
 import { PhotoData, PhotoAnimationState, PhotoMetadata } from './photo-data';
 import { ThreeRendererService } from './three-renderer.service';
@@ -36,6 +37,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   @ViewChild('titleElement') titleElement?: ElementRef;
   private router = inject(Router);
   private destroyRef = inject(DestroyRef);
+  taxonomyService = inject(TaxonomyService);
   private photoRepository: PhotoDataRepository;
   private activatedRoute: ActivatedRoute;
   loop = new Subject<any[]>();
@@ -122,10 +124,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     const preferenceMap = new Map<string, number>();
     const potentialMap = new Map<string, number>();
     const typeMap = new Map<string, number>();
-    
+    const topicMap = new Map<string, number>();
+
     allPhotos.forEach(photo => {
       const metadata = photo.metadata;
-      
+
       // Count status (based on _private_moderation)
       const moderation = metadata['_private_moderation'];
       let statusKey = 'pending';
@@ -135,7 +138,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       else if (moderation === 4) statusKey = 'approved';
       else if (moderation === 5) statusKey = 'highlighted';
       statusMap.set(statusKey, (statusMap.get(statusKey) || 0) + 1);
-      
+
       // Count author
       const authorId = metadata['author_id'] || 'unknown';
       authorMap.set(authorId, (authorMap.get(authorId) || 0) + 1);
@@ -158,15 +161,28 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       if (screenshotType) {
         typeMap.set(screenshotType, (typeMap.get(screenshotType) || 0) + 1);
       }
+
+      // Count topics (per theme and per sub-theme)
+      const topics: string[] = metadata['topics'] || [];
+      if (topics.length === 0) {
+        topicMap.set('none', (topicMap.get('none') || 0) + 1);
+      } else {
+        const themes = new Set<string>();
+        topics.forEach((t: string) => {
+          topicMap.set(t, (topicMap.get(t) || 0) + 1);
+          themes.add(t.split('/')[0]);
+        });
+        themes.forEach(theme => topicMap.set(theme, (topicMap.get(theme) || 0) + 1));
+      }
     });
-    
+
     return {
       status: statusMap,
       author: authorMap,
       preference: preferenceMap,
       potential: potentialMap,
       type: typeMap,
-      topic: new Map<string, number>()
+      topic: topicMap
     };
   });
   
@@ -198,6 +214,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     topic: [],
     search: '',
     orderBy: 'date'
+  });
+
+  // Initialize topic filter when taxonomy loads
+  private topicInitEffect = effect(() => {
+    const allIds = this.taxonomyService.allSubThemeIds();
+    if (allIds.length > 0 && this.currentFilters().topic.length === 0) {
+      this.currentFilters.update(f => ({ ...f, topic: allIds }));
+    }
   });
 
   /**
@@ -864,6 +888,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   async ngAfterViewInit() {
+    this.taxonomyService.fetch();
     if (this.platform.browser()) {
       fromEvent<MessageEvent>(window, 'message').pipe(
         takeUntilDestroyed(this.destroyRef)
@@ -1588,6 +1613,17 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     if (filters.type !== 'all') {
       const screenshotType = metadata['screenshot_type'];
       if (screenshotType !== filters.type) return false;
+    }
+
+    // Topic filter (sub-theme paths)
+    if (filters.topic && filters.topic.length > 0) {
+      const topics: string[] = metadata['topics'] || [];
+      if (topics.length === 0) {
+        if (!filters.topic.includes('none')) return false;
+      } else {
+        const hasMatch = topics.some((t: string) => filters.topic.includes(t));
+        if (!hasMatch) return false;
+      }
     }
 
     // Search filter
