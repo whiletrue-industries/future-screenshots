@@ -70,7 +70,8 @@ export class ItemFilterService {
     if (filters.topic && filters.topic.length > 0) {
       filtered = filtered.filter(item => {
         const topics: string[] = item.topics || [];
-        if (topics.length === 0) return filters.topic.includes('none');
+        // Items with no topics are always shown (taxonomy may not have tagged them yet)
+        if (topics.length === 0) return true;
         return topics.some((t: string) => filters.topic.includes(t));
       });
     }

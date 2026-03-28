@@ -106,6 +106,9 @@ export class ModerateComponent implements OnInit, OnDestroy {
   searchText = signal<string>('');
   orderBy = signal<string>('date');
   
+  private filterService = inject(ItemFilterService);
+  taxonomyService = inject(TaxonomyService);
+
   // Computed filter counts from raw data (automatic reactivity)
   private filterCountsData = computed(() => {
     return this.filterService.calculateFilterCounts(this.workspaceFilteredItems());
@@ -263,9 +266,6 @@ export class ModerateComponent implements OnInit, OnDestroy {
       return item._workspaceId && selectedWorkspaces.includes(item._workspaceId);
     });
   });
-
-  private filterService = inject(ItemFilterService);
-  taxonomyService = inject(TaxonomyService);
 
   constructor(private route: ActivatedRoute, private api: AdminApiService) {
     // Read filters from hash synchronously first (before effects run)

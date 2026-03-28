@@ -1616,11 +1616,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     }
 
     // Topic filter (sub-theme paths)
+    // Items with no topics are always shown (taxonomy may not have tagged them yet)
     if (filters.topic && filters.topic.length > 0) {
       const topics: string[] = metadata['topics'] || [];
-      if (topics.length === 0) {
-        if (!filters.topic.includes('none')) return false;
-      } else {
+      if (topics.length > 0) {
         const hasMatch = topics.some((t: string) => filters.topic.includes(t));
         if (!hasMatch) return false;
       }

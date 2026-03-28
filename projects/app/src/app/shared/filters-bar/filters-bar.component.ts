@@ -2,7 +2,7 @@ import { Component, input, output, signal, effect, OnDestroy, AfterViewInit, com
 import { FormsModule } from '@angular/forms';
 import { PlatformService } from '../../../platform.service';
 import { CommonModule } from '@angular/common';
-import { TopicOption, TopicTreeNode } from '../taxonomy.service';
+import { TopicTreeNode } from '../taxonomy.service';
 
 export interface FiltersBarState {
   status: string[];
@@ -207,7 +207,6 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
     type: new Map(),
     topic: new Map()
   });
-  topicOptions = input<TopicOption[]>([]);
   topicTree = input<TopicTreeNode[]>([]);
   
   totalCount = input<number>(0);
@@ -721,7 +720,7 @@ export class FiltersBarComponent implements AfterViewInit, OnDestroy {
     }
     const fullySelected = tree.filter(t => t.children.every(c => selected.includes(c.id)));
     if (fullySelected.length <= 3) {
-      return { mode: 'chips', chips: fullySelected.map(t => t.name + (partiallySelected.length > 0 ? '' : '')) };
+      return { mode: 'chips', chips: fullySelected.map(t => t.name) };
     }
     return { mode: 'chips', chips: [`${fullySelected.length} themes`] };
   }
