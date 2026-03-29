@@ -23,6 +23,7 @@ import { SkeletonLoaderComponent } from '../skeleton-loader/skeleton-loader.comp
 import { LazyLoadImageDirective } from '../lazy-load-image.directive';
 
 import { EnrichedItem } from '../workspace-metadata.interface';
+import { TaxonomyService } from '../../shared/taxonomy.service';
 
 export type Filter = {
   name: string;
@@ -101,9 +102,13 @@ export class ModerateComponent implements OnInit, OnDestroy {
   filterPreference = signal<string[]>([...this.preferenceOptions]);
   filterPotential = signal<string[]>([...this.potentialOptions]);
   filterType = signal<string>('all');
+  filterTopic = signal<string[]>([]);
   searchText = signal<string>('');
   orderBy = signal<string>('date');
   
+  private filterService = inject(ItemFilterService);
+  taxonomyService = inject(TaxonomyService);
+
   // Computed filter counts from raw data (automatic reactivity)
   private filterCountsData = computed(() => {
     return this.filterService.calculateFilterCounts(this.workspaceFilteredItems());
@@ -114,7 +119,16 @@ export class ModerateComponent implements OnInit, OnDestroy {
   preferenceCounts = computed(() => this.filterCountsData().preference);
   potentialCounts = computed(() => this.filterCountsData().potential);
   typeCounts = computed(() => this.filterCountsData().type);
-  
+  topicCounts = computed(() => this.filterCountsData().topic);
+
+  // Initialize topic filter when taxonomy loads - select all available sub-themes
+  private topicInitEffect = effect(() => {
+    const allIds = this.taxonomyService.allSubThemeIds();
+    if (allIds.length > 0 && this.filterTopic().length === 0) {
+      this.filterTopic.set(allIds);
+    }
+  });
+
   editTagline = signal<string | null>(null);
   editDescription = signal<string | null>(null);
   editTags = signal<string | null>(null);
@@ -253,8 +267,6 @@ export class ModerateComponent implements OnInit, OnDestroy {
     });
   });
 
-  private filterService = inject(ItemFilterService);
-
   constructor(private route: ActivatedRoute, private api: AdminApiService) {
     // Read filters from hash synchronously first (before effects run)
     if (typeof window !== 'undefined' && window.location.hash) {
@@ -290,6 +302,10 @@ export class ModerateComponent implements OnInit, OnDestroy {
         const typeParam = params.get('type');
         if (typeParam) {
           this.filterType.set(typeParam);
+        }
+        const topicParam = params.get('topic');
+        if (topicParam) {
+          this.filterTopic.set(topicParam.split(','));
         }
         const searchParam = params.get('search');
           if (searchParam) {
@@ -353,6 +369,10 @@ export class ModerateComponent implements OnInit, OnDestroy {
         const potentialParam = params.get('potential');
         this.filterPotential.set(potentialParam ? potentialParam.split(',') : [...this.potentialOptions]);
         this.filterType.set(params.get('type') || 'all');
+        const topicFragParam = params.get('topic');
+        if (topicFragParam) {
+          this.filterTopic.set(topicFragParam.split(','));
+        }
         const searchParam = params.get('search');
         this.searchText.set(searchParam ? searchParam.replace(/\+/g, ' ') : '');
         this.orderBy.set(params.get('order') || 'date');
@@ -511,6 +531,10 @@ export class ModerateComponent implements OnInit, OnDestroy {
     if (this.filterPreference().length > 0 && this.filterPreference().length < this.preferenceOptions.length) params.set('preference', this.filterPreference().join(','));
     if (this.filterPotential().length > 0 && this.filterPotential().length < this.potentialOptions.length) params.set('potential', this.filterPotential().join(','));
     if (this.filterType() !== 'all') params.set('type', this.filterType());
+    const allTopicIds = this.taxonomyService.allSubThemeIds();
+    if (this.filterTopic().length > 0 && this.filterTopic().length < allTopicIds.length) {
+      params.set('topic', this.filterTopic().join(','));
+    }
     // Encode search with + for spaces
     if (this.searchText()) params.set('search', this.searchText().replace(/ /g, '+'));
     if (this.orderBy() !== 'date') params.set('order', this.orderBy());
@@ -530,6 +554,7 @@ export class ModerateComponent implements OnInit, OnDestroy {
     this.filterPreference.set([...this.preferenceOptions]);
     this.filterPotential.set([...this.potentialOptions]);
     this.filterType.set('all');
+    this.filterTopic.set(this.taxonomyService.allSubThemeIds());
     this.searchText.set('');
     this.page.set(0);
     this.allFetchedItems.set([]);
@@ -1213,17 +1238,19 @@ export class ModerateComponent implements OnInit, OnDestroy {
     preference: this.filterPreference(),
     potential: this.filterPotential(),
     type: this.filterType(),
+    topic: this.filterTopic(),
     search: this.searchText(),
     orderBy: this.orderBy(),
     view: this.viewMode()
   }));
-  
+
   filterCounts = computed<FilterCounts>(() => ({
     status: this.statusCounts(),
     author: this.authorCounts(),
     preference: this.preferenceCounts(),
     potential: this.potentialCounts(),
-    type: this.typeCounts()
+    type: this.typeCounts(),
+    topic: this.topicCounts()
   }));
 
   onFiltersChange(newState: FiltersBarState): void {
@@ -1232,6 +1259,7 @@ export class ModerateComponent implements OnInit, OnDestroy {
     this.filterPreference.set(newState.preference);
     this.filterPotential.set(newState.potential);
     this.filterType.set(newState.type);
+    this.filterTopic.set(newState.topic);
     this.searchText.set(newState.search);
     this.orderBy.set(newState.orderBy);
     if (newState.view) {
@@ -1461,7 +1489,12 @@ export class ModerateComponent implements OnInit, OnDestroy {
     return this.imageLoadedMap().get(itemId) ?? false;
   }
 
+  resolveTopic(topicId: string): string {
+    return this.taxonomyService.resolveTopic(topicId);
+  }
+
   ngOnInit(): void {
+    this.taxonomyService.fetch();
     this.initImageLazyLoading();
 
     // Detect if we're in multi-workspace mode

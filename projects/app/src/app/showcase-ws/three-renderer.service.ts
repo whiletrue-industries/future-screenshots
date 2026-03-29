@@ -1908,6 +1908,10 @@ export class ThreeRendererService {
     const svgX = viewBox.x + normalizedX * viewBox.width;
     const svgY = viewBox.y + normalizedY * viewBox.height;
 
+    if (!isFinite(svgX) || !isFinite(svgY)) {
+      return null;
+    }
+
     return this.findHotspotMatchAtSvgCoordinates(svgElement, svgX, svgY);
   }
 
