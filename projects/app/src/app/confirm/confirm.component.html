@@ -92,6 +92,10 @@
         @if (cropFrameWidth() > 0) {
           <svg class="crop-overlay"
                [attr.viewBox]="'0 0 ' + cropFrameWidth() + ' ' + cropFrameHeight()"
+            [style.left.px]="overlayOffsetX()"
+            [style.top.px]="overlayOffsetY()"
+            [style.width.px]="cropFrameWidth()"
+            [style.height.px]="cropFrameHeight()"
             overflow="visible"
                preserveAspectRatio="none">
             <path class="outside-mask"
@@ -107,8 +111,8 @@
           </svg>
           @for (corner of cropCorners(); track $index; let idx = $index) {
             <button type="button" class="corner-hitbox"
-                    [style.left.px]="corner.x"
-                    [style.top.px]="corner.y"
+                  [style.left.px]="overlayOffsetX() + corner.x"
+                  [style.top.px]="overlayOffsetY() + corner.y"
                     (pointerdown)="startDraggingCorner(idx, $event)"
                     i18n-aria-label aria-label="Move crop corner">
             </button>

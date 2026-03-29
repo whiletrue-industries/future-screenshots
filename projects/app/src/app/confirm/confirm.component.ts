@@ -9,6 +9,12 @@ declare const jscanify: any;
 
 type CropPoint = { x: number; y: number };
 type CropRect = { left: number; top: number; right: number; bottom: number };
+type CropCorners = {
+  topLeftCorner: CropPoint;
+  topRightCorner: CropPoint;
+  bottomRightCorner: CropPoint;
+  bottomLeftCorner: CropPoint;
+};
 
 @Component({
   selector: 'app-confirm',
@@ -34,6 +40,8 @@ export class ConfirmComponent implements OnDestroy {
   activeCornerIndex = signal<number | null>(null);
   private preserveCornersOnNextImageLoad = false;
   private dragPointerOffset: CropPoint | null = null;
+  private frameResizeObserver?: ResizeObserver;
+  private frameSyncRafId: number | null = null;
   cropPolygonPoints = computed(() =>
     this.cropCorners().map((p) => `${p.x},${p.y}`).join(' ')
   );
@@ -55,6 +63,8 @@ export class ConfirmComponent implements OnDestroy {
   private dragCornerIndex: number | null = null;
   private readonly pointerMoveHandler = (event: PointerEvent) => this.onPointerMove(event);
   private readonly pointerUpHandler = () => this.stopDraggingCorner();
+  overlayOffsetX = signal<number>(0);
+  overlayOffsetY = signal<number>(0);
 
   @ViewChild('rawImage') rawImageEl?: ElementRef<HTMLImageElement>;
 
@@ -168,11 +178,94 @@ export class ConfirmComponent implements OnDestroy {
       const imageEl = this.rawImageEl?.nativeElement;
       if (imageEl && imageEl.clientWidth > 0 && imageEl.clientHeight > 0) {
         this.initCropCorners(imageEl);
+        this.observeImageFrameSize(imageEl);
+        this.startFrameSyncLoop();
       } else if (retries > 0) {
         requestAnimationFrame(() => tryInit(retries - 1));
       }
     };
     requestAnimationFrame(() => tryInit());
+  }
+
+  private syncFrameSizeFromDom(imageEl: HTMLImageElement): void {
+    const bounds = imageEl.getBoundingClientRect();
+    const frameRect = imageEl.parentElement?.getBoundingClientRect();
+    if (frameRect) {
+      this.overlayOffsetX.set(bounds.left - frameRect.left);
+      this.overlayOffsetY.set(bounds.top - frameRect.top);
+    } else {
+      this.overlayOffsetX.set(0);
+      this.overlayOffsetY.set(0);
+    }
+
+    const nextW = bounds.width;
+    const nextH = bounds.height;
+    if (nextW <= 0 || nextH <= 0) {
+      return;
+    }
+
+    const prevW = this.cropFrameWidth();
+    const prevH = this.cropFrameHeight();
+    if (Math.abs(nextW - prevW) < 0.75 && Math.abs(nextH - prevH) < 0.75) {
+      return;
+    }
+
+    this.cropFrameWidth.set(nextW);
+    this.cropFrameHeight.set(nextH);
+
+    const currentCorners = this.cropCorners();
+    if (currentCorners.length === 4 && prevW > 0 && prevH > 0) {
+      const scaleX = nextW / prevW;
+      const scaleY = nextH / prevH;
+      const scaled = currentCorners.map((p) => ({
+        x: this.clamp(p.x * scaleX, 0, nextW),
+        y: this.clamp(p.y * scaleY, 0, nextH),
+      }));
+      this.cropCorners.set(scaled);
+      if (!this.cropDirty()) {
+        this.initialCropCorners.set(scaled.map((p) => ({ ...p })));
+      }
+    }
+  }
+
+  private startFrameSyncLoop(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    if (this.frameSyncRafId !== null) {
+      window.cancelAnimationFrame(this.frameSyncRafId);
+    }
+
+    const tick = () => {
+      const imageEl = this.rawImageEl?.nativeElement;
+      if (!imageEl || !this.state.rawCapturedImageUrl() || !this.showCropEditor()) {
+        this.frameSyncRafId = null;
+        return;
+      }
+
+      this.syncFrameSizeFromDom(imageEl);
+      this.frameSyncRafId = window.requestAnimationFrame(tick);
+    };
+
+    this.frameSyncRafId = window.requestAnimationFrame(tick);
+  }
+
+  private observeImageFrameSize(imageEl: HTMLImageElement) {
+    if (typeof window === 'undefined' || !(window as any).ResizeObserver) {
+      return;
+    }
+
+    this.frameResizeObserver?.disconnect();
+    this.frameResizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) {
+        return;
+      }
+
+      this.syncFrameSizeFromDom(imageEl);
+    });
+
+    this.frameResizeObserver.observe(imageEl);
   }
 
   private initCropCorners(imageEl: HTMLImageElement) {
@@ -183,8 +276,9 @@ export class ConfirmComponent implements OnDestroy {
     const previousHeight = this.cropFrameHeight();
     const previousCorners = this.cropCorners();
 
-    const w = imageEl.clientWidth;
-    const h = imageEl.clientHeight;
+    const bounds = imageEl.getBoundingClientRect();
+    const w = bounds.width;
+    const h = bounds.height;
     this.cropFrameWidth.set(w);
     this.cropFrameHeight.set(h);
 
@@ -283,9 +377,11 @@ export class ConfirmComponent implements OnDestroy {
       return null;
     }
     const rect = imageEl.getBoundingClientRect();
+    const frameWidth = this.cropFrameWidth() || rect.width;
+    const frameHeight = this.cropFrameHeight() || rect.height;
     return {
-      x: this.clamp(clientX - rect.left, 0, this.cropFrameWidth()),
-      y: this.clamp(clientY - rect.top, 0, this.cropFrameHeight()),
+      x: this.clamp(clientX - rect.left, 0, frameWidth),
+      y: this.clamp(clientY - rect.top, 0, frameHeight),
     };
   }
 
@@ -326,6 +422,67 @@ export class ConfirmComponent implements OnDestroy {
       return min;
     }
     return Math.min(max, Math.max(min, value));
+  }
+
+  private loadImage(url: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('Failed to load image for crop extraction'));
+      img.src = url;
+    });
+  }
+
+  private toSourceCornersFromSvg(corners: CropPoint[], srcWidth: number, srcHeight: number): CropCorners {
+    const frameWidth = this.cropFrameWidth();
+    const frameHeight = this.cropFrameHeight();
+    const safeFrameWidth = Math.max(1, frameWidth);
+    const safeFrameHeight = Math.max(1, frameHeight);
+    const scaleX = srcWidth / safeFrameWidth;
+    const scaleY = srcHeight / safeFrameHeight;
+
+    return {
+      topLeftCorner: {
+        x: this.clamp(corners[0].x * scaleX, 0, srcWidth - 1),
+        y: this.clamp(corners[0].y * scaleY, 0, srcHeight - 1),
+      },
+      topRightCorner: {
+        x: this.clamp(corners[1].x * scaleX, 0, srcWidth - 1),
+        y: this.clamp(corners[1].y * scaleY, 0, srcHeight - 1),
+      },
+      bottomRightCorner: {
+        x: this.clamp(corners[2].x * scaleX, 0, srcWidth - 1),
+        y: this.clamp(corners[2].y * scaleY, 0, srcHeight - 1),
+      },
+      bottomLeftCorner: {
+        x: this.clamp(corners[3].x * scaleX, 0, srcWidth - 1),
+        y: this.clamp(corners[3].y * scaleY, 0, srcHeight - 1),
+      },
+    };
+  }
+
+  private computeOutputSize(corners: CropCorners): { outW: number; outH: number } {
+    const topW = Math.hypot(
+      corners.topRightCorner.x - corners.topLeftCorner.x,
+      corners.topRightCorner.y - corners.topLeftCorner.y,
+    );
+    const bottomW = Math.hypot(
+      corners.bottomRightCorner.x - corners.bottomLeftCorner.x,
+      corners.bottomRightCorner.y - corners.bottomLeftCorner.y,
+    );
+    const leftH = Math.hypot(
+      corners.bottomLeftCorner.x - corners.topLeftCorner.x,
+      corners.bottomLeftCorner.y - corners.topLeftCorner.y,
+    );
+    const rightH = Math.hypot(
+      corners.bottomRightCorner.x - corners.topRightCorner.x,
+      corners.bottomRightCorner.y - corners.topRightCorner.y,
+    );
+
+    return {
+      outW: Math.max(2, Math.round((topW + bottomW) / 2)),
+      outH: Math.max(2, Math.round((leftH + rightH) / 2)),
+    };
   }
 
   private normalizeCorners(points: CropPoint[], w: number, h: number): CropPoint[] {
@@ -403,6 +560,11 @@ export class ConfirmComponent implements OnDestroy {
   }
 
   ngOnDestroy() {
+    if (typeof window !== 'undefined' && this.frameSyncRafId !== null) {
+      window.cancelAnimationFrame(this.frameSyncRafId);
+      this.frameSyncRafId = null;
+    }
+    this.frameResizeObserver?.disconnect();
     if (typeof window !== 'undefined') {
       window.removeEventListener('pointermove', this.pointerMoveHandler);
       window.removeEventListener('pointerup', this.pointerUpHandler);
@@ -419,12 +581,6 @@ export class ConfirmComponent implements OnDestroy {
   }
 
   private extractCroppedBlob(rawBlob: Blob, done: (blob: Blob | null) => void) {
-    const imageEl = this.rawImageEl?.nativeElement;
-    if (!imageEl) {
-      done(null);
-      return;
-    }
-
     // Use the exact assigned corner order (TL, TR, BR, BL) from the editor.
     const corners = this.cropCorners();
     if (corners.length !== 4) {
@@ -445,38 +601,13 @@ export class ConfirmComponent implements OnDestroy {
       done(rawBlob);
       return;
     }
+    const rawImageUrl = this.state.rawCapturedImageUrl();
+    if (!rawImageUrl) {
+      done(rawBlob);
+      return;
+    }
 
-    const scaleX = imageEl.naturalWidth / imageEl.clientWidth;
-    const scaleY = imageEl.naturalHeight / imageEl.clientHeight;
-    const naturalCorners = {
-      topLeftCorner:     { x: corners[0].x * scaleX, y: corners[0].y * scaleY },
-      topRightCorner:    { x: corners[1].x * scaleX, y: corners[1].y * scaleY },
-      bottomRightCorner: { x: corners[2].x * scaleX, y: corners[2].y * scaleY },
-      bottomLeftCorner:  { x: corners[3].x * scaleX, y: corners[3].y * scaleY },
-    };
-
-    // Compute output dimensions from the polygon's actual edge lengths to avoid top/bottom margins.
-    const topW = Math.hypot(
-      naturalCorners.topRightCorner.x - naturalCorners.topLeftCorner.x,
-      naturalCorners.topRightCorner.y - naturalCorners.topLeftCorner.y,
-    );
-    const bottomW = Math.hypot(
-      naturalCorners.bottomRightCorner.x - naturalCorners.bottomLeftCorner.x,
-      naturalCorners.bottomRightCorner.y - naturalCorners.bottomLeftCorner.y,
-    );
-    const leftH = Math.hypot(
-      naturalCorners.bottomLeftCorner.x - naturalCorners.topLeftCorner.x,
-      naturalCorners.bottomLeftCorner.y - naturalCorners.topLeftCorner.y,
-    );
-    const rightH = Math.hypot(
-      naturalCorners.bottomRightCorner.x - naturalCorners.topRightCorner.x,
-      naturalCorners.bottomRightCorner.y - naturalCorners.topRightCorner.y,
-    );
-    const outW = Math.max(2, Math.round((topW + bottomW) / 2));
-    const outH = Math.max(2, Math.round((leftH + rightH) / 2));
-
-    const img = new Image();
-    img.onload = () => {
+    this.loadImage(rawImageUrl).then((img) => {
       const canvas = document.createElement('canvas');
       canvas.width = img.naturalWidth;
       canvas.height = img.naturalHeight;
@@ -487,15 +618,18 @@ export class ConfirmComponent implements OnDestroy {
       }
       ctx.drawImage(img, 0, 0);
 
+      const sourceCorners = this.toSourceCornersFromSvg(corners, canvas.width, canvas.height);
+      const { outW, outH } = this.computeOutputSize(sourceCorners);
+
       try {
         const cv = (window as any).cv;
         const src = cv.imread(canvas);
         const dst = new cv.Mat();
         const srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
-          naturalCorners.topLeftCorner.x, naturalCorners.topLeftCorner.y,
-          naturalCorners.topRightCorner.x, naturalCorners.topRightCorner.y,
-          naturalCorners.bottomRightCorner.x, naturalCorners.bottomRightCorner.y,
-          naturalCorners.bottomLeftCorner.x, naturalCorners.bottomLeftCorner.y,
+          sourceCorners.topLeftCorner.x, sourceCorners.topLeftCorner.y,
+          sourceCorners.topRightCorner.x, sourceCorners.topRightCorner.y,
+          sourceCorners.bottomRightCorner.x, sourceCorners.bottomRightCorner.y,
+          sourceCorners.bottomLeftCorner.x, sourceCorners.bottomLeftCorner.y,
         ]);
         const dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
           0, 0,
@@ -530,14 +664,15 @@ export class ConfirmComponent implements OnDestroy {
       } catch {
         if ((window as any).jscanify) {
           const scanner = new jscanify();
-          const resultCanvas: HTMLCanvasElement = scanner.extractPaper(canvas, outW, outH, naturalCorners);
+          const resultCanvas: HTMLCanvasElement = scanner.extractPaper(canvas, outW, outH, sourceCorners);
           resultCanvas.toBlob((blob: Blob | null) => done(blob), 'image/jpeg', 0.95);
           return;
         }
         done(rawBlob);
       }
-    };
-    img.src = this.state.rawCapturedImageUrl()!;
+    }).catch(() => {
+      done(rawBlob);
+    });
   }
 
   private applyCropAndUpload(rawBlob: Blob) {
