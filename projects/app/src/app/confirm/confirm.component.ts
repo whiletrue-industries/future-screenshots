@@ -38,10 +38,14 @@ export class ConfirmComponent implements OnDestroy {
   cropDirty = signal<boolean>(false);
   showCropEditor = signal<boolean>(true);
   activeCornerIndex = signal<number | null>(null);
+  alternateCapturePreviewUrl = signal<string | null>(null);
+  alternateCapturePreviewBusy = signal<boolean>(false);
   private preserveCornersOnNextImageLoad = false;
   private dragPointerOffset: CropPoint | null = null;
   private frameResizeObserver?: ResizeObserver;
   private frameSyncRafId: number | null = null;
+  private alternatePreviewTimerId: ReturnType<typeof setTimeout> | null = null;
+  private alternatePreviewRequestId = 0;
   cropPolygonPoints = computed(() =>
     this.cropCorners().map((p) => `${p.x},${p.y}`).join(' ')
   );
@@ -98,6 +102,14 @@ export class ConfirmComponent implements OnDestroy {
       !currentTags.includes(tag)
     );
   });
+
+  canToggleCaptureSource = computed(() =>
+    !!this.state.rawCapturedImageVideo() && !!this.state.rawCapturedImageStill()
+  );
+
+  alternateCaptureLabel = computed(() =>
+    this.state.rawCaptureSource() === 'still' ? 'ALT(v)' : 'ALT(s)'
+  );
 
   constructor(public state: StateService, private router: Router, public api: ApiService, private route: ActivatedRoute) { 
     this.api.updateFromRoute(this.route.snapshot);
@@ -167,6 +179,36 @@ export class ConfirmComponent implements OnDestroy {
     this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
   }
 
+  toggleCaptureSource() {
+    if (!this.canToggleCaptureSource()) {
+      return;
+    }
+
+    const shouldKeepPreview = !this.showCropEditor();
+    // Keep current edited corners across source switch and rescale in onRawImageLoaded.
+    this.preserveCornersOnNextImageLoad = !shouldKeepPreview;
+    const nextSource = this.state.rawCaptureSource() === 'still' ? 'video' : 'still';
+    this.state.setRawCaptureSource(nextSource);
+    this.refreshAlternateCapturePreview();
+
+    if (shouldKeepPreview) {
+      const nextRawBlob = this.state.rawCapturedImage();
+      if (nextRawBlob && this.cropCorners().length === 4) {
+        this.extractCroppedBlob(nextRawBlob, (blob) => {
+          if (blob) {
+            this.state.setImage(blob);
+          }
+          this.showCropEditor.set(false);
+          this.activeCornerIndex.set(null);
+        });
+      }
+      return;
+    }
+
+    this.showCropEditor.set(true);
+    this.activeCornerIndex.set(null);
+  }
+
   reopenCropEditor() {
     this.preserveCornersOnNextImageLoad = true;
     this.cropDirty.set(true);
@@ -180,6 +222,7 @@ export class ConfirmComponent implements OnDestroy {
         this.initCropCorners(imageEl);
         this.observeImageFrameSize(imageEl);
         this.startFrameSyncLoop();
+        this.refreshAlternateCapturePreview();
       } else if (retries > 0) {
         requestAnimationFrame(() => tryInit(retries - 1));
       }
@@ -290,6 +333,7 @@ export class ConfirmComponent implements OnDestroy {
         y: this.clamp(p.y * scaleY, 0, h),
       }));
       this.cropCorners.set(preserved);
+      this.refreshAlternateCapturePreview();
       return;
     }
 
@@ -310,7 +354,18 @@ export class ConfirmComponent implements OnDestroy {
       this.initialCropCorners.set(normalizedPoints.map((p) => ({ ...p })));
       this.cropDirty.set(false);
       this.showCropEditor.set(true);
+      this.refreshAlternateCapturePreview();
     } else {
+      const detectedCorners = this.detectCornersFromStill(imageEl, w, h);
+      if (detectedCorners && detectedCorners.length === 4) {
+        this.cropCorners.set(detectedCorners);
+        this.initialCropCorners.set(detectedCorners.map((p) => ({ ...p })));
+        this.cropDirty.set(false);
+        this.showCropEditor.set(true);
+        this.refreshAlternateCapturePreview();
+        return;
+      }
+
       const m = 0.15;
       const corners = [
         { x: this.clamp(w * m, 0, w),       y: this.clamp(h * m, 0, h) },
@@ -322,6 +377,7 @@ export class ConfirmComponent implements OnDestroy {
       this.initialCropCorners.set(corners.map((p) => ({ ...p })));
       this.cropDirty.set(false);
       this.showCropEditor.set(true);
+      this.refreshAlternateCapturePreview();
     }
   }
 
@@ -367,6 +423,7 @@ export class ConfirmComponent implements OnDestroy {
       this.cropDirty.set(true);
       const next = [...points];
       next[index] = { x: nextX, y: nextY };
+      this.refreshAlternateCapturePreview();
       return next;
     });
   }
@@ -398,6 +455,7 @@ export class ConfirmComponent implements OnDestroy {
     this.cropDirty.set(false);
     this.showCropEditor.set(true);
     this.activeCornerIndex.set(null);
+    this.refreshAlternateCapturePreview();
   }
 
   cropPreview() {
@@ -430,6 +488,153 @@ export class ConfirmComponent implements OnDestroy {
       img.onload = () => resolve(img);
       img.onerror = () => reject(new Error('Failed to load image for crop extraction'));
       img.src = url;
+    });
+  }
+
+  private getAlternateSourceUrl(): string | null {
+    if (!this.canToggleCaptureSource()) {
+      return null;
+    }
+    return this.state.rawCaptureSource() === 'still'
+      ? this.state.rawCapturedImageVideoUrl()
+      : this.state.rawCapturedImageStillUrl();
+  }
+
+  private clearAlternateCapturePreview(): void {
+    const current = this.alternateCapturePreviewUrl();
+    if (current) {
+      URL.revokeObjectURL(current);
+    }
+    this.alternateCapturePreviewUrl.set(null);
+  }
+
+  private refreshAlternateCapturePreview(): void {
+    if (!this.showCropEditor() || !this.canToggleCaptureSource() || this.cropCorners().length !== 4) {
+      this.clearAlternateCapturePreview();
+      this.alternateCapturePreviewBusy.set(false);
+      return;
+    }
+
+    if (this.alternatePreviewTimerId !== null) {
+      clearTimeout(this.alternatePreviewTimerId);
+    }
+    this.alternatePreviewTimerId = setTimeout(() => {
+      this.alternatePreviewTimerId = null;
+      this.renderAlternateCapturePreview();
+    }, 70);
+  }
+
+  private renderAlternateCapturePreview(): void {
+    const sourceUrl = this.getAlternateSourceUrl();
+    const corners = this.cropCorners();
+    if (!sourceUrl || corners.length !== 4) {
+      this.clearAlternateCapturePreview();
+      this.alternateCapturePreviewBusy.set(false);
+      return;
+    }
+
+    const requestId = ++this.alternatePreviewRequestId;
+    this.alternateCapturePreviewBusy.set(true);
+
+    this.loadImage(sourceUrl).then((img) => {
+      if (requestId !== this.alternatePreviewRequestId) {
+        return;
+      }
+
+      const sourceCanvas = document.createElement('canvas');
+      sourceCanvas.width = img.naturalWidth;
+      sourceCanvas.height = img.naturalHeight;
+      const sourceCtx = sourceCanvas.getContext('2d');
+      if (!sourceCtx) {
+        this.alternateCapturePreviewBusy.set(false);
+        return;
+      }
+      sourceCtx.drawImage(img, 0, 0);
+
+      const sourceCorners = this.toSourceCornersFromSvg(corners, sourceCanvas.width, sourceCanvas.height);
+      const { outW, outH } = this.computeOutputSize(sourceCorners);
+      const maxThumbEdge = 220;
+      const scale = Math.min(1, maxThumbEdge / Math.max(outW, outH));
+      const thumbW = Math.max(2, Math.round(outW * scale));
+      const thumbH = Math.max(2, Math.round(outH * scale));
+
+      try {
+        const cv = (window as any).cv;
+        if (cv?.Mat) {
+          const src = cv.imread(sourceCanvas);
+          const dst = new cv.Mat();
+          const srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+            sourceCorners.topLeftCorner.x, sourceCorners.topLeftCorner.y,
+            sourceCorners.topRightCorner.x, sourceCorners.topRightCorner.y,
+            sourceCorners.bottomRightCorner.x, sourceCorners.bottomRightCorner.y,
+            sourceCorners.bottomLeftCorner.x, sourceCorners.bottomLeftCorner.y,
+          ]);
+          const dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+            0, 0,
+            thumbW - 1, 0,
+            thumbW - 1, thumbH - 1,
+            0, thumbH - 1,
+          ]);
+          const transform = cv.getPerspectiveTransform(srcTri, dstTri);
+          cv.warpPerspective(src, dst, transform, new cv.Size(thumbW, thumbH), cv.INTER_LINEAR, cv.BORDER_REPLICATE, new cv.Scalar());
+
+          const outputCanvas = document.createElement('canvas');
+          outputCanvas.width = thumbW;
+          outputCanvas.height = thumbH;
+          cv.imshow(outputCanvas, dst);
+
+          src.delete();
+          dst.delete();
+          srcTri.delete();
+          dstTri.delete();
+          transform.delete();
+
+          outputCanvas.toBlob((blob: Blob | null) => {
+            if (requestId !== this.alternatePreviewRequestId) {
+              return;
+            }
+            if (!blob) {
+              this.alternateCapturePreviewBusy.set(false);
+              return;
+            }
+            this.clearAlternateCapturePreview();
+            this.alternateCapturePreviewUrl.set(URL.createObjectURL(blob));
+            this.alternateCapturePreviewBusy.set(false);
+          }, 'image/jpeg', 0.85);
+          return;
+        }
+      } catch {
+        // Fall through to jscanify fallback.
+      }
+
+      if ((window as any).jscanify) {
+        try {
+          const scanner = new jscanify();
+          const outputCanvas: HTMLCanvasElement = scanner.extractPaper(sourceCanvas, thumbW, thumbH, sourceCorners);
+          outputCanvas.toBlob((blob: Blob | null) => {
+            if (requestId !== this.alternatePreviewRequestId) {
+              return;
+            }
+            if (!blob) {
+              this.alternateCapturePreviewBusy.set(false);
+              return;
+            }
+            this.clearAlternateCapturePreview();
+            this.alternateCapturePreviewUrl.set(URL.createObjectURL(blob));
+            this.alternateCapturePreviewBusy.set(false);
+          }, 'image/jpeg', 0.85);
+          return;
+        } catch {
+          // no-op
+        }
+      }
+
+      this.alternateCapturePreviewBusy.set(false);
+    }).catch(() => {
+      if (requestId !== this.alternatePreviewRequestId) {
+        return;
+      }
+      this.alternateCapturePreviewBusy.set(false);
     });
   }
 
@@ -479,10 +684,188 @@ export class ConfirmComponent implements OnDestroy {
       corners.bottomRightCorner.y - corners.topRightCorner.y,
     );
 
+    const avgWidth = (topW + bottomW) / 2;
+    const avgHeight = (leftH + rightH) / 2;
+    const targetBaseWidth = 1060;
+    const targetBaseHeight = 2000;
+    const scale = Math.max(
+      1,
+      Math.min(avgWidth / targetBaseWidth, avgHeight / targetBaseHeight),
+    );
+
     return {
-      outW: Math.max(2, Math.round((topW + bottomW) / 2)),
-      outH: Math.max(2, Math.round((leftH + rightH) / 2)),
+      outW: Math.max(2, Math.round(targetBaseWidth * scale)),
+      outH: Math.max(2, Math.round(targetBaseHeight * scale)),
     };
+  }
+
+  private orderQuadPoints(points: CropPoint[]): CropPoint[] {
+    if (points.length !== 4) {
+      return points;
+    }
+
+    const bySum = [...points].sort((a, b) => (a.x + a.y) - (b.x + b.y));
+    const byDiff = [...points].sort((a, b) => (a.y - a.x) - (b.y - b.x));
+
+    const topLeft = bySum[0];
+    const bottomRight = bySum[3];
+    const topRight = byDiff[0];
+    const bottomLeft = byDiff[3];
+
+    return [topLeft, topRight, bottomRight, bottomLeft];
+  }
+
+  private selectContourCorners(points: CropPoint[]): CropPoint[] | null {
+    if (points.length < 4) {
+      return null;
+    }
+
+    const topLeft = points.reduce((best, point) =>
+      (point.x + point.y) < (best.x + best.y) ? point : best
+    );
+    const topRight = points.reduce((best, point) =>
+      (point.x - point.y) > (best.x - best.y) ? point : best
+    );
+    const bottomRight = points.reduce((best, point) =>
+      (point.x + point.y) > (best.x + best.y) ? point : best
+    );
+    const bottomLeft = points.reduce((best, point) =>
+      (point.y - point.x) > (best.y - best.x) ? point : best
+    );
+
+    const uniquePointCount = new Set([
+      `${Math.round(topLeft.x)}:${Math.round(topLeft.y)}`,
+      `${Math.round(topRight.x)}:${Math.round(topRight.y)}`,
+      `${Math.round(bottomRight.x)}:${Math.round(bottomRight.y)}`,
+      `${Math.round(bottomLeft.x)}:${Math.round(bottomLeft.y)}`,
+    ]).size;
+
+    if (uniquePointCount < 4) {
+      return null;
+    }
+
+    return [topLeft, topRight, bottomRight, bottomLeft];
+  }
+
+  private extractQuadFromContour(contour: any): CropPoint[] | null {
+    const cv = (window as any).cv;
+    if (!cv || !contour) {
+      return null;
+    }
+
+    const perimeter = cv.arcLength(contour, true);
+    const approx = new cv.Mat();
+    const hull = new cv.Mat();
+
+    try {
+      cv.convexHull(contour, hull, false, true);
+      const hullPoints: CropPoint[] = [];
+      for (let index = 0; index < hull.rows; index += 1) {
+        hullPoints.push({
+          x: hull.intPtr(index, 0)[0],
+          y: hull.intPtr(index, 0)[1],
+        });
+      }
+
+      const hullCorners = this.selectContourCorners(hullPoints);
+      if (hullCorners) {
+        return hullCorners;
+      }
+
+      cv.approxPolyDP(contour, approx, 0.02 * perimeter, true);
+      if (approx.rows === 4) {
+        const points: CropPoint[] = [];
+        for (let index = 0; index < 4; index += 1) {
+          points.push({
+            x: approx.intPtr(index, 0)[0],
+            y: approx.intPtr(index, 0)[1],
+          });
+        }
+        return this.orderQuadPoints(points);
+      }
+
+      const rotatedRect = cv.minAreaRect(contour);
+      const rectPoints = cv.RotatedRect.points(rotatedRect);
+      return this.orderQuadPoints(rectPoints.map((point: CropPoint) => ({ x: point.x, y: point.y })));
+    } catch {
+      return null;
+    } finally {
+      approx.delete();
+      hull.delete();
+    }
+  }
+
+  private detectCornersFromStill(imageEl: HTMLImageElement, displayW: number, displayH: number): CropPoint[] | null {
+    if (!(window as any).cv?.Mat || !(window as any).jscanify || imageEl.naturalWidth <= 0 || imageEl.naturalHeight <= 0) {
+      return null;
+    }
+
+    const cv = (window as any).cv;
+    const scanner = new jscanify();
+    const sourceCanvas = document.createElement('canvas');
+    sourceCanvas.width = imageEl.naturalWidth;
+    sourceCanvas.height = imageEl.naturalHeight;
+    const sourceCtx = sourceCanvas.getContext('2d');
+    if (!sourceCtx) {
+      return null;
+    }
+    sourceCtx.drawImage(imageEl, 0, 0, imageEl.naturalWidth, imageEl.naturalHeight);
+
+    let sourceMat: any = null;
+    let detectMat: any = null;
+    let contour: any = null;
+
+    try {
+      sourceMat = cv.imread(sourceCanvas);
+      const maxDetectDim = 3000;
+      const longestEdge = Math.max(sourceMat.cols, sourceMat.rows);
+      const detectScale = longestEdge > maxDetectDim ? maxDetectDim / longestEdge : 1;
+
+      if (detectScale < 1) {
+        detectMat = new cv.Mat();
+        const detectSize = new cv.Size(
+          Math.max(2, Math.round(sourceMat.cols * detectScale)),
+          Math.max(2, Math.round(sourceMat.rows * detectScale)),
+        );
+        cv.resize(sourceMat, detectMat, detectSize, 0, 0, cv.INTER_AREA);
+      } else {
+        detectMat = sourceMat;
+      }
+
+      contour = scanner.findPaperContour(detectMat);
+      if (!contour) {
+        return null;
+      }
+
+      const quadPoints = this.extractQuadFromContour(contour);
+      if (!quadPoints || quadPoints.length !== 4) {
+        return null;
+      }
+
+      const invScale = detectScale < 1 ? 1 / detectScale : 1;
+      const toDisplayX = displayW / imageEl.naturalWidth;
+      const toDisplayY = displayH / imageEl.naturalHeight;
+      const detectedPoints = [
+        { x: quadPoints[0].x * invScale * toDisplayX, y: quadPoints[0].y * invScale * toDisplayY },
+        { x: quadPoints[1].x * invScale * toDisplayX, y: quadPoints[1].y * invScale * toDisplayY },
+        { x: quadPoints[2].x * invScale * toDisplayX, y: quadPoints[2].y * invScale * toDisplayY },
+        { x: quadPoints[3].x * invScale * toDisplayX, y: quadPoints[3].y * invScale * toDisplayY },
+      ];
+
+      return this.normalizeCorners(detectedPoints, displayW, displayH);
+    } catch {
+      return null;
+    } finally {
+      if (contour && typeof contour.delete === 'function') {
+        contour.delete();
+      }
+      if (detectMat && detectMat !== sourceMat && typeof detectMat.delete === 'function') {
+        detectMat.delete();
+      }
+      if (sourceMat && typeof sourceMat.delete === 'function') {
+        sourceMat.delete();
+      }
+    }
   }
 
   private normalizeCorners(points: CropPoint[], w: number, h: number): CropPoint[] {
@@ -560,6 +943,12 @@ export class ConfirmComponent implements OnDestroy {
   }
 
   ngOnDestroy() {
+    if (this.alternatePreviewTimerId !== null) {
+      clearTimeout(this.alternatePreviewTimerId);
+      this.alternatePreviewTimerId = null;
+    }
+    this.alternatePreviewRequestId += 1;
+    this.clearAlternateCapturePreview();
     if (typeof window !== 'undefined' && this.frameSyncRafId !== null) {
       window.cancelAnimationFrame(this.frameSyncRafId);
       this.frameSyncRafId = null;

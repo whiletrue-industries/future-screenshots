@@ -75,6 +75,23 @@
   </div>
 }
 <div class='img'>
+  @if (state.rawCaptureSource()) {
+    @if (canToggleCaptureSource()) {
+      <button type="button"
+              class="capture-source-chip capture-source-toggle"
+              (click)="toggleCaptureSource()"
+              [attr.aria-label]="state.rawCaptureSource() === 'still' ? 'Switch to video capture' : 'Switch to still capture'">
+        <span class="capture-source-label">{{ alternateCaptureLabel() }}</span>
+        @if (alternateCapturePreviewUrl()) {
+          <img class="capture-source-thumb" [src]="alternateCapturePreviewUrl()!" alt="Alternate source preview" />
+        } @else {
+          <span class="capture-source-thumb-placeholder" [class.busy]="alternateCapturePreviewBusy()"></span>
+        }
+      </button>
+    } @else {
+      <div class="capture-source-chip">{{ state.rawCaptureSource() === 'still' ? 'S' : 'V' }}</div>
+    }
+  }
   @if (state.rawCapturedImageUrl() && showCropEditor() && cropDirty()) {
     <a (click)="cancelCropChanges()"
        class="crop-close-static"
@@ -151,8 +168,8 @@
   }
 
   @if (!api.currentlyUploadingImage()) {
-    <a (click)="state.rawCapturedImageUrl() && showCropEditor() && cropDirty() ? cropPreview() : upload()" class="confirm">
-      @if (state.rawCapturedImageUrl() && showCropEditor() && cropDirty()) {
+    <a (click)="state.rawCapturedImageUrl() && showCropEditor() ? cropPreview() : upload()" class="confirm">
+      @if (state.rawCapturedImageUrl() && showCropEditor()) {
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M6 2v14a2 2 0 0 0 2 2h14"/>
           <path d="M18 22V8a2 2 0 0 0-2-2H2"/>
