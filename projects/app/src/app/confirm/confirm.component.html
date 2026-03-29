@@ -92,6 +92,7 @@
         @if (cropFrameWidth() > 0) {
           <svg class="crop-overlay"
                [attr.viewBox]="'0 0 ' + cropFrameWidth() + ' ' + cropFrameHeight()"
+            overflow="visible"
                preserveAspectRatio="none">
             <path class="outside-mask"
                   [attr.d]="'M0 0 H ' + cropFrameWidth() + ' V ' + cropFrameHeight() + ' H 0 Z M ' + cropPolygonPoints() + ' Z'"

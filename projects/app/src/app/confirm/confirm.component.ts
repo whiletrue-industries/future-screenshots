@@ -361,19 +361,6 @@ export class ConfirmComponent implements OnDestroy {
     return clamped;
   }
 
-  private orderCornersForPerspective(points: CropPoint[]): CropPoint[] {
-    if (points.length !== 4) {
-      return points;
-    }
-
-    const sortedByY = [...points].sort((a, b) => a.y - b.y);
-    const topTwo = sortedByY.slice(0, 2).sort((a, b) => a.x - b.x);
-    const bottomTwo = sortedByY.slice(2, 4).sort((a, b) => a.x - b.x);
-
-    // Return corners in TL, TR, BR, BL order for perspective transform.
-    return [topTwo[0], topTwo[1], bottomTwo[1], bottomTwo[0]];
-  }
-
   private rectFromPoints(points: CropPoint[], w: number, h: number, inset: number): CropRect {
     const xs = points.map((p) => p.x);
     const ys = points.map((p) => p.y);
@@ -438,7 +425,8 @@ export class ConfirmComponent implements OnDestroy {
       return;
     }
 
-    const corners = this.orderCornersForPerspective(this.cropCorners());
+    // Use the exact assigned corner order (TL, TR, BR, BL) from the editor.
+    const corners = this.cropCorners();
     if (corners.length !== 4) {
       done(null);
       return;
