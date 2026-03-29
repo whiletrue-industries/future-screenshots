@@ -8,6 +8,7 @@ import { FormsModule } from '@angular/forms';
 declare const jscanify: any;
 
 type CropPoint = { x: number; y: number };
+type CropRect = { left: number; top: number; right: number; bottom: number };
 
 @Component({
   selector: 'app-confirm',
@@ -21,14 +22,35 @@ type CropPoint = { x: number; y: number };
 })
 export class ConfirmComponent implements OnDestroy {
   isTemplateFlow = false;
+  private readonly MIN_CROP_SIZE = 64;
 
   // Crop overlay state (used when rawCapturedImageUrl is present)
   cropCorners = signal<CropPoint[]>([]);
   cropFrameWidth = signal<number>(0);
   cropFrameHeight = signal<number>(0);
+  initialCropCorners = signal<CropPoint[]>([]);
+  cropDirty = signal<boolean>(false);
+  showCropEditor = signal<boolean>(true);
+  activeCornerIndex = signal<number | null>(null);
+  private preserveCornersOnNextImageLoad = false;
+  private dragPointerOffset: CropPoint | null = null;
   cropPolygonPoints = computed(() =>
-    this.cropCorners().map(p => `${p.x},${p.y}`).join(' ')
+    this.cropCorners().map((p) => `${p.x},${p.y}`).join(' ')
   );
+  cropRect = computed<CropRect>(() => {
+    const points = this.cropCorners();
+    if (points.length !== 4) {
+      return { left: 0, top: 0, right: 0, bottom: 0 };
+    }
+    const xs = points.map((p) => p.x);
+    const ys = points.map((p) => p.y);
+    return {
+      left: Math.min(...xs),
+      top: Math.min(...ys),
+      right: Math.max(...xs),
+      bottom: Math.max(...ys),
+    };
+  });
 
   private dragCornerIndex: number | null = null;
   private readonly pointerMoveHandler = (event: PointerEvent) => this.onPointerMove(event);
@@ -135,6 +157,12 @@ export class ConfirmComponent implements OnDestroy {
     this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
   }
 
+  reopenCropEditor() {
+    this.preserveCornersOnNextImageLoad = true;
+    this.cropDirty.set(true);
+    this.showCropEditor.set(true);
+  }
+
   onRawImageLoaded() {
     const tryInit = (retries = 5) => {
       const imageEl = this.rawImageEl?.nativeElement;
@@ -148,64 +176,250 @@ export class ConfirmComponent implements OnDestroy {
   }
 
   private initCropCorners(imageEl: HTMLImageElement) {
+    const preserveExisting = this.preserveCornersOnNextImageLoad;
+    this.preserveCornersOnNextImageLoad = false;
+
+    const previousWidth = this.cropFrameWidth();
+    const previousHeight = this.cropFrameHeight();
+    const previousCorners = this.cropCorners();
+
     const w = imageEl.clientWidth;
     const h = imageEl.clientHeight;
     this.cropFrameWidth.set(w);
     this.cropFrameHeight.set(h);
+
+    if (preserveExisting && previousCorners.length === 4 && previousWidth > 0 && previousHeight > 0) {
+      const scaleX = w / previousWidth;
+      const scaleY = h / previousHeight;
+      const preserved = previousCorners.map((p) => ({
+        x: this.clamp(p.x * scaleX, 0, w),
+        y: this.clamp(p.y * scaleY, 0, h),
+      }));
+      this.cropCorners.set(preserved);
+      return;
+    }
 
     const pending = this.state.pendingCropCorners();
     if (pending && imageEl.naturalWidth > 0) {
       // Scale from natural (video) coordinates to display coordinates
       const scaleX = w / imageEl.naturalWidth;
       const scaleY = h / imageEl.naturalHeight;
-      this.cropCorners.set([
+      const scaledPoints = [
         { x: pending.topLeftCorner.x * scaleX,     y: pending.topLeftCorner.y * scaleY },
         { x: pending.topRightCorner.x * scaleX,    y: pending.topRightCorner.y * scaleY },
         { x: pending.bottomRightCorner.x * scaleX, y: pending.bottomRightCorner.y * scaleY },
         { x: pending.bottomLeftCorner.x * scaleX,  y: pending.bottomLeftCorner.y * scaleY },
-      ]);
+      ];
+
+      const normalizedPoints = this.normalizeCorners(scaledPoints, w, h);
+      this.cropCorners.set(normalizedPoints);
+      this.initialCropCorners.set(normalizedPoints.map((p) => ({ ...p })));
+      this.cropDirty.set(false);
+      this.showCropEditor.set(true);
     } else {
       const m = 0.15;
-      this.cropCorners.set([
-        { x: w * m,       y: h * m },
-        { x: w * (1 - m), y: h * m },
-        { x: w * (1 - m), y: h * (1 - m) },
-        { x: w * m,       y: h * (1 - m) },
-      ]);
+      const corners = [
+        { x: this.clamp(w * m, 0, w),       y: this.clamp(h * m, 0, h) },
+        { x: this.clamp(w * (1 - m), 0, w), y: this.clamp(h * m, 0, h) },
+        { x: this.clamp(w * (1 - m), 0, w), y: this.clamp(h * (1 - m), 0, h) },
+        { x: this.clamp(w * m, 0, w),       y: this.clamp(h * (1 - m), 0, h) },
+      ];
+      this.cropCorners.set(corners);
+      this.initialCropCorners.set(corners.map((p) => ({ ...p })));
+      this.cropDirty.set(false);
+      this.showCropEditor.set(true);
     }
   }
 
   startDraggingCorner(index: number, event: PointerEvent) {
     event.preventDefault();
     event.stopPropagation();
+    const pointer = this.mapPointerToFrame(event.clientX, event.clientY);
+    const currentCorner = this.cropCorners()[index];
+    if (!pointer || !currentCorner) {
+      return;
+    }
+
+    this.dragPointerOffset = {
+      x: pointer.x - currentCorner.x,
+      y: pointer.y - currentCorner.y,
+    };
     this.dragCornerIndex = index;
-    window.addEventListener('pointermove', this.pointerMoveHandler);
-    window.addEventListener('pointerup', this.pointerUpHandler);
+    this.activeCornerIndex.set(index);
+    (event.currentTarget as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pointermove', this.pointerMoveHandler);
+      window.addEventListener('pointerup', this.pointerUpHandler);
+    }
   }
 
   private onPointerMove(event: PointerEvent) {
     if (this.dragCornerIndex === null) return;
-    const imageEl = this.rawImageEl?.nativeElement;
-    if (!imageEl) return;
-    const rect = imageEl.getBoundingClientRect();
-    const nextX = event.clientX - rect.left;
-    const nextY = event.clientY - rect.top;
-    this.cropCorners.update(points => {
+    this.updateCornerFromPointer(this.dragCornerIndex, event.clientX, event.clientY);
+  }
+
+  private updateCornerFromPointer(index: number, clientX: number, clientY: number) {
+    const pointer = this.mapPointerToFrame(clientX, clientY);
+    if (!pointer) return;
+    const frameWidth = this.cropFrameWidth();
+    const frameHeight = this.cropFrameHeight();
+    const offset = this.dragPointerOffset || { x: 0, y: 0 };
+    const nextX = this.clamp(pointer.x - offset.x, 0, frameWidth);
+    const nextY = this.clamp(pointer.y - offset.y, 0, frameHeight);
+    this.cropCorners.update((points) => {
+      if (points.length !== 4) {
+        return points;
+      }
+      this.cropDirty.set(true);
       const next = [...points];
-      next[this.dragCornerIndex!] = { x: nextX, y: nextY };
+      next[index] = { x: nextX, y: nextY };
       return next;
     });
   }
 
+  private mapPointerToFrame(clientX: number, clientY: number): CropPoint | null {
+    const imageEl = this.rawImageEl?.nativeElement;
+    if (!imageEl) {
+      return null;
+    }
+    const rect = imageEl.getBoundingClientRect();
+    return {
+      x: this.clamp(clientX - rect.left, 0, this.cropFrameWidth()),
+      y: this.clamp(clientY - rect.top, 0, this.cropFrameHeight()),
+    };
+  }
+
+  handleRadius(index: number): number {
+    return this.activeCornerIndex() === index ? 64 : 60;
+  }
+
+  cancelCropChanges() {
+    const initial = this.initialCropCorners();
+    if (initial.length !== 4) {
+      return;
+    }
+    this.cropCorners.set(initial.map((p) => ({ ...p })));
+    this.cropDirty.set(false);
+    this.showCropEditor.set(true);
+    this.activeCornerIndex.set(null);
+  }
+
+  cropPreview() {
+    const rawBlob = this.state.rawCapturedImage();
+    if (!rawBlob) {
+      return;
+    }
+
+    this.extractCroppedBlob(rawBlob, (blob) => {
+      if (blob) {
+        this.state.setImage(blob);
+      }
+      // Keep raw image to allow returning to crop editor.
+      this.cropDirty.set(false);
+      this.showCropEditor.set(false);
+      this.activeCornerIndex.set(null);
+    });
+  }
+
+  private clamp(value: number, min: number, max: number): number {
+    if (!Number.isFinite(value)) {
+      return min;
+    }
+    return Math.min(max, Math.max(min, value));
+  }
+
+  private normalizeCorners(points: CropPoint[], w: number, h: number): CropPoint[] {
+    const clamped = points.map((p) => ({
+      x: this.clamp(p.x, 0, w),
+      y: this.clamp(p.y, 0, h),
+    }));
+
+    // If input is clearly unusable, fall back to a centered rectangle.
+    if (clamped.some((p) => !Number.isFinite(p.x) || !Number.isFinite(p.y))) {
+      const m = 0.15;
+      return [
+        { x: this.clamp(w * m, 0, w),       y: this.clamp(h * m, 0, h) },
+        { x: this.clamp(w * (1 - m), 0, w), y: this.clamp(h * m, 0, h) },
+        { x: this.clamp(w * (1 - m), 0, w), y: this.clamp(h * (1 - m), 0, h) },
+        { x: this.clamp(w * m, 0, w),       y: this.clamp(h * (1 - m), 0, h) },
+      ];
+    }
+
+    // Keep incoming order (TL, TR, BR, BL) to preserve scanner geometry.
+    // If points collapse to duplicates after clamping, reset to a safe rectangle.
+    const uniquePointCount = new Set(clamped.map((p) => `${Math.round(p.x)}:${Math.round(p.y)}`)).size;
+    if (uniquePointCount < 4) {
+      const m = 0.15;
+      return [
+        { x: this.clamp(w * m, 0, w),       y: this.clamp(h * m, 0, h) },
+        { x: this.clamp(w * (1 - m), 0, w), y: this.clamp(h * m, 0, h) },
+        { x: this.clamp(w * (1 - m), 0, w), y: this.clamp(h * (1 - m), 0, h) },
+        { x: this.clamp(w * m, 0, w),       y: this.clamp(h * (1 - m), 0, h) },
+      ];
+    }
+
+    return clamped;
+  }
+
+  private orderCornersForPerspective(points: CropPoint[]): CropPoint[] {
+    if (points.length !== 4) {
+      return points;
+    }
+
+    const sortedByY = [...points].sort((a, b) => a.y - b.y);
+    const topTwo = sortedByY.slice(0, 2).sort((a, b) => a.x - b.x);
+    const bottomTwo = sortedByY.slice(2, 4).sort((a, b) => a.x - b.x);
+
+    // Return corners in TL, TR, BR, BL order for perspective transform.
+    return [topTwo[0], topTwo[1], bottomTwo[1], bottomTwo[0]];
+  }
+
+  private rectFromPoints(points: CropPoint[], w: number, h: number, inset: number): CropRect {
+    const xs = points.map((p) => p.x);
+    const ys = points.map((p) => p.y);
+    const minSize = Math.max(this.MIN_CROP_SIZE, inset * 2);
+
+    let left = this.clamp(Math.min(...xs), inset, w - inset);
+    let right = this.clamp(Math.max(...xs), inset, w - inset);
+    let top = this.clamp(Math.min(...ys), inset, h - inset);
+    let bottom = this.clamp(Math.max(...ys), inset, h - inset);
+
+    if (right - left < minSize) {
+      right = this.clamp(left + minSize, inset, w - inset);
+      left = this.clamp(right - minSize, inset, w - inset);
+    }
+    if (bottom - top < minSize) {
+      bottom = this.clamp(top + minSize, inset, h - inset);
+      top = this.clamp(bottom - minSize, inset, h - inset);
+    }
+
+    return { left, top, right, bottom };
+  }
+
+  private cornersFromRect(rect: CropRect): CropPoint[] {
+    return [
+      { x: rect.left, y: rect.top },
+      { x: rect.right, y: rect.top },
+      { x: rect.right, y: rect.bottom },
+      { x: rect.left, y: rect.bottom },
+    ];
+  }
+
   private stopDraggingCorner() {
     this.dragCornerIndex = null;
-    window.removeEventListener('pointermove', this.pointerMoveHandler);
-    window.removeEventListener('pointerup', this.pointerUpHandler);
+    this.dragPointerOffset = null;
+    this.activeCornerIndex.set(null);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('pointermove', this.pointerMoveHandler);
+      window.removeEventListener('pointerup', this.pointerUpHandler);
+    }
   }
 
   ngOnDestroy() {
-    window.removeEventListener('pointermove', this.pointerMoveHandler);
-    window.removeEventListener('pointerup', this.pointerUpHandler);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('pointermove', this.pointerMoveHandler);
+      window.removeEventListener('pointerup', this.pointerUpHandler);
+    }
   }
 
   upload() {
@@ -217,22 +431,33 @@ export class ConfirmComponent implements OnDestroy {
     this.proceedWithUpload();
   }
 
-  private applyCropAndUpload(rawBlob: Blob) {
+  private extractCroppedBlob(rawBlob: Blob, done: (blob: Blob | null) => void) {
     const imageEl = this.rawImageEl?.nativeElement;
-    if (!imageEl) { this.proceedWithUpload(); return; }
-
-    const corners = this.cropCorners();
-    if (corners.length !== 4) { this.proceedWithUpload(); return; }
-
-    if (!(window as any).jscanify || !(window as any).cv?.Mat) {
-      // jscanify not available — fall back to uploading raw
-      this.state.setImage(rawBlob);
-      this.state.clearRawImage();
-      this.proceedWithUpload();
+    if (!imageEl) {
+      done(null);
       return;
     }
 
-    // Scale display corners to natural pixel space (what jscanify reads from the canvas)
+    const corners = this.orderCornersForPerspective(this.cropCorners());
+    if (corners.length !== 4) {
+      done(null);
+      return;
+    }
+
+    const frameWidth = this.cropFrameWidth();
+    const frameHeight = this.cropFrameHeight();
+    const rect = this.rectFromPoints(corners, frameWidth, frameHeight, 0);
+    const minSize = Math.max(2, this.MIN_CROP_SIZE);
+    if (rect.right - rect.left < minSize || rect.bottom - rect.top < minSize) {
+      done(null);
+      return;
+    }
+
+    if (!(window as any).cv?.Mat) {
+      done(rawBlob);
+      return;
+    }
+
     const scaleX = imageEl.naturalWidth / imageEl.clientWidth;
     const scaleY = imageEl.naturalHeight / imageEl.clientHeight;
     const naturalCorners = {
@@ -242,25 +467,101 @@ export class ConfirmComponent implements OnDestroy {
       bottomLeftCorner:  { x: corners[3].x * scaleX, y: corners[3].y * scaleY },
     };
 
-    // Draw the raw image onto an offscreen canvas at natural resolution and extract
+    // Compute output dimensions from the polygon's actual edge lengths to avoid top/bottom margins.
+    const topW = Math.hypot(
+      naturalCorners.topRightCorner.x - naturalCorners.topLeftCorner.x,
+      naturalCorners.topRightCorner.y - naturalCorners.topLeftCorner.y,
+    );
+    const bottomW = Math.hypot(
+      naturalCorners.bottomRightCorner.x - naturalCorners.bottomLeftCorner.x,
+      naturalCorners.bottomRightCorner.y - naturalCorners.bottomLeftCorner.y,
+    );
+    const leftH = Math.hypot(
+      naturalCorners.bottomLeftCorner.x - naturalCorners.topLeftCorner.x,
+      naturalCorners.bottomLeftCorner.y - naturalCorners.topLeftCorner.y,
+    );
+    const rightH = Math.hypot(
+      naturalCorners.bottomRightCorner.x - naturalCorners.topRightCorner.x,
+      naturalCorners.bottomRightCorner.y - naturalCorners.topRightCorner.y,
+    );
+    const outW = Math.max(2, Math.round((topW + bottomW) / 2));
+    const outH = Math.max(2, Math.round((leftH + rightH) / 2));
+
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
       canvas.width = img.naturalWidth;
       canvas.height = img.naturalHeight;
-      canvas.getContext('2d')!.drawImage(img, 0, 0);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        done(rawBlob);
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
 
-      const scanner = new jscanify();
-      const resultCanvas: HTMLCanvasElement = scanner.extractPaper(canvas, 1060, 2000, naturalCorners);
-      resultCanvas.toBlob((blob: Blob | null) => {
-        if (blob) {
-          this.state.setImage(blob);
+      try {
+        const cv = (window as any).cv;
+        const src = cv.imread(canvas);
+        const dst = new cv.Mat();
+        const srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+          naturalCorners.topLeftCorner.x, naturalCorners.topLeftCorner.y,
+          naturalCorners.topRightCorner.x, naturalCorners.topRightCorner.y,
+          naturalCorners.bottomRightCorner.x, naturalCorners.bottomRightCorner.y,
+          naturalCorners.bottomLeftCorner.x, naturalCorners.bottomLeftCorner.y,
+        ]);
+        const dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+          0, 0,
+          outW - 1, 0,
+          outW - 1, outH - 1,
+          0, outH - 1,
+        ]);
+
+        const transform = cv.getPerspectiveTransform(srcTri, dstTri);
+        cv.warpPerspective(
+          src,
+          dst,
+          transform,
+          new cv.Size(outW, outH),
+          cv.INTER_LINEAR,
+          cv.BORDER_REPLICATE,
+          new cv.Scalar(),
+        );
+
+        const outputCanvas = document.createElement('canvas');
+        outputCanvas.width = outW;
+        outputCanvas.height = outH;
+        cv.imshow(outputCanvas, dst);
+
+        src.delete();
+        dst.delete();
+        srcTri.delete();
+        dstTri.delete();
+        transform.delete();
+
+        outputCanvas.toBlob((blob: Blob | null) => done(blob), 'image/jpeg', 0.95);
+      } catch {
+        if ((window as any).jscanify) {
+          const scanner = new jscanify();
+          const resultCanvas: HTMLCanvasElement = scanner.extractPaper(canvas, outW, outH, naturalCorners);
+          resultCanvas.toBlob((blob: Blob | null) => done(blob), 'image/jpeg', 0.95);
+          return;
         }
-        this.state.clearRawImage();
-        this.proceedWithUpload();
-      }, 'image/jpeg', 0.95);
+        done(rawBlob);
+      }
     };
     img.src = this.state.rawCapturedImageUrl()!;
+  }
+
+  private applyCropAndUpload(rawBlob: Blob) {
+    this.extractCroppedBlob(rawBlob, (blob) => {
+      if (blob) {
+        this.state.setImage(blob);
+      }
+      this.state.clearRawImage();
+      this.cropDirty.set(false);
+      this.showCropEditor.set(false);
+      this.proceedWithUpload();
+    });
   }
 
   private proceedWithUpload() {
