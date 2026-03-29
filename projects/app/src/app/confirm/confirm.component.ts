@@ -108,7 +108,7 @@ export class ConfirmComponent implements OnDestroy {
   );
 
   alternateCaptureLabel = computed(() =>
-    this.state.rawCaptureSource() === 'still' ? 'ALT(v)' : 'ALT(s)'
+    this.state.rawCaptureSource() === 'still' ? 'ALT: VID' : 'ALT: STILL'
   );
 
   constructor(public state: StateService, private router: Router, public api: ApiService, private route: ActivatedRoute) { 
@@ -472,6 +472,7 @@ export class ConfirmComponent implements OnDestroy {
       this.cropDirty.set(false);
       this.showCropEditor.set(false);
       this.activeCornerIndex.set(null);
+      this.refreshAlternateCapturePreview();
     });
   }
 
@@ -509,7 +510,7 @@ export class ConfirmComponent implements OnDestroy {
   }
 
   private refreshAlternateCapturePreview(): void {
-    if (!this.showCropEditor() || !this.canToggleCaptureSource() || this.cropCorners().length !== 4) {
+    if (!this.canToggleCaptureSource() || this.cropCorners().length !== 4) {
       this.clearAlternateCapturePreview();
       this.alternateCapturePreviewBusy.set(false);
       return;
