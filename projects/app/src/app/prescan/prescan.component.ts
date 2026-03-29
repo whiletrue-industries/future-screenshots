@@ -95,8 +95,8 @@ I’m also about to ask you for **access to the camera**, and then we can get go
       this.addMessage(this.initialInteraction[i]);
     }
     
-    // Show buttons after a delay (all messages should be typed by then)
-    timer(3000).subscribe(() => {
+    // Show buttons after a short delay
+    timer(600).subscribe(() => {
       this.showWhatsappButton.set(this.api.isWorkshop() && this.api.workspace()?.whatsapp_group);
       this.showScanButton.set(true);
     });
