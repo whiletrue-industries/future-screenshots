@@ -115,15 +115,38 @@
             [style.height.px]="cropFrameHeight()"
             overflow="visible"
                preserveAspectRatio="none">
-            <path class="outside-mask"
-                  [attr.d]="'M0 0 H ' + cropFrameWidth() + ' V ' + cropFrameHeight() + ' H 0 Z M ' + cropPolygonPoints() + ' Z'"
-                  fill-rule="evenodd" />
-            <polygon class="crop-frame-stroke" [attr.points]="cropPolygonPoints()" />
+            <defs>
+              <mask id="crop-overlay-handle-cutout-mask" maskUnits="userSpaceOnUse">
+                <rect x="0" y="0" [attr.width]="cropFrameWidth()" [attr.height]="cropFrameHeight()" fill="white" />
+                @for (corner of cropCorners(); track $index; let idx = $index) {
+                  <circle [attr.cx]="corner.x"
+                          [attr.cy]="corner.y"
+                          [attr.r]="centerHandleRadius(idx) + 2"
+                          fill="black" />
+                }
+              </mask>
+            </defs>
+
+            <g mask="url(#crop-overlay-handle-cutout-mask)">
+              <path class="outside-mask"
+                    [attr.d]="'M0 0 H ' + cropFrameWidth() + ' V ' + cropFrameHeight() + ' H 0 Z M ' + cropPolygonPoints() + ' Z'"
+                    fill-rule="evenodd" />
+              <polygon class="crop-frame-stroke" [attr.points]="cropPolygonPoints()" />
+              @for (corner of cropCorners(); track $index; let idx = $index) {
+                <circle class="corner-handle-circle"
+                        [attr.cx]="corner.x"
+                        [attr.cy]="corner.y"
+                        [attr.r]="handleRadius(idx)" />
+              }
+            </g>
+
+            <polygon class="crop-frame-stroke-inner" [attr.points]="cropPolygonPoints()" />
+
             @for (corner of cropCorners(); track $index; let idx = $index) {
-              <circle class="corner-handle-circle"
+              <circle class="corner-handle-center-ring"
                       [attr.cx]="corner.x"
                       [attr.cy]="corner.y"
-                      [attr.r]="handleRadius(idx)" />
+                      [attr.r]="centerHandleRadius(idx)" />
             }
           </svg>
           @for (corner of cropCorners(); track $index; let idx = $index) {

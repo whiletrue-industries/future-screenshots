@@ -16,6 +16,14 @@ type CropCorners = {
   bottomLeftCorner: CropPoint;
 };
 
+type CaptureSource = 'video' | 'still';
+type SourceCornerState = {
+  corners: CropPoint[];
+  frameWidth: number;
+  frameHeight: number;
+  edited: boolean;
+};
+
 @Component({
   selector: 'app-confirm',
   imports: [
@@ -46,6 +54,7 @@ export class ConfirmComponent implements OnDestroy {
   private frameSyncRafId: number | null = null;
   private alternatePreviewTimerId: ReturnType<typeof setTimeout> | null = null;
   private alternatePreviewRequestId = 0;
+  private sourceCornerState: Partial<Record<CaptureSource, SourceCornerState>> = {};
   cropPolygonPoints = computed(() =>
     this.cropCorners().map((p) => `${p.x},${p.y}`).join(' ')
   );
@@ -118,6 +127,34 @@ export class ConfirmComponent implements OnDestroy {
     if (!this.state.currentImageUrl() && !this.state.rawCapturedImageUrl()) {
       this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
     }
+
+    // If pending corners are updated asynchronously (e.g. still-image analysis),
+    // apply them only while the active source has not been user-edited.
+    effect(() => {
+      const pending = this.state.pendingCropCorners();
+      const source = this.activeCaptureSource();
+      const sourceState = source ? this.sourceCornerState[source] : null;
+      const imageEl = this.rawImageEl?.nativeElement;
+      const frameW = this.cropFrameWidth();
+      const frameH = this.cropFrameHeight();
+
+      if (!pending || !source || sourceState?.edited || !this.showCropEditor() || !imageEl || imageEl.naturalWidth <= 0 || frameW <= 0 || frameH <= 0) {
+        return;
+      }
+
+      const scaleX = frameW / imageEl.naturalWidth;
+      const scaleY = frameH / imageEl.naturalHeight;
+      const clampedPendingPoints = [
+        { x: this.clamp(pending.topLeftCorner.x * scaleX, 0, frameW), y: this.clamp(pending.topLeftCorner.y * scaleY, 0, frameH) },
+        { x: this.clamp(pending.topRightCorner.x * scaleX, 0, frameW), y: this.clamp(pending.topRightCorner.y * scaleY, 0, frameH) },
+        { x: this.clamp(pending.bottomRightCorner.x * scaleX, 0, frameW), y: this.clamp(pending.bottomRightCorner.y * scaleY, 0, frameH) },
+        { x: this.clamp(pending.bottomLeftCorner.x * scaleX, 0, frameW), y: this.clamp(pending.bottomLeftCorner.y * scaleY, 0, frameH) },
+      ];
+
+      this.setInitialCropFromPoints(clampedPendingPoints);
+      this.saveCurrentCornersForSource(false);
+      this.refreshAlternateCapturePreview();
+    });
   }
 
   onTagInputChange(value: string): void {
@@ -185,8 +222,10 @@ export class ConfirmComponent implements OnDestroy {
     }
 
     const shouldKeepPreview = !this.showCropEditor();
-    // Keep current edited corners across source switch and rescale in onRawImageLoaded.
-    this.preserveCornersOnNextImageLoad = !shouldKeepPreview;
+    if (!shouldKeepPreview) {
+      this.saveCurrentCornersForSource(this.cropDirty());
+    }
+    this.preserveCornersOnNextImageLoad = false;
     const nextSource = this.state.rawCaptureSource() === 'still' ? 'video' : 'still';
     this.state.setRawCaptureSource(nextSource);
     this.refreshAlternateCapturePreview();
@@ -337,9 +376,27 @@ export class ConfirmComponent implements OnDestroy {
       return;
     }
 
+    const source = this.activeCaptureSource();
+    if (source) {
+      const sourceState = this.sourceCornerState[source];
+      const shouldUseStored = !!sourceState && (
+        sourceState.edited
+        || (source === 'still' && !!this.sourceCornerState.video?.edited)
+      );
+      const stored = shouldUseStored
+        ? this.getStoredCornersForSource(source, w, h)
+        : null;
+      if (stored) {
+        this.setInitialCropFromPoints(stored);
+        this.refreshAlternateCapturePreview();
+        return;
+      }
+    }
+
     const pending = this.state.pendingCropCorners();
     if (pending && imageEl.naturalWidth > 0) {
-      // Scale from natural (video) coordinates to display coordinates
+      // Scale from natural coordinates to display coordinates while preserving
+      // the exact scanner corner order/shape (TL, TR, BR, BL).
       const scaleX = w / imageEl.naturalWidth;
       const scaleY = h / imageEl.naturalHeight;
       const scaledPoints = [
@@ -349,19 +406,18 @@ export class ConfirmComponent implements OnDestroy {
         { x: pending.bottomLeftCorner.x * scaleX,  y: pending.bottomLeftCorner.y * scaleY },
       ];
 
-      const normalizedPoints = this.normalizeCorners(scaledPoints, w, h);
-      this.cropCorners.set(normalizedPoints);
-      this.initialCropCorners.set(normalizedPoints.map((p) => ({ ...p })));
-      this.cropDirty.set(false);
-      this.showCropEditor.set(true);
+      const clampedPendingPoints = scaledPoints.map((p) => ({
+        x: this.clamp(p.x, 0, w),
+        y: this.clamp(p.y, 0, h),
+      }));
+      this.setInitialCropFromPoints(clampedPendingPoints);
+      this.saveCurrentCornersForSource(false);
       this.refreshAlternateCapturePreview();
     } else {
       const detectedCorners = this.detectCornersFromStill(imageEl, w, h);
       if (detectedCorners && detectedCorners.length === 4) {
-        this.cropCorners.set(detectedCorners);
-        this.initialCropCorners.set(detectedCorners.map((p) => ({ ...p })));
-        this.cropDirty.set(false);
-        this.showCropEditor.set(true);
+        this.setInitialCropFromPoints(detectedCorners);
+        this.saveCurrentCornersForSource(false);
         this.refreshAlternateCapturePreview();
         return;
       }
@@ -373,10 +429,8 @@ export class ConfirmComponent implements OnDestroy {
         { x: this.clamp(w * (1 - m), 0, w), y: this.clamp(h * (1 - m), 0, h) },
         { x: this.clamp(w * m, 0, w),       y: this.clamp(h * (1 - m), 0, h) },
       ];
-      this.cropCorners.set(corners);
-      this.initialCropCorners.set(corners.map((p) => ({ ...p })));
-      this.cropDirty.set(false);
-      this.showCropEditor.set(true);
+      this.setInitialCropFromPoints(corners);
+      this.saveCurrentCornersForSource(false);
       this.refreshAlternateCapturePreview();
     }
   }
@@ -384,9 +438,11 @@ export class ConfirmComponent implements OnDestroy {
   startDraggingCorner(index: number, event: PointerEvent) {
     event.preventDefault();
     event.stopPropagation();
+    this.setGlobalSelectionLock(true);
     const pointer = this.mapPointerToFrame(event.clientX, event.clientY);
     const currentCorner = this.cropCorners()[index];
     if (!pointer || !currentCorner) {
+      this.setGlobalSelectionLock(false);
       return;
     }
 
@@ -404,6 +460,7 @@ export class ConfirmComponent implements OnDestroy {
   }
 
   private onPointerMove(event: PointerEvent) {
+    event.preventDefault();
     if (this.dragCornerIndex === null) return;
     this.updateCornerFromPointer(this.dragCornerIndex, event.clientX, event.clientY);
   }
@@ -426,6 +483,7 @@ export class ConfirmComponent implements OnDestroy {
       this.refreshAlternateCapturePreview();
       return next;
     });
+    this.saveCurrentCornersForSource(true);
   }
 
   private mapPointerToFrame(clientX: number, clientY: number): CropPoint | null {
@@ -446,6 +504,10 @@ export class ConfirmComponent implements OnDestroy {
     return this.activeCornerIndex() === index ? 64 : 60;
   }
 
+  centerHandleRadius(index: number): number {
+    return this.activeCornerIndex() === index ? 14 : 12;
+  }
+
   cancelCropChanges() {
     const initial = this.initialCropCorners();
     if (initial.length !== 4) {
@@ -455,7 +517,62 @@ export class ConfirmComponent implements OnDestroy {
     this.cropDirty.set(false);
     this.showCropEditor.set(true);
     this.activeCornerIndex.set(null);
+    this.saveCurrentCornersForSource(false);
     this.refreshAlternateCapturePreview();
+  }
+
+  private activeCaptureSource(): CaptureSource | null {
+    const source = this.state.rawCaptureSource();
+    return source === 'video' || source === 'still' ? source : null;
+  }
+
+  private setInitialCropFromPoints(points: CropPoint[]): void {
+    this.cropCorners.set(points.map((p) => ({ ...p })));
+    this.initialCropCorners.set(points.map((p) => ({ ...p })));
+    this.cropDirty.set(false);
+    this.showCropEditor.set(true);
+  }
+
+  private getStoredCornersForSource(source: CaptureSource, targetWidth: number, targetHeight: number): CropPoint[] | null {
+    const stored = this.sourceCornerState[source];
+    if (!stored || stored.corners.length !== 4 || stored.frameWidth <= 0 || stored.frameHeight <= 0) {
+      return null;
+    }
+
+    const scaleX = targetWidth / stored.frameWidth;
+    const scaleY = targetHeight / stored.frameHeight;
+    return stored.corners.map((p) => ({
+      x: this.clamp(p.x * scaleX, 0, targetWidth),
+      y: this.clamp(p.y * scaleY, 0, targetHeight),
+    }));
+  }
+
+  private saveCurrentCornersForSource(edited: boolean): void {
+    const source = this.activeCaptureSource();
+    const corners = this.cropCorners();
+    const frameWidth = this.cropFrameWidth();
+    const frameHeight = this.cropFrameHeight();
+    if (!source || corners.length !== 4 || frameWidth <= 0 || frameHeight <= 0) {
+      return;
+    }
+
+    this.sourceCornerState[source] = {
+      corners: corners.map((p) => ({ ...p })),
+      frameWidth,
+      frameHeight,
+      edited,
+    };
+
+    // If video corners were updated, make them the canonical baseline for both
+    // sources by replacing still corners as well.
+    if (source === 'video' && edited) {
+      this.sourceCornerState.still = {
+        corners: corners.map((p) => ({ ...p })),
+        frameWidth,
+        frameHeight,
+        edited: true,
+      };
+    }
   }
 
   cropPreview() {
@@ -933,10 +1050,29 @@ export class ConfirmComponent implements OnDestroy {
     ];
   }
 
+  private setGlobalSelectionLock(enabled: boolean): void {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const html = document.documentElement;
+    const body = document.body;
+    const value = enabled ? 'none' : '';
+
+    html.style.userSelect = value;
+    (html.style as any).webkitUserSelect = value;
+    (html.style as any).webkitTouchCallout = enabled ? 'none' : '';
+    body.style.userSelect = value;
+    (body.style as any).webkitUserSelect = value;
+    (body.style as any).webkitTouchCallout = enabled ? 'none' : '';
+    body.style.cursor = enabled ? 'grabbing' : '';
+  }
+
   private stopDraggingCorner() {
     this.dragCornerIndex = null;
     this.dragPointerOffset = null;
     this.activeCornerIndex.set(null);
+    this.setGlobalSelectionLock(false);
     if (typeof window !== 'undefined') {
       window.removeEventListener('pointermove', this.pointerMoveHandler);
       window.removeEventListener('pointerup', this.pointerUpHandler);
@@ -959,6 +1095,7 @@ export class ConfirmComponent implements OnDestroy {
       window.removeEventListener('pointermove', this.pointerMoveHandler);
       window.removeEventListener('pointerup', this.pointerUpHandler);
     }
+    this.setGlobalSelectionLock(false);
   }
 
   upload() {

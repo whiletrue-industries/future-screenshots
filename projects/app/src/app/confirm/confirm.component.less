@@ -405,10 +405,24 @@
                         stroke-width: 3;
                     }
 
+                    .crop-frame-stroke-inner {
+                        fill: none;
+                        stroke: @color-light-purple;
+                        stroke-width: 1;
+                        vector-effect: non-scaling-stroke;
+                    }
+
                     .corner-handle-circle {
                         fill: fade(@color-white, 25%);
                         stroke: none;
                         transition: r 0.1s ease;
+                    }
+
+                    .corner-handle-center-ring {
+                        fill: none;
+                        stroke: @color-light-purple;
+                        stroke-width: 3;
+                        vector-effect: non-scaling-stroke;
                     }
                 }
 

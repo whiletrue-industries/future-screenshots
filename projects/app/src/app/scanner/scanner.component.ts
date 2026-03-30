@@ -90,7 +90,6 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   private consecutiveStableFrames = 0;
   private navigating = false;
   private captureShineTimeoutId: ReturnType<typeof setTimeout> | null = null;
-  private confirmationExposureStartedAt: number | null = null;
 
   constructor(
     private el: ElementRef, 
@@ -636,7 +635,6 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
 
     this.captureShineVisible.set(false);
     this.captureWhiteoutVisible.set(true);
-    this.confirmationExposureStartedAt = Date.now();
   }
 
   private navigateToConfirm(
@@ -648,17 +646,9 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       still?: CropCornerPoints | null;
     } = {},
   ): void {
-    const minExposureDuration = 320;
-    const elapsed = this.confirmationExposureStartedAt === null
-      ? minExposureDuration
-      : Date.now() - this.confirmationExposureStartedAt;
-    const delayMs = Math.max(0, minExposureDuration - elapsed);
-
-    window.setTimeout(() => {
-      this.state.setRawImageCandidates(videoBlob, stillBlob, preferredSource, cornersBySource);
-      this.stopCamera();
-      this.router.navigate(['/confirm'], { queryParamsHandling: 'merge' });
-    }, delayMs);
+    this.state.setRawImageCandidates(videoBlob, stillBlob, preferredSource, cornersBySource);
+    this.stopCamera();
+    this.router.navigate(['/confirm'], { queryParamsHandling: 'merge' });
   }
 
   captureAndNavigate() {
@@ -667,9 +657,13 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     this.isCapturing.set(true);
     this.captureShineVisible.set(false);
     this.captureWhiteoutVisible.set(false);
-    this.confirmationExposureStartedAt = null;
     this.showCaptureShine();
     this.stopScannerSubject.next();
+
+    // Freeze the exact detected polygon at capture time so confirm starts from this shape.
+    const lockedVideoCorners = this.lastValidCorners
+      ? this.normalizeCropCorners(this.lastValidCorners)
+      : null;
 
     const fallbackCapture = (): Promise<Blob | null> => {
       // Ensure the canvas has the latest video frame
@@ -708,93 +702,60 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     Promise.all([videoPromise, stillPromise]).then(([videoBlob, stillBlob]) => {
       const typedVideoBlob = videoBlob ?? null;
       const typedStillBlob = stillBlob ?? null;
-      const candidates = [
-        { blob: videoBlob, source: 'video' },
-        { blob: stillBlob, source: 'still' },
-      ].filter((item): item is { blob: Blob; source: 'video' | 'still' } => !!item.blob);
-
-      if (candidates.length === 0) {
+      if (!typedVideoBlob && !typedStillBlob) {
         this.navigating = false;
         return;
       }
 
-      const qualityChecks = candidates.map((candidate) =>
-        this.evaluateCaptureQuality(candidate.blob)
-          .then((quality) => ({ ...candidate, quality }))
-      );
+      if (!this.captureWhiteoutVisible()) {
+        this.beginConfirmationExposure();
+      }
 
-      Promise.all(qualityChecks).then((evaluated) => {
-        const videoDetection = evaluated.find((candidate) => candidate.source === 'video');
-        const stillDetection = evaluated.find((candidate) => candidate.source === 'still');
-        const liveVideoCorners = this.lastValidCorners ? this.normalizeCropCorners(this.lastValidCorners) : null;
-        const videoCorners = videoDetection?.quality.corners ?? liveVideoCorners;
-        const stillCorners = stillDetection?.quality.corners ?? (
-          liveVideoCorners && stillDetection?.quality.width && stillDetection.quality.height
-            ? this.scaleCropCorners(
-                liveVideoCorners,
-                Math.max(1, this.videoWidthM()),
-                Math.max(1, this.videoHeightM()),
-                stillDetection.quality.width,
-                stillDetection.quality.height,
-              )
-            : null
-        );
-        const candidatesWithCorners = evaluated.filter((candidate) => candidate.quality.hasCorners);
-        let preferred = (candidatesWithCorners.length > 0 ? candidatesWithCorners : evaluated).reduce((best, current) =>
-          current.quality.score > best.quality.score ? current : best
-        );
+      const videoCorners = lockedVideoCorners ?? null;
+      const fallbackStillCorners = videoCorners && typedStillBlob
+        ? this.scaleCropCorners(
+            videoCorners,
+            Math.max(1, this.videoWidthM()),
+            Math.max(1, this.videoHeightM()),
+            Math.max(1, this.videoWidthM()),
+            Math.max(1, this.videoHeightM()),
+          )
+        : null;
 
-        if (!preferred.quality.hasCorners && videoCorners && typedVideoBlob) {
-          preferred = {
-            blob: typedVideoBlob,
-            source: 'video',
-            quality: {
-              score: preferred.quality.score,
-              hasCorners: true,
-              sharpness: preferred.quality.sharpness,
-              areaRatio: preferred.quality.areaRatio,
-              corners: videoCorners,
-              width: Math.max(1, this.videoWidthM()),
-              height: Math.max(1, this.videoHeightM()),
-            },
-          };
-        }
+      const preferredSource: 'video' | 'still' = typedVideoBlob ? 'video' : 'still';
 
-        console.log('[SCANNER] Selected capture source:', preferred.source, preferred.quality);
-        if (!typedStillBlob && !this.captureWhiteoutVisible()) {
-          this.beginConfirmationExposure();
-        }
-        this.navigateToConfirm(typedVideoBlob, typedStillBlob, preferred.source, {
-          video: videoCorners,
-          still: stillCorners,
-        });
-      }).catch(() => {
-        if (!this.captureWhiteoutVisible()) {
-          this.beginConfirmationExposure();
-        }
-        const liveVideoCorners = this.lastValidCorners ? this.normalizeCropCorners(this.lastValidCorners) : null;
-        const fallbackStillCorners = (
-          liveVideoCorners && typedStillBlob
-            ? this.scaleCropCorners(
-                liveVideoCorners,
-                Math.max(1, this.videoWidthM()),
-                Math.max(1, this.videoHeightM()),
-                Math.max(1, this.videoWidthM()),
-                Math.max(1, this.videoHeightM()),
-              )
-            : null
-        );
-        this.navigateToConfirm(typedVideoBlob, typedStillBlob, candidates[0].source, {
-          video: liveVideoCorners,
-          still: fallbackStillCorners,
-        });
+      this.navigateToConfirm(typedVideoBlob, typedStillBlob, preferredSource, {
+        video: videoCorners,
+        still: fallbackStillCorners,
       });
+
+      // Refine still-source corners asynchronously using only capture-time video
+      // geometry scaled to still image dimensions.
+      if (typedStillBlob) {
+        this.loadBlobToImage(typedStillBlob).then((stillImage) => {
+          if (!videoCorners) {
+            this.state.updateRawCaptureCorners('still', fallbackStillCorners);
+            return;
+          }
+
+          const scaledStillCorners = this.scaleCropCorners(
+            videoCorners,
+            Math.max(1, this.videoWidthM()),
+            Math.max(1, this.videoHeightM()),
+            Math.max(1, stillImage.naturalWidth),
+            Math.max(1, stillImage.naturalHeight),
+          );
+
+          this.state.updateRawCaptureCorners('still', scaledStillCorners);
+        }).catch(() => {
+          this.state.updateRawCaptureCorners('still', fallbackStillCorners);
+        });
+      }
     }).catch(() => {
       this.navigating = false;
       this.isCapturing.set(false);
       this.captureShineVisible.set(false);
       this.captureWhiteoutVisible.set(false);
-      this.confirmationExposureStartedAt = null;
     });
 
   }

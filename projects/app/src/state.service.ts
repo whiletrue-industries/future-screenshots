@@ -37,6 +37,19 @@ export class StateService {
   pendingCropCornersStill = signal<CropCornerPoints | null>(null);
   rawCaptureSource = signal<'video' | 'still' | null>(null);
 
+  private cloneCropCorners(corners: CropCornerPoints | null | undefined): CropCornerPoints | null {
+    if (!corners) {
+      return null;
+    }
+
+    return {
+      topLeftCorner: { ...corners.topLeftCorner },
+      topRightCorner: { ...corners.topRightCorner },
+      bottomLeftCorner: { ...corners.bottomLeftCorner },
+      bottomRightCorner: { ...corners.bottomRightCorner },
+    };
+  }
+
   constructor(private platform: PlatformService) {
     // Restore tags from localStorage on init
     platform.browser(() => {
@@ -102,8 +115,8 @@ export class StateService {
     this.rawCapturedImageStill.set(stillImage);
     this.rawCapturedImageStillUrl.set(stillImage ? URL.createObjectURL(stillImage) : null);
 
-    this.pendingCropCornersVideo.set(corners?.video ?? null);
-    this.pendingCropCornersStill.set(corners?.still ?? null);
+    this.pendingCropCornersVideo.set(this.cloneCropCorners(corners?.video));
+    this.pendingCropCornersStill.set(this.cloneCropCorners(corners?.still));
     this.pendingCropCorners.set(null);
 
     const normalizedPreferred =
@@ -122,20 +135,37 @@ export class StateService {
     if (source === 'still' && this.rawCapturedImageStill() && this.rawCapturedImageStillUrl()) {
       this.rawCapturedImage.set(this.rawCapturedImageStill());
       this.rawCapturedImageUrl.set(this.rawCapturedImageStillUrl());
-      this.pendingCropCorners.set(this.pendingCropCornersStill());
+      this.pendingCropCorners.set(this.cloneCropCorners(this.pendingCropCornersStill()));
       return;
     }
 
     if (source === 'video' && this.rawCapturedImageVideo() && this.rawCapturedImageVideoUrl()) {
       this.rawCapturedImage.set(this.rawCapturedImageVideo());
       this.rawCapturedImageUrl.set(this.rawCapturedImageVideoUrl());
-      this.pendingCropCorners.set(this.pendingCropCornersVideo());
+      this.pendingCropCorners.set(this.cloneCropCorners(this.pendingCropCornersVideo()));
       return;
     }
 
     this.rawCapturedImage.set(null);
     this.rawCapturedImageUrl.set(null);
     this.pendingCropCorners.set(null);
+  }
+
+  updateRawCaptureCorners(source: 'video' | 'still', corners: CropCornerPoints | null) {
+    const cloned = this.cloneCropCorners(corners);
+
+    if (source === 'video') {
+      this.pendingCropCornersVideo.set(cloned);
+      if (this.rawCaptureSource() === 'video') {
+        this.pendingCropCorners.set(this.cloneCropCorners(cloned));
+      }
+      return;
+    }
+
+    this.pendingCropCornersStill.set(cloned);
+    if (this.rawCaptureSource() === 'still') {
+      this.pendingCropCorners.set(this.cloneCropCorners(cloned));
+    }
   }
 
   clearRawImage() {
