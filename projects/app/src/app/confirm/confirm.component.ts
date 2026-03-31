@@ -58,21 +58,6 @@ export class ConfirmComponent implements OnDestroy {
   cropPolygonPoints = computed(() =>
     this.cropCorners().map((p) => `${p.x},${p.y}`).join(' ')
   );
-  cropRect = computed<CropRect>(() => {
-    const points = this.cropCorners();
-    if (points.length !== 4) {
-      return { left: 0, top: 0, right: 0, bottom: 0 };
-    }
-    const xs = points.map((p) => p.x);
-    const ys = points.map((p) => p.y);
-    return {
-      left: Math.min(...xs),
-      top: Math.min(...ys),
-      right: Math.max(...xs),
-      bottom: Math.max(...ys),
-    };
-  });
-
   private dragCornerIndex: number | null = null;
   private readonly pointerMoveHandler = (event: PointerEvent) => this.onPointerMove(event);
   private readonly pointerUpHandler = () => this.stopDraggingCorner();
@@ -1039,15 +1024,6 @@ export class ConfirmComponent implements OnDestroy {
     }
 
     return { left, top, right, bottom };
-  }
-
-  private cornersFromRect(rect: CropRect): CropPoint[] {
-    return [
-      { x: rect.left, y: rect.top },
-      { x: rect.right, y: rect.top },
-      { x: rect.right, y: rect.bottom },
-      { x: rect.left, y: rect.bottom },
-    ];
   }
 
   private setGlobalSelectionLock(enabled: boolean): void {

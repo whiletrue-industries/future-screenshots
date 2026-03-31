@@ -20,16 +20,6 @@ type CornerPoints = {
   bottomRightCorner: Point;
 };
 
-type CaptureQuality = {
-  score: number;
-  hasCorners: boolean;
-  sharpness: number;
-  areaRatio: number;
-  corners: CropCornerPoints | null;
-  width: number;
-  height: number;
-};
-
 
 @Component({
   selector: 'app-scanner',
@@ -49,8 +39,6 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   FRAME_COUNT_DARKER = 100;
   TIMEOUT_DURATION = 5000; // 5 seconds in milliseconds
   DEFAULT_CORNER_MARGIN = 0.15; // 15% margin for default corner points
-  STABLE_EDGE_FRAME_COUNT = 4;
-  STABLE_EDGE_MOTION_RATIO = 0.015;
   scanState = null;
   stream: MediaStream | null = null;
   stopScannerSubject = new Subject<void>();
@@ -83,11 +71,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   isCapturing = signal<boolean>(false);
   captureShineVisible = signal<boolean>(false);
   captureWhiteoutVisible = signal<boolean>(false);
-  liveEdgesStable = signal<boolean>(false);
   scanStartTime: number = 0;
   lastValidCorners: CropCornerPoints | null = null;
-  private previousDetectedCorners: CornerPoints | null = null;
-  private consecutiveStableFrames = 0;
   private navigating = false;
   private captureShineTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -273,15 +258,6 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     return blurry;
   }
 
-  private cloneCornerPoints(cornerPoints: CornerPoints): CornerPoints {
-    return {
-      topLeftCorner: { ...cornerPoints.topLeftCorner },
-      topRightCorner: { ...cornerPoints.topRightCorner },
-      bottomLeftCorner: { ...cornerPoints.bottomLeftCorner },
-      bottomRightCorner: { ...cornerPoints.bottomRightCorner },
-    };
-  }
-
   private normalizeCropCorners(cornerPoints: CornerPoints | CropCornerPoints): CropCornerPoints {
     return {
       topLeftCorner: { ...cornerPoints.topLeftCorner },
@@ -319,50 +295,6 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
         y: corners.bottomRightCorner.y * scaleY,
       },
     };
-  }
-
-  private getAverageCornerMotion(current: CornerPoints, previous: CornerPoints): number {
-    const pairs: Array<[Point, Point]> = [
-      [current.topLeftCorner, previous.topLeftCorner],
-      [current.topRightCorner, previous.topRightCorner],
-      [current.bottomLeftCorner, previous.bottomLeftCorner],
-      [current.bottomRightCorner, previous.bottomRightCorner],
-    ];
-
-    const totalMotion = pairs.reduce((sum, [nextPoint, prevPoint]) => {
-      return sum + Math.hypot(nextPoint.x - prevPoint.x, nextPoint.y - prevPoint.y);
-    }, 0);
-
-    return totalMotion / pairs.length;
-  }
-
-  private updateEdgeStability(cornerPoints: CornerPoints | null, width: number, height: number): void {
-    if (!cornerPoints) {
-      this.previousDetectedCorners = null;
-      this.consecutiveStableFrames = 0;
-      this.liveEdgesStable.set(false);
-      return;
-    }
-
-    if (!this.previousDetectedCorners) {
-      this.previousDetectedCorners = this.cloneCornerPoints(cornerPoints);
-      this.consecutiveStableFrames = 1;
-      this.liveEdgesStable.set(false);
-      return;
-    }
-
-    const diagonal = Math.hypot(width, height);
-    const maxAverageMotion = Math.max(4, diagonal * this.STABLE_EDGE_MOTION_RATIO);
-    const averageMotion = this.getAverageCornerMotion(cornerPoints, this.previousDetectedCorners);
-
-    if (averageMotion <= maxAverageMotion) {
-      this.consecutiveStableFrames += 1;
-    } else {
-      this.consecutiveStableFrames = 1;
-    }
-
-    this.previousDetectedCorners = this.cloneCornerPoints(cornerPoints);
-    this.liveEdgesStable.set(this.consecutiveStableFrames >= this.STABLE_EDGE_FRAME_COUNT);
   }
 
   playing() {
@@ -434,8 +366,6 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     ).subscribe((shape: {valid: boolean, snap: boolean, blurry: boolean, cornerPoints: CornerPoints} | null) => {
       this.setPoints(shape?.snap ? shape?.cornerPoints || null : null);
 
-      this.updateEdgeStability(shape?.valid ? shape.cornerPoints : null, this.displayWidth(), this.displayHeight());
-
       // Scale corner points from display-resolution back to video-resolution
       if (shape?.cornerPoints) {
         shape.cornerPoints.topLeftCorner.x *= sampleRatio;
@@ -501,110 +431,6 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
         reject(new Error('Failed to decode captured image'));
       };
       image.src = objectUrl;
-    });
-  }
-
-  private evaluateCaptureQuality(blob: Blob): Promise<CaptureQuality> {
-    return this.loadBlobToImage(blob).then((image) => {
-      const canvas = document.createElement('canvas');
-      const maxDimension = 1400;
-      const longestEdge = Math.max(image.naturalWidth, image.naturalHeight);
-      const scale = longestEdge > maxDimension ? maxDimension / longestEdge : 1;
-      canvas.width = Math.max(2, Math.round(image.naturalWidth * scale));
-      canvas.height = Math.max(2, Math.round(image.naturalHeight * scale));
-
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        return {
-          score: 0,
-          hasCorners: false,
-          sharpness: 0,
-          areaRatio: 0,
-          corners: null,
-          width: image.naturalWidth,
-          height: image.naturalHeight,
-        };
-      }
-      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-      let frame: any = null;
-      let gray: any = null;
-      let laplace: any = null;
-      let mean = null;
-      let stdDev = null;
-
-      try {
-        frame = cv.imread(canvas);
-        const scanner = new jscanify();
-        const contour = scanner.findPaperContour(frame);
-
-        let hasCorners = false;
-        let areaRatio = 0;
-        let detectedCorners: CropCornerPoints | null = null;
-        if (contour) {
-          const corners = this.checkCornerPoints(scanner.getCornerPoints(contour, frame) as CornerPoints);
-          if (corners) {
-            hasCorners = true;
-            detectedCorners = this.scaleCropCorners(
-              this.normalizeCropCorners(corners),
-              canvas.width,
-              canvas.height,
-              image.naturalWidth,
-              image.naturalHeight,
-            );
-            const topWidth = Math.hypot(corners.topLeftCorner.x - corners.topRightCorner.x, corners.topLeftCorner.y - corners.topRightCorner.y);
-            const bottomWidth = Math.hypot(corners.bottomLeftCorner.x - corners.bottomRightCorner.x, corners.bottomLeftCorner.y - corners.bottomRightCorner.y);
-            const leftHeight = Math.hypot(corners.topLeftCorner.x - corners.bottomLeftCorner.x, corners.topLeftCorner.y - corners.bottomLeftCorner.y);
-            const rightHeight = Math.hypot(corners.topRightCorner.x - corners.bottomRightCorner.x, corners.topRightCorner.y - corners.bottomRightCorner.y);
-            const avgWidth = (topWidth + bottomWidth) / 2;
-            const avgHeight = (leftHeight + rightHeight) / 2;
-            areaRatio = Math.max(0, Math.min(1, (avgWidth * avgHeight) / (frame.cols * frame.rows)));
-          }
-          if (typeof contour.delete === 'function') {
-            contour.delete();
-          }
-        }
-
-        gray = new cv.Mat();
-        laplace = new cv.Mat();
-        mean = new cv.Mat();
-        stdDev = new cv.Mat();
-        cv.cvtColor(frame, gray, cv.COLOR_RGBA2GRAY, 0);
-        cv.Laplacian(gray, laplace, cv.CV_64F, 1, 1, 0, cv.BORDER_DEFAULT);
-        cv.meanStdDev(laplace, mean, stdDev);
-        const sharpness = Math.max(0, stdDev.data64F[0]);
-
-        const score =
-          (hasCorners ? 1000 : 0)
-          + (areaRatio * 600)
-          + Math.min(sharpness, 200);
-
-        return {
-          score,
-          hasCorners,
-          sharpness,
-          areaRatio,
-          corners: detectedCorners,
-          width: image.naturalWidth,
-          height: image.naturalHeight,
-        };
-      } catch {
-        return {
-          score: 0,
-          hasCorners: false,
-          sharpness: 0,
-          areaRatio: 0,
-          corners: null,
-          width: image.naturalWidth,
-          height: image.naturalHeight,
-        };
-      } finally {
-        frame?.delete?.();
-        gray?.delete?.();
-        laplace?.delete?.();
-        mean?.delete?.();
-        stdDev?.delete?.();
-      }
     });
   }
 
@@ -794,10 +620,8 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   restartScanner() {
     this.stopScanner();
     this.buttonReady.set(false);
-    this.liveEdgesStable.set(false);
+    this.isCapturing.set(false);
     this.lastValidCorners = null;
-    this.previousDetectedCorners = null;
-    this.consecutiveStableFrames = 0;
     this.navigating = false;
     this.scanStartTime = 0;
     console.log('RESTARTING SCANNER');
