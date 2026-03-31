@@ -1,10 +1,10 @@
-import { AfterViewInit, Component, computed, DestroyRef, ElementRef, OnDestroy, signal, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, computed, DestroyRef, ElementRef, inject, OnDestroy, signal, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { debounceTime, delay, distinctUntilChanged, filter, interval, map, Subject, take, takeUntil, tap, timer } from 'rxjs';
 import { ApiService } from '../../api.service';
 import { PlatformService } from '../../platform.service';
-import { StateService } from '../../state.service';
+import { CropCornerPoints, StateService } from '../../state.service';
 import { LtrDirective } from '../ltr.directive';
 
 declare const jscanify: any;
@@ -36,11 +36,9 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvas', { static: true }) canvasEl!: ElementRef<HTMLCanvasElement>;
   canvasCtx: CanvasRenderingContext2D | null;
 
-  COUNTDOWN_INITIAL = 30;
   FRAME_COUNT_DARKER = 100;
   TIMEOUT_DURATION = 5000; // 5 seconds in milliseconds
   DEFAULT_CORNER_MARGIN = 0.15; // 15% margin for default corner points
-  countDown = this.COUNTDOWN_INITIAL;
   scanState = null;
   stream: MediaStream | null = null;
   stopScannerSubject = new Subject<void>();
@@ -64,11 +62,19 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     }
     return `M${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y} L ${points[2].x} ${points[2].y} L ${points[3].x} ${points[3].y} Z`;
   });
+  scanBeamHeight = computed(() => Math.max(72, this.displayHeight() * 0.22));
+  scanBeamExpandedHeight = computed(() => Math.max(120, this.displayHeight() * 0.46));
+  scanBeamStartY = computed(() => -this.scanBeamHeight());
+  scanBeamEndY = computed(() => this.displayHeight());
   points = signal<{x: number, y: number}[]>([]);
-  cameraClicked = signal<boolean>(false);
-  displayCameraButton = signal<boolean>(false);
+  buttonReady = signal<boolean>(false);
+  isCapturing = signal<boolean>(false);
+  captureShineVisible = signal<boolean>(false);
+  captureWhiteoutVisible = signal<boolean>(false);
   scanStartTime: number = 0;
-  timeoutReached = signal<boolean>(false);
+  lastValidCorners: CropCornerPoints | null = null;
+  private navigating = false;
+  private captureShineTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private el: ElementRef, 
@@ -177,7 +183,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       if (frameCount < this.FRAME_COUNT_DARKER) {
         this.displayMsgSubject.next($localize`fit the page to the frame`);
       } else {
-        this.displayMsgSubject.next($localize`try on a darker background`);
+        this.displayMsgSubject.next($localize`make sure the page edges are visible`);
       }
       return {valid: false, snap: false};
     }
@@ -198,7 +204,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       if (frameCount < this.FRAME_COUNT_DARKER) {
         this.displayMsgSubject.next($localize`fit the page to the frame`);
       } else {
-        this.displayMsgSubject.next($localize`try on a darker background`);
+        this.displayMsgSubject.next($localize`make sure the page edges are visible`);
       }
       // console.log('averageRatio is not in range');
       return {valid: false, snap: false};
@@ -252,6 +258,45 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     return blurry;
   }
 
+  private normalizeCropCorners(cornerPoints: CornerPoints | CropCornerPoints): CropCornerPoints {
+    return {
+      topLeftCorner: { ...cornerPoints.topLeftCorner },
+      topRightCorner: { ...cornerPoints.topRightCorner },
+      bottomLeftCorner: { ...cornerPoints.bottomLeftCorner },
+      bottomRightCorner: { ...cornerPoints.bottomRightCorner },
+    };
+  }
+
+  private scaleCropCorners(
+    corners: CropCornerPoints,
+    fromWidth: number,
+    fromHeight: number,
+    toWidth: number,
+    toHeight: number,
+  ): CropCornerPoints {
+    const scaleX = toWidth / Math.max(1, fromWidth);
+    const scaleY = toHeight / Math.max(1, fromHeight);
+
+    return {
+      topLeftCorner: {
+        x: corners.topLeftCorner.x * scaleX,
+        y: corners.topLeftCorner.y * scaleY,
+      },
+      topRightCorner: {
+        x: corners.topRightCorner.x * scaleX,
+        y: corners.topRightCorner.y * scaleY,
+      },
+      bottomLeftCorner: {
+        x: corners.bottomLeftCorner.x * scaleX,
+        y: corners.bottomLeftCorner.y * scaleY,
+      },
+      bottomRightCorner: {
+        x: corners.bottomRightCorner.x * scaleX,
+        y: corners.bottomRightCorner.y * scaleY,
+      },
+    };
+  }
+
   playing() {
     console.log('PLAYING');
     this.videoEl.nativeElement.play();
@@ -271,7 +316,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     interval(33).pipe(
       takeUntilDestroyed(this.destroyRef),
       takeUntil(this.stopScannerSubject),
-      filter(() => this.countDown >= 0),
+      filter(() => !this.navigating),
       map(() => {
         let frame: any = null;
         let resampledFrame: any = null;
@@ -321,19 +366,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     ).subscribe((shape: {valid: boolean, snap: boolean, blurry: boolean, cornerPoints: CornerPoints} | null) => {
       this.setPoints(shape?.snap ? shape?.cornerPoints || null : null);
 
-      // Check if timeout has elapsed and no valid edges found yet
-      if (this.shouldShowTimeoutButton(shape)) {
-        this.timeoutReached.set(true);
-        this.displayCameraButton.set(true);
-        this.displayMsgSubject.next($localize`Edges not detected. You can submit anyway.`);
-      }
-      
-      // Hide camera button and reset timeout if valid edges are found after timeout
-      if (shape?.valid && this.timeoutReached()) {
-        this.timeoutReached.set(false);
-        this.displayCameraButton.set(false);
-      }
-
+      // Scale corner points from display-resolution back to video-resolution
       if (shape?.cornerPoints) {
         shape.cornerPoints.topLeftCorner.x *= sampleRatio;
         shape.cornerPoints.topLeftCorner.y *= sampleRatio;
@@ -344,33 +377,23 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
         shape.cornerPoints.bottomRightCorner.x *= sampleRatio;
         shape.cornerPoints.bottomRightCorner.y *= sampleRatio;
       }
+
       if (shape?.valid) {
+        this.buttonReady.set(true);
+        if (shape.cornerPoints) {
+          this.lastValidCorners = {
+            topLeftCorner: { ...shape.cornerPoints.topLeftCorner },
+            topRightCorner: { ...shape.cornerPoints.topRightCorner },
+            bottomLeftCorner: { ...shape.cornerPoints.bottomLeftCorner },
+            bottomRightCorner: { ...shape.cornerPoints.bottomRightCorner },
+          };
+        }
         this.displayMsgSubject.next($localize`hold still...`);
-        if (this.countDown > 0) {
-          this.countDown -= 1;
-        }
-        if (!shape.blurry && this.countDown > 5) {
-          this.countDown = 0;
-        }
-        if (this.countDown === 0) {
-          this.displayCameraButton.set(true);
-        }
-        if (this.cameraClicked()) {
-          this.extractAndNavigate(scanner, shape.cornerPoints);
-        }
-      } else {
-        this.countDown = this.COUNTDOWN_INITIAL;
       }
 
-      // Handle camera click when timeout was reached (use default corners)
-      if (this.cameraClicked() && this.timeoutReached()) {
-        const defaultCornerPoints = {
-          topLeftCorner: { x: videoWidth * this.DEFAULT_CORNER_MARGIN, y: videoHeight * this.DEFAULT_CORNER_MARGIN },
-          topRightCorner: { x: videoWidth * (1 - this.DEFAULT_CORNER_MARGIN), y: videoHeight * this.DEFAULT_CORNER_MARGIN },
-          bottomLeftCorner: { x: videoWidth * this.DEFAULT_CORNER_MARGIN, y: videoHeight * (1 - this.DEFAULT_CORNER_MARGIN) },
-          bottomRightCorner: { x: videoWidth * (1 - this.DEFAULT_CORNER_MARGIN), y: videoHeight * (1 - this.DEFAULT_CORNER_MARGIN) }
-        };
-        this.extractAndNavigate(scanner, defaultCornerPoints);
+      // Unlock the button after timeout even without detected edges
+      if (!this.buttonReady() && Date.now() - this.scanStartTime >= this.TIMEOUT_DURATION) {
+        this.buttonReady.set(true);
       }
     });
   }
@@ -395,34 +418,181 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
     ]);
   }
 
-  extractAndNavigate(scanner: any, cornerPoints: CornerPoints) {
-    this.countDown = -1;
-    const frame = scanner.extractPaper(this.canvasEl.nativeElement, 1060, 2000, cornerPoints);
-    console.log('Extraction result:', frame);
+  private loadBlobToImage(blob: Blob): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      const objectUrl = URL.createObjectURL(blob);
+      image.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(image);
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('Failed to decode captured image'));
+      };
+      image.src = objectUrl;
+    });
+  }
+
+  private showCaptureShine(): void {
+    if (!this.platform.browser()) {
+      return;
+    }
+
+    this.captureShineVisible.set(true);
+    if (this.captureShineTimeoutId !== null) {
+      window.clearTimeout(this.captureShineTimeoutId);
+    }
+    this.captureShineTimeoutId = window.setTimeout(() => {
+      this.captureShineVisible.set(false);
+      this.captureShineTimeoutId = null;
+    }, 70);
+  }
+
+  private beginConfirmationExposure(): void {
+    if (!this.platform.browser()) {
+      return;
+    }
+
+    if (this.captureShineTimeoutId !== null) {
+      window.clearTimeout(this.captureShineTimeoutId);
+      this.captureShineTimeoutId = null;
+    }
+
+    this.captureShineVisible.set(false);
+    this.captureWhiteoutVisible.set(true);
+  }
+
+  private navigateToConfirm(
+    videoBlob: Blob | null,
+    stillBlob: Blob | null,
+    preferredSource: 'video' | 'still',
+    cornersBySource: {
+      video?: CropCornerPoints | null;
+      still?: CropCornerPoints | null;
+    } = {},
+  ): void {
+    this.state.setRawImageCandidates(videoBlob, stillBlob, preferredSource, cornersBySource);
+    this.stopCamera();
+    this.router.navigate(['/confirm'], { queryParamsHandling: 'merge' });
+  }
+
+  captureAndNavigate() {
+    if (this.navigating) return;
+    this.navigating = true;
+    this.isCapturing.set(true);
+    this.captureShineVisible.set(false);
+    this.captureWhiteoutVisible.set(false);
+    this.showCaptureShine();
+    this.stopScannerSubject.next();
+
+    // Freeze the exact detected polygon at capture time so confirm starts from this shape.
+    const lockedVideoCorners = this.lastValidCorners
+      ? this.normalizeCropCorners(this.lastValidCorners)
+      : null;
+
+    const fallbackCapture = (): Promise<Blob | null> => {
+      // Ensure the canvas has the latest video frame
+      this.canvasCtx?.drawImage(this.videoEl.nativeElement, 0, 0);
+      return new Promise((resolve) => {
+        this.canvasEl.nativeElement.toBlob((blob: Blob | null) => resolve(blob), 'image/jpeg', 0.95);
+      });
+    };
+
+    const track = this.stream?.getVideoTracks()[0];
+    const imageCaptureSupported = !!track && typeof (window as any).ImageCapture !== 'undefined';
+    const videoPromise = fallbackCapture();
+    const stillPromise: Promise<Blob | null> = imageCaptureSupported
+      ? (() => {
+          const imageCapture = new (window as any).ImageCapture(track);
+          const capabilities = track?.getCapabilities?.() as any;
+          const torchCapable = !!capabilities?.torch;
+
+          // Keep still lighting close to preview lighting: avoid forcing a stronger flash burst.
+          const options = torchCapable
+            ? { fillLightMode: 'off' as const }
+            : { fillLightMode: 'auto' as const };
+
+          return imageCapture.takePhoto(options)
+            .then((blob: Blob) => blob)
+            .catch(() => imageCapture.takePhoto().then((blob: Blob) => blob).catch(() => null))
+            .then((blob: Blob | null) => {
+              if (blob) {
+                this.beginConfirmationExposure();
+              }
+              return blob;
+            });
+        })()
+      : Promise.resolve(null);
+
+    Promise.all([videoPromise, stillPromise]).then(([videoBlob, stillBlob]) => {
+      const typedVideoBlob = videoBlob ?? null;
+      const typedStillBlob = stillBlob ?? null;
+      if (!typedVideoBlob && !typedStillBlob) {
+        this.navigating = false;
+        return;
+      }
+
+      if (!this.captureWhiteoutVisible()) {
+        this.beginConfirmationExposure();
+      }
+
+      const videoCorners = lockedVideoCorners ?? null;
+      const fallbackStillCorners = videoCorners && typedStillBlob ? videoCorners : null;
+
+      const preferredSource: 'video' | 'still' = typedVideoBlob ? 'video' : 'still';
+
+      this.navigateToConfirm(typedVideoBlob, typedStillBlob, preferredSource, {
+        video: videoCorners,
+        still: fallbackStillCorners,
+      });
+
+      // Refine still-source corners asynchronously using only capture-time video
+      // geometry scaled to still image dimensions.
+      if (typedStillBlob) {
+        this.loadBlobToImage(typedStillBlob).then((stillImage) => {
+          if (!videoCorners) {
+            this.state.updateRawCaptureCorners('still', fallbackStillCorners);
+            return;
+          }
+
+          const scaledStillCorners = this.scaleCropCorners(
+            videoCorners,
+            Math.max(1, this.videoWidthM()),
+            Math.max(1, this.videoHeightM()),
+            Math.max(1, stillImage.naturalWidth),
+            Math.max(1, stillImage.naturalHeight),
+          );
+
+          this.state.updateRawCaptureCorners('still', scaledStillCorners);
+        }).catch(() => {
+          this.state.updateRawCaptureCorners('still', fallbackStillCorners);
+        });
+      }
+    }).catch(() => {
+      this.navigating = false;
+      this.isCapturing.set(false);
+      this.captureShineVisible.set(false);
+      this.captureWhiteoutVisible.set(false);
+    });
+
+  }
+
+  private stopCamera() {
     this.stream?.getTracks().forEach((track) => {
-      if (track.readyState == 'live') {
-          track.stop();
+      if (track.readyState === 'live') {
+        track.stop();
       }
     });
     this.videoEl.nativeElement.pause();
     this.stream = null;
-    // Convert the result to a JPEG image
-    frame.toBlob((blob: Blob) => {
-      if (blob) {
-        this.state.setImage(blob);
-        this.router.navigate(['/confirm'], { queryParamsHandling: 'merge' });
-      }
-    }, 'image/jpeg', 0.95);
-  }
-
-  shouldShowTimeoutButton(shape: {valid: boolean} | null): boolean {
-    const elapsedTime = Date.now() - this.scanStartTime;
-    return elapsedTime >= this.TIMEOUT_DURATION && 
-           !shape?.valid && 
-           !this.timeoutReached();
   }
 
   ngOnDestroy() {
+    if (this.captureShineTimeoutId !== null && this.platform.browser()) {
+      window.clearTimeout(this.captureShineTimeoutId);
+      this.captureShineTimeoutId = null;
+    }
     this.stopScanner();
   }
 
@@ -441,8 +611,10 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
 
   restartScanner() {
     this.stopScanner();
-    this.countDown = this.COUNTDOWN_INITIAL;
-    this.timeoutReached.set(false);
+    this.buttonReady.set(false);
+    this.isCapturing.set(false);
+    this.lastValidCorners = null;
+    this.navigating = false;
     this.scanStartTime = 0;
     console.log('RESTARTING SCANNER');
     timer(500).subscribe(() => {

@@ -708,6 +708,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
         }
         // Open editor directly with the requested template
         this.selectTemplate(requestedTemplate);
+        this.isEditorShowing.set(true);
         // After canvas initializes, restore state if available
         setTimeout(() => {
           this.restoreCanvasState();
