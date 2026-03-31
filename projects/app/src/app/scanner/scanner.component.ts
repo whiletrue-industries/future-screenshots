@@ -538,15 +538,7 @@ export class ScannerComponent implements AfterViewInit, OnDestroy {
       }
 
       const videoCorners = lockedVideoCorners ?? null;
-      const fallbackStillCorners = videoCorners && typedStillBlob
-        ? this.scaleCropCorners(
-            videoCorners,
-            Math.max(1, this.videoWidthM()),
-            Math.max(1, this.videoHeightM()),
-            Math.max(1, this.videoWidthM()),
-            Math.max(1, this.videoHeightM()),
-          )
-        : null;
+      const fallbackStillCorners = videoCorners && typedStillBlob ? videoCorners : null;
 
       const preferredSource: 'video' | 'still' = typedVideoBlob ? 'video' : 'still';
 
