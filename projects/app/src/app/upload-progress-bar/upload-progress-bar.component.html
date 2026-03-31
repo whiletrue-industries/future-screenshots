@@ -1,0 +1,18 @@
+@if (visible()) {
+  <div
+    class="upload-bar"
+    [class.uploading]="uploading()"
+    [class.error]="hasError()"
+    role="progressbar"
+    aria-label="Uploading image"
+    aria-valuemin="0"
+    aria-valuemax="100"
+    [attr.aria-valuenow]="uploading() ? null : 100"
+  >
+    <div class="upload-bar__track"></div>
+    <div class="upload-bar__shimmer"></div>
+    @if (uploadCount() > 1) {
+      <span class="upload-bar__count" [attr.aria-label]="uploadCount() + ' uploads in progress'">{{ uploadCount() }}</span>
+    }
+  </div>
+}
