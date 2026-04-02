@@ -888,7 +888,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     }
     let url = `https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${this.workspace()}/items?page_size=10000`;
     if (since) {
-      url += `&filters=updated_at>${since}`;
+      url += `&filters=${encodeURIComponent('updated_at>' + since)}`;
     }
     return this.http.get<any[]>(url, httpOptions).pipe(
       catchError((error) => {
@@ -901,10 +901,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   private computeMaxTimestamp(items: any[]): string {
     let max = this.lastFetchedAt;
     for (const item of items) {
-      const created = item.created_at || '';
-      const updated = item.updated_at || '';
-      if (created > max) max = created;
-      if (updated > max) max = updated;
+      const created = item?.created_at;
+      const updated = item?.updated_at;
+      if (typeof created === 'string' && created > max) max = created;
+      if (typeof updated === 'string' && updated > max) max = updated;
     }
     return max;
   }
