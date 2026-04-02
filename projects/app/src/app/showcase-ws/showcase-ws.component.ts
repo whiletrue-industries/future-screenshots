@@ -42,6 +42,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   private activatedRoute: ActivatedRoute;
   loop = new Subject<any[]>();
   lastCreatedAt = '0';
+  lastFetchedAt = '';
   qrSmall = signal(false);
   workspace = signal('');
   workspaceTitle = signal('');
@@ -430,6 +431,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         // Set lastCreatedAt to the most recent item
         const latestItem = items[items.length - 1];
         this.lastCreatedAt = latestItem.created_at;
+        this.lastFetchedAt = this.computeMaxTimestamp(items);
       } else {
         // Second pass onwards: add new photos to queue for showcase
         const newItems = items.filter(item => {
@@ -477,6 +479,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           this.searchIndex.clear();
         }
 
+        // Update lastFetchedAt from all items in this response
+        if (items.length > 0) {
+          this.lastFetchedAt = this.computeMaxTimestamp(items);
+        }
+
         // Sync tracked properties on existing items from the latest API data
         const SYNC_PROPERTIES = ['layout_x', 'layout_y', 'plausibility', 'favorable_future', 'transition_bar_position'] as const;
         let metadataChanged = false;
@@ -515,7 +522,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       
       // Schedule next poll (avoid recursive loop)
       setTimeout(() => {
-        this.getItems().pipe(
+        this.getItems(this.lastFetchedAt || undefined).pipe(
           takeUntilDestroyed(this.destroyRef)
         ).subscribe(items_ => {
           this.loop.next(items_);
@@ -873,18 +880,33 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       });
   }
 
-  getItems(): Observable<any[]> {
+  getItems(since?: string): Observable<any[]> {
     const httpOptions: { headers?: Record<string, string> } = {};
     const authToken = this.resolveAuthToken();
     if (authToken) {
       httpOptions.headers = { 'Authorization': authToken };
     }
-    return this.http.get<any[]>(`https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${this.workspace()}/items?page_size=10000`, httpOptions).pipe(
+    let url = `https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/${this.workspace()}/items?page_size=10000`;
+    if (since) {
+      url += `&filters=${encodeURIComponent('updated_at>' + since)}`;
+    }
+    return this.http.get<any[]>(url, httpOptions).pipe(
       catchError((error) => {
         console.error('Error loading items:', error);
         return of([]);
       })
     );
+  }
+
+  private computeMaxTimestamp(items: any[]): string {
+    let max = this.lastFetchedAt;
+    for (const item of items) {
+      const created = item?.created_at;
+      const updated = item?.updated_at;
+      if (typeof created === 'string' && created > max) max = created;
+      if (typeof updated === 'string' && updated > max) max = updated;
+    }
+    return max;
   }
 
   async ngAfterViewInit() {
