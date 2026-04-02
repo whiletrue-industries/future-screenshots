@@ -899,7 +899,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   private computeMaxTimestamp(items: any[]): string {
-    let max = '';
+    let max = this.lastFetchedAt;
     for (const item of items) {
       const created = item.created_at || '';
       const updated = item.updated_at || '';
