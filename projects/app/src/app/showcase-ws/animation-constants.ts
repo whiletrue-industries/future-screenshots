@@ -46,6 +46,9 @@ export const ANIMATION_CONSTANTS = {
   
   /** Initial delay before starting API polling (milliseconds) */
   INITIAL_POLLING_DELAY: 1000,
+
+  /** Inactivity timeout before stopping all polling (milliseconds) — 1 hour */
+  INACTIVITY_TIMEOUT: 3600000,
   
   /** Duration for opacity fade in/out animations (seconds) */
   OPACITY_FADE_DURATION: 0.4,

@@ -43,6 +43,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   loop = new Subject<any[]>();
   lastCreatedAt = '0';
   lastFetchedAt = '';
+  lastActivityAt = Date.now();
+  isPollingActive = signal(true);
   qrSmall = signal(false);
   workspace = signal('');
   workspaceTitle = signal('');
@@ -440,6 +442,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         });
         
         if (newItems.length > 0) {
+          this.lastActivityAt = Date.now();
           // Process new photos immediately - they'll be added to the showcase queue
           const photoPromises = newItems.map(async (item) => {
             const id = item._id;
@@ -520,14 +523,18 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       // Update showcase behavior
       this.photoRepository.setRandomShowcaseEnabled(this.enableRandomShowcase());
       
-      // Schedule next poll (avoid recursive loop)
-      setTimeout(() => {
-        this.getItems(this.lastFetchedAt || undefined).pipe(
-          takeUntilDestroyed(this.destroyRef)
-        ).subscribe(items_ => {
-          this.loop.next(items_);
-        });
-      }, ANIMATION_CONSTANTS.API_POLLING_INTERVAL);
+      // Schedule next poll unless inactive for too long
+      if (Date.now() - this.lastActivityAt < ANIMATION_CONSTANTS.INACTIVITY_TIMEOUT) {
+        setTimeout(() => {
+          this.getItems(this.lastFetchedAt || undefined).pipe(
+            takeUntilDestroyed(this.destroyRef)
+          ).subscribe(items_ => {
+            this.loop.next(items_);
+          });
+        }, ANIMATION_CONSTANTS.API_POLLING_INTERVAL);
+      } else {
+        this.isPollingActive.set(false);
+      }
     });
     
     const qp = this.activatedRoute.snapshot.queryParams;
@@ -1089,7 +1096,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
     // Poll workspace metadata every 30 seconds to pick up drag_all_until changes
     interval(ANIMATION_CONSTANTS.API_POLLING_INTERVAL)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        filter(() => this.isPollingActive()),
+        takeUntilDestroyed(this.destroyRef)
+      )
       .subscribe(() => {
         if (this.workspace() !== 'WORKSPACE_NOT_SET') {
           this.fetchWorkspaceData();
