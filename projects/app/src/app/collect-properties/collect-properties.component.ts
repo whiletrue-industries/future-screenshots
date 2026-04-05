@@ -155,12 +155,23 @@ export class CollectPropertiesComponent implements AfterViewInit {
     {
       id: 20,
       instructions: '',
-      skip: () => {
+      skip: async () => {
         if (!this.api.isWorkshopFollowup() && !this.api.isWorkshop()) {
           console.log('Skipping potential step, not in workshop mode');
           return {};
         }
-        this.router.navigate(['/discuss'], { queryParamsHandling: 'preserve' });
+        // Wait for the background upload to complete so we have item IDs before navigating
+        if (this.api.currentlyUploadingImage()) {
+          await firstValueFrom(
+            this.api.uploadImageInProgress.pipe(filter((inProgress) => !inProgress))
+          );
+        }
+        const itemId = this.api.itemId();
+        const itemKey = this.api.itemKey();
+        this.router.navigate(['/discuss'], {
+          queryParams: { 'item-id': itemId, 'key': itemKey },
+          queryParamsHandling: 'merge'
+        });
         return null;
       }
     },
@@ -228,6 +239,17 @@ export class CollectPropertiesComponent implements AfterViewInit {
         timer(0).subscribe(async () => {
           await this.addStep();
         });
+      }
+    });
+    // Show thinking bubble in the messages panel while waiting for background upload.
+    // Depends on viewInit so the effect re-runs after the ViewChild is ready.
+    effect(() => {
+      const uploading = this.api.currentlyUploadingImage();
+      const item = this.api.item();
+      const isViewInit = this.viewInit();
+      if (isViewInit && this.messages) {
+        // Only show thinking while we are waiting for the very first item response
+        this.messages.thinking.set(uploading && !item);
       }
     });
   }

@@ -2,10 +2,11 @@ import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { PlatformService } from '../platform.service';
 import { marked } from 'marked';
+import { UploadProgressBarComponent } from './upload-progress-bar/upload-progress-bar.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, UploadProgressBarComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.less'
 })
@@ -34,3 +35,4 @@ export class AppComponent {
     });
   }
 }
+

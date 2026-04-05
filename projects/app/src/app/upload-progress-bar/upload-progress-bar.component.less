@@ -1,0 +1,110 @@
+@import '../../common.less';
+
+:host {
+  // Rendered at the very top of the viewport, above all other content
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 9999;
+  pointer-events: none; // never intercept clicks
+}
+
+.upload-bar {
+  position: relative;
+  height: 6px;
+  width: 100%;
+  overflow: hidden;
+  // Subtle entrance
+  animation: bar-enter 0.2s ease-out both;
+
+  &:not(.uploading) {
+    // Fade out when done
+    animation: bar-exit 0.6s ease-in forwards;
+  }
+
+  &.error {
+    .upload-bar__track {
+      background-color: @color-prevent;
+    }
+    .upload-bar__shimmer {
+      background: linear-gradient(90deg, transparent, #ff8080, transparent);
+    }
+  }
+}
+
+.upload-bar__track {
+  position: absolute;
+  inset: 0;
+  background-color: @color-dark-purple;
+  opacity: 0.15;
+}
+
+.upload-bar__shimmer {
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    @color-light-purple 40%,
+    @color-purple 60%,
+    transparent 100%
+  );
+  animation: shimmer 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+
+  .error & {
+    background: linear-gradient(90deg, transparent, @color-prevent, transparent);
+    animation-duration: 0.6s;
+  }
+}
+
+.upload-bar__count {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: @color-purple;
+  color: @color-white;
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 5px;
+  pointer-events: none;
+  .font-sans;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 140%;
+  }
+}
+
+@keyframes bar-enter {
+  from {
+    opacity: 0;
+    transform: scaleY(0);
+    transform-origin: top;
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+    transform-origin: top;
+  }
+}
+
+@keyframes bar-exit {
+  0% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}

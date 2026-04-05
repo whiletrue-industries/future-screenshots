@@ -1233,56 +1233,30 @@ export class ConfirmComponent implements OnDestroy {
     }
 
     if (!this.api.automatic()) {
-      this.api.uploadImage(currentImage, metadata).subscribe({
-        next: (res) => {
-          const params: any = {
-            'item-id': res.item_id,
-            'key': res.item_key
-          };
-          if (this.isTemplateFlow) {
-            params['template'] = 'true';
-          }
-          this.router.navigate(['/props'], { queryParams: params, queryParamsHandling: 'merge' });
-        },
-        error: (error) => {
-          console.error('[CONFIRM] Failed to upload image:', error);
-          if (error.status === 403) {
-            alert('Access denied. Please check that you have the correct API key with write permissions for this workspace.');
-          } else {
-            alert('Failed to upload image. Please try again or contact support.');
-          }
-        }
-      });
+      // Start upload in the background, then navigate immediately.
+      // The global progress bar will show while the upload is in flight.
+      // CollectPropertiesComponent waits for api.item() to be non-null before starting its steps.
+      const params: any = {};
+      if (this.isTemplateFlow) {
+        params['template'] = 'true';
+      }
+      this.api.uploadImageBackground(currentImage, metadata);
+      this.router.navigate(['/props'], { queryParams: params, queryParamsHandling: 'merge' });
     } else {
-      this.api.uploadImageAuto(currentImage, metadata).subscribe(() => {
-        this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
-      });
+      // Automatic (workshop batch) mode: fire upload in background, go back to scanner immediately.
+      this.api.uploadImageBackground(currentImage, metadata);
+      this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
     }
   }
 
   private uploadReplace(image: Blob, replaceItemId: string, itemKey?: string) {
-    this.api.replaceImage(image, replaceItemId, itemKey).subscribe({
-      next: () => {
-        this.api.replaceItemId.set(null);
-        this.api.replaceItemKey.set(null);
-        const cleanParams = { ...this.route.snapshot.queryParams };
-        delete cleanParams['replace_item'];
-        delete cleanParams['replace_item_key'];
-        if (this.api.automatic()) {
-          this.router.navigate(['/scan'], { queryParams: cleanParams });
-        } else {
-          alert('Image replaced successfully.');
-          this.router.navigate(['/scan'], { queryParams: cleanParams });
-        }
-      },
-      error: (error) => {
-        console.error('[CONFIRM] Failed to replace image:', error);
-        if (error.status === 403) {
-          alert('Access denied. Please check that you have the correct API key.');
-        } else {
-          alert('Failed to replace image. Please try again.');
-        }
-      }
-    });
+    // Start replace in the background and navigate away immediately.
+    this.api.replaceImageBackground(image, replaceItemId, itemKey);
+    this.api.replaceItemId.set(null);
+    this.api.replaceItemKey.set(null);
+    const cleanParams = { ...this.route.snapshot.queryParams };
+    delete cleanParams['replace_item'];
+    delete cleanParams['replace_item_key'];
+    this.router.navigate(['/scan'], { queryParams: cleanParams });
   }
 }

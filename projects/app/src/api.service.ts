@@ -38,6 +38,8 @@ export class ApiService {
   isWorkshopFollowup = signal<boolean>(false);
   uploadImageInProgress = new ReplaySubject<boolean>(1);
   currentlyUploadingImage = signal<boolean>(false);
+  uploadCount = signal<number>(0);
+  uploadErrorCount = signal<number>(0);
   locale = 'en';
 
   passwordProtected = computed(() => {
@@ -276,6 +278,68 @@ export class ApiService {
       console.log('Auto upload image complete');
     });
     return timer(2000);
+  }
+
+  /**
+   * Fire-and-forget upload: starts the upload in the background, updates signals when done.
+   * The caller can navigate away immediately; `currentlyUploadingImage` / `uploadCount` track
+   * whether any upload is still in flight so the global progress bar can remain visible.
+   * The progress bar clears as soon as the image is received (item_id available), while
+   * background processing (metadata + init message) continues silently.
+   */
+  uploadImageBackground(image: Blob, metadata?: Record<string, any>): void {
+    this.uploadCount.update(n => n + 1);
+    this.uploadImageInProgress.next(true);
+    this.startDiscussion(image).pipe(
+      tap(() => {
+        // Image received: item_id is now available — signal upload complete for progress bar
+        this.uploadCount.update(n => Math.max(0, n - 1));
+        if (this.uploadCount() === 0) {
+          this.uploadImageInProgress.next(false);
+        }
+      }),
+      switchMap((data: any) => {
+        const item_id = data.item_id || data.metadata?.item_id;
+        const item_key = data.item_key || data.metadata?.item_key;
+        // Continue background work silently (does not affect the progress bar)
+        const background$ = (metadata && Object.keys(metadata).length > 0)
+          ? this.updateProperties(metadata, item_id, item_key).pipe(
+              switchMap(() => this.sendInitMessageNoStream(item_id, item_key))
+            )
+          : this.sendInitMessageNoStream(item_id, item_key);
+        return background$;
+      }),
+      catchError((err) => {
+        console.error('[API] Background upload failed', err);
+        this.uploadErrorCount.update(n => n + 1);
+        // Ensure count stays consistent if tap() didn't fire
+        this.uploadCount.update(n => Math.max(0, n - 1));
+        if (this.uploadCount() === 0) {
+          this.uploadImageInProgress.next(false);
+        }
+        return of(null);
+      })
+    ).subscribe();
+  }
+
+  /**
+   * Fire-and-forget image replacement: starts the replace in the background.
+   */
+  replaceImageBackground(image: Blob, itemId: string, itemKey?: string): void {
+    this.uploadCount.update(n => n + 1);
+    this.uploadImageInProgress.next(true);
+    this.replaceImage(image, itemId, itemKey).pipe(
+      catchError((err) => {
+        console.error('[API] Background replace failed', err);
+        this.uploadErrorCount.update(n => n + 1);
+        return of(null);
+      })
+    ).subscribe(() => {
+      this.uploadCount.update(n => Math.max(0, n - 1));
+      if (this.uploadCount() === 0) {
+        this.uploadImageInProgress.next(false);
+      }
+    });
   }
 
   startDiscussion(image: Blob, item_id?: string, item_key?: string): Observable<any> {
