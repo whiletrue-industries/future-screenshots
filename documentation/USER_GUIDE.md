@@ -19,6 +19,14 @@ Future Screenshots (Chronomaps) is a participatory mapping platform that allows 
 2. **Discuss** - Chat with AI about your vision
 3. **Showcase** - View all contributions in immersive 3D visualizations
 
+## Workshop Upload Flow
+
+When workshop mode is enabled (`ws=true`), pressing **Looking Good** now starts the screenshot upload in the background and immediately advances to the follow-up flow.
+
+- You can continue with email/confirmation steps without waiting for upload processing to finish.
+- The follow-up screen shows upload status (`uploading`, `received`, or `failed`).
+- You can still choose **Add Another** while processing is underway.
+
 ## Language Toggle
 
 The language menu reflects the active workspace's supported languages (e.g., English, Nederlands, עברית, العربية). Switching language keeps you on the same page and preserves your URL parameters (such as `workspace` and `api_key`). Only the locale segment in the URL changes (for example from `/` to `/he/`).

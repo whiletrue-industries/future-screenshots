@@ -18,11 +18,40 @@ import { CompletionImageComponent } from "../completion-image/completion-image.c
 export class CompleteEvaluationComponent {
 
   thinking = input<boolean>(false);
+  workshopUploadStatus = computed(() => {
+    if (!this.api.isWorkshop()) {
+      return null;
+    }
+
+    const status = this.api.uploadStatus();
+    if (status === 'uploading') {
+      return $localize`Uploading screenshot in the background. You can keep going.`;
+    }
+    if (status === 'uploaded') {
+      return $localize`Upload received. Processing may still continue for a few minutes.`;
+    }
+    if (status === 'failed') {
+      return this.api.uploadStatusMessage() || $localize`Upload failed. You can still add another screenshot.`;
+    }
+    return null;
+  });
+
   addAnotherRoute = computed(() => {
     const fromTemplateParam = this.route.snapshot.queryParamMap.get('template') === 'true';
     const tags: string[] | undefined = this.api.item()?.tags;
     const fromNoPaperTag = Array.isArray(tags) && tags.includes('no-paper');
     return (fromTemplateParam || fromNoPaperTag) ? ['/canvas-creator'] : ['/scan'];
+  });
+
+  addAnotherQueryParams = computed(() => {
+    const params = { ...this.route.snapshot.queryParams };
+    delete params['item-id'];
+    delete params['key'];
+    delete params['template_id'];
+    delete params['replace_item'];
+    delete params['replace_item_key'];
+    delete params['flow_id'];
+    return params;
   });
 
   // Compute the show-on-map URL for the current item

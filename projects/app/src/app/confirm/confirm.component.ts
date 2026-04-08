@@ -1233,6 +1233,16 @@ export class ConfirmComponent implements OnDestroy {
     }
 
     if (!this.api.automatic()) {
+      if (this.api.isWorkshop()) {
+        const workshopFlowId = this.api.createWorkshopFlow();
+        this.uploadWorkshopInBackground(currentImage, metadata, workshopFlowId);
+        this.router.navigate(['/props'], {
+          queryParams: { flow_id: workshopFlowId },
+          queryParamsHandling: 'merge'
+        });
+        return;
+      }
+
       this.api.uploadImage(currentImage, metadata).subscribe({
         next: (res) => {
           const params: any = {
@@ -1258,6 +1268,10 @@ export class ConfirmComponent implements OnDestroy {
         this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
       });
     }
+  }
+
+  private uploadWorkshopInBackground(image: Blob, metadata: Record<string, any>, flowId: string) {
+    this.api.uploadWorkshopFlow(flowId, image, metadata);
   }
 
   private uploadReplace(image: Blob, replaceItemId: string, itemKey?: string) {
