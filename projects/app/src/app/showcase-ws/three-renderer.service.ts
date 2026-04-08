@@ -188,6 +188,9 @@ export class ThreeRendererService {
   // Hover state signal for cursor feedback
   private hoveredItemSignal = signal(false);
 
+  // Filtered items are rendered semi-transparent and should be non-interactive.
+  private readonly INTERACTIVE_OPACITY_THRESHOLD = 0.99;
+
   // Settings Panel Controls
   private rotationSpeedMultiplier = 1.0;
   private panSensitivityMultiplier = 1.0;
@@ -1144,6 +1147,11 @@ export class ThreeRendererService {
       const mesh = child as THREE.Mesh;
       if (!mesh.isMesh) return;
 
+      // Skip filtered/transparent items: they are intentionally non-interactive.
+      if (!this.isMeshInteractive(mesh)) {
+        return;
+      }
+
       // Get the logical position from PhotoData (if available)
       const photoData = this.meshToPhotoData.get(mesh);
       
@@ -1322,6 +1330,33 @@ export class ThreeRendererService {
         }
       }
     });
+  }
+
+  private getMeshOpacity(mesh: THREE.Mesh): number {
+    const material = mesh.material;
+    if (Array.isArray(material)) {
+      for (const mat of material) {
+        if ((mat as any).opacity !== undefined) {
+          return (mat as any).opacity as number;
+        }
+      }
+      return 1;
+    }
+
+    if ((material as any).opacity !== undefined) {
+      return (material as any).opacity as number;
+    }
+
+    return 1;
+  }
+
+  private isMeshInteractive(mesh: THREE.Mesh): boolean {
+    return this.getMeshOpacity(mesh) >= this.INTERACTIVE_OPACITY_THRESHOLD;
+  }
+
+  private getFirstInteractiveIntersection(intersections: THREE.Intersection[]): THREE.Intersection | null {
+    const hit = intersections.find((intersection) => this.isMeshInteractive(intersection.object as THREE.Mesh));
+    return hit ?? null;
   }
 
   private resetAllFisheyeEffects(): void {
@@ -2215,9 +2250,10 @@ export class ThreeRendererService {
     
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(this.root.children, false);
+    const firstInteractiveIntersection = this.getFirstInteractiveIntersection(intersects);
 
-    if (intersects.length > 0) {
-      const intersectedMesh = intersects[0].object as THREE.Mesh;
+    if (firstInteractiveIntersection) {
+      const intersectedMesh = firstInteractiveIntersection.object as THREE.Mesh;
       
       // Check if this mesh is draggable (has drag callback AND not marked as hover-only)
       const canDrag = this.dragCallbacks.has(intersectedMesh) && !this.hoverOnlyMeshes.has(intersectedMesh);
@@ -2343,10 +2379,11 @@ export class ThreeRendererService {
       // Check for hover effects
       this.raycaster.setFromCamera(this.mouse, this.camera);
       const intersects = this.raycaster.intersectObjects(this.root.children, false);
+      const firstInteractiveIntersection = this.getFirstInteractiveIntersection(intersects);
       let didSetPointerCursor = false;
       
-      if (intersects.length > 0) {
-        const mesh = intersects[0].object as THREE.Mesh;
+      if (firstInteractiveIntersection) {
+        const mesh = firstInteractiveIntersection.object as THREE.Mesh;
         const isDraggable = this.dragCallbacks.has(mesh) && !this.hoverOnlyMeshes.has(mesh);
         const isHoverOnly = this.hoverOnlyMeshes.has(mesh);
         
@@ -2472,9 +2509,10 @@ export class ThreeRendererService {
         // Handle click events (not drag)
         this.raycaster.setFromCamera(this.mouse, this.camera);
         const intersects = this.raycaster.intersectObjects(this.root.children, false);
+        const firstInteractiveIntersection = this.getFirstInteractiveIntersection(intersects);
 
-        if (intersects.length > 0) {
-          const mesh = intersects[0].object as THREE.Mesh;
+        if (firstInteractiveIntersection) {
+          const mesh = firstInteractiveIntersection.object as THREE.Mesh;
           const photoId = this.findPhotoIdForMesh(mesh);
 
           if (photoId && this.onPhotoClickCallback) {
