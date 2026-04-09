@@ -1,10 +1,10 @@
-import { AfterViewInit, Component, computed, effect, signal, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, computed, effect, OnDestroy, signal, ViewChild } from '@angular/core';
 import { Message, MessagesComponent } from "../messages/messages.component";
 import { ApiService } from '../../api.service';
 import { CollectPropertiesFavorableComponent } from "../collect-properties-favorable/collect-properties-favorable.component";
 import { ActivatedRoute, Router } from '@angular/router';
 import { CollectPropertiesPotentialComponent } from "../collect-properties-potential/collect-properties-potential.component";
-import { filter, firstValueFrom, switchMap, tap, timer } from 'rxjs';
+import { timer } from 'rxjs';
 import { CollectEmailComponent } from "../collect-properties-email/collect-properties-email.component";
 import { CompleteEvaluationComponent } from "../complete-evaluation/complete-evaluation.component";
 import { DirectToMapComponent } from "../direct-to-map/direct-to-map.component";
@@ -26,7 +26,7 @@ export type StepUpdate = {
   templateUrl: './collect-properties.component.html',
   styleUrl: './collect-properties.component.less'
 })
-export class CollectPropertiesComponent implements AfterViewInit {
+export class CollectPropertiesComponent implements AfterViewInit, OnDestroy {
   @ViewChild(MessagesComponent) messages: MessagesComponent;
 
   step = signal(-1);
@@ -70,6 +70,12 @@ export class CollectPropertiesComponent implements AfterViewInit {
         let email = this.api.item()?._private_email;
         const email_refused = this.api.item()?._private_refused_email;
         if (email || email_refused) {
+          // In workshop mode, re-use the email from a previous upload so it gets
+          // queued for this new upload via step 10, and step 12 fires to halt the flow.
+          if (this.api.isWorkshop() && email) {
+            this.emailFromStorage = true;
+            return { _private_email: email };
+          }
           return {};
         }
         email = this.localStorage?.getItem('mapfutures-email');
@@ -89,9 +95,6 @@ export class CollectPropertiesComponent implements AfterViewInit {
       id: 10,
       instructions: '',
       skip: () => {
-        const item_id = this.api.itemId();
-        const item_key = this.api.itemKey();
-
         // Check if item has an author_id field, if not add it
         const currentItem = this.api.item();
         if (currentItem && !currentItem.author_id) {
@@ -99,22 +102,18 @@ export class CollectPropertiesComponent implements AfterViewInit {
           this.propsUpdate.update(s => Object.assign({}, s, { author_id: authorId }));
         }
 
-        const propsUpdate = this.propsUpdate();
-        console.log('CONSIDERING IF UPDATE IS NEEDED', propsUpdate);
-        if (item_id && item_key) {
-          for (const _ in propsUpdate) {
-            this.api.item.update((item: any) => Object.assign({}, item, propsUpdate));
-            console.log('Updating item with props:', propsUpdate);
-            this.messages.thinking.set(true);
-            this.api.uploadImageInProgress.pipe(
-              filter((inProgress) => inProgress === false),
-              switchMap(() => this.api.updateItem(propsUpdate, item_id, item_key)),
-              tap(() => {
-                this.messages.thinking.set(false);
-              })
-            ).subscribe();
-            break;
+        const queuedUpdate = this.propsUpdate();
+        console.log('CONSIDERING IF UPDATE IS NEEDED', queuedUpdate);
+        if (Object.keys(queuedUpdate).length > 0) {
+          if (this.api.isWorkshop() && this.workshopFlowId) {
+            this.api.queueWorkshopFlowMetadata(this.workshopFlowId, queuedUpdate);
+            this.pendingPropsUpdate = Object.assign({}, this.pendingPropsUpdate, queuedUpdate);
+            this.propsUpdate.set({});
+            return {};
           }
+          this.pendingPropsUpdate = Object.assign({}, this.pendingPropsUpdate, queuedUpdate);
+          this.flushPendingPropsUpdate();
+          this.schedulePendingPropsRetry();
         }
         this.propsUpdate.set({});
         return {};
@@ -125,7 +124,8 @@ export class CollectPropertiesComponent implements AfterViewInit {
       instructions: $localize`Perfect! We’re all set.\n\nExpect an email soon from **MapFutur.es!**`,
       skip: () => {
         const item = this.api.item();
-        if (this.emailRequested && item && item._private_email) {
+        const pendingEmail = this.pendingPropsUpdate?._private_email;
+        if (this.emailRequested && (pendingEmail || (item && item._private_email))) {
           return null;
         }
         return {};
@@ -146,7 +146,8 @@ export class CollectPropertiesComponent implements AfterViewInit {
       instructions: $localize`Well, you will lose the option to edit and track your screenshot, but we will try to handle it with care. **Thanks**!`,
       skip: () => {
         const item = this.api.item();
-        if (this.emailRequested && item && item._private_refused_email) {
+        const pendingRefusal = this.pendingPropsUpdate?._private_refused_email;
+        if (this.emailRequested && (pendingRefusal || (item && item._private_refused_email))) {
           return null;
         }
         return {};
@@ -156,6 +157,9 @@ export class CollectPropertiesComponent implements AfterViewInit {
       id: 20,
       instructions: '',
       skip: () => {
+        if (this.api.isWorkshop()) {
+          return {};
+        }
         if (!this.api.isWorkshopFollowup() && !this.api.isWorkshop()) {
           console.log('Skipping potential step, not in workshop mode');
           return {};
@@ -179,6 +183,9 @@ export class CollectPropertiesComponent implements AfterViewInit {
       id: 22,
       instructions: $localize`We added “:TAGLINE:” to the map!\n\n**Want to see it?**`,      
       skip: () => {
+        if (this.api.isWorkshop()) {
+          return {};  // direct-to-map is not part of the workshop flow
+        }
         const itemKey = this.api.itemKey();
         if (itemKey && this.fragment() === 'publish') {
           return {};
@@ -198,10 +205,15 @@ export class CollectPropertiesComponent implements AfterViewInit {
   emailRequested = false;
   emailFromStorage = false;
   localStorage = typeof localStorage !== 'undefined' ? localStorage : null;
+  private workshopFlowId: string | null = null;
+  private pendingPropsUpdate: any = {};
+  private pendingUpdateRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly PENDING_UPDATE_RETRY_MS = 2000;
 
   constructor(private api: ApiService, private route: ActivatedRoute, private router: Router) {
     this.api.updateFromRoute(this.route.snapshot);
     this.fragment.set(this.route.snapshot.fragment || null);
+    this.workshopFlowId = this.route.snapshot.queryParamMap.get('flow_id');
     console.log('FRAGMENT', this.fragment());
     effect(() => {
       const messages = this.messages?.messages() || [];
@@ -222,7 +234,8 @@ export class CollectPropertiesComponent implements AfterViewInit {
       const step = this.step();
       const item = this.api.item();
       const stepInitialized = this.stepInitialized();
-      if (!stepInitialized && this.viewInit() && step === -1 && item) {
+      const canStartWithoutItem = this.api.isWorkshop() || this.api.isWorkshopFollowup();
+      if (!stepInitialized && this.viewInit() && step === -1 && (item || canStartWithoutItem)) {
         this.stepInitialized.set(true);
         console.log('Step is -1, adding first step');
         timer(0).subscribe(async () => {
@@ -230,10 +243,44 @@ export class CollectPropertiesComponent implements AfterViewInit {
         });
       }
     });
+
+    effect(() => {
+      this.api.itemId();
+      this.api.itemKey();
+      this.api.currentlyUploadingImage();
+      this.api.uploadStatus();
+      this.flushPendingPropsUpdate();
+    });
   }
 
   ngAfterViewInit() {
     this.viewInit.set(true);
+  }
+
+  ngOnDestroy(): void {
+    this.clearPendingPropsRetry();
+  }
+
+  private schedulePendingPropsRetry(): void {
+    if (this.pendingUpdateRetryTimer !== null) {
+      return;
+    }
+
+    this.pendingUpdateRetryTimer = setTimeout(() => {
+      this.pendingUpdateRetryTimer = null;
+      this.flushPendingPropsUpdate();
+
+      if (Object.keys(this.pendingPropsUpdate).length > 0) {
+        this.schedulePendingPropsRetry();
+      }
+    }, this.PENDING_UPDATE_RETRY_MS);
+  }
+
+  private clearPendingPropsRetry(): void {
+    if (this.pendingUpdateRetryTimer !== null) {
+      clearTimeout(this.pendingUpdateRetryTimer);
+      this.pendingUpdateRetryTimer = null;
+    }
   }
 
   private getOrGenerateAuthorId(): string {
@@ -244,6 +291,37 @@ export class CollectPropertiesComponent implements AfterViewInit {
       this.localStorage?.setItem('future_screenshots_author_id', authorId);
     }
     return authorId;
+  }
+
+  private flushPendingPropsUpdate(): void {
+    const update = this.pendingPropsUpdate;
+    if (!update || Object.keys(update).length === 0) {
+      return;
+    }
+
+    const item_id = this.api.itemId();
+    const item_key = this.api.itemKey();
+
+    if (!item_id || !item_key || this.api.currentlyUploadingImage()) {
+      this.schedulePendingPropsRetry();
+      return;
+    }
+
+    this.pendingPropsUpdate = {};
+    this.clearPendingPropsRetry();
+    this.api.item.update((item: any) => Object.assign({}, item, update));
+    this.messages?.thinking.set(true);
+    this.api.updateItem(update, item_id, item_key).subscribe({
+      next: () => {
+        this.messages?.thinking.set(false);
+        this.clearPendingPropsRetry();
+      },
+      error: () => {
+        this.messages?.thinking.set(false);
+        this.pendingPropsUpdate = Object.assign({}, update, this.pendingPropsUpdate);
+        this.schedulePendingPropsRetry();
+      }
+    });
   }
 
   async addStep() {

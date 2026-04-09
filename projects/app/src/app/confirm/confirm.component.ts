@@ -37,6 +37,10 @@ type SourceCornerState = {
 export class ConfirmComponent implements OnDestroy {
   isTemplateFlow = false;
   private readonly MIN_CROP_SIZE = 64;
+  private uploadStartedHere = signal(false);
+  isBlockedByPreviousUpload = computed(() =>
+    this.api.currentlyUploadingImage() && !this.uploadStartedHere()
+  );
 
   // Crop overlay state (used when rawCapturedImageUrl is present)
   cropCorners = signal<CropPoint[]>([]);
@@ -139,6 +143,12 @@ export class ConfirmComponent implements OnDestroy {
       this.setInitialCropFromPoints(clampedPendingPoints);
       this.saveCurrentCornersForSource(false);
       this.refreshAlternateCapturePreview();
+    });
+
+    effect(() => {
+      if (!this.api.currentlyUploadingImage()) {
+        this.uploadStartedHere.set(false);
+      }
     });
   }
 
@@ -1200,6 +1210,7 @@ export class ConfirmComponent implements OnDestroy {
     // Check if this is a replace flow (replacing an existing item's image)
     const replaceItemId = this.api.replaceItemId();
     if (replaceItemId) {
+      this.uploadStartedHere.set(true);
       this.uploadReplace(currentImage, replaceItemId, this.api.replaceItemKey() || undefined);
       return;
     }
@@ -1233,6 +1244,18 @@ export class ConfirmComponent implements OnDestroy {
     }
 
     if (!this.api.automatic()) {
+      if (this.api.isWorkshop()) {
+        this.uploadStartedHere.set(true);
+        const workshopFlowId = this.api.createWorkshopFlow();
+        this.uploadWorkshopInBackground(currentImage, metadata, workshopFlowId);
+        this.router.navigate(['/props'], {
+          queryParams: { flow_id: workshopFlowId },
+          queryParamsHandling: 'merge'
+        });
+        return;
+      }
+
+      this.uploadStartedHere.set(true);
       this.api.uploadImage(currentImage, metadata).subscribe({
         next: (res) => {
           const params: any = {
@@ -1254,10 +1277,15 @@ export class ConfirmComponent implements OnDestroy {
         }
       });
     } else {
+      this.uploadStartedHere.set(true);
       this.api.uploadImageAuto(currentImage, metadata).subscribe(() => {
         this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
       });
     }
+  }
+
+  private uploadWorkshopInBackground(image: Blob, metadata: Record<string, any>, flowId: string) {
+    this.api.uploadWorkshopFlow(flowId, image, metadata);
   }
 
   private uploadReplace(image: Blob, replaceItemId: string, itemKey?: string) {

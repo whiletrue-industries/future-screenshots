@@ -1,11 +1,21 @@
 import { HttpClient } from '@angular/common/http';
 import { computed, effect, Inject, Injectable, LOCALE_ID, NgZone, signal } from '@angular/core';
 import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
-import { catchError, map, Observable, of, ReplaySubject, switchMap, tap, timer } from 'rxjs';
+import { catchError, map, Observable, of, ReplaySubject, switchMap, tap, throwError, timer } from 'rxjs';
 
 export type DiscussResult = {
   complete: boolean;
   message: string;
+};
+
+export type UploadStatus = 'idle' | 'uploading' | 'uploaded' | 'failed';
+
+type WorkshopFlowState = {
+  itemId: string | null;
+  itemKey: string | null;
+  pendingMetadata: Record<string, any>;
+  updateInFlight: boolean;
+  retryTimer: ReturnType<typeof setTimeout> | null;
 };
 
 
@@ -38,6 +48,10 @@ export class ApiService {
   isWorkshopFollowup = signal<boolean>(false);
   uploadImageInProgress = new ReplaySubject<boolean>(1);
   currentlyUploadingImage = signal<boolean>(false);
+  uploadStatus = signal<UploadStatus>('idle');
+  uploadStatusMessage = signal<string | null>(null);
+  private workshopFlows = new Map<string, WorkshopFlowState>();
+  private readonly WORKSHOP_FLOW_RETRY_MS = 2000;
   locale = 'en';
 
   passwordProtected = computed(() => {
@@ -242,12 +256,12 @@ export class ApiService {
   }
 
   uploadImage(image: Blob, metadata?: Record<string, any>): Observable<{ item_id: string; item_key: string }> {
-    this.uploadImageInProgress.next(true);
+    this.setUploadState('uploading');
     return this.startDiscussion(image).pipe(
       map((data: any) => {
         const item_id = data.item_id || data.metadata?.item_id;
         const item_key = data.item_key || data.metadata?.item_key;
-        this.uploadImageInProgress.next(false);
+        this.setUploadState('uploaded');
         // Fire background work: apply metadata then send init message
         const background$ = (metadata && Object.keys(metadata).length > 0)
           ? this.updateProperties(metadata, item_id, item_key).pipe(
@@ -256,26 +270,178 @@ export class ApiService {
           : this.sendInitMessageNoStream(item_id, item_key);
         background$.subscribe();
         return { item_id, item_key };
+      }),
+      catchError((error) => {
+        this.setUploadState('failed', this.getUploadErrorMessage(error));
+        return throwError(() => error);
       })
     );
   }
 
   uploadImageAuto(image: Blob, metadata?: Record<string, any>): Observable<any> {
-    this.uploadImageInProgress.next(true);
+    this.setUploadState('uploading');
     this.startDiscussion(image).pipe(
       switchMap((data: any) => {
         const item_id = data.item_id || data.metadata?.item_id;
         const item_key = data.item_key || data.metadata?.item_key;
-        this.uploadImageInProgress.next(false);
         if (metadata && Object.keys(metadata).length > 0) {
           return this.updateProperties(metadata, item_id, item_key);
         }
         return of(true);
+      }),
+      tap(() => {
+        this.setUploadState('uploaded');
+      }),
+      catchError((error) => {
+        this.setUploadState('failed', this.getUploadErrorMessage(error));
+        return of(null);
       })
-    ).subscribe(() => {
-      console.log('Auto upload image complete');
+    ).subscribe((result) => {
+      if (result !== null) {
+        console.log('Auto upload image complete');
+      }
     });
     return timer(2000);
+  }
+
+  createWorkshopFlow(): string {
+    const flowId = `wf_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    this.workshopFlows.set(flowId, {
+      itemId: null,
+      itemKey: null,
+      pendingMetadata: {},
+      updateInFlight: false,
+      retryTimer: null,
+    });
+    return flowId;
+  }
+
+  uploadWorkshopFlow(flowId: string, image: Blob, metadata?: Record<string, any>): void {
+    this.ensureWorkshopFlow(flowId);
+    this.uploadImage(image, metadata).subscribe({
+      next: (res) => {
+        const state = this.ensureWorkshopFlow(flowId);
+        state.itemId = res.item_id;
+        state.itemKey = res.item_key;
+        this.flushWorkshopFlow(flowId);
+      },
+      error: (error) => {
+        console.error('[API] Workshop flow upload failed:', flowId, error);
+      }
+    });
+  }
+
+  queueWorkshopFlowMetadata(flowId: string, metadata: Record<string, any>): void {
+    if (!metadata || Object.keys(metadata).length === 0) {
+      return;
+    }
+
+    const state = this.ensureWorkshopFlow(flowId);
+    state.pendingMetadata = Object.assign({}, state.pendingMetadata, metadata);
+    this.flushWorkshopFlow(flowId);
+  }
+
+  private ensureWorkshopFlow(flowId: string): WorkshopFlowState {
+    let state = this.workshopFlows.get(flowId);
+    if (!state) {
+      state = {
+        itemId: null,
+        itemKey: null,
+        pendingMetadata: {},
+        updateInFlight: false,
+        retryTimer: null,
+      };
+      this.workshopFlows.set(flowId, state);
+    }
+    return state;
+  }
+
+  private scheduleWorkshopFlowRetry(flowId: string): void {
+    const state = this.workshopFlows.get(flowId);
+    if (!state || state.retryTimer !== null) {
+      return;
+    }
+
+    state.retryTimer = setTimeout(() => {
+      const activeState = this.workshopFlows.get(flowId);
+      if (!activeState) {
+        return;
+      }
+      activeState.retryTimer = null;
+      this.flushWorkshopFlow(flowId);
+    }, this.WORKSHOP_FLOW_RETRY_MS);
+  }
+
+  private clearWorkshopFlowRetry(flowId: string): void {
+    const state = this.workshopFlows.get(flowId);
+    if (!state?.retryTimer) {
+      return;
+    }
+    clearTimeout(state.retryTimer);
+    state.retryTimer = null;
+  }
+
+  private flushWorkshopFlow(flowId: string): void {
+    const state = this.workshopFlows.get(flowId);
+    if (!state || state.updateInFlight) {
+      return;
+    }
+
+    if (Object.keys(state.pendingMetadata).length === 0) {
+      if (state.itemId && state.itemKey) {
+        this.clearWorkshopFlowRetry(flowId);
+      }
+      return;
+    }
+
+    if (!state.itemId || !state.itemKey) {
+      this.scheduleWorkshopFlowRetry(flowId);
+      return;
+    }
+
+    const updatePayload = { ...state.pendingMetadata };
+    state.pendingMetadata = {};
+    state.updateInFlight = true;
+    this.clearWorkshopFlowRetry(flowId);
+
+    this.updateItem(updatePayload, state.itemId, state.itemKey).subscribe({
+      next: () => {
+        const activeState = this.workshopFlows.get(flowId);
+        if (!activeState) {
+          return;
+        }
+        activeState.updateInFlight = false;
+        if (Object.keys(activeState.pendingMetadata).length > 0) {
+          this.flushWorkshopFlow(flowId);
+        }
+      },
+      error: (error) => {
+        const activeState = this.workshopFlows.get(flowId);
+        if (!activeState) {
+          return;
+        }
+        activeState.updateInFlight = false;
+        activeState.pendingMetadata = Object.assign({}, updatePayload, activeState.pendingMetadata);
+        console.warn('[API] Workshop flow metadata update failed, scheduling retry:', flowId, error);
+        this.scheduleWorkshopFlowRetry(flowId);
+      }
+    });
+  }
+
+  private setUploadState(status: UploadStatus, message: string | null = null): void {
+    this.uploadImageInProgress.next(status === 'uploading');
+    this.uploadStatus.set(status);
+    this.uploadStatusMessage.set(message);
+  }
+
+  private getUploadErrorMessage(error: any): string {
+    if (error?.status === 403) {
+      return 'Access denied. Please check API key permissions.';
+    }
+    if (typeof error?.message === 'string' && error.message.trim()) {
+      return error.message;
+    }
+    return 'Upload failed. You can continue and try another screenshot.';
   }
 
   startDiscussion(image: Blob, item_id?: string, item_key?: string): Observable<any> {
