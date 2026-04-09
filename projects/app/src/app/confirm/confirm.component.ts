@@ -1221,7 +1221,7 @@ export class ConfirmComponent implements OnDestroy {
     // Add textbox data if available
     const textboxData = this.state.currentTextboxData();
     if (textboxData) {
-      metadata.content = textboxData;
+      metadata.content_text = textboxData;
     }
 
     // Add tags - merge batch tags with template tags
