@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { computed, effect, Inject, Injectable, LOCALE_ID, NgZone, signal } from '@angular/core';
 import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
-import { catchError, map, Observable, of, ReplaySubject, switchMap, tap, timer } from 'rxjs';
+import { catchError, map, Observable, of, ReplaySubject, shareReplay, switchMap, tap, timer } from 'rxjs';
 
 export type DiscussResult = {
   complete: boolean;
@@ -38,6 +38,7 @@ export class ApiService {
   isWorkshopFollowup = signal<boolean>(false);
   uploadImageInProgress = new ReplaySubject<boolean>(1);
   currentlyUploadingImage = signal<boolean>(false);
+  currentUpload$: Observable<{item_id: string, item_key: string}> | null = null;
   locale = 'en';
 
   passwordProtected = computed(() => {
@@ -129,13 +130,14 @@ export class ApiService {
     );
   }
 
-  fetchItem(item_id: string, item_key: string): Observable<any> { 
+  fetchItem(item_id: string, item_key: string): Observable<any> {
     const params: any = item_key ? {
       'item-key': item_key,
     } : {};
     const headers: any = this.api_key() ? {
       'Authorization': this.api_key(),
     } : {};
+    this.currentUpload$ = of({item_id, item_key});
     return this.http.get(`${this.CHRONOMAPS_API_URL}/${this.workspaceId()}/${item_id}`, {params, headers}).pipe(
       map((response: any) => {
         response.item_id = item_id;
@@ -241,6 +243,37 @@ export class ApiService {
     );
   }
 
+  startBackgroundUpload(image: Blob, metadata?: Record<string, any>): void {
+    // Reset item state to prevent stale data from previous items
+    this.item.set({});
+    this.itemId.set(null);
+    this.itemKey.set(null);
+    this.uploadImageInProgress.next(true);
+
+    // Snapshot metadata to prevent mutation by caller
+    const metadataSnapshot = metadata ? { ...metadata } : undefined;
+
+    this.currentUpload$ = this.startDiscussion(image).pipe(
+      map((data: any) => {
+        const item_id = data.item_id || data.metadata?.item_id;
+        const item_key = data.item_key || data.metadata?.item_key;
+        this.uploadImageInProgress.next(false);
+        // Fire background work: apply metadata then send init message
+        const background$ = (metadataSnapshot && Object.keys(metadataSnapshot).length > 0)
+          ? this.updateProperties(metadataSnapshot, item_id, item_key).pipe(
+              switchMap(() => this.sendInitMessageNoStream(item_id, item_key))
+            )
+          : this.sendInitMessageNoStream(item_id, item_key);
+        background$.subscribe();
+        return { item_id, item_key };
+      }),
+      shareReplay(1)
+    );
+
+    // Subscribe to kick off the HTTP request
+    this.currentUpload$.subscribe();
+  }
+
   uploadImage(image: Blob, metadata?: Record<string, any>): Observable<{ item_id: string; item_key: string }> {
     this.uploadImageInProgress.next(true);
     return this.startDiscussion(image).pipe(
@@ -299,9 +332,7 @@ export class ApiService {
         console.log('Screenshot uploaded successfully', data.metadata);
         const item_id = data.item_id || data.metadata?.item_id;
         const item_key = data.item_key || data.metadata?.item_key;
-        this.item.update((item: any) => {
-          return Object.assign({}, item, data.metadata, { item_id, item_key });
-        });
+        this.item.set(Object.assign({}, data.metadata, { item_id, item_key }));
         this.itemId.set(item_id);
         this.itemKey.set(item_key);
       })
