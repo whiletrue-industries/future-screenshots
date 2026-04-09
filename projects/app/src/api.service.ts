@@ -253,7 +253,7 @@ export class ApiService {
     // Snapshot metadata to prevent mutation by caller
     const metadataSnapshot = metadata ? { ...metadata } : undefined;
 
-    this.currentUpload$ = this.startDiscussion(image).pipe(
+    this.currentUpload$ = this.startDiscussion(image, undefined, undefined, metadataSnapshot).pipe(
       map((data: any) => {
         const item_id = data.item_id || data.metadata?.item_id;
         const item_key = data.item_key || data.metadata?.item_key;
@@ -311,9 +311,12 @@ export class ApiService {
     return timer(2000);
   }
 
-  startDiscussion(image: Blob, item_id?: string, item_key?: string): Observable<any> {
+  startDiscussion(image: Blob, item_id?: string, item_key?: string, metadata?: Record<string, any>): Observable<any> {
     const formData = new FormData();
     formData.append('image', image);
+    if (metadata) {
+      formData.append('metadata', JSON.stringify(metadata));
+    }
     const params: any = {
       workspace: this.workspaceId(),
       api_key: this.api_key(),
