@@ -458,13 +458,15 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
   /** Convert world coordinates back to nearest integer TSNE grid coordinate. */
   private worldToGridCoordinates(worldX: number, worldY: number, dim: [number, number]): { x: number; y: number } {
     const [maxGridX, maxGridY] = dim;
-    const centerOffsetX = (maxGridX - 1) * this.cellW / 2;
+    const centerOffsetX = (maxGridX - 1) * this.cellW / 2 + this.cellW / 4;
     const centerOffsetY = (maxGridY - 1) * this.cellH / 2;
 
-    return {
-      x: Math.round((worldX + centerOffsetX) / this.cellW),
-      y: Math.round((centerOffsetY - worldY) / this.cellH),
-    };
+    // Estimate gridY first, then correct for the hex row offset when computing gridX.
+    const gridY = Math.round((centerOffsetY - worldY) / this.cellH);
+    const hexOffsetX = (gridY % 2 !== 0) ? this.cellW / 2 : 0;
+    const gridX = Math.round((worldX + centerOffsetX - hexOffsetX) / this.cellW);
+
+    return { x: gridX, y: gridY };
   }
 
   /** Find the nearest unoccupied grid coordinate using deterministic hex-spiral expansion. */
@@ -520,8 +522,9 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
   }
 
   /**
-   * Converts TSNE grid coordinates to Three.js world coordinates
-   * Uses proper cell spacing to prevent image overlapping
+   * Converts TSNE grid coordinates to Three.js world coordinates.
+   * Uses a hexbin (offset-row) layout: odd rows are shifted right by half
+   * a cell width to produce the classic brick/beehive stagger.
    */
   private convertTsneToWorldCoordinates(
     tsnePos: [number, number], 
@@ -530,13 +533,16 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
     const [gridX, gridY] = tsnePos;
     const [maxGridX, maxGridY] = gridDim;
     
-    // Convert grid coordinates directly to world coordinates using cell dimensions
-    // Center the grid around origin
-    const centerOffsetX = (maxGridX - 1) * this.cellW / 2;
+    // Hexbin offset: odd rows are shifted right by half a cell width.
+    const hexOffsetX = (Math.round(gridY) % 2 !== 0) ? this.cellW / 2 : 0;
+
+    // Center the grid around origin. The extra cellW/4 accounts for the average
+    // half-cell shift across odd/even rows so the overall layout stays centred.
+    const centerOffsetX = (maxGridX - 1) * this.cellW / 2 + this.cellW / 4;
     const centerOffsetY = (maxGridY - 1) * this.cellH / 2;
     
-    const worldX = (gridX * this.cellW) - centerOffsetX;
-    const worldY = centerOffsetY - (gridY * this.cellH); // Flip Y axis for screen coordinates
+    const worldX = gridX * this.cellW + hexOffsetX - centerOffsetX;
+    const worldY = centerOffsetY - gridY * this.cellH; // Flip Y axis for screen coordinates
     
     return { x: worldX, y: worldY };
   }
@@ -574,7 +580,8 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
     // Calculate dimensions based on TSNE grid size using actual cell dimensions
     const [maxGridX, maxGridY] = this.tsneData.dim;
     
-    const width = maxGridX * this.cellW;
+    // Extra cellW/2 for the hex row offset on odd rows.
+    const width = maxGridX * this.cellW + this.cellW / 2;
     const height = maxGridY * this.cellH;
     
     return { width, height };
