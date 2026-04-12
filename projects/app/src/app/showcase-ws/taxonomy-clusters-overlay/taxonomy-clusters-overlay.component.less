@@ -10,6 +10,7 @@
   position: relative;
   width: 100%;
   height: 100%;
+  pointer-events: none;
 }
 
 .cluster-label {
@@ -19,6 +20,7 @@
   /* Initial transform applied before JS kicks in – keeps label off-screen */
   transform: translate(-50%, -50%) translate(-9999px, -9999px);
   transition: opacity 0.4s ease;
+  pointer-events: auto;
 }
 
 .cluster-label-text {
@@ -36,7 +38,7 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   text-transform: uppercase;
   font-family: inherit;
-  pointer-events: none;
+  pointer-events: auto;
   user-select: none;
 }
 

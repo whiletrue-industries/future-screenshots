@@ -6,6 +6,7 @@ import {
   OnDestroy,
   OnInit,
   input,
+  output,
   inject,
   effect,
 } from '@angular/core';
@@ -32,12 +33,16 @@ import { ThreeRendererService } from '../three-renderer.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
+  private static readonly MIN_ITEMS_FOR_LABEL = 2;
+
   /** First taxonomy layer – shown when zoomed out. */
   themeLabels = input<TaxonomyClusterLabel[]>([]);
   /** Second taxonomy layer – shown when zoomed in. */
   subThemeLabels = input<TaxonomyClusterLabel[]>([]);
   /** Current zoom level (1 = fully zoomed out). */
   zoomLevel = input<number>(1);
+  /** Emits currently hovered/focused label. Null means no active label hover. */
+  labelHover = output<TaxonomyLabelHoverEvent | null>();
 
   /** Zoom level above which sub-theme labels are shown; theme labels shown at or below. */
   static readonly ZOOM_THRESHOLD = 1.35;
@@ -62,7 +67,7 @@ export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
   constructor() {
     // Invalidate the DOM element cache whenever the active label set changes.
     effect(() => {
-      const labels = this.showSubTheme ? this.subThemeLabels() : this.themeLabels();
+      const labels = this.getVisibleLabels();
       this.cachedFontSizes = this.computeFontSizes(labels);
       Promise.resolve().then(() => this.refreshLabelCache());
     });
@@ -88,7 +93,23 @@ export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
 
   /** Active labels for the current zoom level. */
   get activeLabels(): TaxonomyClusterLabel[] {
-    return this.showSubTheme ? this.subThemeLabels() : this.themeLabels();
+    return this.getVisibleLabels();
+  }
+
+  private getVisibleLabels(): TaxonomyClusterLabel[] {
+    const labels = this.showSubTheme ? this.subThemeLabels() : this.themeLabels();
+    return labels.filter(label => label.itemCount >= TaxonomyClustersOverlayComponent.MIN_ITEMS_FOR_LABEL);
+  }
+
+  onLabelEnter(label: TaxonomyClusterLabel): void {
+    this.labelHover.emit({
+      id: label.id,
+      level: this.showSubTheme ? 'sub-theme' : 'theme',
+    });
+  }
+
+  onLabelLeave(): void {
+    this.labelHover.emit(null);
   }
 
   /** Refresh the cached DOM element references after a label-set change. */
@@ -180,8 +201,14 @@ export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
         s.el.style.pointerEvents = 'none';
       } else {
         s.el.style.opacity = '1';
+        s.el.style.pointerEvents = 'auto';
         placed.push({ x1, y1, x2, y2 });
       }
     }
   }
+}
+
+export interface TaxonomyLabelHoverEvent {
+  id: string;
+  level: 'theme' | 'sub-theme';
 }

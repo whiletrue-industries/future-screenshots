@@ -12,7 +12,7 @@ import { FisheyeSettings } from './settings-panel.component';
 import { PhotoData, PhotoAnimationState, PhotoMetadata } from './photo-data';
 import { ThreeRendererService } from './three-renderer.service';
 import { LayoutStrategy } from './layout-strategy.interface';
-import { TsneLayoutStrategy } from './tsne-layout-strategy';
+import { TaxonomyLayoutStrategy } from './taxonomy-layout-strategy';
 import { SvgBackgroundLayoutStrategy } from './svg-background-layout-strategy';
 import { CirclePackingLayoutStrategy } from './circle-packing-layout-strategy';
 import { PhotoDataRepository } from './photo-data-repository';
@@ -21,6 +21,7 @@ import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
 import { TaxonomyClustersOverlayComponent } from './taxonomy-clusters-overlay/taxonomy-clusters-overlay.component';
 import { TaxonomyClusterLabel } from './taxonomy-clusters-overlay/taxonomy-label.interface';
+import { TaxonomyLabelHoverEvent } from './taxonomy-clusters-overlay/taxonomy-clusters-overlay.component';
 
 /** Duration of the drag_all countdown in minutes when first enabled. */
 const DRAG_ALL_DEFAULT_MINUTES = 5;
@@ -65,7 +66,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   taxonomyThemeLabels = signal<TaxonomyClusterLabel[]>([]);
   taxonomySubThemeLabels = signal<TaxonomyClusterLabel[]>([]);
   /** Reference to the active TSNE layout strategy so we can query cluster positions. */
-  private currentTsneStrategy: TsneLayoutStrategy | null = null;
+  private currentTsneStrategy: TaxonomyLayoutStrategy | null = null;
   
   // Evaluation sidebar state
   sidebarOpen = signal(false);
@@ -705,6 +706,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   toggleFisheyeEffect() {
     const willBeEnabled = !this.fisheyeEnabled();
     this.fisheyeEnabled.set(willBeEnabled);
+    this.rendererService.resetTaxonomyHoverOpacityFocus();
     this.rendererService.enableFisheyeEffect(willBeEnabled);
     this.syncThematicFisheyeEffects();
     
@@ -1194,7 +1196,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       this.syncThematicFisheyeEffects();
       
       // Create TSNE layout strategy with same dimensions as grid layout
-      const tsneStrategy = new TsneLayoutStrategy(this.workspace(), undefined, {
+      const tsneStrategy = new TaxonomyLayoutStrategy({
         photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
         photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
         spacingX: PHOTO_CONSTANTS.SPACING_X,
@@ -1226,50 +1228,26 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Compute taxonomy overlay label positions from the loaded TSNE strategy and
    * the topics stored in each photo's metadata.
    *
-   * Sub-theme labels come directly from the server-computed cluster regions.
-   * Theme labels are derived by grouping photo world-positions by their top-level
-   * taxonomy theme and computing the centroid of each group.
+   * Theme and sub-theme labels are read from simulated label nodes in the
+   * active taxonomy layout strategy.
    */
-  private computeTaxonomyLabels(tsneStrategy: TsneLayoutStrategy): void {
-    // --- Sub-theme labels: aggregate by full topic path (theme/sub-theme) ---
-    // This keeps second-level labels available even when TSNE cluster metadata is missing.
-    const photos = this.photoRepository.getAllPhotos();
-    const subThemeAccumulator = new Map<string, { sumX: number; sumY: number; count: number }>();
+  private computeTaxonomyLabels(tsneStrategy: TaxonomyLayoutStrategy): void {
+    let subThemeLabels: TaxonomyClusterLabel[] = tsneStrategy
+      .getSubThemeLabelNodes()
+      .map(node => {
+        const localizedTopic = this.taxonomyService.resolveTopic(node.id);
+        const subThemeName = localizedTopic.includes('>')
+          ? localizedTopic.split('>').pop()?.trim() || localizedTopic
+          : localizedTopic;
 
-    for (const photo of photos) {
-      const topics: string[] = photo.metadata['topics'] || [];
-      if (topics.length === 0) continue;
-
-      const worldPos = tsneStrategy.getWorldPositionForId(photo.id);
-      if (!worldPos) continue;
-
-      // Use unique topics per photo to avoid double-counting duplicate IDs.
-      const uniqueTopics = new Set(topics);
-      for (const topicId of uniqueTopics) {
-        const acc = subThemeAccumulator.get(topicId) ?? { sumX: 0, sumY: 0, count: 0 };
-        acc.sumX += worldPos.x;
-        acc.sumY += worldPos.y;
-        acc.count += 1;
-        subThemeAccumulator.set(topicId, acc);
-      }
-    }
-
-    let subThemeLabels: TaxonomyClusterLabel[] = [];
-    subThemeAccumulator.forEach((acc, topicId) => {
-      if (acc.count === 0) return;
-      const localizedTopic = this.taxonomyService.resolveTopic(topicId);
-      const subThemeName = localizedTopic.includes('>')
-        ? localizedTopic.split('>').pop()?.trim() || localizedTopic
-        : localizedTopic;
-
-      subThemeLabels.push({
-        id: topicId,
-        name: subThemeName,
-        worldX: acc.sumX / acc.count,
-        worldY: acc.sumY / acc.count,
-        itemCount: acc.count,
+        return {
+          id: node.id,
+          name: subThemeName,
+          worldX: node.worldX,
+          worldY: node.worldY,
+          itemCount: node.itemCount,
+        };
       });
-    });
 
     // Fallback to TSNE cluster labels when topic metadata is unavailable.
     if (subThemeLabels.length === 0) {
@@ -1285,42 +1263,30 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
     this.taxonomySubThemeLabels.set(subThemeLabels);
 
-    // --- Theme labels: aggregate photo world-positions grouped by taxonomy theme ---
-    const themeAccumulator = new Map<string, { sumX: number; sumY: number; count: number }>();
+    const themeLabels: TaxonomyClusterLabel[] = tsneStrategy
+      .getThemeLabelNodes()
+      .map(node => ({
+        id: node.id,
+        name: this.taxonomyService.resolveThemeName(node.id),
+        worldX: node.worldX,
+        worldY: node.worldY,
+        itemCount: node.itemCount,
+      }));
+    this.taxonomyThemeLabels.set(themeLabels);
+  }
 
-    for (const photo of photos) {
-      const topics: string[] = photo.metadata['topics'] || [];
-      if (topics.length === 0) continue;
-
-      const worldPos = tsneStrategy.getWorldPositionForId(photo.id);
-      if (!worldPos) continue;
-
-      // Topics are stored as 'themeId/subThemeId' strings (e.g. 'borders-mobility-migration/open-borders-freedom-of-movement').
-      // Collect unique themes for this photo (avoid double-counting when a photo has multiple topics in the same theme).
-      const themes = new Set(topics.map((t: string) => t.split('/')[0]));
-      for (const themeId of themes) {
-        const acc = themeAccumulator.get(themeId) ?? { sumX: 0, sumY: 0, count: 0 };
-        acc.sumX += worldPos.x;
-        acc.sumY += worldPos.y;
-        acc.count += 1;
-        themeAccumulator.set(themeId, acc);
-      }
+  onTaxonomyLabelHover(event: TaxonomyLabelHoverEvent | null): void {
+    if (!event || this.currentLayout() !== 'tsne') {
+      this.rendererService.resetTaxonomyHoverOpacityFocus();
+      return;
     }
 
-    // Resolve theme names from TaxonomyService
-    const themeLabels: TaxonomyClusterLabel[] = [];
-    themeAccumulator.forEach((acc, themeId) => {
-      if (acc.count === 0) return;
-      const name = this.taxonomyService.resolveThemeName(themeId);
-      themeLabels.push({
-        id: themeId,
-        name,
-        worldX: acc.sumX / acc.count,
-        worldY: acc.sumY / acc.count,
-        itemCount: acc.count,
-      });
-    });
-    this.taxonomyThemeLabels.set(themeLabels);
+    if (event.level === 'sub-theme') {
+      this.rendererService.setTaxonomyHoverOpacityFocus({ topicId: event.id });
+      return;
+    }
+
+    this.rendererService.setTaxonomyHoverOpacityFocus({ themeId: event.id });
   }
 
   /**
@@ -1341,6 +1307,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       this.currentTsneStrategy = null;
       this.taxonomyThemeLabels.set([]);
       this.taxonomySubThemeLabels.set([]);
+      this.rendererService.resetTaxonomyHoverOpacityFocus();
       
       // Read optional `svg` query param to override background path
       const svgParam = this.activatedRoute.snapshot.queryParams['svg'];
@@ -1557,6 +1524,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       this.currentTsneStrategy = null;
       this.taxonomyThemeLabels.set([]);
       this.taxonomySubThemeLabels.set([]);
+      this.rendererService.resetTaxonomyHoverOpacityFocus();
       
       // Create circle packing layout strategy
       const circlePackingStrategy = new CirclePackingLayoutStrategy({

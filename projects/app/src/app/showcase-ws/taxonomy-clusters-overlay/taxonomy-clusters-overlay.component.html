@@ -3,8 +3,13 @@
     <div
       class="cluster-label"
       [class.sub-theme]="showSubTheme"
-      role="presentation"
-      aria-hidden="true">
+      role="button"
+      tabindex="0"
+      [attr.aria-label]="label.name"
+      (mouseenter)="onLabelEnter(label)"
+      (mouseleave)="onLabelLeave()"
+      (focus)="onLabelEnter(label)"
+      (blur)="onLabelLeave()">
       <span class="cluster-label-text">{{ label.name }}</span>
     </div>
   }

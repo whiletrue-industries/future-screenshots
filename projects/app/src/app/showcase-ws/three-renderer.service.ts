@@ -188,6 +188,8 @@ export class ThreeRendererService {
   private fisheyeDimmingBaseOpacity = new Map<THREE.Mesh, number>();
   private fisheyeTaxonomyDimmingActive = false;
   private thematicFisheyeEffectsEnabled = false;
+  private taxonomyHoverBaseOpacity = new Map<THREE.Mesh, number>();
+  private taxonomyHoverDimmingActive = false;
   private fisheyeFocusPoint = new THREE.Vector3();
   private permalinkTargetId: string | null = null;
   private meshOriginalStates = new Map<THREE.Mesh, { position: THREE.Vector3; scale: THREE.Vector3; renderOrder: number }>();
@@ -1553,6 +1555,63 @@ export class ThreeRendererService {
       themeId: topicId.split('/')[0] || null,
       topicId,
     };
+  }
+
+  /**
+   * Highlight photos by taxonomy when hovering a taxonomy label.
+   * - sub-theme hover: exact topic 100%, same theme 40%, others 10%
+   * - theme hover: same theme 100%, others 10%
+   */
+  setTaxonomyHoverOpacityFocus(focus: { topicId?: string | null; themeId?: string | null } | null): void {
+    if (!focus || (!focus.topicId && !focus.themeId)) {
+      this.resetTaxonomyHoverOpacityFocus();
+      return;
+    }
+
+    const topicId = focus.topicId ?? null;
+    const themeId = focus.themeId ?? (topicId ? (topicId.split('/')[0] || null) : null);
+
+    if (!this.taxonomyHoverDimmingActive) {
+      this.taxonomyHoverBaseOpacity.clear();
+      for (const child of this.root.children) {
+        const mesh = child as THREE.Mesh;
+        if (!mesh.isMesh) continue;
+        this.taxonomyHoverBaseOpacity.set(mesh, this.getMeshOpacity(mesh));
+      }
+      this.taxonomyHoverDimmingActive = true;
+    }
+
+    for (const child of this.root.children) {
+      const mesh = child as THREE.Mesh;
+      if (!mesh.isMesh) continue;
+
+      const baseOpacity = this.taxonomyHoverBaseOpacity.get(mesh) ?? this.getMeshOpacity(mesh);
+      this.taxonomyHoverBaseOpacity.set(mesh, baseOpacity);
+
+      const meshTaxonomy = this.getMeshTaxonomy(mesh);
+      const sharesTopic = !!topicId && meshTaxonomy.topics.has(topicId);
+      const sharesTheme = !!themeId && meshTaxonomy.themes.has(themeId);
+
+      let dimFactor = 0.1;
+      if (topicId) {
+        dimFactor = sharesTopic ? 1 : (sharesTheme ? 0.4 : 0.1);
+      } else if (themeId) {
+        dimFactor = sharesTheme ? 1 : 0.1;
+      }
+
+      this.setMeshOpacity(mesh, baseOpacity * dimFactor);
+    }
+  }
+
+  resetTaxonomyHoverOpacityFocus(): void {
+    if (!this.taxonomyHoverDimmingActive) return;
+
+    for (const [mesh, baseOpacity] of this.taxonomyHoverBaseOpacity.entries()) {
+      this.setMeshOpacity(mesh, baseOpacity);
+    }
+
+    this.taxonomyHoverBaseOpacity.clear();
+    this.taxonomyHoverDimmingActive = false;
   }
 
   private isMeshInteractive(mesh: THREE.Mesh): boolean {
