@@ -1199,16 +1199,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   private computeTaxonomyLabels(tsneStrategy: TsneLayoutStrategy): void {
     // --- Sub-theme labels: use cluster regions from the TSNE config ---
-    const lang = (typeof navigator !== 'undefined' ? navigator.language?.substring(0, 2) : undefined) ?? 'en';
+    // Cluster titles have the same multilingual structure as taxonomy names; reuse TaxonomyService.localizeName().
     const clusters = tsneStrategy.getClustersWithWorldCoords();
-    const subThemeLabels: TaxonomyClusterLabel[] = clusters.map((c, i) => {
-      const name =
-        (lang === 'nl' && c.title.dutch)   ? c.title.dutch :
-        (lang === 'he' && c.title.hebrew)  ? c.title.hebrew :
-        (lang === 'ar' && c.title.arabic)  ? c.title.arabic :
-        c.title.english;
-      return { id: `cluster-${i}`, name, worldX: c.centerX, worldY: c.centerY };
-    });
+    const subThemeLabels: TaxonomyClusterLabel[] = clusters.map((c, i) => ({
+      id: `cluster-${i}`,
+      name: this.taxonomyService.localizeName(c.title),
+      worldX: c.centerX,
+      worldY: c.centerY,
+    }));
     this.taxonomySubThemeLabels.set(subThemeLabels);
 
     // --- Theme labels: aggregate photo world-positions grouped by taxonomy theme ---
@@ -1222,8 +1220,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       const worldPos = tsneStrategy.getWorldPositionForId(photo.id);
       if (!worldPos) continue;
 
-      // Collect unique themes for this photo (avoid double-counting)
-      const themes = new Set(topics.map(t => t.split('/')[0]));
+      // Topics are stored as 'themeId/subThemeId' strings (e.g. 'borders-mobility-migration/open-borders-freedom-of-movement').
+      // Collect unique themes for this photo (avoid double-counting when a photo has multiple topics in the same theme).
+      const themes = new Set(topics.map((t: string) => t.split('/')[0]));
       for (const themeId of themes) {
         const acc = themeAccumulator.get(themeId) ?? { sumX: 0, sumY: 0, count: 0 };
         acc.sumX += worldPos.x;

@@ -7,6 +7,7 @@ import {
   OnInit,
   input,
   inject,
+  effect,
 } from '@angular/core';
 import { TaxonomyClusterLabel } from './taxonomy-label.interface';
 import { ThreeRendererService } from '../three-renderer.service';
@@ -43,6 +44,19 @@ export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
   private el = inject(ElementRef<HTMLElement>);
 
   private unregisterFrameCb: (() => void) | null = null;
+  /** Cached DOM elements for the active label set; refreshed when activeLabels changes. */
+  private cachedLabelEls: HTMLElement[] = [];
+
+  constructor() {
+    // Invalidate the DOM element cache whenever the active label set changes.
+    // This runs inside Angular's zone after CD has updated the DOM.
+    effect(() => {
+      // Access signals to establish dependency tracking
+      const _labels = this.showSubTheme ? this.subThemeLabels() : this.themeLabels();
+      // Schedule cache refresh after Angular has rendered the new labels
+      Promise.resolve().then(() => this.refreshLabelCache());
+    });
+  }
 
   ngOnInit(): void {
     // Register a frame callback so we can update label positions outside Angular zone
@@ -55,6 +69,7 @@ export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.unregisterFrameCb?.();
+    this.cachedLabelEls = [];
   }
 
   /** True if sub-theme labels should be shown (zoomed in). */
@@ -67,25 +82,31 @@ export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
     return this.showSubTheme ? this.subThemeLabels() : this.themeLabels();
   }
 
+  /** Refresh the cached DOM element references after a label-set change. */
+  private refreshLabelCache(): void {
+    const host = this.el.nativeElement as HTMLElement;
+    this.cachedLabelEls = Array.from(host.querySelectorAll<HTMLElement>('.cluster-label'));
+  }
+
   /**
    * Moves each `.cluster-label` element to its projected screen position.
    * Runs outside Angular change-detection to avoid triggering unnecessary checks.
+   * Uses cached DOM element references for performance.
    */
   private updateLabelPositions(): void {
-    const host = this.el.nativeElement as HTMLElement;
-    const labels = host.querySelectorAll<HTMLElement>('.cluster-label');
     const active = this.activeLabels;
+    const els = this.cachedLabelEls;
 
-    labels.forEach((el, i) => {
+    for (let i = 0; i < els.length; i++) {
       const label = active[i];
-      if (!label) return;
+      if (!label) continue;
       const screen = this.rendererService.worldToScreen(label.worldX, label.worldY);
       if (screen) {
-        el.style.transform = `translate(-50%, -50%) translate(${screen.x}px, ${screen.y}px)`;
-        el.style.display = '';
+        els[i].style.transform = `translate(-50%, -50%) translate(${screen.x}px, ${screen.y}px)`;
+        els[i].style.display = '';
       } else {
-        el.style.display = 'none';
+        els[i].style.display = 'none';
       }
-    });
+    }
   }
 }
