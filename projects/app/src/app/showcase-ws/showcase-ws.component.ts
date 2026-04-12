@@ -59,6 +59,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   enableSvgAutoPositioning = signal(true);
   fisheyeEnabled = signal(false);
   currentZoomLevel = signal(1.0); // Track current zoom level for UI display
+  fisheyeTaxonomyFocusLabel = signal<string | null>(null);
 
   // Taxonomy overlay labels (populated when switching to the taxonomy/TSNE layout)
   taxonomyThemeLabels = signal<TaxonomyClusterLabel[]>([]);
@@ -705,6 +706,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     const willBeEnabled = !this.fisheyeEnabled();
     this.fisheyeEnabled.set(willBeEnabled);
     this.rendererService.enableFisheyeEffect(willBeEnabled);
+    this.syncThematicFisheyeEffects();
     
     // When enabling, immediately apply current settings
     if (willBeEnabled) {
@@ -999,8 +1001,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
     // Apply default fisheye settings immediately on init
     const settings = this.fisheyeSettings();
+    this.fisheyeEnabled.set(settings.enabled);
     if (settings.enabled) {
       this.rendererService.enableFisheyeEffect(true);
+      this.syncThematicFisheyeEffects();
       this.rendererService.setFisheyeConfig({
         magnification: settings.maxMagnification,
         radius: settings.radius,
@@ -1013,6 +1017,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     const qp = this.activatedRoute.snapshot.queryParams;
     if (qp['fisheye'] === '0' || qp['fisheye'] === 'false') {
       this.rendererService.enableFisheyeEffect(false);
+      this.syncThematicFisheyeEffects();
     }
     
     // Enable performance monitoring via query parameter
@@ -1085,6 +1090,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
         this.currentZoomLevel.set(this.rendererService.getCurrentZoomLevel());
+        this.syncThematicFisheyeEffects();
+        this.updateFisheyeTaxonomyFocusLabel();
       });
     
     // Update drag_all countdown every second
@@ -1140,6 +1147,31 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  private updateFisheyeTaxonomyFocusLabel(): void {
+    if (this.currentLayout() !== 'tsne' || !this.fisheyeEnabled()) {
+      this.fisheyeTaxonomyFocusLabel.set(null);
+      return;
+    }
+
+    const focusedTaxonomy = this.rendererService.getTopFisheyeTaxonomyIds();
+    if (!focusedTaxonomy) {
+      this.fisheyeTaxonomyFocusLabel.set(null);
+      return;
+    }
+
+    const label = focusedTaxonomy.topicId
+      ? this.taxonomyService.resolveTopic(focusedTaxonomy.topicId)
+      : (focusedTaxonomy.themeId ? this.taxonomyService.resolveThemeName(focusedTaxonomy.themeId) : null);
+
+    this.fisheyeTaxonomyFocusLabel.set(label ?? null);
+  }
+
+  private syncThematicFisheyeEffects(): void {
+    this.rendererService.setThematicFisheyeEffectsEnabled(
+      this.currentLayout() === 'tsne' && this.fisheyeEnabled()
+    );
+  }
+
   /**
    * Switch to TSNE layout using the current workspace ID
    */
@@ -1159,6 +1191,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       
       // Update UI immediately for responsive feedback
       this.currentLayout.set('tsne');
+      this.syncThematicFisheyeEffects();
       
       // Create TSNE layout strategy with same dimensions as grid layout
       const tsneStrategy = new TsneLayoutStrategy(this.workspace(), undefined, {
@@ -1302,6 +1335,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     try {
       // UI mode indicator only; we keep existing item positions (circle packing)
       this.currentLayout.set('svg');
+      this.syncThematicFisheyeEffects();
 
       // Clear taxonomy overlay labels
       this.currentTsneStrategy = null;
@@ -1517,6 +1551,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     try {
       // Update UI immediately for responsive feedback
       this.currentLayout.set('circle-packing');
+      this.syncThematicFisheyeEffects();
 
       // Clear taxonomy overlay labels
       this.currentTsneStrategy = null;
@@ -1885,9 +1920,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   onSettingsChange(settings: FisheyeSettings): void {
     this.fisheyeSettings.set(settings);
+    this.fisheyeEnabled.set(settings.enabled);
     
     // Enable/disable the fisheye effect in the renderer
     this.rendererService.enableFisheyeEffect(settings.enabled);
+    this.syncThematicFisheyeEffects();
     
     // Apply fisheye configuration (magnification, radius, maxHeight)
     this.rendererService.setFisheyeConfig({

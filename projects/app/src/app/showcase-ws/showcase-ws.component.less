@@ -36,6 +36,26 @@
         }
     }
 
+    .fisheye-taxonomy-focus-label {
+        position: fixed;
+        right: max(16px, env(safe-area-inset-right));
+        bottom: max(16px, env(safe-area-inset-bottom));
+        max-width: min(52vw, 540px);
+        padding: 10px 14px;
+        border-radius: 12px;
+        background: rgba(255, 253, 246, 0.88);
+        border: 1px solid rgba(78, 2, 178, 0.22);
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.16);
+        color: #4E02B2;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.25;
+        letter-spacing: 0.01em;
+        z-index: 120;
+        pointer-events: none;
+        backdrop-filter: blur(5px);
+    }
+
     .preloader {
         position: absolute;
         top: 0;

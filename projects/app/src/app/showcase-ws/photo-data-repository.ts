@@ -220,6 +220,7 @@ export class PhotoDataRepository {
     const mesh = await this.renderer.createPhotoMesh(photoData);
     photoData.setMesh(mesh);
     this.renderer.setMeshPhotoId(mesh, photoData.id);
+    this.renderer.setMeshPhotoData(mesh, photoData);
 
     // Enable hover detection for cursor feedback
     this.setupHoverDetectionForPhoto(photoData);
@@ -462,6 +463,7 @@ export class PhotoDataRepository {
       for (const photo of currentPhotos) {
         if (photo.mesh) {
           this.renderer.setMeshPhotoId(photo.mesh, photo.id);
+          this.renderer.setMeshPhotoData(photo.mesh, photo);
           this.setupDragForPhoto(photo);
         }
       }

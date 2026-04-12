@@ -259,3 +259,9 @@
   ></app-taxonomy-clusters-overlay>
 }
 
+@if (currentLayout() === 'tsne' && fisheyeEnabled() && fisheyeTaxonomyFocusLabel()) {
+  <div class='fisheye-taxonomy-focus-label' aria-live='polite'>
+    {{ fisheyeTaxonomyFocusLabel() }}
+  </div>
+}
+

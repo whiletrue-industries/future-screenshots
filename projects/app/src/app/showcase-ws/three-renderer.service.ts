@@ -185,6 +185,9 @@ export class ThreeRendererService {
   private fisheyeAnimationLock = false;   // True while we intentionally keep fisheye off during an animation
   private fisheyeAffectedMeshes = new Set<THREE.Mesh>();
   private topFisheyeMesh: THREE.Mesh | null = null;
+  private fisheyeDimmingBaseOpacity = new Map<THREE.Mesh, number>();
+  private fisheyeTaxonomyDimmingActive = false;
+  private thematicFisheyeEffectsEnabled = false;
   private fisheyeFocusPoint = new THREE.Vector3();
   private permalinkTargetId: string | null = null;
   private meshOriginalStates = new Map<THREE.Mesh, { position: THREE.Vector3; scale: THREE.Vector3; renderOrder: number }>();
@@ -311,6 +314,7 @@ export class ThreeRendererService {
       this.topFisheyeMesh = null;
     }
     this.fisheyeAffectedMeshes.delete(photoData.mesh);
+    this.fisheyeDimmingBaseOpacity.delete(photoData.mesh);
     
     photoData.setMesh(null);
   }
@@ -994,6 +998,13 @@ export class ThreeRendererService {
     }
   }
 
+  setThematicFisheyeEffectsEnabled(enabled: boolean): void {
+    this.thematicFisheyeEffectsEnabled = enabled;
+    if (!enabled) {
+      this.resetFisheyeTaxonomyOpacityDimming();
+    }
+  }
+
   /**
    * Enable or disable performance monitoring
    * When enabled, logs FPS, render count, and culling stats every second
@@ -1153,9 +1164,10 @@ export class ThreeRendererService {
       viewportHeight: viewportHeight
     });
 
-    // Exit early if disabled or user hasn't interacted yet
-    if (!this.fisheyeEnabled || !this.hasUserInteracted) {
+    // Exit early only when fisheye is disabled.
+    if (!this.fisheyeEnabled) {
       this.topFisheyeMesh = null;
+      this.resetFisheyeTaxonomyOpacityDimming();
       return;
     }
 
@@ -1179,6 +1191,7 @@ export class ThreeRendererService {
       const photoHeightVh = (photoHeightPx / viewportHeight) * 100;
       if (photoHeightVh >= config.maxHeight) {
         this.topFisheyeMesh = null;
+        this.resetFisheyeTaxonomyOpacityDimming();
         return; // Disable fisheye when zoomed in beyond fisheye extent
       }
     }
@@ -1367,6 +1380,7 @@ export class ThreeRendererService {
     });
 
     this.topFisheyeMesh = topMesh;
+    this.applyFisheyeTaxonomyOpacityDimming(topMesh);
   }
 
   private getMeshOpacity(mesh: THREE.Mesh): number {
@@ -1385,6 +1399,160 @@ export class ThreeRendererService {
     }
 
     return 1;
+  }
+
+  private setMeshOpacity(mesh: THREE.Mesh, opacity: number): void {
+    const clamped = THREE.MathUtils.clamp(opacity, 0, 1);
+    const material = mesh.material;
+
+    if (Array.isArray(material)) {
+      for (const mat of material) {
+        if ((mat as any).opacity !== undefined) {
+          (mat as any).opacity = clamped;
+          (mat as any).transparent = clamped < 1;
+          (mat as any).needsUpdate = true;
+        }
+      }
+      return;
+    }
+
+    if ((material as any).opacity !== undefined) {
+      (material as any).opacity = clamped;
+      (material as any).transparent = clamped < 1;
+      (material as any).needsUpdate = true;
+    }
+  }
+
+  private getMeshTaxonomy(mesh: THREE.Mesh): { topics: Set<string>; themes: Set<string>; orderedTopics: string[] } {
+    const photoData = this.meshToPhotoData.get(mesh);
+    const rawTopics = (photoData?.metadata?.['topics'] as unknown) ?? [];
+    const topicList = Array.isArray(rawTopics)
+      ? rawTopics.filter((topic): topic is string => typeof topic === 'string' && topic.trim().length > 0)
+      : [];
+
+    const topics = new Set(topicList);
+    const themes = new Set<string>();
+    for (const topic of topicList) {
+      const theme = topic.split('/')[0];
+      if (theme) themes.add(theme);
+    }
+
+    return { topics, themes, orderedTopics: topicList };
+  }
+
+  private setsIntersect(a: Set<string>, b: Set<string>): boolean {
+    if (a.size === 0 || b.size === 0) return false;
+    for (const value of a) {
+      if (b.has(value)) return true;
+    }
+    return false;
+  }
+
+  private getTaxonomyAnchorMesh(topMesh: THREE.Mesh | null): THREE.Mesh | null {
+    if (!topMesh) return null;
+
+    const topTaxonomy = this.getMeshTaxonomy(topMesh);
+    if (topTaxonomy.topics.size > 0 || topTaxonomy.themes.size > 0) {
+      return topMesh;
+    }
+
+    let best: THREE.Mesh | null = null;
+    let bestRenderOrder = -Infinity;
+    for (const mesh of this.fisheyeAffectedMeshes) {
+      const taxonomy = this.getMeshTaxonomy(mesh);
+      if (taxonomy.topics.size === 0 && taxonomy.themes.size === 0) continue;
+      if (mesh.renderOrder > bestRenderOrder) {
+        bestRenderOrder = mesh.renderOrder;
+        best = mesh;
+      }
+    }
+
+    return best;
+  }
+
+  private applyFisheyeTaxonomyOpacityDimming(topMesh: THREE.Mesh | null): void {
+    if (!this.thematicFisheyeEffectsEnabled || !topMesh) {
+      this.resetFisheyeTaxonomyOpacityDimming();
+      return;
+    }
+
+    const taxonomyAnchorMesh = this.getTaxonomyAnchorMesh(topMesh);
+    if (!taxonomyAnchorMesh) {
+      this.resetFisheyeTaxonomyOpacityDimming();
+      return;
+    }
+
+    const topTaxonomy = this.getMeshTaxonomy(taxonomyAnchorMesh);
+    const anchorTopic = topTaxonomy.orderedTopics[0] ?? null;
+    const anchorTheme = anchorTopic ? (anchorTopic.split('/')[0] || null) : null;
+
+    if (!anchorTopic && !anchorTheme) {
+      this.resetFisheyeTaxonomyOpacityDimming();
+      return;
+    }
+
+    if (!this.fisheyeTaxonomyDimmingActive) {
+      this.fisheyeDimmingBaseOpacity.clear();
+      for (const child of this.root.children) {
+        const mesh = child as THREE.Mesh;
+        if (!mesh.isMesh) continue;
+        this.fisheyeDimmingBaseOpacity.set(mesh, this.getMeshOpacity(mesh));
+      }
+      this.fisheyeTaxonomyDimmingActive = true;
+    }
+
+    for (const child of this.root.children) {
+      const mesh = child as THREE.Mesh;
+      if (!mesh.isMesh) continue;
+
+      const baseOpacity = this.fisheyeDimmingBaseOpacity.get(mesh) ?? this.getMeshOpacity(mesh);
+      this.fisheyeDimmingBaseOpacity.set(mesh, baseOpacity);
+
+      if (mesh === topMesh) {
+        this.setMeshOpacity(mesh, baseOpacity);
+        continue;
+      }
+
+      const meshTaxonomy = this.getMeshTaxonomy(mesh);
+      const sharesSecondLayer = !!anchorTopic && meshTaxonomy.topics.has(anchorTopic);
+      const sharesTopLayer = !!anchorTheme && meshTaxonomy.themes.has(anchorTheme);
+
+      const dimFactor = sharesSecondLayer ? 1 : (sharesTopLayer ? 0.4 : 0.1);
+      this.setMeshOpacity(mesh, baseOpacity * dimFactor);
+    }
+  }
+
+  private resetFisheyeTaxonomyOpacityDimming(): void {
+    if (!this.fisheyeTaxonomyDimmingActive) return;
+
+    for (const [mesh, baseOpacity] of this.fisheyeDimmingBaseOpacity.entries()) {
+      this.setMeshOpacity(mesh, baseOpacity);
+    }
+
+    this.fisheyeDimmingBaseOpacity.clear();
+    this.fisheyeTaxonomyDimmingActive = false;
+  }
+
+  getTopFisheyeTaxonomyIds(): { themeId: string | null; topicId: string | null } | null {
+    if (!this.thematicFisheyeEffectsEnabled || !this.fisheyeEnabled || !this.topFisheyeMesh) {
+      return null;
+    }
+
+    const taxonomyAnchorMesh = this.getTaxonomyAnchorMesh(this.topFisheyeMesh);
+    if (!taxonomyAnchorMesh) {
+      return null;
+    }
+
+    const taxonomy = this.getMeshTaxonomy(taxonomyAnchorMesh);
+    const topicId = taxonomy.orderedTopics[0] ?? null;
+    if (!topicId) {
+      return null;
+    }
+
+    return {
+      themeId: topicId.split('/')[0] || null,
+      topicId,
+    };
   }
 
   private isMeshInteractive(mesh: THREE.Mesh): boolean {
@@ -1425,6 +1593,7 @@ export class ThreeRendererService {
     });
     this.fisheyeAffectedMeshes.clear();
     this.topFisheyeMesh = null;
+    this.resetFisheyeTaxonomyOpacityDimming();
     this.clearOverlayRenderer();
   }
 
