@@ -6,6 +6,11 @@
   z-index: 50;
 }
 
+/* While fisheye magnification is active, place labels under the WebGL canvas. */
+:host(.fisheye-underlay) {
+  z-index: 5;
+}
+
 .cluster-labels-container {
   position: relative;
   width: 100%;

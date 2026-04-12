@@ -126,8 +126,10 @@ The application uses Angular standalone components organized by feature:
      - Circle Packing: Clustered circular arrangement by group
    - **Taxonomy overlay labels** (shown in Thematic layout):
      - At zoom-out: theme-level labels positioned at the centroid of each theme's items
-     - At zoom-in (zoom ≥ 2.5×): sub-theme labels derived from server-computed cluster regions in the TSNE config
+       - At zoom-in (zoom > 1.35×): sub-theme labels shown; positions are derived from topic centroids, with TSNE cluster regions as fallback
      - Labels update position in real-time at 60 fps using `ThreeRendererService.addFrameCallback()`
+    - TSNE fallback mapping: items missing from server TSNE grid are still positioned in Thematic layout using deterministic topic/theme centroid fallback (instead of being hidden)
+   - TSNE collision handling: all items in Thematic layout (including uncertain/non-evaluated) are assigned globally unique hexbins; collisions are resolved by nearest-free-bin deterministic hex-spiral allocation
    - User camera controls:
      - Pan: Click and drag to move around the canvas
      - Zoom: Mouse wheel to zoom in/out (centered on cursor)

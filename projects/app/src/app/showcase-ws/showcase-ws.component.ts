@@ -58,6 +58,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   enableRandomShowcase = signal(false);
   enableSvgAutoPositioning = signal(true);
   fisheyeEnabled = signal(false);
+  fisheyeAffectingAnyMesh = signal(false);
   currentZoomLevel = signal(1.0); // Track current zoom level for UI display
 
   // Taxonomy overlay labels (populated when switching to the taxonomy/TSNE layout)
@@ -1085,6 +1086,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
         this.currentZoomLevel.set(this.rendererService.getCurrentZoomLevel());
+        this.fisheyeAffectingAnyMesh.set(this.rendererService.isFisheyeAffectingAnyMesh());
       });
 
     // Update drag_all countdown every second
@@ -1198,19 +1200,59 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * taxonomy theme and computing the centroid of each group.
    */
   private computeTaxonomyLabels(tsneStrategy: TsneLayoutStrategy): void {
-    // --- Sub-theme labels: use cluster regions from the TSNE config ---
-    // Cluster titles have the same multilingual structure as taxonomy names; reuse TaxonomyService.localizeName().
-    const clusters = tsneStrategy.getClustersWithWorldCoords();
-    const subThemeLabels: TaxonomyClusterLabel[] = clusters.map((c, i) => ({
-      id: `cluster-${i}`,
-      name: this.taxonomyService.localizeName(c.title),
-      worldX: c.centerX,
-      worldY: c.centerY,
-    }));
+    // --- Sub-theme labels: aggregate by full topic path (theme/sub-theme) ---
+    // This keeps second-level labels available even when TSNE cluster metadata is missing.
+    const photos = this.photoRepository.getAllPhotos();
+    const subThemeAccumulator = new Map<string, { sumX: number; sumY: number; count: number }>();
+
+    for (const photo of photos) {
+      const topics: string[] = photo.metadata['topics'] || [];
+      if (topics.length === 0) continue;
+
+      const worldPos = tsneStrategy.getWorldPositionForId(photo.id);
+      if (!worldPos) continue;
+
+      // Use unique topics per photo to avoid double-counting duplicate IDs.
+      const uniqueTopics = new Set(topics);
+      for (const topicId of uniqueTopics) {
+        const acc = subThemeAccumulator.get(topicId) ?? { sumX: 0, sumY: 0, count: 0 };
+        acc.sumX += worldPos.x;
+        acc.sumY += worldPos.y;
+        acc.count += 1;
+        subThemeAccumulator.set(topicId, acc);
+      }
+    }
+
+    let subThemeLabels: TaxonomyClusterLabel[] = [];
+    subThemeAccumulator.forEach((acc, topicId) => {
+      if (acc.count === 0) return;
+      const localizedTopic = this.taxonomyService.resolveTopic(topicId);
+      const subThemeName = localizedTopic.includes('>')
+        ? localizedTopic.split('>').pop()?.trim() || localizedTopic
+        : localizedTopic;
+
+      subThemeLabels.push({
+        id: topicId,
+        name: subThemeName,
+        worldX: acc.sumX / acc.count,
+        worldY: acc.sumY / acc.count,
+      });
+    });
+
+    // Fallback to TSNE cluster labels when topic metadata is unavailable.
+    if (subThemeLabels.length === 0) {
+      const clusters = tsneStrategy.getClustersWithWorldCoords();
+      subThemeLabels = clusters.map((c, i) => ({
+        id: `cluster-${i}`,
+        name: this.taxonomyService.localizeName(c.title),
+        worldX: c.centerX,
+        worldY: c.centerY,
+      }));
+    }
+
     this.taxonomySubThemeLabels.set(subThemeLabels);
 
     // --- Theme labels: aggregate photo world-positions grouped by taxonomy theme ---
-    const photos = this.photoRepository.getAllPhotos();
     const themeAccumulator = new Map<string, { sumX: number; sumY: number; count: number }>();
 
     for (const photo of photos) {

@@ -17,7 +17,7 @@ import { ThreeRendererService } from '../three-renderer.service';
  *
  * Two layers of labels are shown depending on the current zoom level:
  *   - Zoom out  (zoom < ZOOM_THRESHOLD): first-level taxonomy labels (themes)
- *   - Zoom in  (zoom ≥ ZOOM_THRESHOLD): second-level taxonomy labels (sub-themes)
+ *   - Zoom in  (zoom > ZOOM_THRESHOLD): second-level taxonomy labels (sub-themes)
  *
  * Label positions are updated every render frame via ThreeRendererService.addFrameCallback()
  * so they stay perfectly aligned with the 3D content while panning / zooming.
@@ -26,6 +26,9 @@ import { ThreeRendererService } from '../three-renderer.service';
   selector: 'app-taxonomy-clusters-overlay',
   templateUrl: './taxonomy-clusters-overlay.component.html',
   styleUrl: './taxonomy-clusters-overlay.component.less',
+  host: {
+    '[class.fisheye-underlay]': 'fisheyeActive()'
+  },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
@@ -35,9 +38,11 @@ export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
   subThemeLabels = input<TaxonomyClusterLabel[]>([]);
   /** Current zoom level (1 = fully zoomed out). */
   zoomLevel = input<number>(1);
+  /** True while fisheye is actively affecting meshes; labels are moved under canvas. */
+  fisheyeActive = input<boolean>(false);
 
-  /** Zoom level at or above which sub-theme labels are shown; theme labels shown below. */
-  static readonly ZOOM_THRESHOLD = 2.5;
+  /** Zoom level above which sub-theme labels are shown; theme labels shown at or below. */
+  static readonly ZOOM_THRESHOLD = 1.35;
 
   private rendererService = inject(ThreeRendererService);
   private ngZone = inject(NgZone);
@@ -74,7 +79,7 @@ export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
 
   /** True if sub-theme labels should be shown (zoomed in). */
   get showSubTheme(): boolean {
-    return this.zoomLevel() >= TaxonomyClustersOverlayComponent.ZOOM_THRESHOLD;
+    return this.zoomLevel() > TaxonomyClustersOverlayComponent.ZOOM_THRESHOLD;
   }
 
   /** Active labels for the current zoom level. */

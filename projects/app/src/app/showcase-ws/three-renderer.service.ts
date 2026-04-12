@@ -47,6 +47,7 @@ export class ThreeRendererService {
   private readonly ANISO: number;
   private readonly BG: number;
   private readonly FISHEYE_SCALE_DAMPING = 5; // Lower = slower/smoother animation
+  private readonly FISHEYE_RENDER_ORDER_BASE = 1_000_000; // Keep fisheye items above normal layers
 
   // SVG rendering resolution constants
   private static readonly SVG_TARGET_RESOLUTION = 4000;
@@ -1019,6 +1020,15 @@ export class ThreeRendererService {
     return this.fisheyeEnabled;
   }
 
+  /**
+   * True only when fisheye is currently active on at least one mesh.
+   * This is stricter than "enabled" and avoids treating idle fisheye mode
+   * as a layering override condition.
+   */
+  isFisheyeAffectingAnyMesh(): boolean {
+    return this.fisheyeEnabled && this.hasUserInteracted && this.fisheyeAffectedMeshes.size > 0;
+  }
+
   isDraggingItem(): boolean {
     return this.isDragging;
   }
@@ -1220,14 +1230,7 @@ export class ThreeRendererService {
         if (previouslyAffected.has(mesh)) {
           mesh.scale.set(1, 1, 1);
           mesh.position.copy(logicalPosition);
-          
-          // Reset renderOrder to metadata-based value
-          if (photoData) {
-            const metadataRenderOrder = photoData.metadata['renderOrder'] as number | undefined;
-            mesh.renderOrder = metadataRenderOrder !== undefined ? metadataRenderOrder : 0;
-          } else {
-            mesh.renderOrder = 0;
-          }
+          this.restoreBaseRenderOrder(mesh, photoData);
           
           // Restore original rotation (cluster rotation)
           if (mesh.userData['originalRotation'] !== undefined) {
@@ -1291,7 +1294,7 @@ export class ThreeRendererService {
               mesh.position.y - 30,
               mesh.position.z - 1
             );
-            shadowMesh.renderOrder = effect.renderOrder - 1;
+            shadowMesh.renderOrder = (this.FISHEYE_RENDER_ORDER_BASE + effect.renderOrder) - 1;
             this.scene.add(shadowMesh);
             mesh.userData['shadowMesh'] = shadowMesh;
           } else {
@@ -1303,7 +1306,7 @@ export class ThreeRendererService {
               logicalPosition.z - 1
             );
             shadowMesh.scale.set(targetScale, targetScale, 1);
-            shadowMesh.renderOrder = effect.renderOrder - 1;
+            shadowMesh.renderOrder = (this.FISHEYE_RENDER_ORDER_BASE + effect.renderOrder) - 1;
           }
         } else {
           // Not dragging - remove shadow if it exists
@@ -1326,20 +1329,13 @@ export class ThreeRendererService {
         );
 
         // Apply render order (z-index)
-        mesh.renderOrder = effect.renderOrder;
+        mesh.renderOrder = this.FISHEYE_RENDER_ORDER_BASE + effect.renderOrder;
       } else {
         // Mesh is outside fisheye radius - reset to logical position
         if (previouslyAffected.has(mesh)) {
           mesh.scale.set(1, 1, 1);
           mesh.position.copy(logicalPosition);
-          
-          // Reset renderOrder to metadata-based value
-          if (photoData) {
-            const metadataRenderOrder = photoData.metadata['renderOrder'] as number | undefined;
-            mesh.renderOrder = metadataRenderOrder !== undefined ? metadataRenderOrder : 0;
-          } else {
-            mesh.renderOrder = 0;
-          }
+          this.restoreBaseRenderOrder(mesh, photoData);
           
           // Restore original rotation (cluster rotation)
           if (mesh.userData['originalRotation'] !== undefined) {
@@ -1403,7 +1399,7 @@ export class ThreeRendererService {
       
       // Reset scale and render order
       mesh.scale.set(1, 1, 1);
-      mesh.renderOrder = 0;
+      this.restoreBaseRenderOrder(mesh, photoData);
       
       // Restore original rotation (cluster rotation)
       if (mesh.userData['originalRotation'] !== undefined) {
@@ -1412,6 +1408,22 @@ export class ThreeRendererService {
       }
     });
     this.fisheyeAffectedMeshes.clear();
+  }
+
+  /** Restore the mesh to its non-fisheye render order. */
+  private restoreBaseRenderOrder(mesh: THREE.Mesh, photoData?: any): void {
+    if (photoData) {
+      const metadataRenderOrder = photoData.metadata['renderOrder'] as number | undefined;
+      mesh.renderOrder = metadataRenderOrder !== undefined ? metadataRenderOrder : 0;
+      return;
+    }
+
+    if (this.meshOriginalStates.has(mesh)) {
+      mesh.renderOrder = this.meshOriginalStates.get(mesh)!.renderOrder;
+      return;
+    }
+
+    mesh.renderOrder = 0;
   }
 
   /**
@@ -2813,6 +2825,8 @@ export class ThreeRendererService {
 
     // Ensure canvas allows JavaScript to handle all touch events
     this.renderer.domElement.style.touchAction = 'none';
+    this.renderer.domElement.style.position = 'relative';
+    this.renderer.domElement.style.zIndex = '10';
     
     this.container!.appendChild(this.renderer.domElement);
 

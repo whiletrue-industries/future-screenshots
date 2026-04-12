@@ -10,6 +10,8 @@
     -webkit-overflow-scrolling: auto;
 
     .container {
+        position: relative;
+        z-index: 10;
         width: 100%;
         height: 100%;
         cursor: default;
@@ -25,6 +27,11 @@
         // Grabbing cursor during active drag
         &.hovering.dragging {
             cursor: grabbing;
+        }
+
+        // Keep fisheye rendering above taxonomy labels while active.
+        &.fisheye-above-labels {
+            z-index: 60;
         }
     }
 
