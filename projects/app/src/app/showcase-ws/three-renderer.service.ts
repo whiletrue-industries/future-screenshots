@@ -56,6 +56,7 @@ export class ThreeRendererService {
   // Three.js objects
   private container: HTMLElement | null = null;
   private renderer!: THREE.WebGLRenderer;
+  private overlayRenderer: THREE.WebGLRenderer | null = null;
   private scene!: THREE.Scene;
   private camera!: THREE.PerspectiveCamera;
   private root!: THREE.Group;
@@ -183,6 +184,7 @@ export class ThreeRendererService {
   private frameCallbacks = new Set<() => void>();
   private fisheyeAnimationLock = false;   // True while we intentionally keep fisheye off during an animation
   private fisheyeAffectedMeshes = new Set<THREE.Mesh>();
+  private topFisheyeMesh: THREE.Mesh | null = null;
   private fisheyeFocusPoint = new THREE.Vector3();
   private permalinkTargetId: string | null = null;
   private meshOriginalStates = new Map<THREE.Mesh, { position: THREE.Vector3; scale: THREE.Vector3; renderOrder: number }>();
@@ -305,6 +307,9 @@ export class ThreeRendererService {
     this.meshToPhotoId.delete(photoData.mesh);
     this.dragCallbacks.delete(photoData.mesh);
     this.highResActive.delete(photoData.mesh);
+    if (this.topFisheyeMesh === photoData.mesh) {
+      this.topFisheyeMesh = null;
+    }
     this.fisheyeAffectedMeshes.delete(photoData.mesh);
     
     photoData.setMesh(null);
@@ -1150,6 +1155,7 @@ export class ThreeRendererService {
 
     // Exit early if disabled or user hasn't interacted yet
     if (!this.fisheyeEnabled || !this.hasUserInteracted) {
+      this.topFisheyeMesh = null;
       return;
     }
 
@@ -1172,11 +1178,14 @@ export class ThreeRendererService {
       const photoHeightPx = this.PHOTO_H * pxPerWorldUnit;
       const photoHeightVh = (photoHeightPx / viewportHeight) * 100;
       if (photoHeightVh >= config.maxHeight) {
+        this.topFisheyeMesh = null;
         return; // Disable fisheye when zoomed in beyond fisheye extent
       }
     }
 
     const effectRadiusSquared = config.radius * config.radius; // Use squared distance to avoid sqrt
+    let topMesh: THREE.Mesh | null = null;
+    let topRenderOrder = -Infinity;
     
     this.root.children.forEach((child) => {
       const mesh = child as THREE.Mesh;
@@ -1328,6 +1337,11 @@ export class ThreeRendererService {
           logicalPosition.z
         );
 
+        if (effect.renderOrder > topRenderOrder) {
+          topRenderOrder = effect.renderOrder;
+          topMesh = mesh;
+        }
+
         // Apply render order (z-index)
         mesh.renderOrder = this.FISHEYE_RENDER_ORDER_BASE + effect.renderOrder;
       } else {
@@ -1351,6 +1365,8 @@ export class ThreeRendererService {
         }
       }
     });
+
+    this.topFisheyeMesh = topMesh;
   }
 
   private getMeshOpacity(mesh: THREE.Mesh): number {
@@ -1408,6 +1424,8 @@ export class ThreeRendererService {
       }
     });
     this.fisheyeAffectedMeshes.clear();
+    this.topFisheyeMesh = null;
+    this.clearOverlayRenderer();
   }
 
   /** Restore the mesh to its non-fisheye render order. */
@@ -1424,6 +1442,87 @@ export class ThreeRendererService {
     }
 
     mesh.renderOrder = 0;
+  }
+
+  /** Render scene while placing only the top fisheye mesh above HTML overlays. */
+  private renderScene(): void {
+    const topMesh = this.topFisheyeMesh;
+    const shouldOverlayTopMesh = !!(
+      this.fisheyeEnabled &&
+      topMesh &&
+      topMesh.visible &&
+      this.fisheyeAffectedMeshes.has(topMesh)
+    );
+
+    if (!shouldOverlayTopMesh) {
+      this.renderer.render(this.scene, this.camera);
+      this.clearOverlayRenderer();
+      return;
+    }
+
+    this.ensureOverlayRenderer();
+    if (!this.overlayRenderer || !topMesh) {
+      this.renderer.render(this.scene, this.camera);
+      return;
+    }
+
+    const previousTopVisibility = topMesh.visible;
+    topMesh.visible = false;
+    this.renderer.render(this.scene, this.camera);
+    topMesh.visible = previousTopVisibility;
+
+    const children = this.root.children;
+    const previousVisibility = children.map(child => child.visible);
+    for (let i = 0; i < children.length; i++) {
+      children[i].visible = children[i] === topMesh;
+    }
+
+    this.overlayRenderer.clear();
+    this.overlayRenderer.render(this.scene, this.camera);
+
+    for (let i = 0; i < children.length; i++) {
+      children[i].visible = previousVisibility[i];
+    }
+  }
+
+  private ensureOverlayRenderer(): void {
+    if (this.overlayRenderer || !this.container) return;
+
+    this.overlayRenderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
+    this.overlayRenderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.overlayRenderer.setPixelRatio(this.renderer.getPixelRatio());
+    this.overlayRenderer.setSize(this.container.clientWidth, this.container.clientHeight);
+    this.overlayRenderer.setClearColor(0x000000, 0);
+
+    const overlayCanvas = this.overlayRenderer.domElement;
+    overlayCanvas.style.position = 'absolute';
+    overlayCanvas.style.top = '0';
+    overlayCanvas.style.left = '0';
+    overlayCanvas.style.width = '100%';
+    overlayCanvas.style.height = '100%';
+    overlayCanvas.style.pointerEvents = 'none';
+    overlayCanvas.style.touchAction = 'none';
+    overlayCanvas.style.zIndex = '60';
+
+    // Append to the host element (parent of .container) so z-index 60 is
+    // compared against .container (z-index 10) and the labels overlay
+    // (z-index 50) in the same stacking context, not locked inside
+    // .container's own stacking context.
+    const mountTarget = this.container.parentElement ?? this.container;
+    mountTarget.appendChild(overlayCanvas);
+  }
+
+  private clearOverlayRenderer(): void {
+    if (!this.overlayRenderer) return;
+    this.overlayRenderer.clear();
+  }
+
+  private disposeOverlayRenderer(): void {
+    if (!this.overlayRenderer) return;
+    const canvas = this.overlayRenderer.domElement;
+    canvas.parentElement?.removeChild(canvas);
+    this.overlayRenderer.dispose();
+    this.overlayRenderer = null;
   }
 
   /**
@@ -2780,6 +2879,7 @@ export class ThreeRendererService {
     if (this.renderer && this.container?.contains(this.renderer.domElement)) {
       this.container.removeChild(this.renderer.domElement);
     }
+    this.disposeOverlayRenderer();
 
     // Clear drag callbacks
     this.dragCallbacks.clear();
@@ -2807,7 +2907,7 @@ export class ThreeRendererService {
       ? Math.min(1.5, window.devicePixelRatio || 1) // Lower pixel ratio on mobile for better performance
       : Math.min(2, window.devicePixelRatio || 1);
     
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(this.container!.clientWidth, this.container!.clientHeight);
@@ -2835,7 +2935,7 @@ export class ThreeRendererService {
 
     // Scene & camera
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(this.BG);
+    this.scene.background = null;
 
     // Set up SVG background if enabled
     if (this.svgBackgroundOptions?.enabled) {
@@ -2954,7 +3054,7 @@ export class ThreeRendererService {
 
       // Only render if scene is not idle or fisheye is active
       if (!this.isSceneIdle || this.fisheyeEnabled) {
-        this.renderer.render(this.scene, this.camera);
+        this.renderScene();
         if (this.performanceMonitoring) this.renderCount++;
       } else {
         if (this.performanceMonitoring) this.skippedFrames++;
@@ -2988,6 +3088,7 @@ export class ThreeRendererService {
     const h = this.container.clientHeight;
 
     this.renderer.setSize(w, h);
+    this.overlayRenderer?.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
 

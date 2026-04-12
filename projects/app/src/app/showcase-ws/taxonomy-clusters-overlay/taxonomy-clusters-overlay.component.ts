@@ -26,9 +26,6 @@ import { ThreeRendererService } from '../three-renderer.service';
   selector: 'app-taxonomy-clusters-overlay',
   templateUrl: './taxonomy-clusters-overlay.component.html',
   styleUrl: './taxonomy-clusters-overlay.component.less',
-  host: {
-    '[class.fisheye-underlay]': 'fisheyeActive()'
-  },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
@@ -38,8 +35,6 @@ export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
   subThemeLabels = input<TaxonomyClusterLabel[]>([]);
   /** Current zoom level (1 = fully zoomed out). */
   zoomLevel = input<number>(1);
-  /** True while fisheye is actively affecting meshes; labels are moved under canvas. */
-  fisheyeActive = input<boolean>(false);
 
   /** Zoom level above which sub-theme labels are shown; theme labels shown at or below. */
   static readonly ZOOM_THRESHOLD = 1.35;

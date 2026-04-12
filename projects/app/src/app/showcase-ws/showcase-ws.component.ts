@@ -58,7 +58,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   enableRandomShowcase = signal(false);
   enableSvgAutoPositioning = signal(true);
   fisheyeEnabled = signal(false);
-  fisheyeAffectingAnyMesh = signal(false);
   currentZoomLevel = signal(1.0); // Track current zoom level for UI display
 
   // Taxonomy overlay labels (populated when switching to the taxonomy/TSNE layout)
@@ -1086,9 +1085,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
         this.currentZoomLevel.set(this.rendererService.getCurrentZoomLevel());
-        this.fisheyeAffectingAnyMesh.set(this.rendererService.isFisheyeAffectingAnyMesh());
       });
-
+    
     // Update drag_all countdown every second
     interval(1000)
       .pipe(takeUntilDestroyed(this.destroyRef))
