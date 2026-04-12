@@ -179,6 +179,7 @@ export class ThreeRendererService {
   private currentFps = 0;
   private renderCount = 0;
   private skippedFrames = 0;
+  private frameCallbacks = new Set<() => void>();
   private fisheyeAnimationLock = false;   // True while we intentionally keep fisheye off during an animation
   private fisheyeAffectedMeshes = new Set<THREE.Mesh>();
   private fisheyeFocusPoint = new THREE.Vector3();
@@ -874,6 +875,30 @@ export class ThreeRendererService {
    */
   getTargetCameraZ(): number {
     return this.targetCamZ;
+  }
+
+  /**
+   * Convert world-space coordinates (X, Y on the Z=0 plane) to screen-space pixel coordinates.
+   * Returns null if the renderer is not initialized or the container is not available.
+   */
+  worldToScreen(worldX: number, worldY: number): { x: number; y: number } | null {
+    if (!this.camera || !this.container || !this.isInitialized) return null;
+    const vector = new THREE.Vector3(worldX, worldY, 0);
+    vector.project(this.camera);
+    const rect = this.container.getBoundingClientRect();
+    return {
+      x: (vector.x * 0.5 + 0.5) * rect.width,
+      y: (-(vector.y) * 0.5 + 0.5) * rect.height,
+    };
+  }
+
+  /**
+   * Register a callback to be invoked on every render frame.
+   * Returns an unregister function – call it to stop receiving callbacks.
+   */
+  addFrameCallback(cb: () => void): () => void {
+    this.frameCallbacks.add(cb);
+    return () => this.frameCallbacks.delete(cb);
   }
 
   /**
@@ -2931,6 +2956,12 @@ export class ThreeRendererService {
         this.lodAccumTime = 0;
         this.runLodPass();
       }
+
+      // Notify frame callbacks (e.g. overlay components updating screen positions)
+      if (this.frameCallbacks.size > 0) {
+        this.frameCallbacks.forEach(cb => cb());
+      }
+
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);

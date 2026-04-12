@@ -383,6 +383,42 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
       stateHash: this.currentStateHash || 'not set'
     };
   }
+
+  /**
+   * Returns the world-space position for an item by its ID, or null if not found.
+   * Requires that TSNE data has been loaded (call fetchTsneData / initialize first).
+   */
+  getWorldPositionForId(id: string): { x: number; y: number } | null {
+    if (!this.tsneData) return null;
+    const item = this.tsneData.grid.find(g => g.id === id);
+    if (!item) return null;
+    return this.convertTsneToWorldCoordinates(item.pos, this.tsneData.dim);
+  }
+
+  /**
+   * Returns the cluster regions defined in the TSNE configuration, converted to
+   * world-space centre coordinates and approximate sizes.
+   * Returns an empty array if no clusters are defined or data has not been loaded.
+   */
+  getClustersWithWorldCoords(): TsneClusterWithWorldCoords[] {
+    if (!this.tsneData || !this.tsneData.clusters) return [];
+    const dim = this.tsneData.dim;
+    return this.tsneData.clusters.map(cluster => {
+      const [[x1, y1], [x2, y2]] = cluster.bounds;
+      const gridCenterX = (x1 + x2) / 2;
+      const gridCenterY = (y1 + y2) / 2;
+      const center = this.convertTsneToWorldCoordinates([gridCenterX, gridCenterY], dim);
+      const topLeft = this.convertTsneToWorldCoordinates([x1, y1], dim);
+      const bottomRight = this.convertTsneToWorldCoordinates([x2, y2], dim);
+      return {
+        title: cluster.title,
+        centerX: center.x,
+        centerY: center.y,
+        halfW: Math.abs(bottomRight.x - topLeft.x) / 2,
+        halfH: Math.abs(bottomRight.y - topLeft.y) / 2,
+      };
+    });
+  }
 }
 
 /**
@@ -394,6 +430,30 @@ interface TsneConfigData {
   padding_ratio: number;
   conversion_ratio: [number, number];
   cell_ratios: [number, number];
+  clusters?: TsneClusterItem[];
+}
+
+/**
+ * Interface for a cluster region in the TSNE configuration
+ */
+interface TsneClusterItem {
+  title: { english: string; dutch?: string; hebrew?: string; arabic?: string };
+  bounds: [[number, number], [number, number]]; // [[x_min, y_min], [x_max, y_max]] in grid coords
+  average_rotation?: number;
+  geo_bounds?: [[number, number], [number, number]];
+}
+
+/**
+ * A cluster with world-space center coordinates (resolved from grid coordinates)
+ */
+export interface TsneClusterWithWorldCoords {
+  title: { english: string; dutch?: string; hebrew?: string; arabic?: string };
+  /** Center of the cluster in Three.js world coordinates */
+  centerX: number;
+  centerY: number;
+  /** Approximate half-width/height of the cluster region in world units */
+  halfW: number;
+  halfH: number;
 }
 
 /**

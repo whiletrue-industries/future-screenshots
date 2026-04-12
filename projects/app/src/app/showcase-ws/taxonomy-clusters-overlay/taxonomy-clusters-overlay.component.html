@@ -1,0 +1,11 @@
+<div class="cluster-labels-container">
+  @for (label of activeLabels; track label.id) {
+    <div
+      class="cluster-label"
+      [class.sub-theme]="showSubTheme"
+      role="presentation"
+      aria-hidden="true">
+      <span class="cluster-label-text">{{ label.name }}</span>
+    </div>
+  }
+</div>

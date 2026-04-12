@@ -19,6 +19,8 @@ import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
+import { TaxonomyClustersOverlayComponent } from './taxonomy-clusters-overlay/taxonomy-clusters-overlay.component';
+import { TaxonomyClusterLabel } from './taxonomy-clusters-overlay/taxonomy-label.interface';
 
 /** Duration of the drag_all countdown in minutes when first enabled. */
 const DRAG_ALL_DEFAULT_MINUTES = 5;
@@ -28,7 +30,7 @@ const DRAG_ALL_ALLOWED_PROPERTIES = 'layout_x,layout_y,plausibility,favorable_fu
 
 @Component({
   selector: 'app-showcase-ws',
-  imports: [QrcodeComponent, EvaluationSidebarComponent, FiltersBarComponent],
+  imports: [QrcodeComponent, EvaluationSidebarComponent, FiltersBarComponent, TaxonomyClustersOverlayComponent],
   templateUrl: './showcase-ws.component.html',
   styleUrl: './showcase-ws.component.less'
 })
@@ -57,6 +59,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   enableSvgAutoPositioning = signal(true);
   fisheyeEnabled = signal(false);
   currentZoomLevel = signal(1.0); // Track current zoom level for UI display
+
+  // Taxonomy overlay labels (populated when switching to the taxonomy/TSNE layout)
+  taxonomyThemeLabels = signal<TaxonomyClusterLabel[]>([]);
+  taxonomySubThemeLabels = signal<TaxonomyClusterLabel[]>([]);
+  /** Reference to the active TSNE layout strategy so we can query cluster positions. */
+  private currentTsneStrategy: TsneLayoutStrategy | null = null;
   
   // Evaluation sidebar state
   sidebarOpen = signal(false);
@@ -1169,12 +1177,75 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(tsneStrategy);
+
+      // Store reference and compute taxonomy overlay labels
+      this.currentTsneStrategy = tsneStrategy;
+      this.computeTaxonomyLabels(tsneStrategy);
       
     } catch (error) {
       console.error('Error switching to TSNE layout:', error);
     } finally {
       this.layoutChangeInProgress = false;
     }
+  }
+
+  /**
+   * Compute taxonomy overlay label positions from the loaded TSNE strategy and
+   * the topics stored in each photo's metadata.
+   *
+   * Sub-theme labels come directly from the server-computed cluster regions.
+   * Theme labels are derived by grouping photo world-positions by their top-level
+   * taxonomy theme and computing the centroid of each group.
+   */
+  private computeTaxonomyLabels(tsneStrategy: TsneLayoutStrategy): void {
+    // --- Sub-theme labels: use cluster regions from the TSNE config ---
+    const lang = (typeof navigator !== 'undefined' ? navigator.language?.substring(0, 2) : undefined) ?? 'en';
+    const clusters = tsneStrategy.getClustersWithWorldCoords();
+    const subThemeLabels: TaxonomyClusterLabel[] = clusters.map((c, i) => {
+      const name =
+        (lang === 'nl' && c.title.dutch)   ? c.title.dutch :
+        (lang === 'he' && c.title.hebrew)  ? c.title.hebrew :
+        (lang === 'ar' && c.title.arabic)  ? c.title.arabic :
+        c.title.english;
+      return { id: `cluster-${i}`, name, worldX: c.centerX, worldY: c.centerY };
+    });
+    this.taxonomySubThemeLabels.set(subThemeLabels);
+
+    // --- Theme labels: aggregate photo world-positions grouped by taxonomy theme ---
+    const photos = this.photoRepository.getAllPhotos();
+    const themeAccumulator = new Map<string, { sumX: number; sumY: number; count: number }>();
+
+    for (const photo of photos) {
+      const topics: string[] = photo.metadata['topics'] || [];
+      if (topics.length === 0) continue;
+
+      const worldPos = tsneStrategy.getWorldPositionForId(photo.id);
+      if (!worldPos) continue;
+
+      // Collect unique themes for this photo (avoid double-counting)
+      const themes = new Set(topics.map(t => t.split('/')[0]));
+      for (const themeId of themes) {
+        const acc = themeAccumulator.get(themeId) ?? { sumX: 0, sumY: 0, count: 0 };
+        acc.sumX += worldPos.x;
+        acc.sumY += worldPos.y;
+        acc.count += 1;
+        themeAccumulator.set(themeId, acc);
+      }
+    }
+
+    // Resolve theme names from TaxonomyService
+    const themeLabels: TaxonomyClusterLabel[] = [];
+    themeAccumulator.forEach((acc, themeId) => {
+      if (acc.count === 0) return;
+      const name = this.taxonomyService.resolveThemeName(themeId);
+      themeLabels.push({
+        id: themeId,
+        name,
+        worldX: acc.sumX / acc.count,
+        worldY: acc.sumY / acc.count,
+      });
+    });
+    this.taxonomyThemeLabels.set(themeLabels);
   }
 
   /**
@@ -1189,6 +1260,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     try {
       // UI mode indicator only; we keep existing item positions (circle packing)
       this.currentLayout.set('svg');
+
+      // Clear taxonomy overlay labels
+      this.currentTsneStrategy = null;
+      this.taxonomyThemeLabels.set([]);
+      this.taxonomySubThemeLabels.set([]);
       
       // Read optional `svg` query param to override background path
       const svgParam = this.activatedRoute.snapshot.queryParams['svg'];
@@ -1399,6 +1475,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     try {
       // Update UI immediately for responsive feedback
       this.currentLayout.set('circle-packing');
+
+      // Clear taxonomy overlay labels
+      this.currentTsneStrategy = null;
+      this.taxonomyThemeLabels.set([]);
+      this.taxonomySubThemeLabels.set([]);
       
       // Create circle packing layout strategy
       const circlePackingStrategy = new CirclePackingLayoutStrategy({

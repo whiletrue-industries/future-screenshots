@@ -121,9 +121,13 @@ The application uses Angular standalone components organized by feature:
    - 3D immersive visualization using Three.js
    - Multiple layout strategies:
      - Grid: Random positioning in a grid
-     - TSNE: AI-powered clustering based on image similarity
+     - TSNE / Thematic: Hex-grid layout driven by taxonomy and embedding similarity. Accessible via the **Thematic** toggle button.
      - SVG: Interactive placement on custom background with hotspots
      - Circle Packing: Clustered circular arrangement by group
+   - **Taxonomy overlay labels** (shown in Thematic layout):
+     - At zoom-out: theme-level labels positioned at the centroid of each theme's items
+     - At zoom-in (zoom ≥ 2.5×): sub-theme labels derived from server-computed cluster regions in the TSNE config
+     - Labels update position in real-time at 60 fps using `ThreeRendererService.addFrameCallback()`
    - User camera controls:
      - Pan: Click and drag to move around the canvas
      - Zoom: Mouse wheel to zoom in/out (centered on cursor)

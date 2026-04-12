@@ -1,0 +1,52 @@
+:host {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 50;
+}
+
+.cluster-labels-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.cluster-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* Initial transform applied before JS kicks in – keeps label off-screen */
+  transform: translate(-50%, -50%) translate(-9999px, -9999px);
+  transition: opacity 0.4s ease;
+}
+
+.cluster-label-text {
+  display: inline-block;
+  padding: 6px 14px;
+  background: rgba(255, 253, 246, 0.72);
+  border: 1px solid rgba(241, 229, 243, 0.9);
+  border-radius: 20px;
+  backdrop-filter: blur(8px);
+  color: #4E02B2;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  text-transform: uppercase;
+  font-family: inherit;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Sub-theme labels are slightly smaller and softer */
+.cluster-label.sub-theme .cluster-label-text {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  background: rgba(255, 253, 246, 0.55);
+  border-color: rgba(241, 229, 243, 0.6);
+  text-transform: none;
+  letter-spacing: 0;
+}

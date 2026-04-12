@@ -209,6 +209,19 @@
           }
         </div>
       </button>
+      <button
+        class='toggle-button thematic-button'
+        [class.active]='currentLayout() === "tsne"'
+        (click)='switchToTsneLayout()'
+        title='Thematic Layout'>
+        <div class='button-content'>
+          <svg viewBox='0 0 24 24' class='button-icon' aria-hidden='true'>
+            <polygon points='12,3 21,8 21,16 12,21 3,16 3,8' stroke='currentColor' stroke-width='2' fill='none'/>
+            <polygon points='12,8 16,10.5 16,15.5 12,18 8,15.5 8,10.5' fill='currentColor' opacity='0.6'/>
+          </svg>
+          <span class='button-label'>Thematic</span>
+        </div>
+      </button>
       <button 
         class='toggle-button clusters-button'
         [class.active]='currentLayout() === "circle-packing"'
@@ -236,4 +249,13 @@
   </div>
 
 </div>
+
+<!-- Taxonomy cluster labels overlay (visible only in Thematic / TSNE layout) -->
+@if (currentLayout() === 'tsne') {
+  <app-taxonomy-clusters-overlay
+    [themeLabels]='taxonomyThemeLabels()'
+    [subThemeLabels]='taxonomySubThemeLabels()'
+    [zoomLevel]='currentZoomLevel()'
+  ></app-taxonomy-clusters-overlay>
+}
 
