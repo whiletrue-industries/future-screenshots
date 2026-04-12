@@ -29,7 +29,7 @@
   border-radius: 20px;
   backdrop-filter: blur(8px);
   color: #4E02B2;
-  font-size: 13px;
+  font-size: var(--label-font-size, 13px);
   font-weight: 700;
   letter-spacing: 0.01em;
   white-space: nowrap;
@@ -40,9 +40,8 @@
   user-select: none;
 }
 
-/* Sub-theme labels are slightly smaller and softer */
+/* Sub-theme labels are slightly softer in style; font size comes from --label-font-size */
 .cluster-label.sub-theme .cluster-label-text {
-  font-size: 11px;
   font-weight: 600;
   padding: 4px 10px;
   background: rgba(255, 253, 246, 0.55);

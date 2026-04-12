@@ -8,4 +8,6 @@ export interface TaxonomyClusterLabel {
   worldX: number;
   /** Three.js world-space Y coordinate of the cluster centre. */
   worldY: number;
+  /** Number of items in this cluster – used to scale label prominence. */
+  itemCount: number;
 }

@@ -21,6 +21,9 @@ import { ThreeRendererService } from '../three-renderer.service';
  *
  * Label positions are updated every render frame via ThreeRendererService.addFrameCallback()
  * so they stay perfectly aligned with the 3D content while panning / zooming.
+ *
+ * Labels with more items are rendered more prominently (larger font). Labels that
+ * would overlap a more prominent label are hidden until there is enough room.
  */
 @Component({
   selector: 'app-taxonomy-clusters-overlay',
@@ -39,6 +42,13 @@ export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
   /** Zoom level above which sub-theme labels are shown; theme labels shown at or below. */
   static readonly ZOOM_THRESHOLD = 1.35;
 
+  /**
+   * Font-size range (px) for label prominence scaling. Labels at the max item-count
+   * will use MAX_FONT, labels at the min item-count will use MIN_FONT.
+   */
+  private static readonly MIN_FONT = 11;
+  private static readonly MAX_FONT = 18;
+
   private rendererService = inject(ThreeRendererService);
   private ngZone = inject(NgZone);
   private el = inject(ElementRef<HTMLElement>);
@@ -46,20 +56,19 @@ export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
   private unregisterFrameCb: (() => void) | null = null;
   /** Cached DOM elements for the active label set; refreshed when activeLabels changes. */
   private cachedLabelEls: HTMLElement[] = [];
+  /** Per-label computed font sizes, recalculated when the active set changes. */
+  private cachedFontSizes: number[] = [];
 
   constructor() {
     // Invalidate the DOM element cache whenever the active label set changes.
-    // This runs inside Angular's zone after CD has updated the DOM.
     effect(() => {
-      // Access signals to establish dependency tracking
-      const _labels = this.showSubTheme ? this.subThemeLabels() : this.themeLabels();
-      // Schedule cache refresh after Angular has rendered the new labels
+      const labels = this.showSubTheme ? this.subThemeLabels() : this.themeLabels();
+      this.cachedFontSizes = this.computeFontSizes(labels);
       Promise.resolve().then(() => this.refreshLabelCache());
     });
   }
 
   ngOnInit(): void {
-    // Register a frame callback so we can update label positions outside Angular zone
     this.ngZone.runOutsideAngular(() => {
       this.unregisterFrameCb = this.rendererService.addFrameCallback(() => {
         this.updateLabelPositions();
@@ -86,26 +95,92 @@ export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
   private refreshLabelCache(): void {
     const host = this.el.nativeElement as HTMLElement;
     this.cachedLabelEls = Array.from(host.querySelectorAll<HTMLElement>('.cluster-label'));
+    // Re-apply font sizes after the DOM is refreshed.
+    for (let i = 0; i < this.cachedLabelEls.length; i++) {
+      const fontSize = this.cachedFontSizes[i];
+      if (fontSize != null) {
+        this.cachedLabelEls[i].style.setProperty('--label-font-size', `${fontSize}px`);
+      }
+    }
   }
 
   /**
-   * Moves each `.cluster-label` element to its projected screen position.
-   * Runs outside Angular change-detection to avoid triggering unnecessary checks.
-   * Uses cached DOM element references for performance.
+   * Compute per-label font sizes scaled by item count (square-root scaling to
+   * avoid extreme size differences between very large and very small clusters).
+   */
+  private computeFontSizes(labels: TaxonomyClusterLabel[]): number[] {
+    if (labels.length === 0) return [];
+    const counts = labels.map(l => l.itemCount);
+    const maxCount = Math.max(...counts);
+    const minCount = Math.min(...counts);
+    const range = maxCount - minCount;
+    const { MIN_FONT, MAX_FONT } = TaxonomyClustersOverlayComponent;
+
+    return labels.map(l => {
+      const t = range > 0
+        ? Math.sqrt((l.itemCount - minCount) / range)
+        : 1;
+      return Math.round(MIN_FONT + t * (MAX_FONT - MIN_FONT));
+    });
+  }
+
+  /**
+   * Moves each `.cluster-label` element to its projected screen position and
+   * applies overlap culling: labels are processed in descending item-count order
+   * so more prominent labels always win; a label is hidden if its bounding rect
+   * would overlap any already-visible label.
    */
   private updateLabelPositions(): void {
     const active = this.activeLabels;
     const els = this.cachedLabelEls;
+    if (els.length === 0) return;
+
+    // --- 1. Project all world positions to screen coords ---
+    interface LabelState { el: HTMLElement; x: number; y: number; visible: boolean; itemCount: number; }
+    const states: LabelState[] = [];
 
     for (let i = 0; i < els.length; i++) {
       const label = active[i];
       if (!label) continue;
       const screen = this.rendererService.worldToScreen(label.worldX, label.worldY);
       if (screen) {
-        els[i].style.transform = `translate(-50%, -50%) translate(${screen.x}px, ${screen.y}px)`;
-        els[i].style.display = '';
+        states.push({ el: els[i], x: screen.x, y: screen.y, visible: true, itemCount: label.itemCount });
       } else {
         els[i].style.display = 'none';
+      }
+    }
+
+    // --- 2. Sort descending by item count so larger clusters get priority ---
+    states.sort((a, b) => b.itemCount - a.itemCount);
+
+    // --- 3. Apply transforms before reading dimensions (avoids layout thrash) ---
+    for (const s of states) {
+      s.el.style.transform = `translate(-50%, -50%) translate(${s.x}px, ${s.y}px)`;
+      s.el.style.display = '';
+    }
+
+    // --- 4. Overlap culling using bounding rects (all visible so rects are valid) ---
+    //        Add a small padding so labels don't sit flush against each other.
+    const PADDING = 8;
+    const placed: { x1: number; y1: number; x2: number; y2: number }[] = [];
+
+    for (const s of states) {
+      const rect = s.el.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) continue; // not yet laid out
+
+      const x1 = rect.left - PADDING;
+      const y1 = rect.top - PADDING;
+      const x2 = rect.right + PADDING;
+      const y2 = rect.bottom + PADDING;
+
+      const overlaps = placed.some(p => !(x2 < p.x1 || x1 > p.x2 || y2 < p.y1 || y1 > p.y2));
+
+      if (overlaps) {
+        s.el.style.opacity = '0';
+        s.el.style.pointerEvents = 'none';
+      } else {
+        s.el.style.opacity = '1';
+        placed.push({ x1, y1, x2, y2 });
       }
     }
   }

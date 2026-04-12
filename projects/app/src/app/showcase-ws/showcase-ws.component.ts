@@ -1234,6 +1234,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         name: subThemeName,
         worldX: acc.sumX / acc.count,
         worldY: acc.sumY / acc.count,
+        itemCount: acc.count,
       });
     });
 
@@ -1245,6 +1246,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         name: this.taxonomyService.localizeName(c.title),
         worldX: c.centerX,
         worldY: c.centerY,
+        itemCount: 1,
       }));
     }
 
@@ -1282,6 +1284,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         name,
         worldX: acc.sumX / acc.count,
         worldY: acc.sumY / acc.count,
+        itemCount: acc.count,
       });
     });
     this.taxonomyThemeLabels.set(themeLabels);
