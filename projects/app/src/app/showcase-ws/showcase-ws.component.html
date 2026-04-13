@@ -16,18 +16,56 @@
     class='hide-on-mobile qr-clickable'></app-qrcode>
 }
 
-<!-- Evaluation Sidebar -->
-<app-evaluation-sidebar
-  [isOpen]='sidebarOpen() && canEditSelectedItem()'
-  [itemId]='selectedItemId()'
-  [itemKey]='selectedItemKey()'
-  [workspaceId]='workspace()'
-  [apiKey]='api_key()'
-  [adminKey]='admin_key()'
-  [lang]='lang()'
-  (close)='onSidebarClose()'
-  (metadataUpdated)='onMetadataUpdated($event)'
-></app-evaluation-sidebar>
+@if (sidebarOpen() && selectedItemId() && sidebarIframeUrl(); as iframeUrl) {
+  <div class='admin-item-modal-overlay' (click)='onSidebarClose()'>
+    <div class='admin-item-modal-preview' (click)='$event.stopPropagation()' role='dialog' aria-modal='true' aria-label='Item moderation dialog'>
+      <button class='admin-item-modal-close' (click)='onSidebarClose()' title='Close'>
+        <svg viewBox='0 0 24 24' class='button-icon'>
+          <path d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z' fill='currentColor'/>
+        </svg>
+      </button>
+
+      <div class='admin-item-modal-lightbox'>
+        @if (selectedItemImageUrl(); as imageUrl) {
+          <img [src]='imageUrl' alt='Selected item preview' class='admin-item-modal-image'/>
+        }
+      </div>
+    </div>
+
+    <div class='admin-item-modal-panel' (click)='$event.stopPropagation()'>
+      <div class='admin-item-modal-tabs'>
+        <button
+          class='admin-item-tab'
+          [class.active]='sidebarTab() === "moderation"'
+          (click)='onSidebarTabSelect("moderation")'>
+          moderation
+        </button>
+
+        <button
+          class='admin-item-tab'
+          [class.active]='sidebarTab() === "evaluation"'
+          [disabled]='!selectedItemMissingEvaluation()'
+          (click)='onSidebarTabSelect("evaluation")'>
+          evaluation
+        </button>
+
+        <button
+          class='admin-item-tab'
+          [class.active]='sidebarTab() === "chat"'
+          (click)='onSidebarTabSelect("chat")'>
+          chat
+        </button>
+      </div>
+
+      <iframe
+        [src]='iframeUrl'
+        class='admin-item-modal-iframe'
+        title='Item moderation / evaluation / chat'
+        sandbox='allow-scripts allow-forms allow-popups allow-same-origin'>
+      </iframe>
+    </div>
+  </div>
+}
 
 <!-- Filters Bar (Admin only) -->
 @if (isAdmin() && !isLoading() && viewInitialized()) {
