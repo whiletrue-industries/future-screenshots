@@ -43,7 +43,8 @@ export class ThreeRendererService {
   private readonly PHOTO_H: number;
   private readonly FOV_DEG: number;
   private readonly CAM_MARGIN: number;
-  private readonly COMPOSITION_MARGIN_RATIO = 0.3;
+  private readonly DEFAULT_COMPOSITION_MARGIN_RATIO = 0.1;
+  private readonly MAX_COMPOSITION_MARGIN_RATIO = 0.3;
   private readonly CAM_DAMP: number;
   private readonly ANISO: number;
   private readonly BG: number;
@@ -67,6 +68,7 @@ export class ThreeRendererService {
   // State management
   private rafRunning = false;
   private activeTweens: TweenFn[] = [];
+  private contentBounds: SceneBounds = { minX: +Infinity, maxX: -Infinity, minY: +Infinity, maxY: -Infinity };
   private bounds: SceneBounds = { minX: +Infinity, maxX: -Infinity, minY: +Infinity, maxY: -Infinity };
   private targetCamZ = 1200;
   private zSpawn = 700;
@@ -497,7 +499,8 @@ export class ThreeRendererService {
    * Stores bounds, recomputes zoom limits, and optionally auto-fits camera.
    */
   setSceneBounds(bounds: SceneBounds, options?: { animate?: boolean; force?: boolean; duration?: number }): Promise<void> {
-    this.bounds = this.expandBoundsForCompositionMargin(bounds);
+    this.contentBounds = { ...bounds };
+    this.bounds = this.expandBoundsForCompositionMargin(bounds, this.MAX_COMPOSITION_MARGIN_RATIO);
     this.recomputeZoomLimits();
 
     const shouldFit = this.cameraMode === 'auto-fit' || options?.force;
@@ -509,7 +512,13 @@ export class ThreeRendererService {
     this.cameraMode = 'auto-fit';
     const targetX = (bounds.minX + bounds.maxX) * 0.5;
     const targetY = (bounds.minY + bounds.maxY) * 0.5;
-    const targetZ = this.computedMaxCamZ;
+    const defaultFitBounds = this.expandBoundsForCompositionMargin(bounds, this.DEFAULT_COMPOSITION_MARGIN_RATIO);
+    const targetZ = this.computeFitZWithMargin(
+      defaultFitBounds,
+      THREE.MathUtils.degToRad(this.camera.fov),
+      this.container!.clientWidth / this.container!.clientHeight,
+      this.CAM_MARGIN
+    );
 
     if (options?.animate) {
       const startX = this.targetCamX;
@@ -548,11 +557,11 @@ export class ThreeRendererService {
     }
   }
 
-  private expandBoundsForCompositionMargin(bounds: SceneBounds): SceneBounds {
+  private expandBoundsForCompositionMargin(bounds: SceneBounds, ratio: number): SceneBounds {
     const width = Math.max(1, bounds.maxX - bounds.minX);
     const height = Math.max(1, bounds.maxY - bounds.minY);
-    const marginX = width * this.COMPOSITION_MARGIN_RATIO;
-    const marginY = height * this.COMPOSITION_MARGIN_RATIO;
+    const marginX = width * ratio;
+    const marginY = height * ratio;
 
     return {
       minX: bounds.minX - marginX,
@@ -601,7 +610,7 @@ export class ThreeRendererService {
   setCameraMode(mode: 'auto-fit' | 'user-controlled'): void {
     this.cameraMode = mode;
     if (mode === 'auto-fit') {
-      this.setSceneBounds(this.bounds, { force: true });
+      this.setSceneBounds(this.contentBounds, { force: true });
     }
   }
 
@@ -609,7 +618,7 @@ export class ThreeRendererService {
    * Reset camera view to fit all content
    */
   resetCameraView(animated = true): void {
-    this.setSceneBounds(this.bounds, { animate: animated, force: true, duration: 0.5 });
+    this.setSceneBounds(this.contentBounds, { animate: animated, force: true, duration: 0.5 });
   }
 
 
@@ -1918,9 +1927,16 @@ export class ThreeRendererService {
       this.setSvgHoverOverlayHotspot(null);
 
       // Reset cursor
-      if (this.container) {
-        this.container.style.cursor = 'default';
-      }
+      this.setCanvasCursor('default');
+    }
+  }
+
+  private setCanvasCursor(cursor: string): void {
+    if (this.container) {
+      this.container.style.cursor = cursor;
+    }
+    if (this.renderer?.domElement) {
+      this.renderer.domElement.style.cursor = cursor;
     }
   }
 
@@ -2777,7 +2793,7 @@ export class ThreeRendererService {
         this.dragOffset.copy(intersection).sub(intersectedMesh.position);
         
         // Change cursor to indicate dragging
-        this.renderer.domElement.style.cursor = 'grabbing';
+        this.setCanvasCursor('grabbing');
         
         // Call layout strategy drag start if available
         if (this.currentLayoutStrategy && this.currentLayoutStrategy.onPhotoDragStart) {
@@ -2802,7 +2818,7 @@ export class ThreeRendererService {
       this.isPanning = true;
       this.panStartMouse.set(event.clientX, event.clientY);
       this.panStartCameraPos.set(this.targetCamX, this.targetCamY, this.targetCamZ);
-      this.renderer.domElement.style.cursor = 'grabbing';
+      this.setCanvasCursor('grabbing');
     }
   }
 
@@ -2886,10 +2902,8 @@ export class ThreeRendererService {
         
         if (isDraggable || isHoverOnly) {
           // Set cursor based on whether the mesh is draggable or just hoverable
-          if (this.container) {
-            this.container.style.cursor = isDraggable ? 'grab' : 'pointer';
-            didSetPointerCursor = true;
-          }
+          this.setCanvasCursor(isDraggable ? 'grab' : 'pointer');
+          didSetPointerCursor = true;
           
           if (this.hoveredMesh !== mesh) {
             this.hoveredMesh = mesh;
@@ -2909,10 +2923,10 @@ export class ThreeRendererService {
         const hoverHotspot = this.findHotspotMatchAtWorldPosition(cursorWorld.x, cursorWorld.y);
         this.setSvgHoverOverlayHotspot(hoverHotspot?.groupId ?? null);
 
-        if (!didSetPointerCursor && hoverHotspot && this.container) {
-          this.container.style.cursor = 'pointer';
-        } else if (!didSetPointerCursor && this.container) {
-          this.container.style.cursor = 'default';
+        if (!didSetPointerCursor && hoverHotspot) {
+          this.setCanvasCursor('pointer');
+        } else if (!didSetPointerCursor) {
+          this.setCanvasCursor('default');
         }
       } else {
         this.setSvgHoverOverlayHotspot(null);
@@ -2993,6 +3007,7 @@ export class ThreeRendererService {
       this.hoveredMesh = null;
       this.hoveredItemSignal.set(false);
       this.setSvgHoverOverlayHotspot(null);
+      this.setCanvasCursor('default');
       
       // Re-enable fisheye if it was enabled before dragging
       if (this.wasFisheyeEnabled) {
@@ -3001,6 +3016,7 @@ export class ThreeRendererService {
     } else {
       if (this.isPanning) {
         this.isPanning = false;
+        this.setCanvasCursor('default');
       }
       if (isClick) {
         // Handle click events (not drag)
