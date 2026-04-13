@@ -124,11 +124,17 @@ export class TaxonomyService {
     }
   }
 
-  private localizeName(name: TaxonomyTheme['name']): string {
+  /**
+   * Localize a name object (with english/dutch/hebrew/arabic keys) according to the
+   * browser's preferred language, falling back to English.
+   * This is the same logic used internally for all taxonomy name resolution and can
+   * be reused when localizing names from external data sources (e.g. TSNE cluster titles).
+   */
+  localizeName(name: { english: string; dutch?: string; hebrew?: string; arabic?: string }): string {
     // Try browser language, fall back to English
     const lang = (typeof navigator !== 'undefined' ? navigator.language?.substring(0, 2) : 'en') || 'en';
     const key = LOCALE_KEY_MAP[lang] || 'english';
-    return name[key] || name.english;
+    return name[key as keyof typeof name] || name.english;
   }
 
   private prettifyId(id: string): string {

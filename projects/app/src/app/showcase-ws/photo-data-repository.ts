@@ -104,14 +104,16 @@ export class PhotoDataRepository {
       const allPhotos = Array.from(this.photos.values());
       const allPositions = await this.layoutStrategy.calculateAllPositions(allPhotos);
 
-      // Override with saved drag positions (layout_x/layout_y) when SVG is visible
-      // but the active strategy is circle-packing (auto-positioning off)
-      allPhotos.forEach((photo, index) => {
-        const dragOverride = this.getDragPositionOverride(photo);
-        if (dragOverride) {
-          allPositions[index] = dragOverride;
-        }
-      });
+      // Only apply persisted drag overrides in SVG-related modes.
+      const activeLayoutName = this.layoutStrategy.getConfiguration().name;
+      if (this.shouldApplyDragOverrides(activeLayoutName)) {
+        allPhotos.forEach((photo, index) => {
+          const dragOverride = this.getDragPositionOverride(photo);
+          if (dragOverride) {
+            allPositions[index] = dragOverride;
+          }
+        });
+      }
 
       // Update all photos with new positions
       const animationPromises: Promise<void>[] = [];
@@ -220,6 +222,7 @@ export class PhotoDataRepository {
     const mesh = await this.renderer.createPhotoMesh(photoData);
     photoData.setMesh(mesh);
     this.renderer.setMeshPhotoId(mesh, photoData.id);
+    this.renderer.setMeshPhotoData(mesh, photoData);
 
     // Enable hover detection for cursor feedback
     this.setupHoverDetectionForPhoto(photoData);
@@ -355,14 +358,15 @@ export class PhotoDataRepository {
       enableAutoPositioning: this.enableSvgAutoPositioning
     });
 
-    // Override with saved drag positions (layout_x/layout_y) when SVG is visible
-    // but the active strategy is circle-packing (auto-positioning off)
-    currentPhotos.forEach((photo, index) => {
-      const dragOverride = this.getDragPositionOverride(photo);
-      if (dragOverride) {
-        newPositions[index] = dragOverride;
-      }
-    });
+    // Only apply persisted drag overrides in SVG-related modes.
+    if (this.shouldApplyDragOverrides(toLayout)) {
+      currentPhotos.forEach((photo, index) => {
+        const dragOverride = this.getDragPositionOverride(photo);
+        if (dragOverride) {
+          newPositions[index] = dragOverride;
+        }
+      });
+    }
 
     // Update layout strategy
     this.layoutStrategy = newStrategy;
@@ -462,6 +466,7 @@ export class PhotoDataRepository {
       for (const photo of currentPhotos) {
         if (photo.mesh) {
           this.renderer.setMeshPhotoId(photo.mesh, photo.id);
+          this.renderer.setMeshPhotoData(photo.mesh, photo);
           this.setupDragForPhoto(photo);
         }
       }
@@ -486,6 +491,13 @@ export class PhotoDataRepository {
    */
   setSvgAutoPositioningEnabled(enabled: boolean): void {
     this.enableSvgAutoPositioning = enabled;
+  }
+
+  /**
+   * Persisted drag coordinates are only relevant for SVG-based editing modes.
+   */
+  private shouldApplyDragOverrides(layoutName: string): boolean {
+    return this.svgVisible && (layoutName === 'svg-background' || layoutName === 'circle-packing');
   }
   
   /**

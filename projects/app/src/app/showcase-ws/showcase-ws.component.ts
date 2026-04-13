@@ -12,13 +12,16 @@ import { FisheyeSettings } from './settings-panel.component';
 import { PhotoData, PhotoAnimationState, PhotoMetadata } from './photo-data';
 import { ThreeRendererService } from './three-renderer.service';
 import { LayoutStrategy } from './layout-strategy.interface';
-import { TsneLayoutStrategy } from './tsne-layout-strategy';
+import { TaxonomyLayoutStrategy } from './taxonomy-layout-strategy';
 import { SvgBackgroundLayoutStrategy } from './svg-background-layout-strategy';
 import { CirclePackingLayoutStrategy } from './circle-packing-layout-strategy';
 import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
+import { TaxonomyClustersOverlayComponent } from './taxonomy-clusters-overlay/taxonomy-clusters-overlay.component';
+import { TaxonomyClusterLabel } from './taxonomy-clusters-overlay/taxonomy-label.interface';
+import { TaxonomyLabelHoverEvent } from './taxonomy-clusters-overlay/taxonomy-clusters-overlay.component';
 
 /** Duration of the drag_all countdown in minutes when first enabled. */
 const DRAG_ALL_DEFAULT_MINUTES = 5;
@@ -28,7 +31,7 @@ const DRAG_ALL_ALLOWED_PROPERTIES = 'layout_x,layout_y,plausibility,favorable_fu
 
 @Component({
   selector: 'app-showcase-ws',
-  imports: [QrcodeComponent, EvaluationSidebarComponent, FiltersBarComponent],
+  imports: [QrcodeComponent, EvaluationSidebarComponent, FiltersBarComponent, TaxonomyClustersOverlayComponent],
   templateUrl: './showcase-ws.component.html',
   styleUrl: './showcase-ws.component.less'
 })
@@ -57,6 +60,13 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   enableSvgAutoPositioning = signal(true);
   fisheyeEnabled = signal(false);
   currentZoomLevel = signal(1.0); // Track current zoom level for UI display
+  fisheyeTaxonomyFocusLabel = signal<string | null>(null);
+
+  // Taxonomy overlay labels (populated when switching to the taxonomy/TSNE layout)
+  taxonomyThemeLabels = signal<TaxonomyClusterLabel[]>([]);
+  taxonomySubThemeLabels = signal<TaxonomyClusterLabel[]>([]);
+  /** Reference to the active TSNE layout strategy so we can query cluster positions. */
+  private currentTsneStrategy: TaxonomyLayoutStrategy | null = null;
   
   // Evaluation sidebar state
   sidebarOpen = signal(false);
@@ -90,6 +100,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   });
   dragAllControlsOpen = signal(false);
   private dragModeDefaultLayoutApplied = false;
+  private isApplyingHashState = false;
+  private initialLayoutPreparedBeforeLoad = false;
   
   // Get the selected item's key (if available)
   selectedItemKey = computed(() => {
@@ -340,6 +352,19 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       distinctUntilChanged(),
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(async (items) => {
+      const rejectedIds = items
+        .filter(item => this.isRejectedItem(item))
+        .map(item => item?._id)
+        .filter((id): id is string => typeof id === 'string');
+
+      for (const id of rejectedIds) {
+        if (this.loadedPhotoIds.has(id)) {
+          this.photoRepository.removePhoto(id);
+          this.loadedPhotoIds.delete(id);
+        }
+      }
+
+      items = items.filter(item => !this.isRejectedItem(item));
       items = items.sort((item1, item2) => {
         const createdAt1 = typeof item1?.created_at === 'string' ? item1.created_at : '';
         const createdAt2 = typeof item2?.created_at === 'string' ? item2.created_at : '';
@@ -396,8 +421,13 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         this.qrSmall.set(true);
         this.isLoading.set(false); // Content is now loaded
         
-        // Switch to the desired layout if not the default circle-packing
-        if (this.currentLayout() !== 'circle-packing') {
+        // Switch to the desired layout if not the default circle-packing.
+        // If a hash-selected layout was already prepared before first load,
+        // we still rerun TSNE once after data arrives so positions/cache are
+        // populated from actual items (prevents empty thematic view on load).
+        const shouldSwitchAfterLoad = this.currentLayout() !== 'circle-packing'
+          && (!this.initialLayoutPreparedBeforeLoad || this.currentLayout() === 'tsne');
+        if (shouldSwitchAfterLoad) {
           try {
             switch (this.currentLayout()) {
               case 'tsne':
@@ -558,16 +588,23 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       this.photoRepository.updateDragPermissions(this.dragAllActive(), this.userAuthorId());
     });
     
-    // Check for item permalink in URL hash (e.g. #item-id)
+    // Parse state from URL hash (supports legacy #item-id and params format).
     if (this.platform.browser()) {
-      const hashParts = window.location.hash.slice(1).split('?')[0];
-      if (hashParts && !hashParts.includes('search=')) {
-        this.focusItemId.set(hashParts);
+      const hashState = this.parseHashState();
+      if (hashState.itemId) {
+        this.focusItemId.set(hashState.itemId);
+      }
+      if (typeof hashState.search === 'string') {
+        this.searchText.set(hashState.search);
+        this.searchActive.set(hashState.search.trim().length > 0);
+      }
+      if (hashState.view) {
+        this.currentLayout.set(hashState.view);
       }
     }
 
     // When loading with a focus target, default to svg+bg with autopositioning
-    if (this.focusItemId()) {
+    if (this.focusItemId() && this.currentLayout() === 'circle-packing') {
       this.currentLayout.set('svg');
       this.enableSvgAutoPositioning.set(true);
     }
@@ -696,7 +733,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   toggleFisheyeEffect() {
     const willBeEnabled = !this.fisheyeEnabled();
     this.fisheyeEnabled.set(willBeEnabled);
+    this.rendererService.resetTaxonomyHoverOpacityFocus();
     this.rendererService.enableFisheyeEffect(willBeEnabled);
+    this.syncThematicFisheyeEffects();
     
     // When enabling, immediately apply current settings
     if (willBeEnabled) {
@@ -916,6 +955,19 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     return max;
   }
 
+  private isRejectedItem(item: any): boolean {
+    if (!item || typeof item !== 'object') {
+      return false;
+    }
+
+    if (item._private_moderation === 0) {
+      return true;
+    }
+
+    const status = typeof item.status === 'string' ? item.status.toLowerCase().trim() : '';
+    return status === 'rejected';
+  }
+
   async ngAfterViewInit() {
     this.taxonomyService.fetch();
     if (this.platform.browser()) {
@@ -934,7 +986,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       });
       fromEvent(window, 'hashchange').pipe(
         takeUntilDestroyed(this.destroyRef)
-      ).subscribe(() => this.updateActiveItemZIndex());
+      ).subscribe(() => this.applyHashStateFromUrl());
       fromEvent(window, 'resize').pipe(
         takeUntilDestroyed(this.destroyRef)
       ).subscribe(() => this.measureTitle());
@@ -991,8 +1043,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
     // Apply default fisheye settings immediately on init
     const settings = this.fisheyeSettings();
+    this.fisheyeEnabled.set(settings.enabled);
     if (settings.enabled) {
       this.rendererService.enableFisheyeEffect(true);
+      this.syncThematicFisheyeEffects();
       this.rendererService.setFisheyeConfig({
         magnification: settings.maxMagnification,
         radius: settings.radius,
@@ -1005,6 +1059,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     const qp = this.activatedRoute.snapshot.queryParams;
     if (qp['fisheye'] === '0' || qp['fisheye'] === 'false') {
       this.rendererService.enableFisheyeEffect(false);
+      this.syncThematicFisheyeEffects();
     }
     
     // Enable performance monitoring via query parameter
@@ -1077,8 +1132,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
         this.currentZoomLevel.set(this.rendererService.getCurrentZoomLevel());
+        this.syncThematicFisheyeEffects();
+        this.updateFisheyeTaxonomyFocusLabel();
       });
-
+    
     // Update drag_all countdown every second
     interval(1000)
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -1108,18 +1165,20 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     
     // Start initial polling after component is ready
     if (this.platform.browser()) {
-      // Read search from URL hash on init
-      const hash = window.location.hash.substring(1);
-      const params = new URLSearchParams(hash);
-      const searchParam = params.get('search');
-      if (searchParam) {
-        const searchText = searchParam.replace(/\+/g, ' ');
-        this.searchText.set(searchText);
-        if (searchText) {
-          this.searchActive.set(true);
+      if (this.currentLayout() !== 'circle-packing') {
+        try {
+          if (this.currentLayout() === 'tsne') {
+            await this.switchToTsneLayout();
+          } else if (this.currentLayout() === 'svg') {
+            await this.switchToSvgLayout();
+          }
+          this.initialLayoutPreparedBeforeLoad = true;
+        } catch (error) {
+          console.error('Error preparing initial layout before load:', error);
+          this.initialLayoutPreparedBeforeLoad = false;
         }
       }
-      
+
       timer(ANIMATION_CONSTANTS.INITIAL_POLLING_DELAY).pipe(
         takeUntilDestroyed(this.destroyRef)
       ).subscribe(() => {
@@ -1130,6 +1189,31 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         });
       });
     }
+  }
+
+  private updateFisheyeTaxonomyFocusLabel(): void {
+    if (this.currentLayout() !== 'tsne' || !this.fisheyeEnabled()) {
+      this.fisheyeTaxonomyFocusLabel.set(null);
+      return;
+    }
+
+    const focusedTaxonomy = this.rendererService.getTopFisheyeTaxonomyIds();
+    if (!focusedTaxonomy) {
+      this.fisheyeTaxonomyFocusLabel.set(null);
+      return;
+    }
+
+    const label = focusedTaxonomy.topicId
+      ? this.taxonomyService.resolveTopic(focusedTaxonomy.topicId)
+      : (focusedTaxonomy.themeId ? this.taxonomyService.resolveThemeName(focusedTaxonomy.themeId) : null);
+
+    this.fisheyeTaxonomyFocusLabel.set(label ?? null);
+  }
+
+  private syncThematicFisheyeEffects(): void {
+    this.rendererService.setThematicFisheyeEffectsEnabled(
+      this.currentLayout() === 'tsne' && this.fisheyeEnabled()
+    );
   }
 
   /**
@@ -1151,9 +1235,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       
       // Update UI immediately for responsive feedback
       this.currentLayout.set('tsne');
+      this.updateHashState({ view: 'tsne' });
+      this.syncThematicFisheyeEffects();
       
       // Create TSNE layout strategy with same dimensions as grid layout
-      const tsneStrategy = new TsneLayoutStrategy(this.workspace(), undefined, {
+      const tsneStrategy = new TaxonomyLayoutStrategy({
         photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
         photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
         spacingX: PHOTO_CONSTANTS.SPACING_X,
@@ -1169,12 +1255,81 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
       // Switch the layout using PhotoDataRepository
       await this.photoRepository.setLayoutStrategy(tsneStrategy);
+
+      // Store reference and compute taxonomy overlay labels
+      this.currentTsneStrategy = tsneStrategy;
+      this.computeTaxonomyLabels(tsneStrategy);
       
     } catch (error) {
       console.error('Error switching to TSNE layout:', error);
     } finally {
       this.layoutChangeInProgress = false;
     }
+  }
+
+  /**
+   * Compute taxonomy overlay label positions from the loaded TSNE strategy and
+   * the topics stored in each photo's metadata.
+   *
+   * Theme and sub-theme labels are read from simulated label nodes in the
+   * active taxonomy layout strategy.
+   */
+  private computeTaxonomyLabels(tsneStrategy: TaxonomyLayoutStrategy): void {
+    let subThemeLabels: TaxonomyClusterLabel[] = tsneStrategy
+      .getSubThemeLabelNodes()
+      .map(node => {
+        const localizedTopic = this.taxonomyService.resolveTopic(node.id);
+        const subThemeName = localizedTopic.includes('>')
+          ? localizedTopic.split('>').pop()?.trim() || localizedTopic
+          : localizedTopic;
+
+        return {
+          id: node.id,
+          name: subThemeName,
+          worldX: node.worldX,
+          worldY: node.worldY,
+          itemCount: node.itemCount,
+        };
+      });
+
+    // Fallback to TSNE cluster labels when topic metadata is unavailable.
+    if (subThemeLabels.length === 0) {
+      const clusters = tsneStrategy.getClustersWithWorldCoords();
+      subThemeLabels = clusters.map((c, i) => ({
+        id: `cluster-${i}`,
+        name: this.taxonomyService.localizeName(c.title),
+        worldX: c.centerX,
+        worldY: c.centerY,
+        itemCount: 1,
+      }));
+    }
+
+    this.taxonomySubThemeLabels.set(subThemeLabels);
+
+    const themeLabels: TaxonomyClusterLabel[] = tsneStrategy
+      .getThemeLabelNodes()
+      .map(node => ({
+        id: node.id,
+        name: this.taxonomyService.resolveThemeName(node.id),
+        worldX: node.worldX,
+        worldY: node.worldY,
+        itemCount: node.itemCount,
+      }));
+    this.taxonomyThemeLabels.set(themeLabels);
+  }
+
+  onTaxonomyLabelHover(event: TaxonomyLabelHoverEvent | null): void {
+    if (!event || this.currentLayout() !== 'tsne') {
+      this.rendererService.resetTaxonomyHoverOpacityFocus();
+      return;
+    }
+
+    if (event.level === 'sub-theme') {
+      this.rendererService.setTaxonomyHoverOpacityFocus({ topicId: event.id });
+      return;
+    }
+
+    this.rendererService.setTaxonomyHoverOpacityFocus({ themeId: event.id });
   }
 
   /**
@@ -1189,6 +1344,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     try {
       // UI mode indicator only; we keep existing item positions (circle packing)
       this.currentLayout.set('svg');
+      this.updateHashState({ view: 'svg' });
+      this.syncThematicFisheyeEffects();
+
+      // Clear taxonomy overlay labels
+      this.currentTsneStrategy = null;
+      this.taxonomyThemeLabels.set([]);
+      this.taxonomySubThemeLabels.set([]);
+      this.rendererService.resetTaxonomyHoverOpacityFocus();
       
       // Read optional `svg` query param to override background path
       const svgParam = this.activatedRoute.snapshot.queryParams['svg'];
@@ -1399,6 +1562,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     try {
       // Update UI immediately for responsive feedback
       this.currentLayout.set('circle-packing');
+      this.updateHashState({ view: 'circle-packing' });
+      this.syncThematicFisheyeEffects();
+
+      // Clear taxonomy overlay labels
+      this.currentTsneStrategy = null;
+      this.taxonomyThemeLabels.set([]);
+      this.taxonomySubThemeLabels.set([]);
+      this.rendererService.resetTaxonomyHoverOpacityFocus();
       
       // Create circle packing layout strategy
       const circlePackingStrategy = new CirclePackingLayoutStrategy({
@@ -1476,21 +1647,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   private updateSearchHash(): void {
     const search = this.searchText();
-    const params = new URLSearchParams(window.location.hash.substring(1));
-    
-    if (search) {
-      params.set('search', search.replace(/ /g, '+'));
-    } else {
-      params.delete('search');
-    }
-    
-    const newHash = params.toString();
-    if (newHash) {
-      window.location.hash = newHash;
-    } else {
-      // Remove hash if empty (but preserve the # for consistency)
-      window.location.hash = '';
-    }
+    this.updateHashState({ search: search || null });
   }
 
   /**
@@ -1762,9 +1919,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   onSettingsChange(settings: FisheyeSettings): void {
     this.fisheyeSettings.set(settings);
+    this.fisheyeEnabled.set(settings.enabled);
     
     // Enable/disable the fisheye effect in the renderer
     this.rendererService.enableFisheyeEffect(settings.enabled);
+    this.syncThematicFisheyeEffects();
     
     // Apply fisheye configuration (magnification, radius, maxHeight)
     this.rendererService.setFisheyeConfig({
@@ -1782,9 +1941,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Also updates URL hash with item ID
    */
   onPhotoClick(photoId: string): void {
-    
-    // Save item ID to URL hash
-    window.location.hash = photoId;
+    this.updateHashState({ itemId: photoId });
     // Bump z-index for this item
     this.updateActiveItemZIndex();
     
@@ -1855,7 +2012,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Update z-index (renderOrder) for the active hash item
    */
   private updateActiveItemZIndex(): void {
-    const activeItemId = window.location.hash.slice(1);
+    const activeItemId = this.parseHashState().itemId ?? null;
     
     if (activeItemId) {
       // Boost the active item
@@ -1898,8 +2055,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   onBackgroundClick(): void {
     this.sidebarOpen.set(false);
     this.selectedItemId.set(null);
-    // Clear URL hash when closing
-    window.location.hash = '';
+    this.updateHashState({ itemId: null });
     // Reset z-index for all items
     this.resetAllItemsZIndex();
   }
@@ -1910,10 +2066,126 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   onSidebarClose(): void {
     this.sidebarOpen.set(false);
     this.selectedItemId.set(null);
-    // Clear URL hash when closing
-    window.location.hash = '';
+    this.updateHashState({ itemId: null });
     // Reset z-index for all items
     this.resetAllItemsZIndex();
+  }
+
+  private parseHashState(): {
+    view?: 'tsne' | 'svg' | 'circle-packing';
+    itemId?: string;
+    search?: string;
+  } {
+    if (!this.platform.browser()) {
+      return {};
+    }
+
+    const raw = window.location.hash.startsWith('#')
+      ? window.location.hash.slice(1)
+      : window.location.hash;
+    if (!raw) {
+      return {};
+    }
+
+    if (!raw.includes('=')) {
+      const legacyView = this.normalizeLayout(raw);
+      if (legacyView) {
+        return { view: legacyView };
+      }
+      return { itemId: raw };
+    }
+
+    const params = new URLSearchParams(raw);
+    const rawView = params.get('view') ?? params.get('layout');
+    const view = this.normalizeLayout(rawView);
+    const itemId = params.get('item') ?? undefined;
+    const search = params.get('search') ?? undefined;
+
+    return {
+      view: view ?? undefined,
+      itemId,
+      search,
+    };
+  }
+
+  private normalizeLayout(layout: string | null): 'tsne' | 'svg' | 'circle-packing' | null {
+    if (!layout) return null;
+    if (layout === 'tsne' || layout === 'svg' || layout === 'circle-packing') {
+      return layout;
+    }
+    return null;
+  }
+
+  private updateHashState(patch: {
+    view?: 'tsne' | 'svg' | 'circle-packing' | null;
+    itemId?: string | null;
+    search?: string | null;
+  }): void {
+    if (!this.platform.browser() || this.isApplyingHashState) {
+      return;
+    }
+
+    const current = this.parseHashState();
+    const params = new URLSearchParams();
+
+    const view = patch.view === undefined
+      ? (current.view ?? this.currentLayout())
+      : patch.view;
+    const itemId = patch.itemId === undefined ? (current.itemId ?? null) : patch.itemId;
+    const search = patch.search === undefined ? (current.search ?? null) : patch.search;
+
+    if (view) {
+      params.set('view', view);
+    }
+    if (itemId && itemId.trim().length > 0) {
+      params.set('item', itemId);
+    }
+    if (search && search.trim().length > 0) {
+      params.set('search', search);
+    }
+
+    const nextHash = params.toString();
+    const currentHash = window.location.hash.startsWith('#')
+      ? window.location.hash.slice(1)
+      : window.location.hash;
+
+    if (nextHash === currentHash) {
+      return;
+    }
+
+    this.isApplyingHashState = true;
+    window.location.hash = nextHash;
+    this.isApplyingHashState = false;
+  }
+
+  private applyHashStateFromUrl(): void {
+    if (!this.platform.browser() || this.isApplyingHashState) {
+      return;
+    }
+
+    const hashState = this.parseHashState();
+
+    if (typeof hashState.search === 'string' && hashState.search !== this.searchText()) {
+      this.searchText.set(hashState.search);
+      this.searchActive.set(hashState.search.trim().length > 0);
+    }
+
+    const itemId = hashState.itemId ?? null;
+    if (itemId !== this.focusItemId()) {
+      this.focusItemId.set(itemId);
+    }
+
+    if (hashState.view && hashState.view !== this.currentLayout()) {
+      if (hashState.view === 'tsne') {
+        void this.switchToTsneLayout();
+      } else if (hashState.view === 'svg') {
+        void this.switchToSvgLayout();
+      } else {
+        void this.switchToCirclePackingLayout();
+      }
+    }
+
+    this.updateActiveItemZIndex();
   }
 
   /**
