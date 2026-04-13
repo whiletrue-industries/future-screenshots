@@ -18,6 +18,7 @@ import { ImageReplacementModalComponent } from '../image-replacement-modal/image
 import { QrCodeModalComponent } from '../qr-code-modal/qr-code-modal.component';
 import { CommonModule } from '@angular/common';
 import { AdminLightboxComponent } from '../admin-lightbox/admin-lightbox.component';
+import { ModerationSidebarComponent } from '../moderation-sidebar/moderation-sidebar.component';
 import { AuthService } from '../../auth.service';
 import { SkeletonLoaderComponent } from '../skeleton-loader/skeleton-loader.component';
 import { LazyLoadImageDirective } from '../lazy-load-image.directive';
@@ -42,6 +43,7 @@ export type Filter = {
     ImageReplacementModalComponent,
     QrCodeModalComponent,
     AdminLightboxComponent,
+    ModerationSidebarComponent,
     CommonModule,
     SkeletonLoaderComponent,
     LazyLoadImageDirective,
@@ -827,6 +829,11 @@ export class ModerateComponent implements OnInit, OnDestroy {
   closeSidebar(): void {
     const currentItem = this.selectedItem();
     this.selectedItem.set(null);
+  }
+
+  onSelectedItemUpdated(updatedItem: any): void {
+    this.selectedItem.set(updatedItem);
+    this.allFetchedItems.update(items => items.map(item => item._id === updatedItem._id ? { ...item, ...updatedItem } : item));
   }
 
   closeWorkspaceDropdown(): void {

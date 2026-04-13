@@ -19,6 +19,7 @@ import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
+import { ModerationSidebarComponent } from '../admin/moderation-sidebar/moderation-sidebar.component';
 import { TaxonomyClustersOverlayComponent } from './taxonomy-clusters-overlay/taxonomy-clusters-overlay.component';
 import { TaxonomyClusterLabel } from './taxonomy-clusters-overlay/taxonomy-label.interface';
 import { TaxonomyLabelHoverEvent } from './taxonomy-clusters-overlay/taxonomy-clusters-overlay.component';
@@ -31,7 +32,7 @@ const DRAG_ALL_ALLOWED_PROPERTIES = 'layout_x,layout_y,plausibility,favorable_fu
 
 @Component({
   selector: 'app-showcase-ws',
-  imports: [QrcodeComponent, FiltersBarComponent, TaxonomyClustersOverlayComponent],
+  imports: [QrcodeComponent, FiltersBarComponent, TaxonomyClustersOverlayComponent, ModerationSidebarComponent],
   templateUrl: './showcase-ws.component.html',
   styleUrl: './showcase-ws.component.less'
 })
@@ -72,6 +73,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   // Evaluation sidebar state
   sidebarOpen = signal(false);
   selectedItemId = signal<string | null>(null);
+  selectedAdminItem = signal<any | null>(null);
   sidebarTab = signal<'moderation' | 'evaluation' | 'chat'>('moderation');
   
   // Permalink support - item to focus on after load
@@ -106,36 +108,38 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   private initialLayoutPreparedBeforeLoad = false;
   
   // Get the selected item's key (if available)
-  selectedItemKey = computed(() => {
-    const itemId = this.selectedItemId();
-    if (!itemId) return null;
-    const photo = this.photoRepository.getPhoto(itemId);
-    return photo?.metadata?.['item_key'] || null;
-  });
+  selectedItemKey = computed(() => this.selectedAdminItem()?.['item_key'] || null);
 
   selectedItemImageUrl = computed(() => {
-    const itemId = this.selectedItemId();
-    if (!itemId) return null;
-    const photo = this.photoRepository.getPhoto(itemId);
-    if (!photo) return null;
-    return photo.metadata['enhanced_url'] || photo.metadata['screenshot_url'] || photo.metadata['url'] || null;
+    const selectedItem = this.selectedAdminItem();
+    if (!selectedItem) return null;
+    return selectedItem['enhanced_url'] || selectedItem['screenshot_url'] || selectedItem['url'] || null;
   });
 
   selectedItemMissingEvaluation = computed(() => {
-    const itemId = this.selectedItemId();
-    if (!itemId) return false;
-    const photo = this.photoRepository.getPhoto(itemId);
-    if (!photo) return false;
-    const plausibility = photo.metadata['plausibility'];
-    const favorable = photo.metadata['favorable_future'] ?? photo.metadata['_svgZoneFavorableFuture'];
+    const selectedItem = this.selectedAdminItem();
+    if (!selectedItem) return false;
+    const plausibility = selectedItem['plausibility'];
+    const favorable = selectedItem['favorable_future'] ?? selectedItem['_svgZoneFavorableFuture'];
     const hasPlausibility = typeof plausibility === 'number' && Number.isFinite(plausibility);
     const hasFavorable = typeof favorable === 'string' && favorable.trim().length > 0;
     return !(hasPlausibility && hasFavorable);
   });
 
+  selectedAdminUserItemCount = computed(() => {
+    const authorId = this.selectedAdminItem()?.['author_id'];
+    if (!authorId) {
+      return 0;
+    }
+    return this.photoRepository.getAllPhotos().filter(photo => {
+      const photoAuthorId = photo.metadata['author_id'] || 'unknown';
+      return photoAuthorId === authorId;
+    }).length;
+  });
+
   sidebarIframeUrl = computed<SafeResourceUrl | null>(() => {
     const itemId = this.selectedItemId();
-    if (!itemId || !this.sidebarOpen()) {
+    if (!itemId || !this.sidebarOpen() || this.sidebarTab() === 'moderation') {
       return null;
     }
     return this.buildSidebarIframeUrl(this.sidebarTab(), itemId);
@@ -1978,6 +1982,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     if (this.isAdmin()) {
       // Admin flow: open item modal with moderation/evaluation/chat tabs.
       this.selectedItemId.set(photoId);
+      this.selectedAdminItem.set(this.buildSelectedAdminItem(photoId));
       this.sidebarTab.set('moderation');
       this.sidebarOpen.set(true);
     } else {
@@ -2103,6 +2108,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.sidebarOpen.set(false);
     this.sidebarTab.set('moderation');
     this.selectedItemId.set(null);
+    this.selectedAdminItem.set(null);
     this.updateHashState({ itemId: null });
     // Reset z-index for all items
     this.resetAllItemsZIndex();
@@ -2276,15 +2282,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Handle metadata updates from the sidebar
    */
   async onMetadataUpdated(event: { itemId: string; metadata: any }): Promise<void> {
-    
     const { itemId, metadata } = event;
     const photo = this.photoRepository.getPhoto(itemId);
-    
+
     if (photo) {
-      // Update photo metadata
       photo.updateMetadata(metadata);
-      
-      // If on SVG layout with auto-positioning, trigger layout recalculation
+
       if (this.currentLayout() === 'svg' && this.enableSvgAutoPositioning()) {
         const authorId = photo.metadata['author_id'] as string;
         if (authorId) {
@@ -2294,6 +2297,44 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  async onModerationItemUpdated(updatedItem: any): Promise<void> {
+    const itemId = typeof updatedItem?._id === 'string' ? updatedItem._id : this.selectedItemId();
+    if (!itemId) {
+      return;
+    }
+
+    this.selectedAdminItem.set(updatedItem);
+    await this.onMetadataUpdated({ itemId, metadata: updatedItem });
+
+    if (updatedItem._private_moderation === 0) {
+      if (this.loadedPhotoIds.has(itemId)) {
+        this.photoRepository.removePhoto(itemId);
+        this.loadedPhotoIds.delete(itemId);
+      }
+      this.onSidebarClose();
+      return;
+    }
+
+    this.applyFilters();
+  }
+
+  onModerationFilterByAuthor(authorId: string): void {
+    const normalizedAuthor = !authorId || authorId === 'unknown' ? 'unattributed' : authorId;
+    this.currentFilters.update(filters => ({ ...filters, author: normalizedAuthor }));
+  }
+
+  private buildSelectedAdminItem(photoId: string): any | null {
+    const photo = this.photoRepository.getPhoto(photoId);
+    if (!photo) {
+      return null;
+    }
+
+    return {
+      ...photo.metadata,
+      _id: photoId,
+      id: photoId,
+    };
+  }
 
   ngOnDestroy() {
     this.rendererService.dispose();

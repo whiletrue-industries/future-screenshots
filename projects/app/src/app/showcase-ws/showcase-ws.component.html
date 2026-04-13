@@ -16,7 +16,7 @@
     class='hide-on-mobile qr-clickable'></app-qrcode>
 }
 
-@if (sidebarOpen() && selectedItemId() && sidebarIframeUrl(); as iframeUrl) {
+@if (sidebarOpen() && selectedItemId()) {
   <div class='admin-item-modal-overlay' (click)='onSidebarClose()'>
     <div class='admin-item-modal-preview' (click)='$event.stopPropagation()' role='dialog' aria-modal='true' aria-label='Item moderation dialog'>
       <button class='admin-item-modal-close' (click)='onSidebarClose()' title='Close'>
@@ -57,12 +57,26 @@
         </button>
       </div>
 
-      <iframe
-        [src]='iframeUrl'
-        class='admin-item-modal-iframe'
-        title='Item moderation / evaluation / chat'
-        sandbox='allow-scripts allow-forms allow-popups allow-same-origin'>
-      </iframe>
+      @if (sidebarTab() === 'moderation' && selectedAdminItem()) {
+        <app-moderation-sidebar
+          [item]='selectedAdminItem()'
+          [workspaceId]='workspace()'
+          [apiKey]='admin_key()'
+          [userItemCount]='selectedAdminUserItemCount()'
+          [showCloseButton]='false'
+          (itemChange)='onModerationItemUpdated($event)'
+          (filterByAuthor)='onModerationFilterByAuthor($event)'>
+        </app-moderation-sidebar>
+      } @else {
+        @if (sidebarIframeUrl(); as iframeUrl) {
+          <iframe
+            [src]='iframeUrl'
+            class='admin-item-modal-iframe'
+            title='Item moderation / evaluation / chat'
+            sandbox='allow-scripts allow-forms allow-popups allow-same-origin'>
+          </iframe>
+        }
+      }
     </div>
   </div>
 }

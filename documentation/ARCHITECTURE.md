@@ -148,6 +148,7 @@ The application uses Angular standalone components organized by feature:
    - **Access control**: Drag-to-edit only for users with admin_key
      - Visitors can view and click but not drag items
      - Editors with admin_key can drag and edit all items
+   - **Admin item modal**: The moderation tab now reuses the same standalone moderation sidebar component as the admin moderation screen (`app-moderation-sidebar`) instead of a dedicated iframe-based implementation
           - SVG layout strategy:
              - Uses a per-hotspot deterministic slot grid (hex-like staggered) clipped to each `#hit > path`.
              - Slot order is a seeded shuffle for even coverage across the shape.
@@ -167,21 +168,26 @@ The application uses Angular standalone components organized by feature:
     - Edit item properties
     - Display and filter by auto-assigned taxonomy topics
 
-12. **Workspace Form** (`/admin/workspace-form`)
+12. **Moderation Sidebar Component** (`app-moderation-sidebar`)
+   - Shared lightbox/sidebar moderation UI used by both `/admin/moderate` and `/showcase-ws`
+   - Owns item moderation mutations (status, tags, metadata, evaluation fields) through `AdminApiService`
+   - Emits item updates to parent components for local state synchronization
+
+13. **Workspace Form** (`/admin/workspace-form`)
     - Workspace creation and configuration
     - API key management
     - Custom field definitions
 
 #### Supporting Components
 
-13. **Password Prompt** (`/password-prompt`)
+14. **Password Prompt** (`/password-prompt`)
     - Password protection for workspaces
     - Session-based access control
 
-14. **About Component** (`/about`)
+15. **About Component** (`/about`)
     - Information about the platform
 
-15. **Messages Component** (`/messages`)
+16. **Messages Component** (`/messages`)
     - Reusable chat message display
     - Markdown rendering
     - Streaming message support
