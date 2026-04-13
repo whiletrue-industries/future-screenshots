@@ -1,8 +1,7 @@
 <div class="cluster-labels-container">
   @for (label of activeLabels; track label.id) {
     <div
-      class="cluster-label"
-      [class.sub-theme]="showSubTheme"
+      class="cluster-label sub-theme"
       role="button"
       tabindex="0"
       [attr.aria-label]="label.name"

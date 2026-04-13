@@ -185,11 +185,10 @@ export class ThreeRendererService {
   private fisheyeAnimationLock = false;   // True while we intentionally keep fisheye off during an animation
   private fisheyeAffectedMeshes = new Set<THREE.Mesh>();
   private topFisheyeMesh: THREE.Mesh | null = null;
-  private fisheyeDimmingBaseOpacity = new Map<THREE.Mesh, number>();
-  private fisheyeTaxonomyDimmingActive = false;
   private thematicFisheyeEffectsEnabled = false;
-  private taxonomyHoverBaseOpacity = new Map<THREE.Mesh, number>();
-  private taxonomyHoverDimmingActive = false;
+  private fisheyeLastDeltaTime = 1 / 60;
+  private taxonomyEffectBaseOpacity = new Map<THREE.Mesh, number>();
+  private taxonomyHoverFocus: { topicId: string | null; themeId: string | null } | null = null;
   private fisheyeFocusPoint = new THREE.Vector3();
   private permalinkTargetId: string | null = null;
   private meshOriginalStates = new Map<THREE.Mesh, { position: THREE.Vector3; scale: THREE.Vector3; renderOrder: number }>();
@@ -316,7 +315,7 @@ export class ThreeRendererService {
       this.topFisheyeMesh = null;
     }
     this.fisheyeAffectedMeshes.delete(photoData.mesh);
-    this.fisheyeDimmingBaseOpacity.delete(photoData.mesh);
+    this.taxonomyEffectBaseOpacity.delete(photoData.mesh);
     
     photoData.setMesh(null);
   }
@@ -1340,9 +1339,10 @@ export class ThreeRendererService {
           }
         }
 
-        // Apply scale with damping for smooth animation
+        // Apply scale with frame-rate-independent damping so heavier layouts
+        // don't produce smaller or slower fisheye magnification.
         const currentScale = mesh.scale.x;
-        const dampedScale = this.damp(currentScale, targetScale, this.FISHEYE_SCALE_DAMPING, 0.016); // 0.016s ≈ 60fps frame
+        const dampedScale = this.damp(currentScale, targetScale, this.FISHEYE_SCALE_DAMPING, this.fisheyeLastDeltaTime);
         mesh.scale.set(dampedScale, dampedScale, 1);
 
         // Apply position offset (radial displacement from logical position)
@@ -1472,67 +1472,109 @@ export class ThreeRendererService {
     return best;
   }
 
-  private applyFisheyeTaxonomyOpacityDimming(topMesh: THREE.Mesh | null): void {
-    if (!this.thematicFisheyeEffectsEnabled || !topMesh) {
-      this.resetFisheyeTaxonomyOpacityDimming();
-      return;
+  private getActiveFisheyeTaxonomyFocus(): { topMesh: THREE.Mesh; topicId: string | null; themeId: string | null } | null {
+    if (!this.thematicFisheyeEffectsEnabled || !this.fisheyeEnabled || !this.topFisheyeMesh) {
+      return null;
     }
 
-    const taxonomyAnchorMesh = this.getTaxonomyAnchorMesh(topMesh);
+    const taxonomyAnchorMesh = this.getTaxonomyAnchorMesh(this.topFisheyeMesh);
     if (!taxonomyAnchorMesh) {
-      this.resetFisheyeTaxonomyOpacityDimming();
-      return;
+      return null;
     }
 
     const topTaxonomy = this.getMeshTaxonomy(taxonomyAnchorMesh);
-    const anchorTopic = topTaxonomy.orderedTopics[0] ?? null;
-    const anchorTheme = anchorTopic ? (anchorTopic.split('/')[0] || null) : null;
+    const topicId = topTaxonomy.orderedTopics[0] ?? null;
+    const themeId = topicId ? (topicId.split('/')[0] || null) : null;
 
-    if (!anchorTopic && !anchorTheme) {
-      this.resetFisheyeTaxonomyOpacityDimming();
+    if (!topicId && !themeId) {
+      return null;
+    }
+
+    return {
+      topMesh: this.topFisheyeMesh,
+      topicId,
+      themeId,
+    };
+  }
+
+  private getTaxonomyHoverDimFactor(mesh: THREE.Mesh, focus: { topicId: string | null; themeId: string | null }): number {
+    const meshTaxonomy = this.getMeshTaxonomy(mesh);
+    const sharesTopic = !!focus.topicId && meshTaxonomy.topics.has(focus.topicId);
+    const sharesTheme = !!focus.themeId && meshTaxonomy.themes.has(focus.themeId);
+
+    if (focus.topicId) {
+      return sharesTopic ? 1 : (sharesTheme ? 0.4 : 0.1);
+    }
+
+    if (focus.themeId) {
+      return sharesTheme ? 1 : 0.1;
+    }
+
+    return 1;
+  }
+
+  private getFisheyeTaxonomyDimFactor(mesh: THREE.Mesh, focus: { topMesh: THREE.Mesh; topicId: string | null; themeId: string | null }): number {
+    if (mesh === focus.topMesh) {
+      return 1;
+    }
+
+    const meshTaxonomy = this.getMeshTaxonomy(mesh);
+    const sharesTopic = !!focus.topicId && meshTaxonomy.topics.has(focus.topicId);
+    const sharesTheme = !!focus.themeId && meshTaxonomy.themes.has(focus.themeId);
+
+    return sharesTopic ? 1 : (sharesTheme ? 0.4 : 0.1);
+  }
+
+  private refreshTaxonomyOpacityEffects(): void {
+    const hoverFocus = this.taxonomyHoverFocus;
+    const fisheyeFocus = this.getActiveFisheyeTaxonomyFocus();
+    const hasActiveTaxonomyEffect = !!hoverFocus || !!fisheyeFocus;
+
+    if (!hasActiveTaxonomyEffect) {
+      for (const [mesh, baseOpacity] of this.taxonomyEffectBaseOpacity.entries()) {
+        this.setMeshOpacity(mesh, baseOpacity);
+      }
+
+      this.taxonomyEffectBaseOpacity.clear();
       return;
     }
 
-    if (!this.fisheyeTaxonomyDimmingActive) {
-      this.fisheyeDimmingBaseOpacity.clear();
+    if (this.taxonomyEffectBaseOpacity.size === 0) {
       for (const child of this.root.children) {
         const mesh = child as THREE.Mesh;
         if (!mesh.isMesh) continue;
-        this.fisheyeDimmingBaseOpacity.set(mesh, this.getMeshOpacity(mesh));
+        this.taxonomyEffectBaseOpacity.set(mesh, this.getMeshOpacity(mesh));
       }
-      this.fisheyeTaxonomyDimmingActive = true;
     }
 
     for (const child of this.root.children) {
       const mesh = child as THREE.Mesh;
       if (!mesh.isMesh) continue;
 
-      const baseOpacity = this.fisheyeDimmingBaseOpacity.get(mesh) ?? this.getMeshOpacity(mesh);
-      this.fisheyeDimmingBaseOpacity.set(mesh, baseOpacity);
+      const baseOpacity = this.taxonomyEffectBaseOpacity.get(mesh) ?? this.getMeshOpacity(mesh);
+      this.taxonomyEffectBaseOpacity.set(mesh, baseOpacity);
 
-      if (mesh === topMesh) {
-        this.setMeshOpacity(mesh, baseOpacity);
-        continue;
+      let dimFactor = 1;
+
+      if (hoverFocus) {
+        dimFactor = Math.min(dimFactor, this.getTaxonomyHoverDimFactor(mesh, hoverFocus));
       }
 
-      const meshTaxonomy = this.getMeshTaxonomy(mesh);
-      const sharesSecondLayer = !!anchorTopic && meshTaxonomy.topics.has(anchorTopic);
-      const sharesTopLayer = !!anchorTheme && meshTaxonomy.themes.has(anchorTheme);
+      if (fisheyeFocus) {
+        dimFactor = Math.min(dimFactor, this.getFisheyeTaxonomyDimFactor(mesh, fisheyeFocus));
+      }
 
-      const dimFactor = sharesSecondLayer ? 1 : (sharesTopLayer ? 0.4 : 0.1);
       this.setMeshOpacity(mesh, baseOpacity * dimFactor);
     }
   }
 
+  private applyFisheyeTaxonomyOpacityDimming(topMesh: THREE.Mesh | null): void {
+    this.topFisheyeMesh = topMesh;
+    this.refreshTaxonomyOpacityEffects();
+  }
+
   private resetFisheyeTaxonomyOpacityDimming(): void {
-    if (!this.fisheyeTaxonomyDimmingActive) return;
-
-    for (const [mesh, baseOpacity] of this.fisheyeDimmingBaseOpacity.entries()) {
-      this.setMeshOpacity(mesh, baseOpacity);
-    }
-
-    this.fisheyeDimmingBaseOpacity.clear();
-    this.fisheyeTaxonomyDimmingActive = false;
+    this.refreshTaxonomyOpacityEffects();
   }
 
   getTopFisheyeTaxonomyIds(): { themeId: string | null; topicId: string | null } | null {
@@ -1571,47 +1613,13 @@ export class ThreeRendererService {
     const topicId = focus.topicId ?? null;
     const themeId = focus.themeId ?? (topicId ? (topicId.split('/')[0] || null) : null);
 
-    if (!this.taxonomyHoverDimmingActive) {
-      this.taxonomyHoverBaseOpacity.clear();
-      for (const child of this.root.children) {
-        const mesh = child as THREE.Mesh;
-        if (!mesh.isMesh) continue;
-        this.taxonomyHoverBaseOpacity.set(mesh, this.getMeshOpacity(mesh));
-      }
-      this.taxonomyHoverDimmingActive = true;
-    }
-
-    for (const child of this.root.children) {
-      const mesh = child as THREE.Mesh;
-      if (!mesh.isMesh) continue;
-
-      const baseOpacity = this.taxonomyHoverBaseOpacity.get(mesh) ?? this.getMeshOpacity(mesh);
-      this.taxonomyHoverBaseOpacity.set(mesh, baseOpacity);
-
-      const meshTaxonomy = this.getMeshTaxonomy(mesh);
-      const sharesTopic = !!topicId && meshTaxonomy.topics.has(topicId);
-      const sharesTheme = !!themeId && meshTaxonomy.themes.has(themeId);
-
-      let dimFactor = 0.1;
-      if (topicId) {
-        dimFactor = sharesTopic ? 1 : (sharesTheme ? 0.4 : 0.1);
-      } else if (themeId) {
-        dimFactor = sharesTheme ? 1 : 0.1;
-      }
-
-      this.setMeshOpacity(mesh, baseOpacity * dimFactor);
-    }
+    this.taxonomyHoverFocus = { topicId, themeId };
+    this.refreshTaxonomyOpacityEffects();
   }
 
   resetTaxonomyHoverOpacityFocus(): void {
-    if (!this.taxonomyHoverDimmingActive) return;
-
-    for (const [mesh, baseOpacity] of this.taxonomyHoverBaseOpacity.entries()) {
-      this.setMeshOpacity(mesh, baseOpacity);
-    }
-
-    this.taxonomyHoverBaseOpacity.clear();
-    this.taxonomyHoverDimmingActive = false;
+    this.taxonomyHoverFocus = null;
+    this.refreshTaxonomyOpacityEffects();
   }
 
   private isMeshInteractive(mesh: THREE.Mesh): boolean {
@@ -1654,6 +1662,15 @@ export class ThreeRendererService {
     this.topFisheyeMesh = null;
     this.resetFisheyeTaxonomyOpacityDimming();
     this.clearOverlayRenderer();
+  }
+
+  private resetInteractionVisualState(): void {
+    this.setSvgHoverOverlayHotspot(null);
+    this.resetTaxonomyHoverOpacityFocus();
+
+    if (this.fisheyeAffectedMeshes.size > 0 || this.topFisheyeMesh) {
+      this.resetAllFisheyeEffects();
+    }
   }
 
   /** Restore the mesh to its non-fisheye render order. */
@@ -2438,13 +2455,18 @@ export class ThreeRendererService {
         this.cleanupDragState();
       }
 
-      this.setSvgHoverOverlayHotspot(null);
-      
-      // Only reset if fisheye is enabled and there are affected meshes
-      if (this.fisheyeEnabled && this.fisheyeAffectedMeshes.size > 0) {
-        this.resetAllFisheyeEffects();
-      }
+      this.resetInteractionVisualState();
     });
+
+    canvas.addEventListener('touchcancel', () => {
+      if (this.isDragging) {
+        this.cleanupDragState();
+      }
+
+      this.isTwoFingerGesture = false;
+      this.lastTouchDistance = 0;
+      this.resetInteractionVisualState();
+      });
 
     // Mouse wheel - zoom
     canvas.addEventListener('wheel', (event) => {
@@ -2583,6 +2605,16 @@ export class ThreeRendererService {
       if (this.isDragging) {
         this.cleanupDragState();
       }
+    });
+
+    fromEvent(window, 'blur').pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(() => {
+      if (this.isDragging) {
+        this.cleanupDragState();
+      }
+
+      this.resetInteractionVisualState();
     });
   }
 
@@ -3213,6 +3245,7 @@ export class ThreeRendererService {
       if (!this.rafRunning) return;
 
       const dt = this.clock.getDelta();
+      this.fisheyeLastDeltaTime = dt;
 
       // Update tweens
       this.activeTweens = this.activeTweens.filter((fn) => !fn(dt));

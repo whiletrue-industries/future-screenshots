@@ -3,10 +3,10 @@
  */
 export const ANIMATION_CONSTANTS = {
   /** Duration for layout strategy transitions (seconds) */
-  LAYOUT_TRANSITION_DURATION: 0.27,
+  LAYOUT_TRANSITION_DURATION: 0.54,
   
   /** Stagger delay between items during layout transitions (seconds) */
-  LAYOUT_STAGGER_DELAY: 0.007,
+  LAYOUT_STAGGER_DELAY: 0.014,
   
   /** Duration for new photo animations from spawn to position (seconds) */
   NEW_PHOTO_ANIMATION_DURATION: 3,
@@ -54,7 +54,7 @@ export const ANIMATION_CONSTANTS = {
   OPACITY_FADE_DURATION: 0.4,
   
   /** Duration for photos moving to (0,0) when becoming invisible (seconds) */
-  INVISIBLE_POSITION_TRANSITION_DURATION: 0.2,
+  INVISIBLE_POSITION_TRANSITION_DURATION: 0.4,
   
   /** Duration for camera bounds animation transitions (seconds) */
   CAMERA_BOUNDS_ANIMATION_DURATION: 3.0

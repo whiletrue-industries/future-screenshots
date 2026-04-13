@@ -220,15 +220,10 @@ export class TaxonomyLayoutStrategy extends LayoutStrategy {
     const subThemeGroups = new Map<string, TaxonomyNode[]>();
 
     for (const node of nodes) {
-      for (const theme of node.themes) {
-        themeCounts.set(theme, (themeCounts.get(theme) ?? 0) + 1);
-      }
-      for (const topic of node.topics) {
-        subThemeCounts.set(topic, (subThemeCounts.get(topic) ?? 0) + 1);
-      }
-
       const primaryTheme = node.primaryTheme ?? '__unthemed';
       const primaryTopic = node.primaryTopic ?? `${primaryTheme}/__untopiced`;
+      themeCounts.set(primaryTheme, (themeCounts.get(primaryTheme) ?? 0) + 1);
+      subThemeCounts.set(primaryTopic, (subThemeCounts.get(primaryTopic) ?? 0) + 1);
       if (!themeGroups.has(primaryTheme)) themeGroups.set(primaryTheme, []);
       if (!subThemeGroups.has(primaryTopic)) subThemeGroups.set(primaryTopic, []);
       themeGroups.get(primaryTheme)!.push(node);
@@ -247,19 +242,6 @@ export class TaxonomyLayoutStrategy extends LayoutStrategy {
       };
     });
 
-    if (themeGroups.has('__unthemed') && !themeCounts.has('__unthemed')) {
-      const count = themeGroups.get('__unthemed')!.length;
-      themeNodes.push({
-        id: '__unthemed',
-        themeId: '__unthemed',
-        itemCount: count,
-        x: 0,
-        y: 0,
-        vx: 0,
-        vy: 0,
-      });
-    }
-
     const subThemeNodes = [...subThemeCounts.entries()].map(([topicId, count]) => {
       const themeId = topicId.split('/')[0] || '__unthemed';
       return {
@@ -272,20 +254,6 @@ export class TaxonomyLayoutStrategy extends LayoutStrategy {
         vy: 0,
       };
     });
-
-    for (const [topicId, group] of subThemeGroups.entries()) {
-      if (subThemeCounts.has(topicId)) continue;
-      const themeId = topicId.split('/')[0] || '__unthemed';
-      subThemeNodes.push({
-        id: topicId,
-        themeId,
-        itemCount: group.length,
-        x: 0,
-        y: 0,
-        vx: 0,
-        vy: 0,
-      });
-    }
 
     return { themeNodes, subThemeNodes, themeGroups, subThemeGroups };
   }

@@ -16,12 +16,9 @@ import { ThreeRendererService } from '../three-renderer.service';
 /**
  * Renders taxonomy cluster labels as an HTML overlay on top of the Three.js canvas.
  *
- * Two layers of labels are shown depending on the current zoom level:
- *   - Zoom out  (zoom < ZOOM_THRESHOLD): first-level taxonomy labels (themes)
- *   - Zoom in  (zoom > ZOOM_THRESHOLD): second-level taxonomy labels (sub-themes)
- *
- * Label positions are updated every render frame via ThreeRendererService.addFrameCallback()
- * so they stay perfectly aligned with the 3D content while panning / zooming.
+ * Only second-level taxonomy labels (sub-themes) are shown, as these provide the
+ * most informative context. Labels are always shown regardless of zoom level, but
+ * overlap culling ensures only labels with sufficient room are visible.
  *
  * Labels with more items are rendered more prominently (larger font). Labels that
  * would overlap a more prominent label are hidden until there is enough room.
@@ -35,16 +32,15 @@ import { ThreeRendererService } from '../three-renderer.service';
 export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
   private static readonly MIN_ITEMS_FOR_LABEL = 2;
 
-  /** First taxonomy layer – shown when zoomed out. */
+  /** First taxonomy layer – kept for host compatibility but never displayed. */
   themeLabels = input<TaxonomyClusterLabel[]>([]);
-  /** Second taxonomy layer – shown when zoomed in. */
+  /** Second taxonomy layer – always shown. */
   subThemeLabels = input<TaxonomyClusterLabel[]>([]);
-  /** Current zoom level (1 = fully zoomed out). */
+  /** Zoom level input – accepted for host compatibility, not used for switching. */
   zoomLevel = input<number>(1);
   /** Emits currently hovered/focused label. Null means no active label hover. */
   labelHover = output<TaxonomyLabelHoverEvent | null>();
 
-  /** Zoom level above which sub-theme labels are shown; theme labels shown at or below. */
   static readonly ZOOM_THRESHOLD = 1.35;
 
   /**
@@ -86,25 +82,20 @@ export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
     this.cachedLabelEls = [];
   }
 
-  /** True if sub-theme labels should be shown (zoomed in). */
-  get showSubTheme(): boolean {
-    return this.zoomLevel() > TaxonomyClustersOverlayComponent.ZOOM_THRESHOLD;
-  }
-
-  /** Active labels for the current zoom level. */
+  /** Active labels — always the sub-theme (second-level) set. */
   get activeLabels(): TaxonomyClusterLabel[] {
     return this.getVisibleLabels();
   }
 
   private getVisibleLabels(): TaxonomyClusterLabel[] {
-    const labels = this.showSubTheme ? this.subThemeLabels() : this.themeLabels();
-    return labels.filter(label => label.itemCount >= TaxonomyClustersOverlayComponent.MIN_ITEMS_FOR_LABEL);
+    return this.subThemeLabels()
+      .filter(label => label.itemCount >= TaxonomyClustersOverlayComponent.MIN_ITEMS_FOR_LABEL);
   }
 
   onLabelEnter(label: TaxonomyClusterLabel): void {
     this.labelHover.emit({
       id: label.id,
-      level: this.showSubTheme ? 'sub-theme' : 'theme',
+      level: 'sub-theme',
     });
   }
 
@@ -182,8 +173,11 @@ export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
 
     // --- 4. Overlap culling using bounding rects (all visible so rects are valid) ---
     //        Add a small padding so labels don't sit flush against each other.
+    //        Labels whose anchor is outside the viewport are also hidden.
     const PADDING = 8;
     const placed: { x1: number; y1: number; x2: number; y2: number }[] = [];
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
 
     for (const s of states) {
       const rect = s.el.getBoundingClientRect();
@@ -194,9 +188,10 @@ export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
       const x2 = rect.right + PADDING;
       const y2 = rect.bottom + PADDING;
 
+      const outOfViewport = x2 < 0 || x1 > vw || y2 < 0 || y1 > vh;
       const overlaps = placed.some(p => !(x2 < p.x1 || x1 > p.x2 || y2 < p.y1 || y1 > p.y2));
 
-      if (overlaps) {
+      if (outOfViewport || overlaps) {
         s.el.style.opacity = '0';
         s.el.style.pointerEvents = 'none';
       } else {
