@@ -100,6 +100,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   });
   dragAllControlsOpen = signal(false);
   private dragModeDefaultLayoutApplied = false;
+  private isApplyingHashState = false;
+  private initialLayoutPreparedBeforeLoad = false;
   
   // Get the selected item's key (if available)
   selectedItemKey = computed(() => {
@@ -350,6 +352,19 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       distinctUntilChanged(),
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(async (items) => {
+      const rejectedIds = items
+        .filter(item => this.isRejectedItem(item))
+        .map(item => item?._id)
+        .filter((id): id is string => typeof id === 'string');
+
+      for (const id of rejectedIds) {
+        if (this.loadedPhotoIds.has(id)) {
+          this.photoRepository.removePhoto(id);
+          this.loadedPhotoIds.delete(id);
+        }
+      }
+
+      items = items.filter(item => !this.isRejectedItem(item));
       items = items.sort((item1, item2) => {
         const createdAt1 = typeof item1?.created_at === 'string' ? item1.created_at : '';
         const createdAt2 = typeof item2?.created_at === 'string' ? item2.created_at : '';
@@ -406,8 +421,13 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         this.qrSmall.set(true);
         this.isLoading.set(false); // Content is now loaded
         
-        // Switch to the desired layout if not the default circle-packing
-        if (this.currentLayout() !== 'circle-packing') {
+        // Switch to the desired layout if not the default circle-packing.
+        // If a hash-selected layout was already prepared before first load,
+        // we still rerun TSNE once after data arrives so positions/cache are
+        // populated from actual items (prevents empty thematic view on load).
+        const shouldSwitchAfterLoad = this.currentLayout() !== 'circle-packing'
+          && (!this.initialLayoutPreparedBeforeLoad || this.currentLayout() === 'tsne');
+        if (shouldSwitchAfterLoad) {
           try {
             switch (this.currentLayout()) {
               case 'tsne':
@@ -568,16 +588,23 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       this.photoRepository.updateDragPermissions(this.dragAllActive(), this.userAuthorId());
     });
     
-    // Check for item permalink in URL hash (e.g. #item-id)
+    // Parse state from URL hash (supports legacy #item-id and params format).
     if (this.platform.browser()) {
-      const hashParts = window.location.hash.slice(1).split('?')[0];
-      if (hashParts && !hashParts.includes('search=')) {
-        this.focusItemId.set(hashParts);
+      const hashState = this.parseHashState();
+      if (hashState.itemId) {
+        this.focusItemId.set(hashState.itemId);
+      }
+      if (typeof hashState.search === 'string') {
+        this.searchText.set(hashState.search);
+        this.searchActive.set(hashState.search.trim().length > 0);
+      }
+      if (hashState.view) {
+        this.currentLayout.set(hashState.view);
       }
     }
 
     // When loading with a focus target, default to svg+bg with autopositioning
-    if (this.focusItemId()) {
+    if (this.focusItemId() && this.currentLayout() === 'circle-packing') {
       this.currentLayout.set('svg');
       this.enableSvgAutoPositioning.set(true);
     }
@@ -928,6 +955,19 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     return max;
   }
 
+  private isRejectedItem(item: any): boolean {
+    if (!item || typeof item !== 'object') {
+      return false;
+    }
+
+    if (item._private_moderation === 0) {
+      return true;
+    }
+
+    const status = typeof item.status === 'string' ? item.status.toLowerCase().trim() : '';
+    return status === 'rejected';
+  }
+
   async ngAfterViewInit() {
     this.taxonomyService.fetch();
     if (this.platform.browser()) {
@@ -946,7 +986,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       });
       fromEvent(window, 'hashchange').pipe(
         takeUntilDestroyed(this.destroyRef)
-      ).subscribe(() => this.updateActiveItemZIndex());
+      ).subscribe(() => this.applyHashStateFromUrl());
       fromEvent(window, 'resize').pipe(
         takeUntilDestroyed(this.destroyRef)
       ).subscribe(() => this.measureTitle());
@@ -1125,18 +1165,20 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     
     // Start initial polling after component is ready
     if (this.platform.browser()) {
-      // Read search from URL hash on init
-      const hash = window.location.hash.substring(1);
-      const params = new URLSearchParams(hash);
-      const searchParam = params.get('search');
-      if (searchParam) {
-        const searchText = searchParam.replace(/\+/g, ' ');
-        this.searchText.set(searchText);
-        if (searchText) {
-          this.searchActive.set(true);
+      if (this.currentLayout() !== 'circle-packing') {
+        try {
+          if (this.currentLayout() === 'tsne') {
+            await this.switchToTsneLayout();
+          } else if (this.currentLayout() === 'svg') {
+            await this.switchToSvgLayout();
+          }
+          this.initialLayoutPreparedBeforeLoad = true;
+        } catch (error) {
+          console.error('Error preparing initial layout before load:', error);
+          this.initialLayoutPreparedBeforeLoad = false;
         }
       }
-      
+
       timer(ANIMATION_CONSTANTS.INITIAL_POLLING_DELAY).pipe(
         takeUntilDestroyed(this.destroyRef)
       ).subscribe(() => {
@@ -1193,6 +1235,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       
       // Update UI immediately for responsive feedback
       this.currentLayout.set('tsne');
+      this.updateHashState({ view: 'tsne' });
       this.syncThematicFisheyeEffects();
       
       // Create TSNE layout strategy with same dimensions as grid layout
@@ -1301,6 +1344,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     try {
       // UI mode indicator only; we keep existing item positions (circle packing)
       this.currentLayout.set('svg');
+      this.updateHashState({ view: 'svg' });
       this.syncThematicFisheyeEffects();
 
       // Clear taxonomy overlay labels
@@ -1518,6 +1562,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     try {
       // Update UI immediately for responsive feedback
       this.currentLayout.set('circle-packing');
+      this.updateHashState({ view: 'circle-packing' });
       this.syncThematicFisheyeEffects();
 
       // Clear taxonomy overlay labels
@@ -1602,21 +1647,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   private updateSearchHash(): void {
     const search = this.searchText();
-    const params = new URLSearchParams(window.location.hash.substring(1));
-    
-    if (search) {
-      params.set('search', search.replace(/ /g, '+'));
-    } else {
-      params.delete('search');
-    }
-    
-    const newHash = params.toString();
-    if (newHash) {
-      window.location.hash = newHash;
-    } else {
-      // Remove hash if empty (but preserve the # for consistency)
-      window.location.hash = '';
-    }
+    this.updateHashState({ search: search || null });
   }
 
   /**
@@ -1910,9 +1941,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Also updates URL hash with item ID
    */
   onPhotoClick(photoId: string): void {
-    
-    // Save item ID to URL hash
-    window.location.hash = photoId;
+    this.updateHashState({ itemId: photoId });
     // Bump z-index for this item
     this.updateActiveItemZIndex();
     
@@ -1983,7 +2012,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Update z-index (renderOrder) for the active hash item
    */
   private updateActiveItemZIndex(): void {
-    const activeItemId = window.location.hash.slice(1);
+    const activeItemId = this.parseHashState().itemId ?? null;
     
     if (activeItemId) {
       // Boost the active item
@@ -2026,8 +2055,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   onBackgroundClick(): void {
     this.sidebarOpen.set(false);
     this.selectedItemId.set(null);
-    // Clear URL hash when closing
-    window.location.hash = '';
+    this.updateHashState({ itemId: null });
     // Reset z-index for all items
     this.resetAllItemsZIndex();
   }
@@ -2038,10 +2066,126 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   onSidebarClose(): void {
     this.sidebarOpen.set(false);
     this.selectedItemId.set(null);
-    // Clear URL hash when closing
-    window.location.hash = '';
+    this.updateHashState({ itemId: null });
     // Reset z-index for all items
     this.resetAllItemsZIndex();
+  }
+
+  private parseHashState(): {
+    view?: 'tsne' | 'svg' | 'circle-packing';
+    itemId?: string;
+    search?: string;
+  } {
+    if (!this.platform.browser()) {
+      return {};
+    }
+
+    const raw = window.location.hash.startsWith('#')
+      ? window.location.hash.slice(1)
+      : window.location.hash;
+    if (!raw) {
+      return {};
+    }
+
+    if (!raw.includes('=')) {
+      const legacyView = this.normalizeLayout(raw);
+      if (legacyView) {
+        return { view: legacyView };
+      }
+      return { itemId: raw };
+    }
+
+    const params = new URLSearchParams(raw);
+    const rawView = params.get('view') ?? params.get('layout');
+    const view = this.normalizeLayout(rawView);
+    const itemId = params.get('item') ?? undefined;
+    const search = params.get('search') ?? undefined;
+
+    return {
+      view: view ?? undefined,
+      itemId,
+      search,
+    };
+  }
+
+  private normalizeLayout(layout: string | null): 'tsne' | 'svg' | 'circle-packing' | null {
+    if (!layout) return null;
+    if (layout === 'tsne' || layout === 'svg' || layout === 'circle-packing') {
+      return layout;
+    }
+    return null;
+  }
+
+  private updateHashState(patch: {
+    view?: 'tsne' | 'svg' | 'circle-packing' | null;
+    itemId?: string | null;
+    search?: string | null;
+  }): void {
+    if (!this.platform.browser() || this.isApplyingHashState) {
+      return;
+    }
+
+    const current = this.parseHashState();
+    const params = new URLSearchParams();
+
+    const view = patch.view === undefined
+      ? (current.view ?? this.currentLayout())
+      : patch.view;
+    const itemId = patch.itemId === undefined ? (current.itemId ?? null) : patch.itemId;
+    const search = patch.search === undefined ? (current.search ?? null) : patch.search;
+
+    if (view) {
+      params.set('view', view);
+    }
+    if (itemId && itemId.trim().length > 0) {
+      params.set('item', itemId);
+    }
+    if (search && search.trim().length > 0) {
+      params.set('search', search);
+    }
+
+    const nextHash = params.toString();
+    const currentHash = window.location.hash.startsWith('#')
+      ? window.location.hash.slice(1)
+      : window.location.hash;
+
+    if (nextHash === currentHash) {
+      return;
+    }
+
+    this.isApplyingHashState = true;
+    window.location.hash = nextHash;
+    this.isApplyingHashState = false;
+  }
+
+  private applyHashStateFromUrl(): void {
+    if (!this.platform.browser() || this.isApplyingHashState) {
+      return;
+    }
+
+    const hashState = this.parseHashState();
+
+    if (typeof hashState.search === 'string' && hashState.search !== this.searchText()) {
+      this.searchText.set(hashState.search);
+      this.searchActive.set(hashState.search.trim().length > 0);
+    }
+
+    const itemId = hashState.itemId ?? null;
+    if (itemId !== this.focusItemId()) {
+      this.focusItemId.set(itemId);
+    }
+
+    if (hashState.view && hashState.view !== this.currentLayout()) {
+      if (hashState.view === 'tsne') {
+        void this.switchToTsneLayout();
+      } else if (hashState.view === 'svg') {
+        void this.switchToSvgLayout();
+      } else {
+        void this.switchToCirclePackingLayout();
+      }
+    }
+
+    this.updateActiveItemZIndex();
   }
 
   /**

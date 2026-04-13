@@ -4,8 +4,8 @@ import { PHOTO_CONSTANTS } from './photo-constants';
 
 const THEME_CLUSTER_GAP_FACTOR = 6.0;
 const SUBTHEME_CLUSTER_MARGIN_FACTOR = 0.9;
-const HEXBIN_STEP_X_FACTOR = 1.02;
-const HEXBIN_STEP_Y_FACTOR = 1.0;
+const HEXBIN_STEP_X_FACTOR = 1.122;
+const HEXBIN_STEP_Y_FACTOR = 1.1;
 
 /**
  * Force-directed thematic layout.
@@ -79,6 +79,7 @@ export class TaxonomyLayoutStrategy extends LayoutStrategy {
     this.layoutThemeNodes(themeNodes);
     this.layoutSubThemeNodes(themeNodes, subThemeNodes, subThemeGroups);
     this.layoutPhotosAsHexbin(subThemeGroups);
+    this.flattenPhotosToGlobalHexGrid(nodes, subThemeNodes);
     this.centerAllNodes(nodes, themeNodes, subThemeNodes);
 
     this.positionCache.clear();
@@ -294,7 +295,7 @@ export class TaxonomyLayoutStrategy extends LayoutStrategy {
       const sorted = [...list].sort((a, b) => b.itemCount - a.itemCount || a.id.localeCompare(b.id));
 
       for (const node of sorted) {
-        const clusterSize = subThemeGroups.get(node.id)?.length ?? node.itemCount;
+        const clusterSize = (subThemeGroups.get(node.id)?.length ?? node.itemCount) + 1;
         const ringCount = this.hexRingsForCount(clusterSize);
         const nodeRadius = (ringCount + 1) * baseRadius;
 
@@ -317,13 +318,47 @@ export class TaxonomyLayoutStrategy extends LayoutStrategy {
       if (!anchor) continue;
 
       const sorted = [...members].sort((a, b) => a.photo.id.localeCompare(b.photo.id));
-      const coords = this.generateHexSpiralCoords(sorted.length);
+      const coords = this.generateHexSpiralCoords(sorted.length + 1).slice(1);
 
       for (let i = 0; i < sorted.length; i++) {
         const c = coords[i];
         sorted[i].x = anchor.x + (c.q + c.r * 0.5) * stepX;
         sorted[i].y = anchor.y + c.r * stepY;
       }
+    }
+  }
+
+  private flattenPhotosToGlobalHexGrid(
+    nodes: TaxonomyNode[],
+    subThemeNodes: TaxonomyLabelNode[]
+  ): void {
+    const stepX = this.cellW * HEXBIN_STEP_X_FACTOR;
+    const stepY = this.cellH * HEXBIN_STEP_Y_FACTOR;
+    const occupied = new Set<string>();
+
+    for (const labelNode of subThemeNodes) {
+      const anchorHex = this.roundAxial(
+        (labelNode.x / stepX) - (labelNode.y / stepY) * 0.5,
+        labelNode.y / stepY,
+      );
+      occupied.add(this.hexKey(anchorHex.q, anchorHex.r));
+    }
+
+    const sorted = [...nodes].sort((a, b) => {
+      const topicCompare = (a.primaryTopic ?? '').localeCompare(b.primaryTopic ?? '');
+      if (topicCompare !== 0) return topicCompare;
+      return a.photo.id.localeCompare(b.photo.id);
+    });
+
+    for (const node of sorted) {
+      const desired = this.roundAxial(
+        (node.x / stepX) - (node.y / stepY) * 0.5,
+        node.y / stepY,
+      );
+      const target = this.findNearestFreeHex(desired.q, desired.r, occupied);
+      node.x = (target.q + target.r * 0.5) * stepX;
+      node.y = target.r * stepY;
+      occupied.add(this.hexKey(target.q, target.r));
     }
   }
 
@@ -375,6 +410,49 @@ export class TaxonomyLayoutStrategy extends LayoutStrategy {
       capacity += rings * 6;
     }
     return rings;
+  }
+
+  private findNearestFreeHex(
+    q: number,
+    r: number,
+    occupied: Set<string>
+  ): { q: number; r: number } {
+    for (const offset of this.generateHexSpiralCoords(2000)) {
+      const candidate = { q: q + offset.q, r: r + offset.r };
+      if (!occupied.has(this.hexKey(candidate.q, candidate.r))) {
+        return candidate;
+      }
+    }
+
+    return { q, r };
+  }
+
+  private roundAxial(q: number, r: number): { q: number; r: number } {
+    const x = q;
+    const z = r;
+    const y = -x - z;
+
+    let rx = Math.round(x);
+    let ry = Math.round(y);
+    let rz = Math.round(z);
+
+    const xDiff = Math.abs(rx - x);
+    const yDiff = Math.abs(ry - y);
+    const zDiff = Math.abs(rz - z);
+
+    if (xDiff > yDiff && xDiff > zDiff) {
+      rx = -ry - rz;
+    } else if (yDiff > zDiff) {
+      ry = -rx - rz;
+    } else {
+      rz = -rx - ry;
+    }
+
+    return { q: rx, r: rz };
+  }
+
+  private hexKey(q: number, r: number): string {
+    return `${q},${r}`;
   }
 
   private generateHexSpiralCoords(count: number): Array<{ q: number; r: number }> {

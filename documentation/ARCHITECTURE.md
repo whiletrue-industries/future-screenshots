@@ -125,11 +125,11 @@ The application uses Angular standalone components organized by feature:
      - SVG: Interactive placement on custom background with hotspots
      - Circle Packing: Clustered circular arrangement by group
    - **Taxonomy overlay labels** (shown in Thematic layout):
-     - At zoom-out: theme-level labels positioned at the centroid of each theme's items
-       - At zoom-in (zoom > 1.35×): sub-theme labels shown; positions are derived from topic centroids, with TSNE cluster regions as fallback
+       - Only sub-theme labels are shown; positions are derived from taxonomy label nodes, with TSNE cluster regions as fallback when topic metadata is unavailable
      - Labels update position in real-time at 60 fps using `ThreeRendererService.addFrameCallback()`
     - TSNE fallback mapping: items missing from server TSNE grid are still positioned in Thematic layout using deterministic topic/theme centroid fallback (instead of being hidden)
-   - TSNE collision handling: all items in Thematic layout (including uncertain/non-evaluated) are assigned globally unique hexbins; collisions are resolved by nearest-free-bin deterministic hex-spiral allocation
+    - TSNE collision handling: all items in Thematic layout (including uncertain/non-evaluated) are assigned globally unique hexbins; collisions are resolved by nearest-free-bin deterministic hex-spiral allocation, and sub-theme label anchor bins are kept free so labels do not share a bin with a photo node
+   - Rejected items are excluded from showcase ingestion (`_private_moderation === 0` or `status === rejected`) and are not rendered in showcase-ws or output-map loops
    - User camera controls:
      - Pan: Click and drag to move around the canvas
      - Zoom: Mouse wheel to zoom in/out (centered on cursor)

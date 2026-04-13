@@ -187,6 +187,7 @@ export class ThreeRendererService {
   private topFisheyeMesh: THREE.Mesh | null = null;
   private thematicFisheyeEffectsEnabled = false;
   private fisheyeLastDeltaTime = 1 / 60;
+  private fisheyePointerActive = false;
   private taxonomyEffectBaseOpacity = new Map<THREE.Mesh, number>();
   private taxonomyHoverFocus: { topicId: string | null; themeId: string | null } | null = null;
   private fisheyeFocusPoint = new THREE.Vector3();
@@ -1191,6 +1192,33 @@ export class ThreeRendererService {
       const photoHeightPx = this.PHOTO_H * pxPerWorldUnit;
       const photoHeightVh = (photoHeightPx / viewportHeight) * 100;
       if (photoHeightVh >= config.maxHeight) {
+        for (const mesh of previouslyAffected) {
+          const photoData = this.meshToPhotoData.get(mesh);
+          if (photoData && photoData.currentPosition) {
+            mesh.position.set(
+              photoData.currentPosition.x,
+              photoData.currentPosition.y,
+              photoData.currentPosition.z
+            );
+          } else if (this.meshOriginalStates.has(mesh)) {
+            const originalState = this.meshOriginalStates.get(mesh)!;
+            mesh.position.copy(originalState.position);
+          }
+
+          mesh.scale.set(1, 1, 1);
+          this.restoreBaseRenderOrder(mesh, photoData);
+
+          if (mesh.userData['originalRotation'] !== undefined) {
+            mesh.rotation.z = mesh.userData['originalRotation'];
+            mesh.userData['originalRotation'] = undefined;
+          }
+
+          if (mesh.userData['shadowMesh']) {
+            this.scene.remove(mesh.userData['shadowMesh']);
+            mesh.userData['shadowMesh'] = null;
+          }
+        }
+
         this.topFisheyeMesh = null;
         this.resetFisheyeTaxonomyOpacityDimming();
         return; // Disable fisheye when zoomed in beyond fisheye extent
@@ -1207,6 +1235,31 @@ export class ThreeRendererService {
 
       // Skip filtered/transparent items: they are intentionally non-interactive.
       if (!this.isMeshInteractive(mesh)) {
+        if (previouslyAffected.has(mesh)) {
+          const photoData = this.meshToPhotoData.get(mesh);
+          if (photoData && photoData.currentPosition) {
+            mesh.position.set(
+              photoData.currentPosition.x,
+              photoData.currentPosition.y,
+              photoData.currentPosition.z
+            );
+          } else if (this.meshOriginalStates.has(mesh)) {
+            mesh.position.copy(this.meshOriginalStates.get(mesh)!.position);
+          }
+
+          mesh.scale.set(1, 1, 1);
+          this.restoreBaseRenderOrder(mesh, photoData);
+
+          if (mesh.userData['originalRotation'] !== undefined) {
+            mesh.rotation.z = mesh.userData['originalRotation'];
+            mesh.userData['originalRotation'] = undefined;
+          }
+
+          if (mesh.userData['shadowMesh']) {
+            this.scene.remove(mesh.userData['shadowMesh']);
+            mesh.userData['shadowMesh'] = null;
+          }
+        }
         return;
       }
 
@@ -1214,7 +1267,28 @@ export class ThreeRendererService {
       const photoData = this.meshToPhotoData.get(mesh);
       
       // Skip hidden items (animationState === 'hidden')
-      if (photoData && photoData.animationState === 'hidden') return;
+      if (photoData && photoData.animationState === 'hidden') {
+        if (previouslyAffected.has(mesh)) {
+          mesh.position.set(
+            photoData.currentPosition.x,
+            photoData.currentPosition.y,
+            photoData.currentPosition.z
+          );
+          mesh.scale.set(1, 1, 1);
+          this.restoreBaseRenderOrder(mesh, photoData);
+
+          if (mesh.userData['originalRotation'] !== undefined) {
+            mesh.rotation.z = mesh.userData['originalRotation'];
+            mesh.userData['originalRotation'] = undefined;
+          }
+
+          if (mesh.userData['shadowMesh']) {
+            this.scene.remove(mesh.userData['shadowMesh']);
+            mesh.userData['shadowMesh'] = null;
+          }
+        }
+        return;
+      }
 
       let logicalPosition = mesh.position.clone();
       let meshHeight = this.PHOTO_H;
@@ -2439,6 +2513,7 @@ export class ThreeRendererService {
     // Mouse move - drag or pan
     canvas.addEventListener('mousemove', (event) => {
       this.updateMousePosition(event);
+      this.fisheyePointerActive = true;
       this.onMouseMove(event);
     });
 
@@ -2450,6 +2525,7 @@ export class ThreeRendererService {
 
     // Mouse leave - reset fisheye effect and cleanup drag state
     canvas.addEventListener('mouseleave', () => {
+      this.fisheyePointerActive = false;
       // Clean up drag state if dragging when leaving canvas
       if (this.isDragging) {
         this.cleanupDragState();
@@ -2459,6 +2535,7 @@ export class ThreeRendererService {
     });
 
     canvas.addEventListener('touchcancel', () => {
+      this.fisheyePointerActive = false;
       if (this.isDragging) {
         this.cleanupDragState();
       }
@@ -2481,6 +2558,7 @@ export class ThreeRendererService {
     // Touch events for mobile
     canvas.addEventListener('touchstart', (event) => {
       event.preventDefault(); // Prevent default touch behavior
+      this.fisheyePointerActive = true;
       
       if (event.touches.length === 1) {
         // Single touch - could be drag or tap
@@ -2522,6 +2600,7 @@ export class ThreeRendererService {
 
     canvas.addEventListener('touchmove', (event) => {
       event.preventDefault();
+      this.fisheyePointerActive = true;
       
       if (event.touches.length === 1 && !this.isTwoFingerGesture) {
         // Single touch - drag
@@ -2568,6 +2647,7 @@ export class ThreeRendererService {
     }, { passive: false });
 
     canvas.addEventListener('touchend', (event) => {
+      this.fisheyePointerActive = event.touches.length > 0;
       if (event.touches.length === 0) {
         // All fingers lifted
         if (this.isTwoFingerGesture) {
@@ -2576,6 +2656,7 @@ export class ThreeRendererService {
         }
         this.isTwoFingerGesture = false;
         this.lastTouchDistance = 0;
+        this.resetAllFisheyeEffects();
         this.onMouseUp();
       } else if (event.touches.length === 1) {
         // One finger remaining - reset to single touch mode
@@ -2602,14 +2683,17 @@ export class ThreeRendererService {
     fromEvent(window, 'touchend').pipe(
       takeUntil(this.destroy$)
     ).subscribe(() => {
+      this.fisheyePointerActive = false;
       if (this.isDragging) {
         this.cleanupDragState();
       }
+      this.resetAllFisheyeEffects();
     });
 
     fromEvent(window, 'blur').pipe(
       takeUntil(this.destroy$)
     ).subscribe(() => {
+      this.fisheyePointerActive = false;
       if (this.isDragging) {
         this.cleanupDragState();
       }
@@ -2622,6 +2706,7 @@ export class ThreeRendererService {
     if (!this.container) return;
     
     this.hasUserInteracted = true; // User has moved mouse
+    this.fisheyePointerActive = true;
     const rect = this.container.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -2633,6 +2718,7 @@ export class ThreeRendererService {
     if (!this.container) return;
     
     this.hasUserInteracted = true; // User has touched screen
+    this.fisheyePointerActive = true;
     const rect = this.container.getBoundingClientRect();
     this.mouse.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
@@ -3297,8 +3383,10 @@ export class ThreeRendererService {
       }
 
       // Apply fisheye effect if enabled (continuously, not just on mouse move)
-      if (this.fisheyeEnabled) {
+      if (this.fisheyeEnabled && this.fisheyePointerActive) {
         this.applyFisheyeEffect();
+      } else if (this.fisheyeAffectedMeshes.size > 0 || this.topFisheyeMesh) {
+        this.resetAllFisheyeEffects();
       }
 
       // Performance monitoring
