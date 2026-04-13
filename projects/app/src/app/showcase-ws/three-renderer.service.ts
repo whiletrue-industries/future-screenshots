@@ -43,6 +43,7 @@ export class ThreeRendererService {
   private readonly PHOTO_H: number;
   private readonly FOV_DEG: number;
   private readonly CAM_MARGIN: number;
+  private readonly COMPOSITION_MARGIN_RATIO = 0.3;
   private readonly CAM_DAMP: number;
   private readonly ANISO: number;
   private readonly BG: number;
@@ -496,7 +497,7 @@ export class ThreeRendererService {
    * Stores bounds, recomputes zoom limits, and optionally auto-fits camera.
    */
   setSceneBounds(bounds: SceneBounds, options?: { animate?: boolean; force?: boolean; duration?: number }): Promise<void> {
-    this.bounds = { ...bounds };
+    this.bounds = this.expandBoundsForCompositionMargin(bounds);
     this.recomputeZoomLimits();
 
     const shouldFit = this.cameraMode === 'auto-fit' || options?.force;
@@ -545,6 +546,20 @@ export class ThreeRendererService {
       this.targetCamZ = targetZ;
       return Promise.resolve();
     }
+  }
+
+  private expandBoundsForCompositionMargin(bounds: SceneBounds): SceneBounds {
+    const width = Math.max(1, bounds.maxX - bounds.minX);
+    const height = Math.max(1, bounds.maxY - bounds.minY);
+    const marginX = width * this.COMPOSITION_MARGIN_RATIO;
+    const marginY = height * this.COMPOSITION_MARGIN_RATIO;
+
+    return {
+      minX: bounds.minX - marginX,
+      maxX: bounds.maxX + marginX,
+      minY: bounds.minY - marginY,
+      maxY: bounds.maxY + marginY,
+    };
   }
 
   /**
@@ -3382,11 +3397,16 @@ export class ThreeRendererService {
         this.isSceneIdle = true;
       }
 
-      // Apply fisheye effect if enabled (continuously, not just on mouse move)
+      let fisheyeUpdated = false;
+      let fisheyeReset = false;
+
+      // Apply fisheye only while pointer interaction is active.
       if (this.fisheyeEnabled && this.fisheyePointerActive) {
         this.applyFisheyeEffect();
+        fisheyeUpdated = true;
       } else if (this.fisheyeAffectedMeshes.size > 0 || this.topFisheyeMesh) {
         this.resetAllFisheyeEffects();
+        fisheyeReset = true;
       }
 
       // Performance monitoring
@@ -3401,8 +3421,10 @@ export class ThreeRendererService {
         this.lastFpsUpdate = now;
       }
 
-      // Only render if scene is not idle or fisheye is active
-      if (!this.isSceneIdle || this.fisheyeEnabled) {
+      const shouldRenderFrame = !this.isSceneIdle || fisheyeUpdated || fisheyeReset;
+
+      // Render only when camera/tweens/interaction changed anything this frame.
+      if (shouldRenderFrame) {
         this.renderScene();
         if (this.performanceMonitoring) this.renderCount++;
       } else {
@@ -3420,8 +3442,8 @@ export class ThreeRendererService {
         this.runLodPass();
       }
 
-      // Notify frame callbacks (e.g. overlay components updating screen positions)
-      if (this.frameCallbacks.size > 0) {
+      // Notify frame callbacks only when a frame was effectively updated.
+      if (shouldRenderFrame && this.frameCallbacks.size > 0) {
         this.frameCallbacks.forEach(cb => cb());
       }
 

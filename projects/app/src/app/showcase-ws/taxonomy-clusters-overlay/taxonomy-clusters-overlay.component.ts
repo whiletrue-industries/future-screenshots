@@ -31,6 +31,7 @@ import { ThreeRendererService } from '../three-renderer.service';
 })
 export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
   private static readonly MIN_ITEMS_FOR_LABEL = 2;
+  private static readonly CULLING_INTERVAL_MS = 120;
 
   /** First taxonomy layer – kept for host compatibility but never displayed. */
   themeLabels = input<TaxonomyClusterLabel[]>([]);
@@ -59,6 +60,7 @@ export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
   private cachedLabelEls: HTMLElement[] = [];
   /** Per-label computed font sizes, recalculated when the active set changes. */
   private cachedFontSizes: number[] = [];
+  private lastCullingAt = 0;
 
   constructor() {
     // Invalidate the DOM element cache whenever the active label set changes.
@@ -114,6 +116,10 @@ export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
         this.cachedLabelEls[i].style.setProperty('--label-font-size', `${fontSize}px`);
       }
     }
+
+    // Force a one-off update immediately after cache refresh.
+    this.lastCullingAt = 0;
+    this.updateLabelPositions();
   }
 
   /**
@@ -170,6 +176,12 @@ export class TaxonomyClustersOverlayComponent implements OnInit, OnDestroy {
       s.el.style.transform = `translate(-50%, -50%) translate(${s.x}px, ${s.y}px)`;
       s.el.style.display = '';
     }
+
+    const now = performance.now();
+    if (now - this.lastCullingAt < TaxonomyClustersOverlayComponent.CULLING_INTERVAL_MS) {
+      return;
+    }
+    this.lastCullingAt = now;
 
     // --- 4. Overlap culling using bounding rects (all visible so rects are valid) ---
     //        Add a small padding so labels don't sit flush against each other.
