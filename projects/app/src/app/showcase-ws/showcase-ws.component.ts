@@ -71,6 +71,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   // Evaluation sidebar state
   sidebarOpen = signal(false);
   selectedItemId = signal<string | null>(null);
+
+  // Strategic workshop: group filter (from ?group= query param)
+  wsGroupFilter = signal<string | null>(null);
   
   // Permalink support - item to focus on after load
   focusItemId = signal<string | null>(null);
@@ -365,6 +368,13 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       }
 
       items = items.filter(item => !this.isRejectedItem(item));
+
+      // Strategic workshop: filter by group if ?group= is set
+      const groupFilter = this.wsGroupFilter();
+      if (groupFilter) {
+        items = items.filter(item => item.ws_group_id === groupFilter);
+      }
+
       items = items.sort((item1, item2) => {
         const createdAt1 = typeof item1?.created_at === 'string' ? item1.created_at : '';
         const createdAt2 = typeof item2?.created_at === 'string' ? item2.created_at : '';
@@ -572,6 +582,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.api_key.set(qp['api_key'] || 'API_KEY_NOT_SET');
     this.admin_key.set(qp['admin_key'] || 'ADMIN_KEY_NOT_SET');
     this.lang.set(qp['lang'] ? qp['lang'] + '/' : '');
+
+    // Strategic workshop: group filter from URL
+    if (qp['group']) {
+      this.wsGroupFilter.set(qp['group']);
+    }
 
     // Parse item_key from URL ?key= param (authors visiting showcase with their key)
     const urlItemKey = qp['key'] || '';

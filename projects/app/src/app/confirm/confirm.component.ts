@@ -1246,6 +1246,12 @@ export class ConfirmComponent implements OnDestroy {
       if (participantName) {
         metadata['participant_name'] = participantName;
       }
+      // Include participant email for strategic workshop links email
+      const participantEmail = this.route.snapshot.queryParams['participant_email'];
+      if (participantEmail) {
+        metadata['_private_email'] = participantEmail;
+        metadata['_ws_strategic_email'] = true; // flag for server to send strategic links
+      }
       // Ensure author_id is set
       let authorId = localStorage.getItem('future_screenshots_author_id');
       if (!authorId) {
@@ -1259,26 +1265,13 @@ export class ConfirmComponent implements OnDestroy {
       this.api.startBackgroundUpload(currentImage, metadata);
 
       if (this.api.wsStrategic()) {
-        // Strategic workshop: navigate back to canvas creator for the next round
-        const ws = this.api.workspace();
-        const totalRounds: number = ws?.metadata?.ws_rounds || ws?.ws_rounds || 4;
-        const wsRound = parseInt(this.route.snapshot.queryParams['ws_round'] || '1', 10);
-        const nextRound = wsRound + 1;
-        if (nextRound <= totalRounds) {
-          const params = { ...this.route.snapshot.queryParams };
-          delete params['template'];
-          delete params['template_id'];
-          params['ws_round'] = nextRound;
-          this.router.navigate(['/canvas-creator'], { queryParams: params });
-        } else {
-          // All rounds done
-          const params = { ...this.route.snapshot.queryParams };
-          delete params['template'];
-          delete params['template_id'];
-          delete params['ws_round'];
-          params['ws_done'] = 'true';
-          this.router.navigate(['/canvas-creator'], { queryParams: params });
-        }
+        // Strategic workshop: navigate back to canvas-creator with ws_just_uploaded flag
+        // Canvas-creator will show the add-another / advance / back CTAs
+        const params = { ...this.route.snapshot.queryParams };
+        delete params['template'];
+        delete params['template_id'];
+        params['ws_just_uploaded'] = 'true';
+        this.router.navigate(['/canvas-creator'], { queryParams: params });
         return;
       }
 

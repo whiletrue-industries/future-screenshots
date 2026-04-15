@@ -1,63 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
-import { WsGroup } from '../admin/workspace-metadata.interface';
 import { ApiService } from '../../api.service';
-
-export interface WsComment {
-  id: string;
-  text: string;
-  author?: string;
-  created_at: string;
-  color?: string;
-  // Position within the sticky notes canvas (normalized 0-1)
-  sticky_x?: number;
-  sticky_y?: number;
-}
-
-export interface WsItem {
-  id: string;
-  screenshot_url?: string;
-  thumbnail_url?: string;
-  author_id?: string;
-  participant_name?: string;
-  ws_group_id?: string;
-  ws_round?: number;
-  ws_comments?: WsComment[];
-  // layout position for drag-and-drop (normalized 0-1)
-  ws_layout_x?: number;
-  ws_layout_y?: number;
-  [key: string]: any;
-}
-
-interface GroupRow {
-  group: WsGroup;
-  participants: ParticipantRow[];
-}
-
-interface ParticipantRow {
-  authorId: string;
-  participantName: string;
-  rounds: (WsItem | null)[];
-}
-
-const COMMENT_COLORS = ['#FFD600', '#FF6D00', '#E040FB', '#40C4FF', '#69F0AE'];
-
-/** Generates a UUID v4, falling back to a Math.random-based approach in non-secure contexts. */
-function generateUUID(): string {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    try {
-      return crypto.randomUUID();
-    } catch {
-      // Fall through to fallback
-    }
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-    const r = (Math.random() * 16) | 0;
-    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
-  });
-}
+import { WsGroup } from '../admin/workspace-metadata.interface';
 
 @Component({
   selector: 'app-showcase-ws-strategic',
@@ -68,394 +13,256 @@ function generateUUID(): string {
 })
 export class ShowcaseWsStrategicComponent implements OnInit {
   private route = inject(ActivatedRoute);
-  private router = inject(Router);
   private http = inject(HttpClient);
-  private destroyRef = inject(DestroyRef);
   private api = inject(ApiService);
 
-  CHRONOMAPS_API_URL = this.api.CHRONOMAPS_API_URL;
+  readonly CHRONOMAPS_API_URL = this.api.CHRONOMAPS_API_URL;
 
   workspace = signal<string>('');
-  apiKey = signal<string>('');
-  adminKey = signal<string>('');
+  apiKey = signal<string>('');   // collaborate key (for participant links)
+  adminKey = signal<string>(''); // admin key (for loading items for Miro)
 
   workspaceMeta = signal<any>(null);
-  items = signal<WsItem[]>([]);
+  items = signal<any[]>([]);
   isLoading = signal(true);
   errorMsg = signal<string | null>(null);
 
-  // Comment UI state
-  commentTargetId = signal<string | null>(null);
-  commentText = signal('');
-  commentColor = signal(COMMENT_COLORS[0]);
-  commentColors = COMMENT_COLORS;
+  // Miro export state
+  miroToken = signal<string>('');
+  miroExporting = signal(false);
+  miroResult = signal<{ boardUrl: string; boardName: string } | null>(null);
+  miroError = signal<string | null>(null);
+  miroProgress = signal<string>('');
 
-  // Drag state for screenshot grid
-  private dragItem: WsItem | null = null;
-  private dragStartX = 0;
-  private dragStartY = 0;
+  // Copied link feedback
+  copiedGroupId = signal<string | null>(null);
 
-  // Drag state for sticky notes
-  private dragComment: { itemId: string; comment: WsComment } | null = null;
-
-  // Optional SVG background for sticky notes view (from URL param 'sticky_svg')
-  stickySvgUrl = signal<string | null>(null);
-
-  // View mode: 'grid' = groups×participants×rounds table, 'sticky' = sticky notes on SVG
-  viewMode = signal<'grid' | 'sticky'>('grid');
-
-  groups = computed<WsGroup[]>(() => {
+  wsGroups = computed<WsGroup[]>(() => {
     const meta = this.workspaceMeta();
-    return meta?.metadata?.ws_groups || meta?.ws_groups || [];
+    return meta?.ws_groups || meta?.metadata?.ws_groups || [];
   });
 
-  totalRounds = computed<number>(() => {
+  wsTotalRounds = computed<number>(() => {
     const meta = this.workspaceMeta();
-    return meta?.metadata?.ws_rounds || meta?.ws_rounds || 4;
+    return meta?.ws_rounds || meta?.metadata?.ws_rounds || 5;
   });
 
-  roundPrompts = computed<string[]>(() => {
+  wsRoundPrompts = computed<string[]>(() => {
     const meta = this.workspaceMeta();
-    return meta?.metadata?.ws_round_prompts || meta?.ws_round_prompts || [];
-  });
-
-  roundIndices = computed<number[]>(() => {
-    return Array.from({ length: this.totalRounds() }, (_, i) => i + 1);
-  });
-
-  groupRows = computed<GroupRow[]>(() => {
-    const groups = this.groups();
-    const items = this.items();
-    const totalRounds = this.totalRounds();
-
-    if (groups.length === 0) {
-      // No groups configured: show all items grouped by author
-      const authorMap = new Map<string, WsItem[]>();
-      for (const item of items) {
-        const key = item.author_id || 'unknown';
-        if (!authorMap.has(key)) authorMap.set(key, []);
-        authorMap.get(key)!.push(item);
-      }
-      const participants: ParticipantRow[] = Array.from(authorMap.entries()).map(([authorId, authorItems]) => ({
-        authorId,
-        participantName: authorItems.find(i => i.participant_name)?.participant_name || authorId.slice(0, 8),
-        rounds: Array.from({ length: totalRounds }, (_, i) =>
-          authorItems.find(item => item.ws_round === i + 1) || null
-        ),
-      }));
-      return [{ group: { id: 'all', name: 'All Participants' }, participants }];
-    }
-
-    return groups.map(group => {
-      const groupItems = items.filter(item => item.ws_group_id === group.id);
-      const authorMap = new Map<string, WsItem[]>();
-      for (const item of groupItems) {
-        const key = item.author_id || 'unknown';
-        if (!authorMap.has(key)) authorMap.set(key, []);
-        authorMap.get(key)!.push(item);
-      }
-      const participants: ParticipantRow[] = Array.from(authorMap.entries()).map(([authorId, authorItems]) => ({
-        authorId,
-        participantName: authorItems.find(i => i.participant_name)?.participant_name || authorId.slice(0, 8),
-        rounds: Array.from({ length: totalRounds }, (_, i) =>
-          authorItems.find(item => item.ws_round === i + 1) || null
-        ),
-      }));
-      return { group, participants };
-    });
-  });
-
-  // All comments across all items (for sticky notes view)
-  allComments = computed<Array<WsComment & { item: WsItem }>>(() => {
-    const result: Array<WsComment & { item: WsItem }> = [];
-    for (const item of this.items()) {
-      for (const comment of item.ws_comments || []) {
-        result.push({ ...comment, item });
-      }
-    }
-    return result;
+    return meta?.ws_round_prompts || meta?.metadata?.ws_round_prompts || [];
   });
 
   ngOnInit() {
-    this.route.queryParams.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
-      const ws = params['workspace'] || '';
-      const apiKey = params['api_key'] || '';
-      const adminKey = params['admin_key'] || apiKey;
-      this.workspace.set(ws);
-      this.apiKey.set(apiKey);
-      this.adminKey.set(adminKey);
+    const params = this.route.snapshot.queryParams;
+    this.workspace.set(params['workspace'] || '');
+    this.apiKey.set(params['api_key'] || '');
+    this.adminKey.set(params['admin_key'] || params['api_key'] || '');
 
-      // Optional SVG background for sticky notes view
-      const stickySvg = params['sticky_svg'] || null;
-      this.stickySvgUrl.set(stickySvg);
-
-      if (ws && apiKey) {
-        this.loadWorkspace(ws, apiKey);
-        this.loadItems(ws, apiKey);
-      }
-    });
+    if (this.workspace()) {
+      this.loadWorkspace();
+    } else {
+      this.isLoading.set(false);
+      this.errorMsg.set('No workspace specified.');
+    }
   }
 
-  private loadWorkspace(workspaceId: string, apiKey: string) {
-    this.http.get(`${this.CHRONOMAPS_API_URL}/${workspaceId}`, {
-      headers: { Authorization: apiKey }
+  private loadWorkspace() {
+    const key = this.adminKey() || this.apiKey();
+    this.http.get<any>(`${this.CHRONOMAPS_API_URL}/${this.workspace()}`, {
+      headers: { Authorization: key },
     }).subscribe({
-      next: (data: any) => {
+      next: (data) => {
         this.workspaceMeta.set(data);
+        this.isLoading.set(false);
+        // Load all items for Miro export
+        this.loadAllItems();
       },
-      error: (err) => {
-        console.error('Error loading workspace:', err);
-        this.errorMsg.set('Failed to load workspace');
-      }
+      error: () => {
+        this.errorMsg.set('Failed to load workspace.');
+        this.isLoading.set(false);
+      },
     });
   }
 
-  private loadItems(workspaceId: string, apiKey: string) {
-    this.isLoading.set(true);
-    this.http.get<WsItem[]>(`${this.CHRONOMAPS_API_URL}/${workspaceId}/items`, {
-      headers: { Authorization: apiKey },
-      params: { page_size: '500', order_by: 'created_at' }
+  private loadAllItems() {
+    const key = this.adminKey() || this.apiKey();
+    this.http.get<any>(`${this.CHRONOMAPS_API_URL}/${this.workspace()}/items`, {
+      params: { page: 1, page_size: 500 },
+      headers: { Authorization: key },
     }).subscribe({
-      next: (data: any) => {
-        const items: WsItem[] = Array.isArray(data) ? data : (data?.items || []);
-        // Normalize item shape (API may return {id, metadata:{...}} or flat)
-        const normalized = items.map((item: any) => {
-          if (item.metadata) {
-            return { id: item.id, ...item.metadata };
-          }
-          return item;
-        });
-        this.items.set(normalized);
-        this.isLoading.set(false);
+      next: (data) => {
+        const raw: any[] = data?.items || data || [];
+        this.items.set(raw.filter((item: any) => item.ws_group_id));
       },
-      error: (err) => {
-        console.error('Error loading items:', err);
-        this.errorMsg.set('Failed to load items');
-        this.isLoading.set(false);
-      }
+      error: () => {},
     });
   }
 
-  // ---- Comment management ----
+  // ---- Copy participant link per group ----
 
-  openCommentPanel(itemId: string) {
-    this.commentTargetId.set(itemId);
-    this.commentText.set('');
-  }
-
-  closeCommentPanel() {
-    this.commentTargetId.set(null);
-  }
-
-  submitComment() {
-    const targetId = this.commentTargetId();
-    const text = this.commentText().trim();
-    if (!targetId || !text) return;
-
-    const comment: WsComment = {
-      id: generateUUID(),
-      text,
-      created_at: new Date().toISOString(),
-      color: this.commentColor(),
-    };
-
-    // Optimistically update local state
-    this.items.update(items => items.map(item => {
-      if (item.id === targetId) {
-        return { ...item, ws_comments: [...(item.ws_comments || []), comment] };
-      }
-      return item;
-    }));
-
-    // Persist to API
-    const ws = this.workspace();
-    const apiKey = this.apiKey();
-    if (ws && apiKey) {
-      const item = this.items().find(i => i.id === targetId);
-      const updatedComments = item?.ws_comments || [];
-      this.http.put(
-        `${this.CHRONOMAPS_API_URL}/${ws}/${targetId}`,
-        { ws_comments: updatedComments },
-        { headers: { Authorization: apiKey } }
-      ).subscribe({
-        error: (err) => console.error('Failed to save comment:', err)
-      });
-    }
-
-    this.closeCommentPanel();
-  }
-
-  deleteComment(itemId: string, commentId: string) {
-    this.items.update(items => items.map(item => {
-      if (item.id === itemId) {
-        return { ...item, ws_comments: (item.ws_comments || []).filter(c => c.id !== commentId) };
-      }
-      return item;
-    }));
-
-    // Persist to API
-    const ws = this.workspace();
-    const apiKey = this.apiKey();
-    if (ws && apiKey) {
-      const item = this.items().find(i => i.id === itemId);
-      const updatedComments = item?.ws_comments || [];
-      this.http.put(
-        `${this.CHRONOMAPS_API_URL}/${ws}/${itemId}`,
-        { ws_comments: updatedComments },
-        { headers: { Authorization: apiKey } }
-      ).subscribe({
-        error: (err) => console.error('Failed to delete comment:', err)
-      });
-    }
-  }
-
-  // ---- Drag & Drop for screenshot positions ----
-
-  onItemDragStart(event: DragEvent, item: WsItem) {
-    this.dragItem = item;
-    this.dragComment = null;
-    this.dragStartX = event.clientX;
-    this.dragStartY = event.clientY;
-    if (event.dataTransfer) {
-      event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('text/plain', 'item:' + item.id);
-    }
-  }
-
-  onStickyDragStart(event: DragEvent, itemId: string, comment: WsComment) {
-    this.dragComment = { itemId, comment };
-    this.dragItem = null;
-    if (event.dataTransfer) {
-      event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('text/plain', 'comment:' + comment.id);
-    }
-  }
-
-  onContainerDrop(event: DragEvent, container: HTMLElement) {
-    event.preventDefault();
-    const rect = container.getBoundingClientRect();
-    const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-    const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
-
-    if (this.dragItem) {
-      this.updateItemLayout(this.dragItem.id, x, y);
-      this.dragItem = null;
-    } else if (this.dragComment) {
-      this.updateCommentPosition(this.dragComment.itemId, this.dragComment.comment.id, x, y);
-      this.dragComment = null;
-    }
-  }
-
-  onContainerDragOver(event: DragEvent) {
-    event.preventDefault();
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'move';
-    }
-  }
-
-  resetItemPosition(item: WsItem) {
-    this.updateItemLayout(item.id, undefined, undefined);
-  }
-
-  private updateCommentPosition(itemId: string, commentId: string, x: number, y: number) {
-    this.items.update(items => items.map(item => {
-      if (item.id === itemId) {
-        const comments = (item.ws_comments || []).map(c =>
-          c.id === commentId ? { ...c, sticky_x: x, sticky_y: y } : c
-        );
-        return { ...item, ws_comments: comments };
-      }
-      return item;
-    }));
-
-    const ws = this.workspace();
-    const apiKey = this.apiKey();
-    if (ws && apiKey) {
-      const item = this.items().find(i => i.id === itemId);
-      const updatedComments = item?.ws_comments || [];
-      this.http.put(
-        `${this.CHRONOMAPS_API_URL}/${ws}/${itemId}`,
-        { ws_comments: updatedComments },
-        { headers: { Authorization: apiKey } }
-      ).subscribe({
-        error: (err) => console.error('Failed to update comment position:', err)
-      });
-    }
-  }
-
-  private updateItemLayout(itemId: string, x: number | undefined, y: number | undefined) {
-    this.items.update(items => items.map(item => {
-      if (item.id === itemId) {
-        return { ...item, ws_layout_x: x, ws_layout_y: y };
-      }
-      return item;
-    }));
-
-    const ws = this.workspace();
-    const apiKey = this.apiKey();
-    if (ws && apiKey) {
-      this.http.put(
-        `${this.CHRONOMAPS_API_URL}/${ws}/${itemId}`,
-        { ws_layout_x: x ?? null, ws_layout_y: y ?? null },
-        { headers: { Authorization: apiKey } }
-      ).subscribe({
-        error: (err) => console.error('Failed to update layout:', err)
-      });
-    }
-  }
-
-  // ---- Helpers ----
-
-  getRoundLabel(roundIndex: number): string {
-    const prompts = this.roundPrompts();
-    const prompt = prompts[roundIndex - 1];
-    return prompt ? `R${roundIndex}: ${prompt}` : `Round ${roundIndex}`;
-  }
-
-  getItemStyle(item: WsItem): any {
-    if (item.ws_layout_x !== undefined && item.ws_layout_y !== undefined) {
-      return {
-        position: 'absolute',
-        left: `${item.ws_layout_x * 100}%`,
-        top: `${item.ws_layout_y * 100}%`,
-        transform: 'translate(-50%, -50%)',
-        zIndex: 10,
-      };
-    }
-    return {};
-  }
-
-  getItemImageUrl(item: WsItem): string {
-    return item.thumbnail_url || item.screenshot_url || '';
-  }
-
-  getGroupColor(group: WsGroup): string {
-    return group.color || '#607D8B';
-  }
-
-  trackById(index: number, item: WsItem): string {
-    return item.id;
-  }
-
-  trackByGroupId(index: number, row: GroupRow): string {
-    return row.group.id;
-  }
-
-  trackByAuthorId(index: number, row: ParticipantRow): string {
-    return row.authorId;
-  }
-
-  trackByCommentId(index: number, comment: WsComment): string {
-    return comment.id;
-  }
-
-  openParticipantLink(group: WsGroup) {
-    const ws = this.workspace();
-    const apiKey = this.apiKey();
-    const url = `${window.location.origin}/canvas-creator?workspace=${ws}&api_key=${apiKey}&ws=true&ws_strategic=true&ws_group=${group.id}`;
-    navigator.clipboard?.writeText(url).catch(err => {
-      console.warn('Clipboard write failed:', err);
+  buildParticipantLink(group: WsGroup): string {
+    const base = window.location.origin;
+    const params = new URLSearchParams({
+      workspace: this.workspace(),
+      api_key: this.apiKey(),
+      ws: 'true',
+      ws_strategic: 'true',
+      ws_group: group.id,
     });
-    alert(`Participant link for "${group.name}" copied to clipboard:\n${url}`);
+    return `${base}/canvas-creator?${params.toString()}`;
+  }
+
+  copyParticipantLink(group: WsGroup) {
+    const link = this.buildParticipantLink(group);
+    navigator.clipboard.writeText(link).then(() => {
+      this.copiedGroupId.set(group.id);
+      setTimeout(() => this.copiedGroupId.set(null), 2000);
+    }).catch(() => {
+      // Fallback: prompt user
+      window.prompt('Copy this link:', link);
+    });
+  }
+
+  // ---- Miro export (Option C2 – token paste) ----
+
+  /** Push all groups to Miro as separate boards, each with a participant × round image grid */
+  async sendToMiro() {
+    const token = this.miroToken().trim();
+    if (!token) {
+      this.miroError.set('Please enter a Miro personal access token.');
+      return;
+    }
+
+    this.miroExporting.set(true);
+    this.miroError.set(null);
+    this.miroResult.set(null);
+
+    const groups = this.wsGroups();
+    const totalRounds = this.wsTotalRounds();
+    const allItems = this.items();
+    const meta = this.workspaceMeta();
+    const workshopName = meta?.event_name || meta?.metadata?.event_name || 'Strategic Workshop';
+
+    try {
+      // Use one shared Miro board for all groups
+      this.miroProgress.set('Creating Miro board…');
+      const boardName = `${workshopName} — Strategic Workshop`;
+      const board = await this.miroPost(token, 'https://api.miro.com/v2/boards', {
+        name: boardName,
+        description: 'Auto-generated by mapfutur.es strategic workshop export',
+      });
+      const boardId = board.id as string;
+      const boardUrl = board.viewLink as string;
+
+      // Layout constants (Miro coordinates in points)
+      const IMAGE_W = 320;
+      const IMAGE_H = 600;
+      const STICKY_W = 200;
+      const STICKY_H = 150;
+      const H_GAP = 40;   // horizontal gap between columns
+      const V_GAP = 80;   // vertical gap between rows
+      const GROUP_GAP = 200; // vertical gap between groups
+
+      let groupOffsetY = 0;
+
+      for (const group of groups) {
+        const groupItems = allItems.filter(item => item.ws_group_id === group.id);
+
+        // Collect unique participants
+        const participantMap = new Map<string, string>(); // authorId → name
+        groupItems.forEach(item => {
+          const id = item.author_id || item.participant_name || 'unknown';
+          const name = item.participant_name || id;
+          if (!participantMap.has(id)) participantMap.set(id, name);
+        });
+        const participants = Array.from(participantMap.entries()); // [authorId, name][]
+
+        // Create a frame for this group
+        this.miroProgress.set(`Creating frame for group: ${group.name}…`);
+        const frameW = participants.length * (IMAGE_W + STICKY_W + H_GAP) + H_GAP;
+        const frameH = totalRounds * (IMAGE_H + V_GAP) + V_GAP + 60; // 60 for header
+        await this.miroPost(token, `https://api.miro.com/v2/boards/${boardId}/frames`, {
+          data: { title: group.name, format: 'custom', type: 'freeform' },
+          style: { fillColor: group.color ? `${group.color}22` : '#f5f5f5' },
+          geometry: { height: frameH, width: frameW },
+          position: { x: 0, y: groupOffsetY, origin: 'center' },
+        });
+
+        // Place images and sticky note slots
+        for (let pIdx = 0; pIdx < participants.length; pIdx++) {
+          const [authorId, participantName] = participants[pIdx];
+          const colX = (H_GAP + (IMAGE_W + STICKY_W + H_GAP) * pIdx) + IMAGE_W / 2;
+
+          // Participant name label (sticky)
+          await this.miroPost(token, `https://api.miro.com/v2/boards/${boardId}/sticky_notes`, {
+            data: { content: `<strong>${participantName}</strong>`, shape: 'rectangle' },
+            style: { fillColor: group.color || '#607D8B', textColor: '#ffffff' },
+            geometry: { height: 40, width: IMAGE_W },
+            position: { x: colX, y: groupOffsetY + 30, origin: 'center' },
+          });
+
+          for (let round = 1; round <= totalRounds; round++) {
+            const rowY = groupOffsetY + 60 + V_GAP / 2 + (round - 1) * (IMAGE_H + V_GAP) + IMAGE_H / 2;
+
+            const item = groupItems.find(
+              i => (i.author_id === authorId || i.participant_name === participantName) && i.ws_round === round
+            );
+
+            if (item?.screenshot_url || item?.thumbnail_url) {
+              const imgUrl = item.screenshot_url || item.thumbnail_url;
+              this.miroProgress.set(`Placing image: ${participantName} / Round ${round}…`);
+              await this.miroPost(token, `https://api.miro.com/v2/boards/${boardId}/images`, {
+                data: { imageUrl: imgUrl, title: `${participantName} – Round ${round}` },
+                geometry: { height: IMAGE_H, width: IMAGE_W },
+                position: { x: colX, y: rowY, origin: 'center' },
+              });
+            } else {
+              // Placeholder sticky note for missing screenshot
+              await this.miroPost(token, `https://api.miro.com/v2/boards/${boardId}/sticky_notes`, {
+                data: { content: `Round ${round}\n(no screenshot yet)`, shape: 'rectangle' },
+                style: { fillColor: '#e0e0e0', textColor: '#666666' },
+                geometry: { height: IMAGE_H, width: IMAGE_W },
+                position: { x: colX, y: rowY, origin: 'center' },
+              });
+            }
+
+            // Blank sticky note for facilitator comments (to the right of image)
+            const stickyX = colX + IMAGE_W / 2 + STICKY_W / 2 + 10;
+            await this.miroPost(token, `https://api.miro.com/v2/boards/${boardId}/sticky_notes`, {
+              data: { content: '', shape: 'square' },
+              style: { fillColor: '#fff9c4' },
+              geometry: { height: STICKY_H, width: STICKY_W },
+              position: { x: stickyX, y: rowY, origin: 'center' },
+            });
+          }
+        }
+
+        groupOffsetY += frameH + GROUP_GAP;
+      }
+
+      this.miroResult.set({ boardUrl, boardName });
+      this.miroProgress.set('');
+    } catch (err: any) {
+      this.miroError.set(err?.message || 'Miro export failed. Check your token and try again.');
+      this.miroProgress.set('');
+    } finally {
+      this.miroExporting.set(false);
+    }
+  }
+
+  private async miroPost(token: string, url: string, body: any): Promise<any> {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`Miro API error ${resp.status}: ${text}`);
+    }
+    return resp.json();
   }
 }

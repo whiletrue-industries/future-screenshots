@@ -142,13 +142,25 @@ export class CanvasCreatorComponent implements AfterViewInit {
   // Strategic workshop signals
   wsCurrentRound = signal<number>(1); // 1-based round number
   wsAllDone = signal<boolean>(false); // true when all rounds are submitted
+  wsJustUploaded = signal<boolean>(false); // true right after an upload, show CTA screen
+
+  // Onboarding state: 'group' = group picker, 'name-email' = name/email form, null = done
+  wsOnboardingStep = signal<'group' | 'name-email' | null>(null);
+  wsOnboardingGroupId = signal<string | null>(null); // group selected in onboarding
+  wsOnboardingName = signal<string>('');
+  wsOnboardingEmail = signal<string>('');
 
   // Expose only the specific signals needed from ApiService (avoids making api public)
   wsStrategicMode = computed(() => this.api.wsStrategic());
 
+  wsGroups = computed<any[]>(() => {
+    const ws = this.api.workspace();
+    return ws?.metadata?.ws_groups || ws?.ws_groups || [];
+  });
+
   wsGroup = computed(() => {
     const groupId = this.api.wsGroupId();
-    const groups: any[] = this.api.workspace()?.metadata?.ws_groups || this.api.workspace()?.ws_groups || [];
+    const groups = this.wsGroups();
     return groups.find((g: any) => g.id === groupId) || null;
   });
 
@@ -679,6 +691,16 @@ export class CanvasCreatorComponent implements AfterViewInit {
       this.wsAllDone.set(true);
     }
 
+    // Check if we just uploaded (post-upload CTA screen)
+    if (this.route.snapshot.queryParams['ws_just_uploaded'] === 'true') {
+      this.wsJustUploaded.set(true);
+    }
+
+    // Strategic onboarding: if ws_strategic but no ws_group in URL → show group picker
+    if (this.api.wsStrategic() && !this.route.snapshot.queryParams['ws_group']) {
+      this.wsOnboardingStep.set('group');
+    }
+
     // Select random color on init
     this.currentColor.set(this.markerColors[Math.floor(Math.random() * this.markerColors.length)]);
     
@@ -888,6 +910,84 @@ export class CanvasCreatorComponent implements AfterViewInit {
   backToGallery() {
     this.showTemplateGallery.set(true);
     this.isEditorShowing.set(false);
+  }
+
+  // ---- Strategic workshop onboarding ----
+
+  wsSelectOnboardingGroup(groupId: string) {
+    this.wsOnboardingGroupId.set(groupId);
+    this.wsOnboardingStep.set('name-email');
+  }
+
+  wsSubmitOnboarding() {
+    const name = this.wsOnboardingName().trim();
+    if (!name) return; // name is required
+
+    const groupId = this.wsOnboardingGroupId();
+    const email = this.wsOnboardingEmail().trim();
+
+    // Navigate to same route with group + name (+ optional email) injected into URL
+    const params = { ...this.route.snapshot.queryParams };
+    if (groupId) params['ws_group'] = groupId;
+    params['participant_name'] = name;
+    if (email) params['participant_email'] = email;
+
+    this.router.navigate([], { queryParams: params, replaceUrl: true });
+    // Update api signals directly so the UI refreshes without a full navigation
+    this.api.wsGroupId.set(groupId);
+    this.api.wsParticipantName.set(name);
+    this.wsOnboardingStep.set(null);
+  }
+
+  // ---- Strategic workshop post-upload CTAs ----
+
+  /** Restart on the same round (add another screenshot) */
+  wsAddAnotherSameRound() {
+    this.wsJustUploaded.set(false);
+    this._wsResetCanvasForNewShot();
+  }
+
+  /** Move to the next round */
+  wsAdvanceRound() {
+    const next = this.wsCurrentRound() + 1;
+    this.wsCurrentRound.set(next);
+    this.wsJustUploaded.set(false);
+    // Update URL
+    const params: Record<string, any> = { ...this.route.snapshot.queryParams, ws_round: next };
+    delete params['ws_just_uploaded'];
+    this.router.navigate([], { queryParams: params, replaceUrl: true });
+    this._wsResetCanvasForNewShot();
+  }
+
+  /** Jump back to round 1 */
+  wsGoToRound1() {
+    this.wsCurrentRound.set(1);
+    this.wsJustUploaded.set(false);
+    const params: Record<string, any> = { ...this.route.snapshot.queryParams, ws_round: 1 };
+    delete params['ws_just_uploaded'];
+    this.router.navigate([], { queryParams: params, replaceUrl: true });
+    this._wsResetCanvasForNewShot();
+  }
+
+  /** Finish all rounds and show the "All Done" screen */
+  wsFinishAllRounds() {
+    this.wsJustUploaded.set(false);
+    this.wsAllDone.set(true);
+  }
+
+  private _wsResetCanvasForNewShot() {
+    // Destroy current canvas and go back to template gallery
+    const fabricCanvas = this.canvas();
+    if (fabricCanvas) {
+      fabricCanvas.dispose();
+      this.canvas.set(null);
+    }
+    this.placeholderTexts = [];
+    this.hasContent.set(false);
+    this.selectedTemplate.set(null);
+    this.showTemplateGallery.set(true);
+    this.isEditorShowing.set(false);
+    this.state.currentImage.set(null);
   }
 
   cycleColor() {
@@ -1103,6 +1203,21 @@ export class CanvasCreatorComponent implements AfterViewInit {
     // Place initial chat placeholders (needs canvas to be registered first)
     this.placeInitialChatBoxes(fabricCanvas);
     this.updatePlaceholderVisibility(this.currentMode() === 'type');
+
+    // Strategic workshop: pre-fill the transition textbox with "Round N"
+    if (this.wsStrategicMode()) {
+      const round = this.wsCurrentRound();
+      const transitionBox = this.placeholderTexts.find(
+        (tb: any) => tb._placeholderText === 'transition'
+      );
+      if (transitionBox) {
+        transitionBox._placeholder = false;
+        transitionBox.set({ text: `Round ${round}`, fill: transitionBox.fill });
+        fabricCanvas.renderAll();
+        this.hasContent.set(true);
+      }
+    }
+
     
     // Expose console debug helpers directly
     (window as any).textboxDebug = {

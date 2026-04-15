@@ -221,13 +221,20 @@ export class WorkspaceFormComponent implements OnInit {
       metadata.ws_strategic = false;
     }
     if (!metadata.ws_rounds) {
-      metadata.ws_rounds = 4;
+      metadata.ws_rounds = 5;
     }
     if (!metadata.ws_groups) {
       metadata.ws_groups = [];
     }
-    if (!metadata.ws_round_prompts) {
-      metadata.ws_round_prompts = [];
+    if (!metadata.ws_round_prompts || metadata.ws_round_prompts.length === 0) {
+      // Default prompts from the Future Screenshots methodology
+      metadata.ws_round_prompts = [
+        "Imagine it's [year]. Your organisation has achieved its most ambitious goal. Take a screenshot of the digital proof.",
+        "What is the biggest challenge your organisation faces today? Take a screenshot that shows this barrier.",
+        "Which partner, community, or unexpected actor is key to your success? Take a screenshot showing this collaboration.",
+        "What tool, funding, or infrastructure would change everything? Take a screenshot of where you'd find it.",
+        "What is the very first thing your organisation will do after this workshop? Take a screenshot of the action.",
+      ];
     }
   }
 

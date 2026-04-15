@@ -1,191 +1,130 @@
-<div class="ws-strategic">
+<div class="ws-hub">
 
-  <!-- Header -->
-  <header class="ws-header">
-    <h1 class="ws-title" i18n>Strategic Workshop</h1>
-    <div class="ws-header-actions">
-      <button class="view-toggle" [class.active]="viewMode() === 'grid'" (click)="viewMode.set('grid')" i18n>Grid</button>
-      <button class="view-toggle" [class.active]="viewMode() === 'sticky'" (click)="viewMode.set('sticky')" i18n>Sticky Notes</button>
-    </div>
+  <header class="ws-hub-header">
+    <h1 i18n>Strategic Workshop Hub</h1>
+    @if (workspaceMeta()) {
+      <p class="ws-hub-name">{{ workspaceMeta()?.event_name || workspaceMeta()?.metadata?.event_name }}</p>
+    }
   </header>
 
-  <!-- Error -->
+  @if (isLoading()) {
+    <div class="ws-loading" i18n>Loading…</div>
+  }
+
   @if (errorMsg()) {
     <div class="ws-error" role="alert">{{ errorMsg() }}</div>
   }
 
-  <!-- Loading -->
-  @if (isLoading()) {
-    <div class="ws-loading" aria-busy="true" i18n>Loading…</div>
-  }
+  @if (!isLoading() && !errorMsg()) {
+    <!-- Groups + Participant Links -->
+    <section class="ws-section" aria-labelledby="groups-heading">
+      <h2 id="groups-heading" i18n>Groups & Participant Links</h2>
+      <p class="ws-hint" i18n>Share each group's link with its members. They'll be guided through all {{ wsTotalRounds() }} rounds.</p>
 
-  <!-- Grid View: groups × participants × rounds -->
-  @if (!isLoading() && viewMode() === 'grid') {
-    <div class="ws-grid-view">
+      @if (wsGroups().length === 0) {
+        <p class="ws-empty" i18n>No groups configured. Go to Settings → Strategic Workshop to add groups.</p>
+      }
 
-      @for (groupRow of groupRows(); track trackByGroupId($index, groupRow)) {
-        <section class="ws-group-section" [attr.aria-label]="groupRow.group.name">
-          <div class="ws-group-header" [style.border-color]="getGroupColor(groupRow.group)">
-            <span class="ws-group-dot" [style.background]="getGroupColor(groupRow.group)"></span>
-            <h2 class="ws-group-name">{{ groupRow.group.name }}</h2>
-            <button class="ws-copy-link-btn" (click)="openParticipantLink(groupRow.group)" title="Copy participant link" aria-label="Copy participant link for this group">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-              </svg>
-            </button>
-          </div>
-
-          <!-- Round headers -->
-          <div class="ws-rounds-header">
-            <div class="ws-participant-label-col"></div>
-            @for (round of roundIndices(); track round) {
-              <div class="ws-round-header-cell">
-                <span class="ws-round-number" i18n>Round {{ round }}</span>
-                @if (roundPrompts()[round - 1]) {
-                  <span class="ws-round-prompt">{{ roundPrompts()[round - 1] }}</span>
-                }
-              </div>
-            }
-          </div>
-
-          <!-- Participant rows -->
-          @for (participant of groupRow.participants; track trackByAuthorId($index, participant)) {
-            <div class="ws-participant-row">
-              <div class="ws-participant-label-col">
-                <span class="ws-participant-name" [title]="participant.authorId">{{ participant.participantName }}</span>
-              </div>
-              @for (round of roundIndices(); track round) {
-                @let item = participant.rounds[round - 1];
-                <div class="ws-cell"
-                     (dragover)="onContainerDragOver($event)"
-                     (drop)="onContainerDrop($event, $any($event.currentTarget))">
-                  @if (item) {
-                    <div class="ws-screenshot-card"
-                         draggable="true"
-                         (dragstart)="onItemDragStart($event, item)"
-                         [attr.aria-label]="'Screenshot by ' + participant.participantName + ' round ' + round">
-                      <img [src]="getItemImageUrl(item)" [alt]="'Screenshot round ' + round" loading="lazy" />
-
-                      <!-- Comment badges -->
-                      @if ((item.ws_comments || []).length > 0) {
-                        <div class="ws-comment-count" [attr.aria-label]="(item.ws_comments || []).length + ' comments'">
-                          {{ (item.ws_comments || []).length }}
-                        </div>
-                      }
-
-                      <!-- Card actions -->
-                      <div class="ws-card-actions">
-                        <button class="ws-action-btn ws-comment-btn"
-                                (click)="openCommentPanel(item.id)"
-                                aria-label="Add comment"
-                                title="Add comment">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                          </svg>
-                        </button>
-                        <button class="ws-action-btn ws-reset-btn"
-                                (click)="resetItemPosition(item)"
-                                aria-label="Reset position"
-                                title="Reset to default position">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
-                          </svg>
-                        </button>
-                      </div>
-
-                      <!-- Inline comments list -->
-                      @if ((item.ws_comments || []).length > 0) {
-                        <ul class="ws-comments-list" aria-label="Comments">
-                          @for (comment of item.ws_comments || []; track trackByCommentId($index, comment)) {
-                            <li class="ws-comment-note" [style.background]="comment.color || '#FFD600'">
-                              <span class="ws-comment-text">{{ comment.text }}</span>
-                              <button class="ws-comment-delete" (click)="deleteComment(item.id, comment.id)" aria-label="Delete comment">✕</button>
-                            </li>
-                          }
-                        </ul>
-                      }
-                    </div>
-                  } @else {
-                    <div class="ws-empty-cell" aria-label="No screenshot yet">
-                      <span class="ws-empty-label" i18n>—</span>
-                    </div>
-                  }
-                </div>
+      <ul class="ws-groups-list" role="list">
+        @for (group of wsGroups(); track group.id) {
+          <li class="ws-group-card" [style.border-left-color]="group.color || '#607D8B'">
+            <span class="ws-group-dot" [style.background]="group.color || '#607D8B'" aria-hidden="true"></span>
+            <span class="ws-group-name">{{ group.name }}</span>
+            <button
+              class="ws-copy-btn"
+              [class.copied]="copiedGroupId() === group.id"
+              (click)="copyParticipantLink(group)"
+              [attr.aria-label]="'Copy participant link for ' + group.name"
+            >
+              @if (copiedGroupId() === group.id) {
+                <span i18n>✓ Copied!</span>
+              } @else {
+                <span i18n>Copy link</span>
               }
-            </div>
-          }
+            </button>
+          </li>
+        }
+      </ul>
+    </section>
 
-          @if (groupRow.participants.length === 0) {
-            <p class="ws-no-participants" i18n>No participants yet for this group.</p>
+    <!-- Round Prompts Summary -->
+    @if (wsRoundPrompts().length > 0) {
+      <section class="ws-section" aria-labelledby="rounds-heading">
+        <h2 id="rounds-heading" i18n>Round Prompts</h2>
+        <ol class="ws-rounds-list">
+          @for (prompt of wsRoundPrompts(); track $index) {
+            <li class="ws-round-item">
+              <span class="ws-round-badge">{{ $index + 1 }}</span>
+              <span class="ws-round-prompt">{{ prompt }}</span>
+            </li>
           }
-        </section>
+        </ol>
+      </section>
+    }
+
+    <!-- Miro Export -->
+    <section class="ws-section ws-miro-section" aria-labelledby="miro-heading">
+      <h2 id="miro-heading">
+        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" class="ws-miro-logo" aria-hidden="true">
+          <rect width="48" height="48" rx="8" fill="#FFD02F"/>
+          <text x="8" y="36" font-size="28" font-family="Arial, sans-serif" font-weight="900" fill="#050038">M</text>
+        </svg>
+        <span i18n>Export to Miro</span>
+      </h2>
+      <p class="ws-hint" i18n>
+        Paste a Miro personal access token to create a board with one frame per group,
+        a <strong>participant × round</strong> image grid, and sticky note space for facilitation.
+      </p>
+      <p class="ws-hint ws-hint--small" i18n>
+        Generate your token at
+        <a href="https://miro.com/app/settings/user-profile/apps" target="_blank" rel="noopener noreferrer">
+          miro.com → Profile → Apps → Token
+        </a>.
+        Boards created on Miro's free plan count against your 3-board limit.
+      </p>
+
+      <div class="ws-miro-form">
+        <input
+          type="password"
+          class="ws-token-input"
+          [value]="miroToken()"
+          (input)="miroToken.set($any($event.target).value)"
+          placeholder="Paste your Miro token here…"
+          i18n-placeholder
+          autocomplete="off"
+          [disabled]="miroExporting()"
+          aria-label="Miro personal access token"
+        />
+        <button
+          class="ws-miro-btn"
+          [disabled]="!miroToken().trim() || miroExporting()"
+          (click)="sendToMiro()"
+          i18n
+        >
+          @if (miroExporting()) {
+            Exporting…
+          } @else {
+            Send to Miro
+          }
+        </button>
+      </div>
+
+      @if (miroProgress()) {
+        <p class="ws-miro-progress" role="status" aria-live="polite">{{ miroProgress() }}</p>
       }
 
-      @if (groupRows().length === 0 && !isLoading()) {
-        <div class="ws-empty-state" i18n>No items found. Make sure the workspace is configured with strategic workshop mode.</div>
+      @if (miroError()) {
+        <p class="ws-miro-error" role="alert">{{ miroError() }}</p>
       }
-    </div>
-  }
 
-  <!-- Sticky Notes View -->
-  @if (!isLoading() && viewMode() === 'sticky') {
-    <div class="ws-sticky-view">
-      <div class="ws-sticky-canvas"
-           (dragover)="onContainerDragOver($event)"
-           (drop)="onContainerDrop($event, $any($event.currentTarget))">
-        <!-- Optional SVG semantic background -->
-        @if (stickySvgUrl()) {
-          <img class="ws-sticky-bg" [src]="stickySvgUrl()!" alt="Semantic template background" aria-hidden="true" />
-        }
-        @for (commentItem of allComments(); track commentItem.id) {
-          <div class="ws-sticky-note"
-               [style.background]="commentItem.color || '#FFD600'"
-               [style.left]="commentItem.sticky_x !== undefined ? (commentItem.sticky_x * 100) + '%' : null"
-               [style.top]="commentItem.sticky_y !== undefined ? (commentItem.sticky_y * 100) + '%' : null"
-               [class.positioned]="commentItem.sticky_x !== undefined"
-               draggable="true"
-               (dragstart)="onStickyDragStart($event, commentItem.item.id, commentItem)"
-               [attr.aria-label]="'Sticky note: ' + commentItem.text">
-            <p class="ws-sticky-text">{{ commentItem.text }}</p>
-            <small class="ws-sticky-source">{{ commentItem.item.participant_name || commentItem.item.author_id?.slice(0, 8) }}</small>
-          </div>
-        }
-        @if (allComments().length === 0) {
-          <p class="ws-sticky-empty" i18n>No comments yet. Add comments to screenshots in the grid view.</p>
-        }
-      </div>
-    </div>
-  }
-
-  <!-- Comment Panel (modal/overlay) -->
-  @if (commentTargetId()) {
-    <div class="ws-comment-overlay" role="dialog" aria-modal="true" aria-label="Add comment">
-      <div class="ws-comment-panel">
-        <h3 i18n>Add Comment</h3>
-        <div class="ws-color-picker" role="group" aria-label="Select comment color">
-          @for (color of commentColors; track color) {
-            <button class="ws-color-swatch"
-                    [style.background]="color"
-                    [class.selected]="commentColor() === color"
-                    (click)="commentColor.set(color)"
-                    [attr.aria-label]="'Color ' + color"
-                    [attr.aria-pressed]="commentColor() === color"></button>
-          }
+      @if (miroResult()) {
+        <div class="ws-miro-result">
+          <p i18n>Board created successfully!</p>
+          <a [href]="miroResult()!.boardUrl" target="_blank" rel="noopener noreferrer" class="ws-miro-board-link" i18n>
+            Open "{{ miroResult()!.boardName }}" in Miro →
+          </a>
         </div>
-        <textarea class="ws-comment-input"
-                  [value]="commentText()"
-                  (input)="commentText.set($any($event.target).value)"
-                  rows="4"
-                  placeholder="Type your comment…"
-                  aria-label="Comment text"
-                  autofocus></textarea>
-        <div class="ws-comment-actions">
-          <button class="ws-btn ws-btn-cancel" (click)="closeCommentPanel()" i18n>Cancel</button>
-          <button class="ws-btn ws-btn-submit" (click)="submitComment()" [disabled]="!commentText().trim()" i18n>Add</button>
-        </div>
-      </div>
-    </div>
+      }
+    </section>
   }
-
 </div>
