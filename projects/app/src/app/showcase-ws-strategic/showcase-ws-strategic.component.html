@@ -1,0 +1,184 @@
+<div class="ws-strategic">
+
+  <!-- Header -->
+  <header class="ws-header">
+    <h1 class="ws-title" i18n>Strategic Workshop</h1>
+    <div class="ws-header-actions">
+      <button class="view-toggle" [class.active]="viewMode() === 'grid'" (click)="viewMode.set('grid')" i18n>Grid</button>
+      <button class="view-toggle" [class.active]="viewMode() === 'sticky'" (click)="viewMode.set('sticky')" i18n>Sticky Notes</button>
+    </div>
+  </header>
+
+  <!-- Error -->
+  @if (errorMsg()) {
+    <div class="ws-error" role="alert">{{ errorMsg() }}</div>
+  }
+
+  <!-- Loading -->
+  @if (isLoading()) {
+    <div class="ws-loading" aria-busy="true" i18n>Loading…</div>
+  }
+
+  <!-- Grid View: groups × participants × rounds -->
+  @if (!isLoading() && viewMode() === 'grid') {
+    <div class="ws-grid-view">
+
+      @for (groupRow of groupRows(); track trackByGroupId($index, groupRow)) {
+        <section class="ws-group-section" [attr.aria-label]="groupRow.group.name">
+          <div class="ws-group-header" [style.border-color]="getGroupColor(groupRow.group)">
+            <span class="ws-group-dot" [style.background]="getGroupColor(groupRow.group)"></span>
+            <h2 class="ws-group-name">{{ groupRow.group.name }}</h2>
+            <button class="ws-copy-link-btn" (click)="openParticipantLink(groupRow.group)" title="Copy participant link" aria-label="Copy participant link for this group">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Round headers -->
+          <div class="ws-rounds-header">
+            <div class="ws-participant-label-col"></div>
+            @for (round of roundIndices(); track round) {
+              <div class="ws-round-header-cell">
+                <span class="ws-round-number" i18n>Round {{ round }}</span>
+                @if (roundPrompts()[round - 1]) {
+                  <span class="ws-round-prompt">{{ roundPrompts()[round - 1] }}</span>
+                }
+              </div>
+            }
+          </div>
+
+          <!-- Participant rows -->
+          @for (participant of groupRow.participants; track trackByAuthorId($index, participant)) {
+            <div class="ws-participant-row">
+              <div class="ws-participant-label-col">
+                <span class="ws-participant-name" [title]="participant.authorId">{{ participant.participantName }}</span>
+              </div>
+              @for (round of roundIndices(); track round) {
+                @let item = participant.rounds[round - 1];
+                <div class="ws-cell"
+                     (dragover)="onContainerDragOver($event)"
+                     (drop)="onContainerDrop($event, $any($event.currentTarget))">
+                  @if (item) {
+                    <div class="ws-screenshot-card"
+                         draggable="true"
+                         (dragstart)="onItemDragStart($event, item)"
+                         [attr.aria-label]="'Screenshot by ' + participant.participantName + ' round ' + round">
+                      <img [src]="getItemImageUrl(item)" [alt]="'Screenshot round ' + round" loading="lazy" />
+
+                      <!-- Comment badges -->
+                      @if ((item.ws_comments || []).length > 0) {
+                        <div class="ws-comment-count" [attr.aria-label]="(item.ws_comments || []).length + ' comments'">
+                          {{ (item.ws_comments || []).length }}
+                        </div>
+                      }
+
+                      <!-- Card actions -->
+                      <div class="ws-card-actions">
+                        <button class="ws-action-btn ws-comment-btn"
+                                (click)="openCommentPanel(item.id)"
+                                aria-label="Add comment"
+                                title="Add comment">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                          </svg>
+                        </button>
+                        <button class="ws-action-btn ws-reset-btn"
+                                (click)="resetItemPosition(item)"
+                                aria-label="Reset position"
+                                title="Reset to default position">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
+                          </svg>
+                        </button>
+                      </div>
+
+                      <!-- Inline comments list -->
+                      @if ((item.ws_comments || []).length > 0) {
+                        <ul class="ws-comments-list" aria-label="Comments">
+                          @for (comment of item.ws_comments || []; track trackByCommentId($index, comment)) {
+                            <li class="ws-comment-note" [style.background]="comment.color || '#FFD600'">
+                              <span class="ws-comment-text">{{ comment.text }}</span>
+                              <button class="ws-comment-delete" (click)="deleteComment(item.id, comment.id)" aria-label="Delete comment">✕</button>
+                            </li>
+                          }
+                        </ul>
+                      }
+                    </div>
+                  } @else {
+                    <div class="ws-empty-cell" aria-label="No screenshot yet">
+                      <span class="ws-empty-label" i18n>—</span>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+
+          @if (groupRow.participants.length === 0) {
+            <p class="ws-no-participants" i18n>No participants yet for this group.</p>
+          }
+        </section>
+      }
+
+      @if (groupRows().length === 0 && !isLoading()) {
+        <div class="ws-empty-state" i18n>No items found. Make sure the workspace is configured with strategic workshop mode.</div>
+      }
+    </div>
+  }
+
+  <!-- Sticky Notes View -->
+  @if (!isLoading() && viewMode() === 'sticky') {
+    <div class="ws-sticky-view">
+      <div class="ws-sticky-canvas"
+           (dragover)="onContainerDragOver($event)"
+           (drop)="onContainerDrop($event, $any($event.currentTarget))">
+        @for (commentItem of allComments(); track commentItem.id) {
+          <div class="ws-sticky-note"
+               [style.background]="commentItem.color || '#FFD600'"
+               draggable="true"
+               (dragstart)="onItemDragStart($event, commentItem.item)"
+               [attr.aria-label]="'Sticky note: ' + commentItem.text">
+            <p class="ws-sticky-text">{{ commentItem.text }}</p>
+            <small class="ws-sticky-source">{{ commentItem.item.participant_name || commentItem.item.author_id?.slice(0, 8) }}</small>
+          </div>
+        }
+        @if (allComments().length === 0) {
+          <p class="ws-sticky-empty" i18n>No comments yet. Add comments to screenshots in the grid view.</p>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Comment Panel (modal/overlay) -->
+  @if (commentTargetId()) {
+    <div class="ws-comment-overlay" role="dialog" aria-modal="true" aria-label="Add comment">
+      <div class="ws-comment-panel">
+        <h3 i18n>Add Comment</h3>
+        <div class="ws-color-picker" role="group" aria-label="Select comment color">
+          @for (color of commentColors; track color) {
+            <button class="ws-color-swatch"
+                    [style.background]="color"
+                    [class.selected]="commentColor() === color"
+                    (click)="commentColor.set(color)"
+                    [attr.aria-label]="'Color ' + color"
+                    [attr.aria-pressed]="commentColor() === color"></button>
+          }
+        </div>
+        <textarea class="ws-comment-input"
+                  [value]="commentText()"
+                  (input)="commentText.set($any($event.target).value)"
+                  rows="4"
+                  placeholder="Type your comment…"
+                  aria-label="Comment text"
+                  autofocus></textarea>
+        <div class="ws-comment-actions">
+          <button class="ws-btn ws-btn-cancel" (click)="closeCommentPanel()" i18n>Cancel</button>
+          <button class="ws-btn ws-btn-submit" (click)="submitComment()" [disabled]="!commentText().trim()" i18n>Add</button>
+        </div>
+      </div>
+    </div>
+  }
+
+</div>

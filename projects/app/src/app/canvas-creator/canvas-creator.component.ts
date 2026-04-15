@@ -139,6 +139,28 @@ export class CanvasCreatorComponent implements AfterViewInit {
     return this.allTemplates.filter((template) => allowedTemplates.has(template.id));
   });
 
+  // Strategic workshop signals
+  wsCurrentRound = signal<number>(1); // 1-based round number
+  wsAllDone = signal<boolean>(false); // true when all rounds are submitted
+
+  wsGroup = computed(() => {
+    const groupId = this.api.wsGroupId();
+    const groups: any[] = this.api.workspace()?.metadata?.ws_groups || this.api.workspace()?.ws_groups || [];
+    return groups.find((g: any) => g.id === groupId) || null;
+  });
+
+  wsTotalRounds = computed<number>(() => {
+    const ws = this.api.workspace();
+    return ws?.metadata?.ws_rounds || ws?.ws_rounds || 4;
+  });
+
+  wsRoundPrompt = computed<string>(() => {
+    const ws = this.api.workspace();
+    const prompts: string[] = ws?.metadata?.ws_round_prompts || ws?.ws_round_prompts || [];
+    const round = this.wsCurrentRound();
+    return prompts[round - 1] || '';
+  });
+
   // Template presets: GeoJSON with textbox positions and properties
   templatePresets: { [key: string]: any } = {
     post: {
@@ -636,9 +658,24 @@ export class CanvasCreatorComponent implements AfterViewInit {
     private state: StateService,
     private router: Router,
     private route: ActivatedRoute,
-    private api: ApiService,
+    public api: ApiService,
   ) {
     this.api.updateFromRoute(this.route.snapshot);
+
+    // Initialize strategic workshop round from URL param
+    const wsRoundParam = this.route.snapshot.queryParams['ws_round'];
+    if (wsRoundParam) {
+      const round = parseInt(wsRoundParam, 10);
+      if (!isNaN(round) && round >= 1) {
+        this.wsCurrentRound.set(round);
+      }
+    }
+
+    // Check if all rounds are done
+    if (this.route.snapshot.queryParams['ws_done'] === 'true') {
+      this.wsAllDone.set(true);
+    }
+
     // Select random color on init
     this.currentColor.set(this.markerColors[Math.floor(Math.random() * this.markerColors.length)]);
     
@@ -1568,7 +1605,12 @@ export class CanvasCreatorComponent implements AfterViewInit {
     
     this.state.setImage(jpegBlob);
     const sel = this.selectedTemplate();
-    this.router.navigate(['/confirm'], { queryParamsHandling: 'merge', queryParams: { template: 'true', template_id: sel?.id } });
+    const extraParams: any = { template: 'true', template_id: sel?.id };
+    // In strategic workshop mode, pass round number to confirm
+    if (this.api.wsStrategic()) {
+      extraParams['ws_round'] = this.wsCurrentRound();
+    }
+    this.router.navigate(['/confirm'], { queryParamsHandling: 'merge', queryParams: extraParams });
   }
   
   undo() {

@@ -1232,8 +1232,56 @@ export class ConfirmComponent implements OnDestroy {
       metadata.tags = tags;
     }
 
+    // Strategic workshop: add group, round, and author metadata
+    if (this.api.wsStrategic()) {
+      const wsGroupId = this.api.wsGroupId();
+      if (wsGroupId) {
+        metadata['ws_group_id'] = wsGroupId;
+      }
+      const wsRound = this.route.snapshot.queryParams['ws_round'];
+      if (wsRound) {
+        metadata['ws_round'] = parseInt(wsRound, 10);
+      }
+      const participantName = this.api.wsParticipantName();
+      if (participantName) {
+        metadata['participant_name'] = participantName;
+      }
+      // Ensure author_id is set
+      let authorId = localStorage.getItem('future_screenshots_author_id');
+      if (!authorId) {
+        authorId = crypto.randomUUID();
+        localStorage.setItem('future_screenshots_author_id', authorId);
+      }
+      metadata['author_id'] = authorId;
+    }
+
     if (!this.api.automatic()) {
       this.api.startBackgroundUpload(currentImage, metadata);
+
+      if (this.api.wsStrategic()) {
+        // Strategic workshop: navigate back to canvas creator for the next round
+        const ws = this.api.workspace();
+        const totalRounds: number = ws?.metadata?.ws_rounds || ws?.ws_rounds || 4;
+        const wsRound = parseInt(this.route.snapshot.queryParams['ws_round'] || '1', 10);
+        const nextRound = wsRound + 1;
+        if (nextRound <= totalRounds) {
+          const params = { ...this.route.snapshot.queryParams };
+          delete params['template'];
+          delete params['template_id'];
+          params['ws_round'] = nextRound;
+          this.router.navigate(['/canvas-creator'], { queryParams: params });
+        } else {
+          // All rounds done
+          const params = { ...this.route.snapshot.queryParams };
+          delete params['template'];
+          delete params['template_id'];
+          delete params['ws_round'];
+          params['ws_done'] = 'true';
+          this.router.navigate(['/canvas-creator'], { queryParams: params });
+        }
+        return;
+      }
+
       const params: any = { 'item-id': null, 'key': null };
       if (this.isTemplateFlow) {
         params['template'] = 'true';

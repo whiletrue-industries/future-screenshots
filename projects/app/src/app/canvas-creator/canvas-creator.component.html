@@ -1,9 +1,35 @@
 <div class="canvas-creator">
+  <!-- Strategic Workshop: All Done Screen -->
+  @if (api.wsStrategic() && wsAllDone()) {
+    <div class="ws-done-screen">
+      <div class="ws-done-content">
+        <div class="ws-done-icon">✓</div>
+        <h1 i18n>All Done!</h1>
+        <p i18n>You have completed all {{ wsTotalRounds() }} rounds. Thank you for your participation!</p>
+        @if (wsGroup()) {
+          <p class="ws-group-name">{{ wsGroup()!.name }}</p>
+        }
+      </div>
+    </div>
+  }
+
   <!-- Template Carousel -->
-  @if (showTemplateGallery()) {
+  @if (!wsAllDone() && showTemplateGallery()) {
     <div class="template-gallery" [class.transitioning]="isTransitioning()">
       <div class="gallery-background"></div>
       <div class="gallery-content">
+        <!-- Strategic Workshop banner -->
+        @if (api.wsStrategic()) {
+          <div class="ws-round-banner">
+            @if (wsGroup()) {
+              <span class="ws-group-chip" [style.background]="wsGroup()!.color || '#607D8B'">{{ wsGroup()!.name }}</span>
+            }
+            <span class="ws-round-label" i18n>Round {{ wsCurrentRound() }} of {{ wsTotalRounds() }}</span>
+            @if (wsRoundPrompt()) {
+              <span class="ws-round-prompt">{{ wsRoundPrompt() }}</span>
+            }
+          </div>
+        }
         <div class="gallery-header">
           <button class="back-button" [routerLink]="['/prescan']" queryParamsHandling="merge" aria-label="Back to prescan">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -58,8 +84,20 @@
   }
   
   <!-- Canvas Editor -->
-  @if (selectedTemplate() && !showTemplateGallery()) {
+  @if (!wsAllDone() && selectedTemplate() && !showTemplateGallery()) {
     <div class="editor" [class.entering]="isEditorShowing()">
+      <!-- Strategic workshop round indicator in editor -->
+      @if (api.wsStrategic()) {
+        <div class="ws-editor-banner">
+          @if (wsGroup()) {
+            <span class="ws-group-chip" [style.background]="wsGroup()!.color || '#607D8B'">{{ wsGroup()!.name }}</span>
+          }
+          <span class="ws-round-label" i18n>Round {{ wsCurrentRound() }}/{{ wsTotalRounds() }}</span>
+          @if (wsRoundPrompt()) {
+            <span class="ws-round-prompt">{{ wsRoundPrompt() }}</span>
+          }
+        </div>
+      }
       <div class="canvas-container">
         <canvas #canvasEl></canvas>
       </div>

@@ -225,6 +225,91 @@
       </div>
     </div>
 
+    <!-- Strategic Workshop Settings -->
+    <div class="strategic-workshop-section">
+      <h3>Strategic Workshop</h3>
+
+      <div class="form-group checkbox-group">
+        <label>
+          <input
+            type="checkbox"
+            name="ws_strategic"
+            [ngModel]="formData().ws_strategic"
+            (ngModelChange)="onWsStrategicChange($event)"
+          />
+          Enable Strategic Workshop Mode
+        </label>
+        <p class="field-hint">Enables group-based, multi-round digital screenshot creation.</p>
+      </div>
+
+      @if (formData().ws_strategic) {
+        <!-- Number of rounds -->
+        <div class="form-group">
+          <label for="ws_rounds">Number of Rounds</label>
+          <input
+            type="number"
+            id="ws_rounds"
+            name="ws_rounds"
+            min="1"
+            max="10"
+            [ngModel]="formData().ws_rounds || 4"
+            (ngModelChange)="updateRoundCount($event)"
+          />
+          <p class="field-hint">Each participant will create one screenshot per round (default: 4).</p>
+        </div>
+
+        <!-- Round prompts -->
+        <div class="form-group">
+          <label>Round Prompts</label>
+          <p class="field-hint">Provide a guiding prompt for each round to direct participants' creativity.</p>
+          @for (roundIndex of getRoundPromptArray(); track roundIndex) {
+            <div class="round-prompt-row">
+              <span class="round-label">Round {{ roundIndex + 1 }}</span>
+              <input
+                type="text"
+                [name]="'ws_round_prompt_' + roundIndex"
+                [value]="getRoundPrompt(roundIndex)"
+                (input)="updateRoundPrompt(roundIndex, $any($event.target).value)"
+                [placeholder]="'Prompt for round ' + (roundIndex + 1)"
+              />
+            </div>
+          }
+        </div>
+
+        <!-- Thematic groups -->
+        <div class="form-group">
+          <label>Thematic Groups</label>
+          <p class="field-hint">Add the thematic groups that participants will be assigned to.</p>
+
+          @for (group of (formData().ws_groups || []); track group.id) {
+            <div class="group-row">
+              <span class="group-color-dot" [style.background]="group.color || '#607D8B'"></span>
+              <input
+                type="text"
+                [name]="'group_name_' + group.id"
+                [value]="group.name"
+                (input)="updateGroupName(group.id, $any($event.target).value)"
+                placeholder="Group name"
+              />
+              <button type="button" class="remove-btn" (click)="removeGroup(group.id)" aria-label="Remove group">✕</button>
+            </div>
+          }
+
+          <div class="add-group-row">
+            <input
+              type="text"
+              name="newGroupName"
+              [ngModel]="newGroupName()"
+              (ngModelChange)="newGroupName.set($event)"
+              (keypress)="onGroupNameKeyPress($event)"
+              placeholder="New group name"
+            />
+            <button type="button" class="add-btn" (click)="addGroup()">Add Group</button>
+          </div>
+        </div>
+      }
+    </div>
+
     <!-- Form Actions -->
     <div class="form-actions">
       <button type="button" class="cancel-btn" (click)="cancel()" [disabled]="isSubmitting()">

@@ -1,0 +1,494 @@
+@import '../../common.less';
+
+.ws-strategic {
+  min-height: 100vh;
+  background: @color-creme;
+  .font-sans;
+  display: flex;
+  flex-direction: column;
+
+  // ---- Header ----
+  .ws-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    background: @color-purple;
+    color: white;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    gap: 1rem;
+
+    .ws-title {
+      margin: 0;
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+
+    .ws-header-actions {
+      display: flex;
+      gap: 0.5rem;
+
+      .view-toggle {
+        padding: 0.35rem 0.9rem;
+        border: 2px solid rgba(255, 255, 255, 0.5);
+        border-radius: 20px;
+        background: transparent;
+        color: white;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+
+        &.active,
+        &:hover {
+          background: rgba(255, 255, 255, 0.2);
+          border-color: white;
+        }
+      }
+    }
+  }
+
+  // ---- Loading / Error ----
+  .ws-loading,
+  .ws-error,
+  .ws-empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: @color-purple;
+    font-size: 1.1rem;
+  }
+
+  .ws-error {
+    color: #c62828;
+  }
+
+  // ---- Grid View ----
+  .ws-grid-view {
+    padding: 1rem 1.5rem;
+    flex: 1;
+    overflow-x: auto;
+
+    .ws-group-section {
+      margin-bottom: 2.5rem;
+      border: 2px solid transparent;
+      border-radius: 12px;
+      overflow: hidden;
+
+      .ws-group-header {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.75rem 1rem;
+        background: white;
+        border-bottom: 3px solid currentColor;
+
+        .ws-group-dot {
+          width: 1rem;
+          height: 1rem;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+
+        .ws-group-name {
+          margin: 0;
+          font-size: 1.05rem;
+          font-weight: 700;
+          color: @color-purple;
+          flex: 1;
+        }
+
+        .ws-copy-link-btn {
+          background: none;
+          border: 1px solid @color-dark-pink;
+          border-radius: 6px;
+          cursor: pointer;
+          padding: 0.3rem;
+          display: flex;
+          align-items: center;
+          color: @color-purple;
+          opacity: 0.7;
+
+          &:hover {
+            opacity: 1;
+            background: @color-pink;
+          }
+
+          svg {
+            width: 1rem;
+            height: 1rem;
+          }
+        }
+      }
+
+      .ws-rounds-header {
+        display: flex;
+        background: #f0eaf8;
+
+        .ws-participant-label-col {
+          width: 9rem;
+          flex-shrink: 0;
+          padding: 0.5rem;
+          border-right: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .ws-round-header-cell {
+          flex: 1;
+          min-width: 10rem;
+          padding: 0.5rem 0.75rem;
+          border-right: 1px solid rgba(0,0,0,0.1);
+          display: flex;
+          flex-direction: column;
+          gap: 0.2rem;
+
+          .ws-round-number {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: @color-purple;
+          }
+
+          .ws-round-prompt {
+            font-size: 0.75rem;
+            color: #555;
+            font-style: italic;
+          }
+        }
+      }
+
+      .ws-participant-row {
+        display: flex;
+        border-top: 1px solid rgba(0,0,0,0.1);
+        background: white;
+
+        &:nth-child(even) {
+          background: #faf8ff;
+        }
+
+        .ws-participant-label-col {
+          width: 9rem;
+          flex-shrink: 0;
+          padding: 0.75rem 0.5rem;
+          border-right: 1px solid rgba(0,0,0,0.1);
+          display: flex;
+          align-items: flex-start;
+
+          .ws-participant-name {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: @color-purple;
+            word-break: break-word;
+          }
+        }
+
+        .ws-cell {
+          flex: 1;
+          min-width: 10rem;
+          min-height: 8rem;
+          padding: 0.5rem;
+          border-right: 1px solid rgba(0,0,0,0.08);
+          position: relative;
+
+          &:last-child {
+            border-right: none;
+          }
+
+          .ws-screenshot-card {
+            position: relative;
+            cursor: grab;
+            border-radius: 6px;
+            overflow: visible;
+            background: #f5f5f5;
+
+            &:active {
+              cursor: grabbing;
+            }
+
+            img {
+              width: 100%;
+              height: auto;
+              display: block;
+              border-radius: 6px;
+              border: 2px solid transparent;
+              transition: border-color 0.2s;
+            }
+
+            &:hover img {
+              border-color: @color-purple;
+            }
+
+            // Comment badge
+            .ws-comment-count {
+              position: absolute;
+              top: -0.4rem;
+              right: -0.4rem;
+              background: @color-dark-pink;
+              color: white;
+              border-radius: 50%;
+              width: 1.3rem;
+              height: 1.3rem;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 0.7rem;
+              font-weight: 700;
+              z-index: 5;
+            }
+
+            // Card action buttons (visible on hover)
+            .ws-card-actions {
+              display: none;
+              position: absolute;
+              top: 0.25rem;
+              left: 0.25rem;
+              gap: 0.25rem;
+              flex-direction: column;
+              z-index: 10;
+            }
+
+            &:hover .ws-card-actions {
+              display: flex;
+            }
+
+            .ws-action-btn {
+              background: rgba(0,0,0,0.55);
+              border: none;
+              border-radius: 4px;
+              cursor: pointer;
+              padding: 0.3rem;
+              display: flex;
+              align-items: center;
+              color: white;
+
+              &:hover {
+                background: rgba(0,0,0,0.8);
+              }
+
+              svg {
+                width: 0.9rem;
+                height: 0.9rem;
+              }
+            }
+
+            // Comments list under image
+            .ws-comments-list {
+              margin: 0.25rem 0 0;
+              padding: 0;
+              list-style: none;
+              display: flex;
+              flex-direction: column;
+              gap: 0.2rem;
+            }
+
+            .ws-comment-note {
+              display: flex;
+              align-items: flex-start;
+              gap: 0.3rem;
+              padding: 0.3rem 0.4rem;
+              border-radius: 4px;
+              font-size: 0.75rem;
+
+              .ws-comment-text {
+                flex: 1;
+                word-break: break-word;
+              }
+
+              .ws-comment-delete {
+                background: none;
+                border: none;
+                cursor: pointer;
+                font-size: 0.65rem;
+                opacity: 0.6;
+                padding: 0;
+                flex-shrink: 0;
+
+                &:hover {
+                  opacity: 1;
+                }
+              }
+            }
+          }
+
+          .ws-empty-cell {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            .ws-empty-label {
+              color: #ccc;
+              font-size: 1.2rem;
+            }
+          }
+        }
+      }
+
+      .ws-no-participants {
+        padding: 1rem;
+        color: #888;
+        font-style: italic;
+        text-align: center;
+        background: white;
+      }
+    }
+  }
+
+  // ---- Sticky Notes View ----
+  .ws-sticky-view {
+    flex: 1;
+    overflow: hidden;
+    padding: 1rem;
+
+    .ws-sticky-canvas {
+      width: 100%;
+      height: calc(100vh - 80px);
+      position: relative;
+      background: #e8e0f5;
+      border-radius: 12px;
+      border: 2px dashed @color-light-purple;
+      overflow: hidden;
+
+      .ws-sticky-note {
+        position: absolute;
+        width: 10rem;
+        min-height: 7rem;
+        padding: 0.75rem;
+        border-radius: 4px;
+        box-shadow: 2px 3px 8px rgba(0,0,0,0.2);
+        cursor: grab;
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        font-family: 'Caveat', cursive, sans-serif;
+
+        &:active {
+          cursor: grabbing;
+        }
+
+        .ws-sticky-text {
+          margin: 0;
+          font-size: 1rem;
+          flex: 1;
+          word-break: break-word;
+        }
+
+        .ws-sticky-source {
+          font-size: 0.7rem;
+          opacity: 0.65;
+        }
+      }
+
+      .ws-sticky-empty {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: @color-light-purple;
+        text-align: center;
+        font-style: italic;
+      }
+    }
+  }
+
+  // ---- Comment overlay / panel ----
+  .ws-comment-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+
+    .ws-comment-panel {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      width: min(95vw, 28rem);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+
+      h3 {
+        margin: 0;
+        color: @color-purple;
+        font-size: 1.1rem;
+      }
+
+      .ws-color-picker {
+        display: flex;
+        gap: 0.5rem;
+
+        .ws-color-swatch {
+          width: 1.8rem;
+          height: 1.8rem;
+          border-radius: 50%;
+          border: 3px solid transparent;
+          cursor: pointer;
+          transition: transform 0.15s, border-color 0.15s;
+
+          &.selected,
+          &:hover {
+            border-color: @color-purple;
+            transform: scale(1.15);
+          }
+        }
+      }
+
+      .ws-comment-input {
+        border: 2px solid @color-light-purple;
+        border-radius: 8px;
+        padding: 0.5rem 0.75rem;
+        font-size: 1rem;
+        font-family: inherit;
+        resize: vertical;
+        outline: none;
+
+        &:focus {
+          border-color: @color-purple;
+        }
+      }
+
+      .ws-comment-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+      }
+
+      .ws-btn {
+        padding: 0.5rem 1.2rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+      }
+
+      .ws-btn-cancel {
+        background: @color-pink;
+        color: @color-purple;
+
+        &:hover:not(:disabled) {
+          background: @color-dark-pink;
+        }
+      }
+
+      .ws-btn-submit {
+        background: @color-purple;
+        color: white;
+
+        &:hover:not(:disabled) {
+          background: @color-light-purple;
+        }
+      }
+    }
+  }
+}

@@ -30,6 +30,9 @@ export const routes: Routes = [
     // { path: 'showcase-ws', component: ShowcaseWsComponent },
     { path: 'showcase-ws', loadComponent: () => import('./showcase-ws/showcase-ws.component').then(m => m.ShowcaseWsComponent) },
 
+    // Strategic workshop showcase
+    { path: 'showcase-ws-strategic', loadComponent: () => import('./showcase-ws-strategic/showcase-ws-strategic.component').then(m => m.ShowcaseWsStrategicComponent) },
+
     // Admin routes
     {
         'path': 'admin/login',

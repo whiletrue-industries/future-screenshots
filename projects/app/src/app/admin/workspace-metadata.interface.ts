@@ -13,10 +13,22 @@ export interface WorkspaceMetadata {
   keywords?: string[];
   active_templates?: string[]; // Array of template IDs to show in the template gallery
 
+  // Strategic workshop fields (optional)
+  ws_strategic?: boolean; // Whether this workspace supports strategic workshop mode
+  ws_groups?: WsGroup[]; // Thematic groups for the strategic workshop
+  ws_rounds?: number; // Number of rounds (default: 4)
+  ws_round_prompts?: string[]; // Array of prompts, one per round
+
   // Auto-generated fields
   'context-label'?: string; // '{City}, {Month Name} {Year}'
   source?: string; // '{YYYY}.{MM}.{DD} - {Venue}/{Event Name}'
   'email-template'?: string; // 'after-evaluate-{locale}' or 'to-evaluate-{locale}'
+}
+
+export interface WsGroup {
+  id: string; // Unique identifier for the group (e.g., 'group-1')
+  name: string; // Display name for the group (e.g., 'Education')
+  color?: string; // Optional color for the group (hex)
 }
 
 export interface Workspace {
