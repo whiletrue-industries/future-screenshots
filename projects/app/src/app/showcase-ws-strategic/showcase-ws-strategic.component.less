@@ -349,6 +349,17 @@
       border: 2px dashed @color-light-purple;
       overflow: hidden;
 
+      // SVG semantic template background
+      .ws-sticky-bg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        pointer-events: none;
+        opacity: 0.85;
+      }
+
       .ws-sticky-note {
         position: absolute;
         width: 10rem;
@@ -361,6 +372,15 @@
         flex-direction: column;
         gap: 0.3rem;
         font-family: 'Caveat', cursive, sans-serif;
+        // Default position: flow in top-left area until explicitly dragged
+        top: 1rem;
+        left: 1rem;
+        z-index: 10;
+
+        // When a note has been explicitly positioned, center it on the drop point
+        &.positioned {
+          transform: translate(-50%, -50%);
+        }
 
         &:active {
           cursor: grabbing;

@@ -1,6 +1,6 @@
 <div class="canvas-creator">
   <!-- Strategic Workshop: All Done Screen -->
-  @if (api.wsStrategic() && wsAllDone()) {
+  @if (wsStrategicMode() && wsAllDone()) {
     <div class="ws-done-screen">
       <div class="ws-done-content">
         <div class="ws-done-icon">✓</div>
@@ -19,7 +19,7 @@
       <div class="gallery-background"></div>
       <div class="gallery-content">
         <!-- Strategic Workshop banner -->
-        @if (api.wsStrategic()) {
+        @if (wsStrategicMode()) {
           <div class="ws-round-banner">
             @if (wsGroup()) {
               <span class="ws-group-chip" [style.background]="wsGroup()!.color || '#607D8B'">{{ wsGroup()!.name }}</span>
@@ -87,7 +87,7 @@
   @if (!wsAllDone() && selectedTemplate() && !showTemplateGallery()) {
     <div class="editor" [class.entering]="isEditorShowing()">
       <!-- Strategic workshop round indicator in editor -->
-      @if (api.wsStrategic()) {
+      @if (wsStrategicMode()) {
         <div class="ws-editor-banner">
           @if (wsGroup()) {
             <span class="ws-group-chip" [style.background]="wsGroup()!.color || '#607D8B'">{{ wsGroup()!.name }}</span>

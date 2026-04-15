@@ -1249,7 +1249,7 @@ export class ConfirmComponent implements OnDestroy {
       // Ensure author_id is set
       let authorId = localStorage.getItem('future_screenshots_author_id');
       if (!authorId) {
-        authorId = crypto.randomUUID();
+        authorId = this.generateFallbackUUID();
         localStorage.setItem('future_screenshots_author_id', authorId);
       }
       metadata['author_id'] = authorId;
@@ -1292,6 +1292,20 @@ export class ConfirmComponent implements OnDestroy {
         this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
       });
     }
+  }
+
+  private generateFallbackUUID(): string {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      try {
+        return crypto.randomUUID();
+      } catch {
+        // Fall through to fallback
+      }
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = (Math.random() * 16) | 0;
+      return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+    });
   }
 
   private uploadReplace(image: Blob, replaceItemId: string, itemKey?: string) {

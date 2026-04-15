@@ -143,6 +143,9 @@ export class CanvasCreatorComponent implements AfterViewInit {
   wsCurrentRound = signal<number>(1); // 1-based round number
   wsAllDone = signal<boolean>(false); // true when all rounds are submitted
 
+  // Expose only the specific signals needed from ApiService (avoids making api public)
+  wsStrategicMode = computed(() => this.api.wsStrategic());
+
   wsGroup = computed(() => {
     const groupId = this.api.wsGroupId();
     const groups: any[] = this.api.workspace()?.metadata?.ws_groups || this.api.workspace()?.ws_groups || [];
@@ -658,7 +661,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     private state: StateService,
     private router: Router,
     private route: ActivatedRoute,
-    public api: ApiService,
+    private api: ApiService,
   ) {
     this.api.updateFromRoute(this.route.snapshot);
 
@@ -1607,7 +1610,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const sel = this.selectedTemplate();
     const extraParams: any = { template: 'true', template_id: sel?.id };
     // In strategic workshop mode, pass round number to confirm
-    if (this.api.wsStrategic()) {
+    if (this.wsStrategicMode()) {
       extraParams['ws_round'] = this.wsCurrentRound();
     }
     this.router.navigate(['/confirm'], { queryParamsHandling: 'merge', queryParams: extraParams });

@@ -134,11 +134,18 @@
       <div class="ws-sticky-canvas"
            (dragover)="onContainerDragOver($event)"
            (drop)="onContainerDrop($event, $any($event.currentTarget))">
+        <!-- Optional SVG semantic background -->
+        @if (stickySvgUrl()) {
+          <img class="ws-sticky-bg" [src]="stickySvgUrl()!" alt="Semantic template background" aria-hidden="true" />
+        }
         @for (commentItem of allComments(); track commentItem.id) {
           <div class="ws-sticky-note"
                [style.background]="commentItem.color || '#FFD600'"
+               [style.left]="commentItem.sticky_x !== undefined ? (commentItem.sticky_x * 100) + '%' : null"
+               [style.top]="commentItem.sticky_y !== undefined ? (commentItem.sticky_y * 100) + '%' : null"
+               [class.positioned]="commentItem.sticky_x !== undefined"
                draggable="true"
-               (dragstart)="onItemDragStart($event, commentItem.item)"
+               (dragstart)="onStickyDragStart($event, commentItem.item.id, commentItem)"
                [attr.aria-label]="'Sticky note: ' + commentItem.text">
             <p class="ws-sticky-text">{{ commentItem.text }}</p>
             <small class="ws-sticky-source">{{ commentItem.item.participant_name || commentItem.item.author_id?.slice(0, 8) }}</small>

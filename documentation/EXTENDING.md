@@ -944,6 +944,56 @@ if (qp['fisheye_radius']) {
 - **Performance:** Apply effects only during mouse movement, not every frame
 - **Configuration:** Allow customization via query parameters for flexibility
 
+## Adding Strategic Workshop Support to a Workspace
+
+The platform supports a "strategic workshop" mode based on the Future Screenshots methodology (groups × participants × rounds). To enable it:
+
+### 1. Configure the Workspace (Admin Form)
+
+In the workspace form (`/admin/workspace/:id`), enable **Strategic Workshop Mode** in the "Strategic Workshop" section:
+- **Number of Rounds**: How many rounds participants complete (default: 4)
+- **Round Prompts**: A guiding prompt displayed for each round
+- **Thematic Groups**: Named groups participants are assigned to (each gets a unique color)
+
+These values are stored in workspace metadata as:
+- `ws_strategic: boolean`
+- `ws_rounds: number`
+- `ws_round_prompts: string[]`
+- `ws_groups: WsGroup[]` (id, name, color)
+
+### 2. Generate Participant Links
+
+From the admin workspace list, click **Strategic** to open the strategic showcase. Each group has a 🔗 button that generates and copies a participant link:
+
+```
+/canvas-creator?workspace=WORKSPACE_ID&api_key=COLLABORATE_KEY&ws=true&ws_strategic=true&ws_group=GROUP_ID&participant_name=NAME
+```
+
+Participants open this link and go through rounds sequentially:
+- Each round shows the group chip, round indicator, and the round's prompt
+- After submitting each round (via confirm → upload), they're taken to the next round automatically
+- After the final round, a "All Done!" screen is shown
+
+### 3. View Results in the Strategic Showcase
+
+Navigate to `/showcase-ws-strategic?workspace=WORKSPACE_ID&api_key=ADMIN_KEY`:
+- **Grid view**: Groups as sections, participants as rows, rounds as columns
+- Click the **💬 comment button** on any screenshot to add a sticky note comment
+- Drag screenshots within their cells to reposition them; click **↺** to reset
+- Switch to **Sticky Notes view** to see all comments as draggable sticky notes
+
+### 4. Sticky Notes View with SVG Background
+
+Add `sticky_svg=/path/to/template.svg` to the URL to display a semantic SVG template as background. Participants can drag sticky notes onto regions of the SVG to categorize them (e.g., "Now / Near / Far" or similar templates).
+
+### Item Metadata Added by Workshop Flow
+
+When participants create screenshots via the workshop URL, each item is stored with:
+- `ws_group_id`: The participant's assigned group ID
+- `ws_round`: The round number (1-based)
+- `participant_name`: Display name (from URL param)
+- `author_id`: Persistent random UUID stored in localStorage
+
 ## Getting Help
 
 - Review existing similar features in the codebase

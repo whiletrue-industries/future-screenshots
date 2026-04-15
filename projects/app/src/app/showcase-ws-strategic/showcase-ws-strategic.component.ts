@@ -1,7 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { WsGroup } from '../admin/workspace-metadata.interface';
+import { ApiService } from '../../api.service';
 
 export interface WsComment {
   id: string;
@@ -9,6 +11,9 @@ export interface WsComment {
   author?: string;
   created_at: string;
   color?: string;
+  // Position within the sticky notes canvas (normalized 0-1)
+  sticky_x?: number;
+  sticky_y?: number;
 }
 
 export interface WsItem {
@@ -39,6 +44,21 @@ interface ParticipantRow {
 
 const COMMENT_COLORS = ['#FFD600', '#FF6D00', '#E040FB', '#40C4FF', '#69F0AE'];
 
+/** Generates a UUID v4, falling back to a Math.random-based approach in non-secure contexts. */
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    try {
+      return crypto.randomUUID();
+    } catch {
+      // Fall through to fallback
+    }
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
 @Component({
   selector: 'app-showcase-ws-strategic',
   imports: [],
@@ -50,8 +70,10 @@ export class ShowcaseWsStrategicComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private http = inject(HttpClient);
+  private destroyRef = inject(DestroyRef);
+  private api = inject(ApiService);
 
-  CHRONOMAPS_API_URL = 'https://chronomaps-api-qjzuw7ypfq-ez.a.run.app';
+  CHRONOMAPS_API_URL = this.api.CHRONOMAPS_API_URL;
 
   workspace = signal<string>('');
   apiKey = signal<string>('');
@@ -68,10 +90,16 @@ export class ShowcaseWsStrategicComponent implements OnInit {
   commentColor = signal(COMMENT_COLORS[0]);
   commentColors = COMMENT_COLORS;
 
-  // Drag state
+  // Drag state for screenshot grid
   private dragItem: WsItem | null = null;
   private dragStartX = 0;
   private dragStartY = 0;
+
+  // Drag state for sticky notes
+  private dragComment: { itemId: string; comment: WsComment } | null = null;
+
+  // Optional SVG background for sticky notes view (from URL param 'sticky_svg')
+  stickySvgUrl = signal<string | null>(null);
 
   // View mode: 'grid' = groups×participants×rounds table, 'sticky' = sticky notes on SVG
   viewMode = signal<'grid' | 'sticky'>('grid');
@@ -149,13 +177,17 @@ export class ShowcaseWsStrategicComponent implements OnInit {
   });
 
   ngOnInit() {
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
       const ws = params['workspace'] || '';
       const apiKey = params['api_key'] || '';
       const adminKey = params['admin_key'] || apiKey;
       this.workspace.set(ws);
       this.apiKey.set(apiKey);
       this.adminKey.set(adminKey);
+
+      // Optional SVG background for sticky notes view
+      const stickySvg = params['sticky_svg'] || null;
+      this.stickySvgUrl.set(stickySvg);
 
       if (ws && apiKey) {
         this.loadWorkspace(ws, apiKey);
@@ -221,7 +253,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     if (!targetId || !text) return;
 
     const comment: WsComment = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       text,
       created_at: new Date().toISOString(),
       color: this.commentColor(),
@@ -281,23 +313,37 @@ export class ShowcaseWsStrategicComponent implements OnInit {
 
   onItemDragStart(event: DragEvent, item: WsItem) {
     this.dragItem = item;
+    this.dragComment = null;
     this.dragStartX = event.clientX;
     this.dragStartY = event.clientY;
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', 'item:' + item.id);
+    }
+  }
+
+  onStickyDragStart(event: DragEvent, itemId: string, comment: WsComment) {
+    this.dragComment = { itemId, comment };
+    this.dragItem = null;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', 'comment:' + comment.id);
     }
   }
 
   onContainerDrop(event: DragEvent, container: HTMLElement) {
     event.preventDefault();
-    if (!this.dragItem) return;
-
     const rect = container.getBoundingClientRect();
     const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
     const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
 
-    this.updateItemLayout(this.dragItem.id, x, y);
-    this.dragItem = null;
+    if (this.dragItem) {
+      this.updateItemLayout(this.dragItem.id, x, y);
+      this.dragItem = null;
+    } else if (this.dragComment) {
+      this.updateCommentPosition(this.dragComment.itemId, this.dragComment.comment.id, x, y);
+      this.dragComment = null;
+    }
   }
 
   onContainerDragOver(event: DragEvent) {
@@ -309,6 +355,32 @@ export class ShowcaseWsStrategicComponent implements OnInit {
 
   resetItemPosition(item: WsItem) {
     this.updateItemLayout(item.id, undefined, undefined);
+  }
+
+  private updateCommentPosition(itemId: string, commentId: string, x: number, y: number) {
+    this.items.update(items => items.map(item => {
+      if (item.id === itemId) {
+        const comments = (item.ws_comments || []).map(c =>
+          c.id === commentId ? { ...c, sticky_x: x, sticky_y: y } : c
+        );
+        return { ...item, ws_comments: comments };
+      }
+      return item;
+    }));
+
+    const ws = this.workspace();
+    const apiKey = this.apiKey();
+    if (ws && apiKey) {
+      const item = this.items().find(i => i.id === itemId);
+      const updatedComments = item?.ws_comments || [];
+      this.http.put(
+        `${this.CHRONOMAPS_API_URL}/${ws}/${itemId}`,
+        { ws_comments: updatedComments },
+        { headers: { Authorization: apiKey } }
+      ).subscribe({
+        error: (err) => console.error('Failed to update comment position:', err)
+      });
+    }
   }
 
   private updateItemLayout(itemId: string, x: number | undefined, y: number | undefined) {
@@ -381,7 +453,9 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     const ws = this.workspace();
     const apiKey = this.apiKey();
     const url = `${window.location.origin}/canvas-creator?workspace=${ws}&api_key=${apiKey}&ws=true&ws_strategic=true&ws_group=${group.id}`;
-    navigator.clipboard?.writeText(url).catch(() => {});
+    navigator.clipboard?.writeText(url).catch(err => {
+      console.warn('Clipboard write failed:', err);
+    });
     alert(`Participant link for "${group.name}" copied to clipboard:\n${url}`);
   }
 }

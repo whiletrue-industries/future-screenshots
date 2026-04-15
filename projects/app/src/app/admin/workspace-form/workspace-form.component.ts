@@ -436,6 +436,17 @@ export class WorkspaceFormComponent implements OnInit {
     });
   }
 
+  private generateGroupId(): string {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      try {
+        return crypto.randomUUID().slice(0, 8);
+      } catch {
+        // Fall through to fallback
+      }
+    }
+    return Math.random().toString(36).slice(2, 10);
+  }
+
   onWsStrategicChange(value: boolean) {
     this.formData.update(d => ({ ...d, ws_strategic: value }));
   }
@@ -446,7 +457,7 @@ export class WorkspaceFormComponent implements OnInit {
     const name = this.newGroupName().trim();
     if (!name) return;
     const existing = this.formData().ws_groups || [];
-    const id = `group-${Date.now()}`;
+    const id = `group-${this.generateGroupId()}`;
     const colors = ['#E91E63', '#9C27B0', '#3F51B5', '#2196F3', '#009688', '#FF9800', '#795548', '#607D8B'];
     const color = colors[existing.length % colors.length];
     const groups: WsGroup[] = [...existing, { id, name, color }];
