@@ -52,6 +52,11 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     return meta?.ws_round_prompts || meta?.metadata?.ws_round_prompts || [];
   });
 
+  workshopName = computed<string>(() => {
+    const meta = this.workspaceMeta();
+    return meta?.event_name || meta?.metadata?.event_name || 'Strategic Workshop';
+  });
+
   ngOnInit() {
     const params = this.route.snapshot.queryParams;
     this.workspace.set(params['workspace'] || '');
@@ -92,7 +97,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     }).subscribe({
       next: (data) => {
         const raw: any[] = data?.items || data || [];
-        this.items.set(raw.filter((item: any) => item.ws_group_id));
+        this.items.set(raw.filter((item: any) => typeof item.ws_group_id === 'string' && item.ws_group_id.trim().length > 0));
       },
       error: () => {},
     });
@@ -140,8 +145,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     const groups = this.wsGroups();
     const totalRounds = this.wsTotalRounds();
     const allItems = this.items();
-    const meta = this.workspaceMeta();
-    const workshopName = meta?.event_name || meta?.metadata?.event_name || 'Strategic Workshop';
+    const workshopName = this.workshopName();
 
     try {
       // Use one shared Miro board for all groups

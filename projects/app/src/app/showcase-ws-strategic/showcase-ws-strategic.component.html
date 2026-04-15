@@ -3,7 +3,7 @@
   <header class="ws-hub-header">
     <h1 i18n>Strategic Workshop Hub</h1>
     @if (workspaceMeta()) {
-      <p class="ws-hub-name">{{ workspaceMeta()?.event_name || workspaceMeta()?.metadata?.event_name }}</p>
+      <p class="ws-hub-name">{{ workshopName() }}</p>
     }
   </header>
 
