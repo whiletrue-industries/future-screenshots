@@ -62,6 +62,84 @@
       </section>
     }
 
+    <!-- Composition Preview -->
+    <section class="ws-section ws-preview-section" aria-labelledby="preview-heading">
+      <h2 id="preview-heading" i18n>Composition Preview</h2>
+      <p class="ws-hint" i18n>
+        This preview mirrors the Miro export composition (group → round → participant → items) so you can validate what will be sent.
+      </p>
+
+      @if (previewComposition().length === 0) {
+        <p class="ws-empty" i18n>No composition data to preview.</p>
+      }
+
+      @for (groupPreview of previewComposition(); track groupPreview.id) {
+        <article class="ws-preview-group" [style.border-left-color]="groupPreview.color">
+          <header class="ws-preview-group-header">
+            <h3 [style.color]="groupPreview.color">{{ groupPreview.name }}</h3>
+            <p>{{ groupPreview.totalItems }} items</p>
+          </header>
+
+          @for (roundPreview of groupPreview.rounds; track roundPreview.round) {
+            <section class="ws-preview-round">
+              <h4 [style.color]="groupPreview.color">
+                <span i18n>Round</span> {{ roundPreview.round }}: {{ roundPreview.prompt }}
+              </h4>
+
+              @for (participant of roundPreview.participants; track participant.participantId) {
+                <div class="ws-preview-participant">
+                  <p class="ws-preview-participant-name">{{ participant.participantName }}</p>
+
+                  @if (participant.items.length === 0) {
+                    <p class="ws-preview-empty" i18n>No items in this round.</p>
+                  }
+
+                  <div class="ws-preview-items-row">
+                    @for (item of participant.items; track item.id) {
+                      <article class="ws-preview-item-block">
+                        <div class="ws-preview-tag-stack" aria-hidden="true">
+                          <div class="ws-preview-tag-card" [style.background]="groupPreview.color">
+                            <span class="ws-preview-tag-line">HMW...</span>
+                          </div>
+                          <div class="ws-preview-tag-card" [style.background]="groupPreview.color">
+                            <span class="ws-preview-tag-line">HMW...</span>
+                          </div>
+                          <div class="ws-preview-tag-card" [style.background]="groupPreview.color">
+                            <span class="ws-preview-tag-line">HMW...</span>
+                          </div>
+                        </div>
+
+                        <div class="ws-preview-image-box">
+                          @if (item.hasImage) {
+                            <img [src]="item.imageUrl" [alt]="item.title" loading="lazy" />
+                          } @else {
+                            <div class="ws-preview-image-missing" i18n>No image</div>
+                          }
+                        </div>
+
+                        <p class="ws-preview-item-title">{{ item.title }}</p>
+                      </article>
+                    }
+                  </div>
+                </div>
+              }
+            </section>
+          }
+
+          @if (groupPreview.unplaced.length > 0) {
+            <div class="ws-preview-unplaced" role="status">
+              <strong i18n>Unplaced items:</strong>
+              <ul>
+                @for (item of groupPreview.unplaced; track item.id) {
+                  <li>{{ item.id }} — {{ item.reason }}</li>
+                }
+              </ul>
+            </div>
+          }
+        </article>
+      }
+    </section>
+
     <!-- Miro Export -->
     <section class="ws-section ws-miro-section" aria-labelledby="miro-heading">
       <h2 id="miro-heading">
@@ -113,7 +191,7 @@
         }
       </fieldset>
 
-      <div class="ws-miro-form">
+      <form class="ws-miro-form" (submit)="$event.preventDefault(); sendToMiro()">
         <input
           type="password"
           class="ws-token-input"
@@ -127,8 +205,8 @@
         />
         <button
           class="ws-miro-btn"
+          type="submit"
           [disabled]="!miroToken().trim() || miroExporting()"
-          (click)="sendToMiro()"
           i18n
         >
           @if (miroExporting()) {
@@ -137,7 +215,7 @@
             Send to Miro
           }
         </button>
-      </div>
+      </form>
 
       @if (miroProgress()) {
         <p class="ws-miro-progress" role="status" aria-live="polite">{{ miroProgress() }}</p>
@@ -149,7 +227,18 @@
 
       @if (miroResult()) {
         <div class="ws-miro-result">
-          <p i18n>Board created successfully!</p>
+          <p>
+            @if (miroResult()!.boardMode === 'add') {
+              <span i18n>Content added to existing board successfully!</span>
+            } @else {
+              <span i18n>Board created successfully!</span>
+            }
+          </p>
+          @if (miroResult()!.boardMode === 'add') {
+            <p i18n>
+              If this board is already open in Miro, refresh the tab to see newly attached tags.
+            </p>
+          }
           <a [href]="miroResult()!.boardUrl" target="_blank" rel="noopener noreferrer" class="ws-miro-board-link" i18n>
             Open "{{ miroResult()!.boardName }}" in Miro →
           </a>
