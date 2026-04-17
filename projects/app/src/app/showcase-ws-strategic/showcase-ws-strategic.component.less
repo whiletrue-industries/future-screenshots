@@ -179,6 +179,49 @@
       border-radius: 4px;
     }
 
+    .ws-board-mode {
+      margin-bottom: 1rem;
+      padding: 0.75rem 1rem;
+      border: 1.5px solid #ddd;
+      border-radius: 10px;
+      background: #fafafa;
+
+      legend {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: @color-purple;
+        margin-bottom: 0.5rem;
+        padding: 0 0.25rem;
+      }
+
+      .ws-mode-option {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        color: #333;
+        margin-bottom: 0.4rem;
+        cursor: pointer;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+
+        input[type="radio"] {
+          cursor: pointer;
+          margin: 0;
+        }
+
+        &:hover input[type="radio"] {
+          accent-color: @color-purple;
+        }
+      }
+
+      &:disabled {
+        opacity: 0.6;
+      }
+    }
+
     .ws-miro-form {
       display: flex;
       gap: 0.75rem;

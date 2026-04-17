@@ -34,6 +34,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
   miroError = signal<string | null>(null);
   miroProgress = signal<string>('');
   miroBoardId = signal<string | null>(null);
+  boardMode = signal<'create' | 'add'>('create'); // 'create' = new board, 'add' = existing board
 
   // Copied link feedback
   copiedGroupId = signal<string | null>(null);
@@ -63,6 +64,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     this.workspace.set(params['workspace'] || '');
     this.apiKey.set(params['api_key'] || '');
     this.adminKey.set(params['admin_key'] || params['api_key'] || '');
+    this.miroToken.set(this.getStoredMiroToken());
     this.miroBoardId.set(this.getStoredMiroBoardId());
 
     if (this.workspace()) {
@@ -160,11 +162,18 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     });
   }
 
+  onMiroTokenInput(value: string): void {
+    const normalized = this.normalizeMiroToken(value);
+    this.miroToken.set(normalized);
+    this.storeMiroToken(normalized);
+  }
+
   // ---- Miro export (Option C2 – token paste) ----
 
   /** Push all groups to Miro as separate boards, each with a participant × round image grid */
   async sendToMiro() {
-    const token = this.miroToken().trim();
+    const token = this.normalizeMiroToken(this.miroToken());
+    this.miroToken.set(token);
     if (!token) {
       this.miroError.set('Please enter a Miro personal access token.');
       return;
@@ -188,20 +197,28 @@ export class ShowcaseWsStrategicComponent implements OnInit {
         ? workshopName.slice(0, maxNameLen - suffix.length)
         : workshopName;
       const boardName = `${truncatedWorkshopName}${suffix}`;
-      let boardId = this.miroBoardId() || this.getStoredMiroBoardId();
+      let boardId: string | null = null;
       let boardUrl = '';
 
-      if (boardId) {
+      // Determine whether to create new or add to existing
+      const shouldAddToExisting = this.boardMode() === 'add';
+      const storedBoardId = this.getStoredMiroBoardId();
+
+      if (shouldAddToExisting && storedBoardId) {
+        // Try to use existing board
         try {
-          const existingBoard = await this.miroGet(token, `https://api.miro.com/v2/boards/${boardId}`);
+          const existingBoard = await this.miroGet(token, `https://api.miro.com/v2/boards/${storedBoardId}`);
+          boardId = storedBoardId;
           boardUrl = (existingBoard.viewLink as string) || '';
           this.miroProgress.set('Updating existing Miro board…');
         } catch {
+          this.miroError.set('Could not access existing board. Creating a new board instead.');
           boardId = null;
         }
       }
 
       if (!boardId) {
+        // Create new board
         this.miroProgress.set('Creating Miro board…');
         const board = await this.miroPost(token, 'https://api.miro.com/v2/boards', {
           name: boardName,
@@ -216,15 +233,21 @@ export class ShowcaseWsStrategicComponent implements OnInit {
       const finalBoardId = boardId as string;
 
       // Layout constants (Miro coordinates in points)
-      const IMAGE_W = 320;
-      const IMAGE_H = 600;
-      const STICKY_W = 200;
-      const STICKY_H = 150;
-      const H_GAP = 40;   // horizontal gap between items
-      const V_GAP = 80;   // vertical gap between rounds
-      const GROUP_GAP = 200; // vertical gap between groups
-      const ROUND_HEADER_H = 80; // height for round prompt/title
+      const IMAGE_W = 130;
+      const IMAGE_H = 240;
+      const HMW_W = 84;
+      const HMW_GAP = 10;
+      const HMW_H = (IMAGE_H - HMW_GAP * 2) / 3;
+      const ITEM_GAP = 28;
+      const BLOCK_INNER_GAP = 16;
+      const PARTICIPANT_GAP = 70;
+      const ROUND_GAP = 90;
+      const GROUP_GAP = 220;
+      const ROUND_HEADER_H = 70;
       const MIRO_MIN_SIZE = 100;
+      const SIDE_PADDING = 40;
+      const TOP_PADDING = 90;
+      const BOTTOM_PADDING = 70;
 
       let groupOffsetY = 0;
       const prompts = this.wsRoundPrompts();
@@ -258,15 +281,22 @@ export class ShowcaseWsStrategicComponent implements OnInit {
           }
         }
 
-        // Frame width: enough for participants × (items per participant + gaps)
-        const itemWidth = IMAGE_W;
-        const participantSectionW = Math.max(200, maxItemsPerParticipantPerRound * (itemWidth + H_GAP) + H_GAP);
-        const frameW = Math.max(MIRO_MIN_SIZE, participants.length * (participantSectionW + H_GAP) + H_GAP);
+        // Frame width: participants × max item blocks + explicit participant spacing + side padding.
+        const itemBlockW = HMW_W + BLOCK_INNER_GAP + IMAGE_W;
+        const participantSectionW = Math.max(220, Math.max(1, maxItemsPerParticipantPerRound) * (itemBlockW + ITEM_GAP) - ITEM_GAP + 20);
+        const participantCount = participants.length;
+        const frameW = Math.max(
+          MIRO_MIN_SIZE,
+          SIDE_PADDING * 2
+            + participantCount * participantSectionW
+            + Math.max(0, participantCount - 1) * PARTICIPANT_GAP
+        );
 
-        // Frame height: header + (rounds × (round header + items height + gap))
+        // Frame height: fixed paddings + one row per round (header + participant label + image) + inter-round gaps.
+        const roundRowH = ROUND_HEADER_H + IMAGE_H;
         const frameH = Math.max(
           MIRO_MIN_SIZE,
-          100 + totalRounds * (ROUND_HEADER_H + IMAGE_H + V_GAP) + V_GAP
+          TOP_PADDING + totalRounds * roundRowH + Math.max(0, totalRounds - 1) * ROUND_GAP + BOTTOM_PADDING
         );
 
         await this.miroPost(token, `https://api.miro.com/v2/boards/${finalBoardId}/frames`, {
@@ -285,52 +315,76 @@ export class ShowcaseWsStrategicComponent implements OnInit {
           });
         }
 
-        // Layout: organized by round, then by participant
-        let roundOffsetY = groupOffsetY + 80; // start below group title
+        // Layout: frame-relative coordinates avoid cumulative Y drift and keep all items contained.
+        const frameTopY = groupOffsetY - frameH / 2;
+        const contentTopY = frameTopY + TOP_PADDING;
 
         for (let round = 1; round <= totalRounds; round++) {
-          // Add round header with prompt
+          const roundIdx = round - 1;
+          const roundStartY = contentTopY + roundIdx * (roundRowH + ROUND_GAP);
+          const roundHeaderY = roundStartY + ROUND_HEADER_H / 2;
+          const imageTopY = roundStartY + ROUND_HEADER_H;
+          const imageCenterY = imageTopY + IMAGE_H / 2;
+
+          // Add round header as text (24px). Fallback to sticky if text endpoint fails.
           const roundPrompt = prompts[round - 1] || `Round ${round}`;
-          await this.miroPost(token, `https://api.miro.com/v2/boards/${finalBoardId}/sticky_notes`, {
-            data: { content: `<strong>Round ${round}:</strong> ${roundPrompt}`, shape: 'rectangle' },
-            style: { fillColor: 'light_blue' },
-            geometry: { width: Math.max(400, frameW - 100) },
-            position: { x: 0, y: roundOffsetY, origin: 'center' },
-          });
+          const roundHeaderText = `<strong>Round ${round}:</strong> ${roundPrompt}`;
+          try {
+            await this.miroPost(token, `https://api.miro.com/v2/boards/${finalBoardId}/texts`, {
+              data: { content: roundHeaderText },
+              style: { fontSize: '24' },
+              geometry: { width: Math.max(300, frameW - SIDE_PADDING * 2) },
+              position: { x: 0, y: roundHeaderY, origin: 'center' },
+            });
+          } catch {
+            await this.miroPost(token, `https://api.miro.com/v2/boards/${finalBoardId}/sticky_notes`, {
+              data: { content: roundHeaderText, shape: 'rectangle' },
+              style: { fillColor: 'light_blue' },
+              geometry: { width: Math.max(300, frameW - SIDE_PADDING * 2) },
+              position: { x: 0, y: roundHeaderY, origin: 'center' },
+            });
+          }
 
-          // For this round, place all participants and their items horizontally
-          let participantOffsetX = -frameW / 2 + H_GAP + itemWidth / 2;
-          const roundContentY = roundOffsetY + ROUND_HEADER_H / 2 + IMAGE_H / 2;
+          // For this round, place all participants and their items horizontally.
+          const leftEdgeX = -frameW / 2 + SIDE_PADDING;
 
-          for (const [authorId, participantName] of participants) {
+          for (let pIdx = 0; pIdx < participants.length; pIdx++) {
+            const [authorId, participantName] = participants[pIdx];
+            const participantStartX = leftEdgeX + pIdx * (participantSectionW + PARTICIPANT_GAP);
+
             // Get all items for this participant in this round
             const itemsForParticipant = groupItems.filter(
               i => (this.getAuthorId(i) === authorId || this.getParticipantName(i) === participantName)
                 && Number(this.getWsRound(i)) === round
             );
 
-            // Add participant label/header
-            const labelY = roundOffsetY + ROUND_HEADER_H + IMAGE_H / 2 - 40;
-            await this.miroPost(token, `https://api.miro.com/v2/boards/${finalBoardId}/sticky_notes`, {
-              data: { content: `<strong>${participantName}</strong>`, shape: 'rectangle' },
-              style: { fillColor: this.toMiroStickyColor(group.color) },
-              geometry: { width: 200 },
-              position: { x: participantOffsetX + itemWidth / 2, y: labelY, origin: 'center' },
-            });
-
-            // Place all items for this participant in this round, horizontally
+            // Place all items for this participant in this round, horizontally, with a pre-image H.M.W. column.
             for (let itemIdx = 0; itemIdx < itemsForParticipant.length; itemIdx++) {
               const item = itemsForParticipant[itemIdx];
-              const itemX = participantOffsetX + itemIdx * (itemWidth + H_GAP);
+              const itemLeftX = participantStartX + itemIdx * (itemBlockW + ITEM_GAP);
+              const hmwCenterX = itemLeftX + HMW_W / 2;
+              const imageCenterX = itemLeftX + HMW_W + BLOCK_INNER_GAP + IMAGE_W / 2;
+              const contentTitle = this.getContentTitle(item) || `Item ${itemIdx + 1}`;
+
+              // 3 H.M.W. stickies in a single column matching screenshot total height.
+              for (let hmwIdx = 0; hmwIdx < 3; hmwIdx++) {
+                const hmwCenterY = imageTopY + HMW_H / 2 + hmwIdx * (HMW_H + HMW_GAP);
+                await this.miroPost(token, `https://api.miro.com/v2/boards/${finalBoardId}/sticky_notes`, {
+                  data: { content: 'H.M.W. ', shape: 'rectangle' },
+                  style: { fillColor: 'light_yellow' },
+                  geometry: { width: HMW_W },
+                  position: { x: hmwCenterX, y: hmwCenterY, origin: 'center' },
+                });
+              }
 
               const imgUrl = this.getScreenshotUrl(item) || this.getThumbnailUrl(item);
               if (imgUrl) {
                 this.miroProgress.set(`Placing image: ${participantName} / Round ${round} / Item ${itemIdx + 1}…`);
-                const imageTitle = `${group.name} – Round ${round} – ${participantName} (${itemIdx + 1})`;
+                const imageTitle = `${group.name} – Round ${round} – ${participantName} – ${contentTitle}`;
                 await this.miroPost(token, `https://api.miro.com/v2/boards/${finalBoardId}/images`, {
                   data: { url: imgUrl, title: imageTitle },
                   geometry: { width: IMAGE_W },
-                  position: { x: itemX, y: roundContentY, origin: 'center' },
+                  position: { x: imageCenterX, y: imageCenterY, origin: 'center' },
                 });
               } else {
                 // Placeholder sticky note for missing screenshot
@@ -338,15 +392,11 @@ export class ShowcaseWsStrategicComponent implements OnInit {
                   data: { content: `(no image)`, shape: 'rectangle' },
                   style: { fillColor: 'gray' },
                   geometry: { width: IMAGE_W },
-                  position: { x: itemX, y: roundContentY, origin: 'center' },
+                  position: { x: imageCenterX, y: imageCenterY, origin: 'center' },
                 });
               }
             }
-
-            participantOffsetX += participantSectionW + H_GAP;
           }
-
-          roundOffsetY += ROUND_HEADER_H + IMAGE_H + V_GAP;
         }
 
         groupOffsetY += frameH + GROUP_GAP;
@@ -377,6 +427,11 @@ export class ShowcaseWsStrategicComponent implements OnInit {
       return '';
     }
     return url.replace('https://storage.googleapis.com/chronomaps3.firebasestorage.app/', 'https://storage.googleapis.com/chronomaps3-eu/');
+  }
+
+  private normalizeMiroToken(token: string | null | undefined): string {
+    const raw = typeof token === 'string' ? token : '';
+    return raw.replace(/^Bearer\s+/i, '').trim();
   }
 
   private deriveThumbnailUrl(screenshotUrl: string): string {
@@ -446,6 +501,10 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     return item?.author_id || item?.metadata?.author_id || '';
   }
 
+  private getContentTitle(item: any): string {
+    return item?.content_title || item?.metadata?.content_title || '';
+  }
+
   private getScreenshotUrl(item: any): string {
     return this.normalizeImageUrl(item?.screenshot_url || item?.metadata?.screenshot_url || '');
   }
@@ -458,23 +517,66 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     return `ws_miro_board_id_${this.workspace()}`;
   }
 
-  private getStoredMiroBoardId(): string | null {
+  private miroTokenStorageKey(): string {
+    return `ws_miro_token_${this.workspace()}`;
+  }
+
+  private hasLocalStorage(): boolean {
+    return typeof globalThis !== 'undefined' && typeof globalThis.localStorage !== 'undefined';
+  }
+
+  getStoredMiroBoardId(): string | null {
     const key = this.workspace();
-    if (!key) {
+    if (!key || !this.hasLocalStorage()) {
       return null;
     }
-    return localStorage.getItem(this.miroBoardStorageKey());
+    try {
+      return localStorage.getItem(this.miroBoardStorageKey());
+    } catch {
+      return null;
+    }
+  }
+
+  private getStoredMiroToken(): string {
+    const key = this.workspace();
+    if (!key || !this.hasLocalStorage()) {
+      return '';
+    }
+    try {
+      return this.normalizeMiroToken(localStorage.getItem(this.miroTokenStorageKey()) || '');
+    } catch {
+      return '';
+    }
+  }
+
+  private storeMiroToken(token: string): void {
+    const key = this.workspace();
+    if (!key || !this.hasLocalStorage()) {
+      return;
+    }
+    try {
+      localStorage.setItem(this.miroTokenStorageKey(), token);
+    } catch {
+      // Ignore storage write failures (SSR/private mode/quota) and continue export flow.
+    }
   }
 
   private storeMiroBoardId(boardId: string): void {
     const key = this.workspace();
-    if (!key) {
+    if (!key || !this.hasLocalStorage()) {
       return;
     }
-    localStorage.setItem(this.miroBoardStorageKey(), boardId);
+    try {
+      localStorage.setItem(this.miroBoardStorageKey(), boardId);
+    } catch {
+      // Ignore storage write failures (SSR/private mode/quota) and continue export flow.
+    }
   }
 
   private async miroGet(token: string, url: string): Promise<any> {
+    if (!token) {
+      throw new Error('Miro token is missing. Paste a personal access token and try again.');
+    }
     const resp = await fetch(url, {
       method: 'GET',
       headers: {
@@ -489,6 +591,9 @@ export class ShowcaseWsStrategicComponent implements OnInit {
   }
 
   private async miroPost(token: string, url: string, body: any): Promise<any> {
+    if (!token) {
+      throw new Error('Miro token is missing. Paste a personal access token and try again.');
+    }
     const resp = await fetch(url, {
       method: 'POST',
       headers: {

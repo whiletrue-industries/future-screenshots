@@ -80,15 +80,45 @@
         <a href="https://miro.com/app/settings/user-profile/apps" target="_blank" rel="noopener noreferrer">
           miro.com → Profile → Apps → Token
         </a>.
+        The token is stored locally in this browser for this workspace.
         Boards created on Miro's free plan count against your 3-board limit.
       </p>
+
+      <!-- Board Mode Selection -->
+      <fieldset class="ws-board-mode" [disabled]="miroExporting()">
+        <legend i18n>Board Option</legend>
+        <label class="ws-mode-option">
+          <input
+            type="radio"
+            name="boardMode"
+            value="create"
+            [checked]="boardMode() === 'create'"
+            (change)="boardMode.set('create')"
+            [disabled]="miroExporting()"
+          />
+          <span i18n>Create a new board</span>
+        </label>
+        @if (getStoredMiroBoardId()) {
+          <label class="ws-mode-option">
+            <input
+              type="radio"
+              name="boardMode"
+              value="add"
+              [checked]="boardMode() === 'add'"
+              (change)="boardMode.set('add')"
+              [disabled]="miroExporting()"
+            />
+            <span i18n>Add to existing board</span>
+          </label>
+        }
+      </fieldset>
 
       <div class="ws-miro-form">
         <input
           type="password"
           class="ws-token-input"
           [value]="miroToken()"
-          (input)="miroToken.set($any($event.target).value)"
+          (input)="onMiroTokenInput($any($event.target).value)"
           placeholder="Paste your Miro token here…"
           i18n-placeholder
           autocomplete="off"
