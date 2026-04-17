@@ -220,15 +220,18 @@ export class ShowcaseWsStrategicComponent implements OnInit {
       const IMAGE_H = 600;
       const STICKY_W = 200;
       const STICKY_H = 150;
-      const H_GAP = 40;   // horizontal gap between columns
-      const V_GAP = 80;   // vertical gap between rows
+      const H_GAP = 40;   // horizontal gap between items
+      const V_GAP = 80;   // vertical gap between rounds
       const GROUP_GAP = 200; // vertical gap between groups
+      const ROUND_HEADER_H = 80; // height for round prompt/title
       const MIRO_MIN_SIZE = 100;
 
       let groupOffsetY = 0;
+      const prompts = this.wsRoundPrompts();
 
       for (const group of groups) {
         const groupItems = allItems.filter(item => this.getWsGroupId(item) === group.id);
+        console.log(`[Miro Export] Group "${group.name}": ${groupItems.length} total items`);
 
         // Collect unique participants
         const participantMap = new Map<string, string>(); // authorId → name
@@ -238,11 +241,34 @@ export class ShowcaseWsStrategicComponent implements OnInit {
           if (!participantMap.has(id)) participantMap.set(id, name);
         });
         const participants = Array.from(participantMap.entries()); // [authorId, name][]
+        console.log(`[Miro Export] Unique participants: ${participants.length}`, participants.map(p => p[1]));
 
         // Create a frame for this group
         this.miroProgress.set(`Creating frame for group: ${group.name}…`);
-        const frameW = Math.max(MIRO_MIN_SIZE, participants.length * (IMAGE_W + STICKY_W + H_GAP) + H_GAP);
-        const frameH = Math.max(MIRO_MIN_SIZE, totalRounds * (IMAGE_H + V_GAP) + V_GAP + 120); // 120 for header
+
+        // Calculate frame dimensions: width based on max items from any participant per round
+        let maxItemsPerParticipantPerRound = 0;
+        for (let round = 1; round <= totalRounds; round++) {
+          for (const [authorId, participantName] of participants) {
+            const itemsForParticipant = groupItems.filter(
+              i => (this.getAuthorId(i) === authorId || this.getParticipantName(i) === participantName)
+                && Number(this.getWsRound(i)) === round
+            );
+            maxItemsPerParticipantPerRound = Math.max(maxItemsPerParticipantPerRound, itemsForParticipant.length);
+          }
+        }
+
+        // Frame width: enough for participants × (items per participant + gaps)
+        const itemWidth = IMAGE_W;
+        const participantSectionW = Math.max(200, maxItemsPerParticipantPerRound * (itemWidth + H_GAP) + H_GAP);
+        const frameW = Math.max(MIRO_MIN_SIZE, participants.length * (participantSectionW + H_GAP) + H_GAP);
+
+        // Frame height: header + (rounds × (round header + items height + gap))
+        const frameH = Math.max(
+          MIRO_MIN_SIZE,
+          100 + totalRounds * (ROUND_HEADER_H + IMAGE_H + V_GAP) + V_GAP
+        );
+
         await this.miroPost(token, `https://api.miro.com/v2/boards/${finalBoardId}/frames`, {
           data: { title: group.name, format: 'custom', type: 'freeform' },
           style: { fillColor: group.color ? this.lightenHex(group.color, 0.13) : '#f5f5f5' },
@@ -259,54 +285,68 @@ export class ShowcaseWsStrategicComponent implements OnInit {
           });
         }
 
-        // Place images and sticky note slots
-        for (let pIdx = 0; pIdx < participants.length; pIdx++) {
-          const [authorId, participantName] = participants[pIdx];
-          const colX = (H_GAP + (IMAGE_W + STICKY_W + H_GAP) * pIdx) + IMAGE_W / 2;
+        // Layout: organized by round, then by participant
+        let roundOffsetY = groupOffsetY + 80; // start below group title
 
-          // Participant name label (sticky)
+        for (let round = 1; round <= totalRounds; round++) {
+          // Add round header with prompt
+          const roundPrompt = prompts[round - 1] || `Round ${round}`;
           await this.miroPost(token, `https://api.miro.com/v2/boards/${finalBoardId}/sticky_notes`, {
-            data: { content: `<strong>${participantName}</strong>`, shape: 'rectangle' },
-            style: { fillColor: this.toMiroStickyColor(group.color) },
-            geometry: { width: IMAGE_W },
-            position: { x: colX, y: groupOffsetY + 60, origin: 'center' },
+            data: { content: `<strong>Round ${round}:</strong> ${roundPrompt}`, shape: 'rectangle' },
+            style: { fillColor: 'light_blue' },
+            geometry: { width: Math.max(400, frameW - 100) },
+            position: { x: 0, y: roundOffsetY, origin: 'center' },
           });
 
-          for (let round = 1; round <= totalRounds; round++) {
-            const rowY = groupOffsetY + 120 + V_GAP / 2 + (round - 1) * (IMAGE_H + V_GAP) + IMAGE_H / 2;
+          // For this round, place all participants and their items horizontally
+          let participantOffsetX = -frameW / 2 + H_GAP + itemWidth / 2;
+          const roundContentY = roundOffsetY + ROUND_HEADER_H / 2 + IMAGE_H / 2;
 
-            const item = groupItems.find(
+          for (const [authorId, participantName] of participants) {
+            // Get all items for this participant in this round
+            const itemsForParticipant = groupItems.filter(
               i => (this.getAuthorId(i) === authorId || this.getParticipantName(i) === participantName)
                 && Number(this.getWsRound(i)) === round
             );
 
-            const imgUrl = this.getScreenshotUrl(item) || this.getThumbnailUrl(item);
-            if (imgUrl) {
-              this.miroProgress.set(`Placing image: ${participantName} / Round ${round}…`);
-              await this.miroPost(token, `https://api.miro.com/v2/boards/${finalBoardId}/images`, {
-                data: { url: imgUrl, title: `${participantName} – Round ${round}` },
-                geometry: { width: IMAGE_W },
-                position: { x: colX, y: rowY, origin: 'center' },
-              });
-            } else {
-              // Placeholder sticky note for missing screenshot
-              await this.miroPost(token, `https://api.miro.com/v2/boards/${finalBoardId}/sticky_notes`, {
-                data: { content: `Round ${round}\n(no screenshot yet)`, shape: 'rectangle' },
-                style: { fillColor: 'gray' },
-                geometry: { width: IMAGE_W },
-                position: { x: colX, y: rowY, origin: 'center' },
-              });
+            // Add participant label/header
+            const labelY = roundOffsetY + ROUND_HEADER_H + IMAGE_H / 2 - 40;
+            await this.miroPost(token, `https://api.miro.com/v2/boards/${finalBoardId}/sticky_notes`, {
+              data: { content: `<strong>${participantName}</strong>`, shape: 'rectangle' },
+              style: { fillColor: this.toMiroStickyColor(group.color) },
+              geometry: { width: 200 },
+              position: { x: participantOffsetX + itemWidth / 2, y: labelY, origin: 'center' },
+            });
+
+            // Place all items for this participant in this round, horizontally
+            for (let itemIdx = 0; itemIdx < itemsForParticipant.length; itemIdx++) {
+              const item = itemsForParticipant[itemIdx];
+              const itemX = participantOffsetX + itemIdx * (itemWidth + H_GAP);
+
+              const imgUrl = this.getScreenshotUrl(item) || this.getThumbnailUrl(item);
+              if (imgUrl) {
+                this.miroProgress.set(`Placing image: ${participantName} / Round ${round} / Item ${itemIdx + 1}…`);
+                const imageTitle = `${group.name} – Round ${round} – ${participantName} (${itemIdx + 1})`;
+                await this.miroPost(token, `https://api.miro.com/v2/boards/${finalBoardId}/images`, {
+                  data: { url: imgUrl, title: imageTitle },
+                  geometry: { width: IMAGE_W },
+                  position: { x: itemX, y: roundContentY, origin: 'center' },
+                });
+              } else {
+                // Placeholder sticky note for missing screenshot
+                await this.miroPost(token, `https://api.miro.com/v2/boards/${finalBoardId}/sticky_notes`, {
+                  data: { content: `(no image)`, shape: 'rectangle' },
+                  style: { fillColor: 'gray' },
+                  geometry: { width: IMAGE_W },
+                  position: { x: itemX, y: roundContentY, origin: 'center' },
+                });
+              }
             }
 
-            // Blank sticky note for facilitator comments (to the right of image)
-            const stickyX = colX + IMAGE_W / 2 + STICKY_W / 2 + 10;
-            await this.miroPost(token, `https://api.miro.com/v2/boards/${finalBoardId}/sticky_notes`, {
-              data: { content: '', shape: 'square' },
-              style: { fillColor: 'light_yellow' },
-              geometry: { width: STICKY_W },
-              position: { x: stickyX, y: rowY, origin: 'center' },
-            });
+            participantOffsetX += participantSectionW + H_GAP;
           }
+
+          roundOffsetY += ROUND_HEADER_H + IMAGE_H + V_GAP;
         }
 
         groupOffsetY += frameH + GROUP_GAP;
