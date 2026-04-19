@@ -61,37 +61,46 @@
   @if (wsStrategicMode() && wsJustUploaded() && !wsAllDone()) {
     <div class="ws-uploaded-screen">
       <div class="ws-uploaded-content">
-        <div class="ws-uploaded-icon">✓</div>
-        <h2 i18n>Screenshot added!</h2>
-        @if (wsGroup()) {
-          <p class="ws-group-name">
-            <span class="ws-group-chip" [style.background]="wsGroup()!.color || '#607D8B'">{{ wsGroup()!.name }}</span>
-            &nbsp;Round {{ wsCurrentRound() }} of {{ wsTotalRounds() }}
-          </p>
+        <div class="ws-chat-stack">
+          <div class="ws-chat-bubble ws-chat-bubble-ai">
+            <span i18n>You've added the {{ wsRoundUploadOrdinal() }} screenshots in round {{ wsCurrentRound() }}</span>
+          </div>
+        </div>
+
+        @if (wsUploadedPreviewStack().length > 0) {
+          <div class="ws-screenshot-stack" aria-label="Screenshots so far">
+            @for (shot of wsUploadedPreviewStack(); track $index; let i = $index) {
+              <img
+                class="ws-stack-card"
+                [src]="shot"
+                [alt]="'Screenshot ' + (i + 1)"
+                [style.z-index]="i + 1"
+                [style.transform]="wsStackCardTransform(i, wsUploadedPreviewStack().length)"
+              />
+            }
+          </div>
         }
-        @if (wsRoundPrompt()) {
-          <p class="ws-uploaded-prompt">{{ wsRoundPrompt() }}</p>
-        }
-        <div class="ws-cta-buttons">
+
+        <div class="buttons ws-uploaded-actions" ltr>
           <!-- Primary: add another to same round -->
-          <button class="ws-cta-primary" (click)="wsAddAnotherSameRound()" i18n>
+          <button class="button primary" (click)="wsAddAnotherSameRound()" i18n>
             + Add another to Round {{ wsCurrentRound() }}
           </button>
 
           <!-- Secondary: advance or finish -->
           @if (wsCurrentRound() < wsTotalRounds()) {
-            <button class="ws-cta-secondary" (click)="wsAdvanceRound()" i18n>
+            <button class="button" (click)="wsAdvanceRound()" i18n>
               Move to Round {{ wsCurrentRound() + 1 }}
             </button>
           } @else {
-            <button class="ws-cta-secondary" (click)="wsFinishAllRounds()" i18n>
+            <button class="button" (click)="wsFinishAllRounds()" i18n>
               I'm done with all rounds
             </button>
           }
 
           <!-- Tertiary: go back to round 1 -->
           @if (wsCurrentRound() > 1) {
-            <button class="ws-cta-tertiary" (click)="wsGoToRound1()" i18n>
+            <button class="button" (click)="wsGoToRound1()" i18n>
               Go back to Round 1
             </button>
           }
@@ -120,15 +129,21 @@
       <div class="gallery-background"></div>
       <div class="gallery-content">
         <!-- Strategic Workshop banner -->
-        @if (wsStrategicMode()) {
+        @if (wsStrategicMode() && !wsGalleryBannerDismissed()) {
           <div class="ws-round-banner">
-            @if (wsGroup()) {
-              <span class="ws-group-chip" [style.background]="wsGroup()!.color || '#607D8B'">{{ wsGroup()!.name }}</span>
-            }
-            <span class="ws-round-label" i18n>Round {{ wsCurrentRound() }} of {{ wsTotalRounds() }}</span>
-            @if (wsRoundPrompt()) {
-              <span class="ws-round-prompt">{{ wsRoundPrompt() }}</span>
-            }
+            <div class="ws-round-bubble ws-round-bubble-dark" (click)="dismissWsGalleryBanner()" role="button" tabindex="0" (keydown.enter)="dismissWsGalleryBanner()" (keydown.space)="dismissWsGalleryBanner()" aria-label="Hide round banner">
+              <span class="ws-bubble-content">
+                @if (wsGroup()) {
+                  <span class="ws-group-chip" [style.background]="wsGroup()!.color || '#607D8B'">{{ wsGroup()!.name }}</span>
+                }
+                <span class="ws-round-label" i18n>Round {{ wsCurrentRound() }} of {{ wsTotalRounds() }}</span>
+                @if (wsRoundPromptHtml()) {
+                  <span class="ws-round-separator" aria-hidden="true">•</span>
+                  <span class="ws-round-prompt" [innerHTML]="wsRoundPromptHtml()"></span>
+                }
+              </span>
+              <span class="ws-bubble-close" aria-hidden="true">×</span>
+            </div>
           </div>
         }
         <div class="gallery-header">
@@ -188,15 +203,21 @@
   @if (!wsAllDone() && !wsJustUploaded() && wsOnboardingStep() === null && selectedTemplate() && !showTemplateGallery()) {
     <div class="editor" [class.entering]="isEditorShowing()">
       <!-- Strategic workshop round indicator in editor -->
-      @if (wsStrategicMode()) {
+      @if (wsStrategicMode() && !wsGalleryBannerDismissed() && !wsEditorBannerDismissed()) {
         <div class="ws-editor-banner">
-          @if (wsGroup()) {
-            <span class="ws-group-chip" [style.background]="wsGroup()!.color || '#607D8B'">{{ wsGroup()!.name }}</span>
-          }
-          <span class="ws-round-label" i18n>Round {{ wsCurrentRound() }}/{{ wsTotalRounds() }}</span>
-          @if (wsRoundPrompt()) {
-            <span class="ws-round-prompt">{{ wsRoundPrompt() }}</span>
-          }
+          <div class="ws-round-bubble ws-round-bubble-dark" (click)="dismissWsEditorBanner()" role="button" tabindex="0" (keydown.enter)="dismissWsEditorBanner()" (keydown.space)="dismissWsEditorBanner()" aria-label="Hide round banner">
+            <span class="ws-bubble-content">
+              @if (wsGroup()) {
+                <span class="ws-group-chip" [style.background]="wsGroup()!.color || '#607D8B'">{{ wsGroup()!.name }}</span>
+              }
+              <span class="ws-round-label" i18n>Round {{ wsCurrentRound() }}/{{ wsTotalRounds() }}</span>
+              @if (wsRoundPromptHtml()) {
+                <span class="ws-round-separator" aria-hidden="true">•</span>
+                <span class="ws-round-prompt" [innerHTML]="wsRoundPromptHtml()"></span>
+              }
+            </span>
+            <span class="ws-bubble-close" aria-hidden="true">×</span>
+          </div>
         </div>
       }
       <div class="canvas-container">

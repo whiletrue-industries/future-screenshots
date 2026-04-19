@@ -6,7 +6,7 @@
     height: 100%;
     position: relative;
     flex-flow: column;
-    
+
     .sticky-menu {
         position: absolute;
         top: 0;
@@ -38,11 +38,13 @@
                 flex-flow: row nowrap;
                 align-items: center;
                 gap: 8px;
+
                 .back {
                     width: 24px;
                     height: 24px;
                     background-image: url(../../../public/icon-back.svg);
                 }
+
                 .logo {
                     width: 132px;
                     height: 10px;
@@ -50,20 +52,139 @@
                     background-image: url(../../../public/logo-futures.svg);
                 }
             }
+
             .open-menu {
                 margin-inline-start: auto;
                 width: 36px;
                 height: 36px;
                 background-image: url(../../../public/icon-caret-down.svg);
-
             }
         }
     }
+
     .buttons {
-        position: absolute;
+        position: fixed;
+        left: 0;
+        right: 0;
         bottom: 0;
         padding: 8px 24px;
         animation: slideInUp 0.3s ease-in-out;
+        z-index: 1002;
+    }
+
+    .ws-group-picker {
+        display: flex;
+        flex-flow: column;
+        gap: 8px;
+        margin: 0 0 8px;
+        background: #E7CBFF22;
+        border: 1px solid #E7CBFF;
+        border-radius: 24px 24px 24px 8px;
+        padding: 12px;
+
+        .ws-group-picker-title {
+            .font-sans;
+            font-size: 15px;
+            font-weight: 700;
+            color: @color-primary;
+        }
+
+        .ws-group-picker-subtitle {
+            .font-sans;
+            font-size: 13px;
+            color: @color-dark-purple;
+            opacity: 0.85;
+        }
+
+        .ws-group-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .ws-group-option {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid @color-accent-100;
+            background: @color-creme;
+            color: @color-primary;
+            border-radius: 999px;
+            padding: 6px 10px;
+            cursor: pointer;
+            .font-sans;
+            font-size: 13px;
+
+            .ws-group-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                flex: 0 0 auto;
+            }
+
+            &.selected {
+                background: @color-accent-100;
+                font-weight: 700;
+            }
+
+            .ws-group-remove {
+                width: 18px;
+                height: 18px;
+                border-radius: 999px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                background: fade(@color-primary, 12%);
+                color: @color-primary;
+                font-weight: 700;
+                line-height: 1;
+            }
+        }
+
+        .ws-group-create {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+
+            .ws-group-input {
+                flex: 1 1 auto;
+                min-width: 0;
+                border-radius: 14px;
+                border: 1px solid @color-accent-100;
+                background: @color-creme;
+                color: @color-primary;
+                padding: 10px 12px;
+                .font-sans;
+                font-size: 14px;
+            }
+
+            .ws-group-submit-arrow {
+                flex: 0 0 auto;
+                width: 44px;
+                height: 44px;
+                border-radius: 999px;
+                border: 1px solid @color-purple;
+                background: @color-purple;
+                color: @color-white;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                .font-sans;
+                font-size: 22px;
+                line-height: 1;
+                cursor: pointer;
+            }
+        }
+
+        .ws-group-selected {
+            .font-sans;
+            font-size: 13px;
+            color: @color-primary;
+
+            strong {
+                font-weight: 700;
+            }
+        }
     }
 
     .menu-overlay {
@@ -92,4 +213,3 @@
         }
     }
 }
-

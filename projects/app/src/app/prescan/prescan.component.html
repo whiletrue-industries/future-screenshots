@@ -9,6 +9,50 @@
     <app-language-selector></app-language-selector>
 </div>
 <app-messages #messages [scrollOnAI]='false' [paddingTop]="124">
+    @if (showScanButton() && api.wsStrategic()) {
+        <div class='message ai part ws-group-picker' ltr>
+            <div class='ws-group-picker-title' i18n>Choose your strategic workshop group</div>
+            <div class='ws-group-picker-subtitle' i18n>You can pick an existing group or create a new one.</div>
+            @if (strategicGroupChips().length > 0) {
+                <div class='ws-group-list'>
+                    @for (group of strategicGroupChips(); track group.id) {
+                        <button class='ws-group-option'
+                                type='button'
+                                [class.selected]='api.wsGroupId() === group.id'
+                                [style.border-color]='group.color || "#B969FF"'
+                                (click)='selectStrategicGroup(group.id, group.name)'>
+                            <span class='ws-group-dot' [style.background]='group.color || "#B969FF"'></span>
+                            <span>{{ group.name }}</span>
+                            @if (isRemovableCreatedGroup(group.id)) {
+                                <span class='ws-group-remove' (click)='removeStrategicGroup(group.id, $event)' aria-label='Remove created group'>×</span>
+                            }
+                        </button>
+                    }
+                </div>
+            }
+            <div class='ws-group-create'>
+                <input
+                    type='text'
+                    class='ws-group-input'
+                    [value]='newGroupName()'
+                    (input)='newGroupName.set($any($event.target).value)'
+                    (keydown.enter)='createStrategicGroup()'
+                    placeholder='Create a new group name'
+                    i18n-placeholder
+                />
+                @if (newGroupName().trim()) {
+                    <button class='ws-group-submit-arrow' type='button' (click)='createStrategicGroup()' aria-label='Submit new group'>
+                        →
+                    </button>
+                }
+            </div>
+            @if (api.wsGroupName()) {
+                <div class='ws-group-selected' i18n>
+                    Selected: <strong>{{ api.wsGroupName() }}</strong>
+                </div>
+            }
+        </div>
+    }
 </app-messages>
 @if (showScanButton() || showMoreButton() || showAgreeButton()) {
     <div class='buttons' ltr>

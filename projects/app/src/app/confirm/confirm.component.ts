@@ -1238,6 +1238,10 @@ export class ConfirmComponent implements OnDestroy {
       if (wsGroupId) {
         metadata['ws_group_id'] = wsGroupId;
       }
+      const wsGroupName = this.api.wsGroupName() || this.route.snapshot.queryParams['ws_group_name'];
+      if (wsGroupName) {
+        metadata['ws_group_name'] = wsGroupName;
+      }
       const wsRound = this.route.snapshot.queryParams['ws_round'];
       if (wsRound) {
         metadata['ws_round'] = parseInt(wsRound, 10);
@@ -1271,6 +1275,7 @@ export class ConfirmComponent implements OnDestroy {
         delete params['template'];
         delete params['template_id'];
         params['ws_just_uploaded'] = 'true';
+        params['ws_upload_nonce'] = Date.now().toString();
         this.router.navigate(['/canvas-creator'], { queryParams: params });
         return;
       }

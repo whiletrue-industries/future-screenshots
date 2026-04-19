@@ -1,6 +1,7 @@
 import { AfterViewInit, Component, DestroyRef, ElementRef, signal, ViewChild, computed, afterNextRender, Injector, inject, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { marked } from 'marked';
 import { ApiService } from '../../api.service';
 import { PlatformService } from '../../platform.service';
 import { StateService } from '../../state.service';
@@ -143,6 +144,10 @@ export class CanvasCreatorComponent implements AfterViewInit {
   wsCurrentRound = signal<number>(1); // 1-based round number
   wsAllDone = signal<boolean>(false); // true when all rounds are submitted
   wsJustUploaded = signal<boolean>(false); // true right after an upload, show CTA screen
+  wsRoundUploadCount = signal<number>(1);
+  wsUploadedPreviewStack = signal<string[]>([]);
+  wsEditorBannerDismissed = signal<boolean>(false);
+  wsGalleryBannerDismissed = signal<boolean>(false);
 
   // Onboarding state: 'group' = group picker, 'name-email' = name/email form, null = done
   wsOnboardingStep = signal<'group' | 'name-email' | null>(null);
@@ -161,7 +166,16 @@ export class CanvasCreatorComponent implements AfterViewInit {
   wsGroup = computed(() => {
     const groupId = this.api.wsGroupId();
     const groups = this.wsGroups();
-    return groups.find((g: any) => g.id === groupId) || null;
+    const existing = groups.find((g: any) => g.id === groupId) || null;
+    if (existing || !groupId) {
+      return existing;
+    }
+    const fallbackName = this.api.wsGroupName() || groupId;
+    return {
+      id: groupId,
+      name: fallbackName,
+      color: '#607D8B',
+    };
   });
 
   wsTotalRounds = computed<number>(() => {
@@ -175,6 +189,16 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const round = this.wsCurrentRound();
     return prompts[round - 1] || '';
   });
+
+  wsRoundPromptHtml = computed<string>(() => {
+    const text = this.wsRoundPrompt();
+    if (!text) return '';
+    // marked() returns string | Promise<string>; use inline option for no wrapping <p>
+    const result = marked.parseInline(text);
+    return typeof result === 'string' ? result : '';
+  });
+
+  wsRoundUploadOrdinal = computed<string>(() => this.toOrdinal(this.wsRoundUploadCount()));
 
   // Template presets: GeoJSON with textbox positions and properties
   templatePresets: { [key: string]: any } = {
@@ -694,6 +718,8 @@ export class CanvasCreatorComponent implements AfterViewInit {
     // Check if we just uploaded (post-upload CTA screen)
     if (this.route.snapshot.queryParams['ws_just_uploaded'] === 'true') {
       this.wsJustUploaded.set(true);
+      this.updateWsUploadCounterFromRoute();
+      this.loadWsUploadedPreviewStack();
     }
 
     // Strategic onboarding: if ws_strategic but no ws_group in URL → show group picker
@@ -885,6 +911,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
   
   selectTemplate(template: Template) {
     this.selectedTemplate.set(template);
+    this.wsEditorBannerDismissed.set(false);
     this.showTemplateGallery.set(false);
     this.showModeSelection.set(false);
     // Wait for view to update before initializing canvas
@@ -908,6 +935,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
   }
   
   backToGallery() {
+    this.wsGalleryBannerDismissed.set(false);
     this.showTemplateGallery.set(true);
     this.isEditorShowing.set(false);
   }
@@ -985,9 +1013,64 @@ export class CanvasCreatorComponent implements AfterViewInit {
     this.placeholderTexts = [];
     this.hasContent.set(false);
     this.selectedTemplate.set(null);
+    this.wsGalleryBannerDismissed.set(false);
     this.showTemplateGallery.set(true);
     this.isEditorShowing.set(false);
     this.state.currentImage.set(null);
+  }
+
+  dismissWsEditorBanner() {
+    this.wsEditorBannerDismissed.set(true);
+  }
+
+  dismissWsGalleryBanner() {
+    this.wsGalleryBannerDismissed.set(true);
+  }
+
+  private updateWsUploadCounterFromRoute() {
+    if (!this.platform.browser() || !this.wsStrategicMode()) {
+      return;
+    }
+
+    const workspaceId = this.api.workspaceId() || '';
+    const groupId = this.api.wsGroupId() || 'ungrouped';
+    const round = this.wsCurrentRound();
+    const nonce = String(this.route.snapshot.queryParams['ws_upload_nonce'] || '');
+    const countKey = `ws_upload_count_${workspaceId}_${groupId}_${round}`;
+    const lastNonceKey = `ws_upload_last_nonce_${workspaceId}_${groupId}_${round}`;
+
+    let count = 0;
+    try {
+      count = Number(localStorage.getItem(countKey) || '0');
+      const lastNonce = localStorage.getItem(lastNonceKey) || '';
+      if (nonce && nonce !== lastNonce) {
+        count += 1;
+        localStorage.setItem(countKey, String(count));
+        localStorage.setItem(lastNonceKey, nonce);
+      }
+    } catch {
+      // Ignore storage failures and keep in-memory fallback below.
+    }
+
+    this.wsRoundUploadCount.set(Math.max(1, count || 1));
+  }
+
+  private toOrdinal(value: number): string {
+    const abs = Math.abs(Math.trunc(value));
+    const mod100 = abs % 100;
+    if (mod100 >= 11 && mod100 <= 13) {
+      return `${abs}th`;
+    }
+    switch (abs % 10) {
+      case 1:
+        return `${abs}st`;
+      case 2:
+        return `${abs}nd`;
+      case 3:
+        return `${abs}rd`;
+      default:
+        return `${abs}th`;
+    }
   }
 
   cycleColor() {
@@ -1669,6 +1752,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     this.canvas.set(null);
     this.selectedTemplate.set(null);
     this.transitionChoice.set(null);
+    this.wsGalleryBannerDismissed.set(false);
     this.showTemplateGallery.set(true);
     this.showModeSelection.set(false);
   }
@@ -1713,6 +1797,16 @@ export class CanvasCreatorComponent implements AfterViewInit {
       quality: 0.95,     // Match scanner quality
       multiplier: multiplier,  // Scale up to 1060x2000
     });
+
+    if (this.wsStrategicMode()) {
+      this.storeWsUploadedPreview(
+        fabricCanvas.toDataURL({
+          format: 'jpeg',
+          quality: 0.72,
+          multiplier: Math.max(0.18, Math.min(0.4, multiplier * 0.22)),
+        }),
+      );
+    }
     
     // Convert data URL to blob with explicit MIME type
     const response = await fetch(dataURL);
@@ -1729,6 +1823,62 @@ export class CanvasCreatorComponent implements AfterViewInit {
       extraParams['ws_round'] = this.wsCurrentRound();
     }
     this.router.navigate(['/confirm'], { queryParamsHandling: 'merge', queryParams: extraParams });
+  }
+
+  private wsUploadPreviewStorageKey(): string {
+    const workspaceId = this.api.workspaceId() || 'workspace';
+    const groupId = this.api.wsGroupId() || 'ungrouped';
+    const round = this.wsCurrentRound();
+    return `ws_upload_preview_stack_${workspaceId}_${groupId}_${round}`;
+  }
+
+  private loadWsUploadedPreviewStack() {
+    if (!this.platform.browser()) {
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(this.wsUploadPreviewStorageKey());
+      if (!raw) {
+        this.wsUploadedPreviewStack.set([]);
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      const list = Array.isArray(parsed)
+        ? parsed.filter((v: unknown) => typeof v === 'string')
+        : [];
+      this.wsUploadedPreviewStack.set(list);
+    } catch {
+      this.wsUploadedPreviewStack.set([]);
+    }
+  }
+
+  private storeWsUploadedPreview(previewDataUrl: string) {
+    if (!this.platform.browser() || !previewDataUrl) {
+      return;
+    }
+    try {
+      const key = this.wsUploadPreviewStorageKey();
+      const raw = localStorage.getItem(key);
+      const current = raw ? JSON.parse(raw) : [];
+      const list = Array.isArray(current)
+        ? current.filter((v: unknown) => typeof v === 'string')
+        : [];
+      list.push(previewDataUrl);
+      const capped = list.slice(-14);
+      localStorage.setItem(key, JSON.stringify(capped));
+      this.wsUploadedPreviewStack.set(capped);
+    } catch {
+      // Ignore storage failures.
+    }
+  }
+
+  wsStackCardTransform(index: number, total: number): string {
+    const center = (total - 1) / 2;
+    const distance = index - center;
+    const rotate = distance * 2.2;
+    const x = distance * 8 + (index % 2 === 0 ? -3 : 3);
+    const y = Math.max(0, (total - 1 - index) * 5);
+    return `translate(${x}px, ${y}px) rotate(${rotate}deg)`;
   }
   
   undo() {

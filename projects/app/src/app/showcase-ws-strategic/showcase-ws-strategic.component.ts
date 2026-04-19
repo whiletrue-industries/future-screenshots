@@ -59,7 +59,29 @@ export class ShowcaseWsStrategicComponent implements OnInit {
 
   wsGroups = computed<WsGroup[]>(() => {
     const meta = this.workspaceMeta();
-    return meta?.ws_groups || meta?.metadata?.ws_groups || [];
+    const baseGroups: WsGroup[] = meta?.ws_groups || meta?.metadata?.ws_groups || [];
+    const merged = new Map<string, WsGroup>();
+
+    for (const group of baseGroups) {
+      if (!group?.id) {
+        continue;
+      }
+      merged.set(group.id, group);
+    }
+
+    for (const item of this.items()) {
+      const groupId = this.getWsGroupId(item);
+      if (!groupId || merged.has(groupId)) {
+        continue;
+      }
+      merged.set(groupId, {
+        id: groupId,
+        name: this.getWsGroupName(item) || groupId,
+        color: this.deriveGroupColor(groupId),
+      });
+    }
+
+    return Array.from(merged.values());
   });
 
   wsTotalRounds = computed<number>(() => {
@@ -771,6 +793,20 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     return item?.ws_group_id || item?.metadata?.ws_group_id || '';
   }
 
+  private getWsGroupName(item: any): string {
+    return item?.ws_group_name || item?.metadata?.ws_group_name || '';
+  }
+
+  private deriveGroupColor(groupId: string): string {
+    const palette = ['#607D8B', '#4E02B2', '#698CFF', '#2A9D8F', '#FF6B35', '#C44569', '#8E44AD'];
+    let hash = 0;
+    for (let i = 0; i < groupId.length; i++) {
+      hash = ((hash << 5) - hash) + groupId.charCodeAt(i);
+      hash |= 0;
+    }
+    return palette[Math.abs(hash) % palette.length];
+  }
+
   private getWsRound(item: any): number | string {
     return item?.ws_round ?? item?.metadata?.ws_round ?? '';
   }
@@ -849,7 +885,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
       const rounds = Array.from({ length: totalRounds }, (_, idx) => {
         const round = idx + 1;
         const prompt = prompts[idx] || `Round ${round}`;
-        const participantRows = participants.map(([participantId]) => {
+        const participantRows = participants.map(([participantId, participantName]) => {
           const itemsForParticipant = groupItems.filter((item) =>
             (this.getAuthorId(item) || this.getParticipantName(item) || '') === participantId
             && Number(this.getWsRound(item)) === round
