@@ -209,7 +209,7 @@
             type="checkbox"
             [checked]="boardMode() === 'add'"
             (change)="onBoardModeToggle($any($event.target).checked)"
-            [disabled]="miroExporting() || !miroBoardId()"
+            [disabled]="miroExporting()"
             aria-label="Toggle update existing board"
           />
           <span class="ws-switch" aria-hidden="true"></span>

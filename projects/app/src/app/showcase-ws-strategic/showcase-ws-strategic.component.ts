@@ -83,8 +83,9 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     this.apiKey.set(params['api_key'] || '');
     this.adminKey.set(params['admin_key'] || params['api_key'] || '');
     this.miroToken.set(this.getStoredMiroToken());
-    this.miroBoardId.set(this.getStoredMiroBoardId());
-    this.boardMode.set(this.getStoredBoardMode());
+    const storedBoardId = this.getStoredMiroBoardId();
+    this.miroBoardId.set(storedBoardId);
+    this.boardMode.set(this.getStoredBoardMode(storedBoardId));
 
     if (this.workspace()) {
       this.loadWorkspace();
@@ -346,9 +347,9 @@ export class ShowcaseWsStrategicComponent implements OnInit {
         // Calculate frame dimensions: width based on max items from any participant per round
         let maxItemsPerParticipantPerRound = 0;
         for (let round = 1; round <= totalRounds; round++) {
-          for (const [authorId, participantName] of participants) {
+          for (const [authorId] of participants) {
             const itemsForParticipant = groupItemsAll.filter(
-              i => (this.getAuthorId(i) === authorId || this.getParticipantName(i) === participantName)
+              i => (this.getAuthorId(i) || this.getParticipantName(i) || 'unknown') === authorId
                 && Number(this.getWsRound(i)) === round
             );
             maxItemsPerParticipantPerRound = Math.max(maxItemsPerParticipantPerRound, itemsForParticipant.length);
@@ -485,11 +486,23 @@ export class ShowcaseWsStrategicComponent implements OnInit {
             const [authorId, participantName] = participants[pIdx];
             const participantStartX = leftEdgeX + pIdx * (participantSectionW + PARTICIPANT_GAP);
 
-            // Get all items for this participant in this round
+            // Get all items for this participant in this round.
+            // Use the same key derivation as the participantMap to avoid missing items
+            // whose authorId/participantName are both empty (they map to the 'unknown' bucket).
             const itemsForParticipant = groupItemsAll.filter(
-              i => (this.getAuthorId(i) === authorId || this.getParticipantName(i) === participantName)
+              i => (this.getAuthorId(i) || this.getParticipantName(i) || 'unknown') === authorId
                 && Number(this.getWsRound(i)) === round
             );
+
+            // In delta mode, new/updated items are appended after unchanged ones so they
+            // are always additive and never overwrite existing board content.
+            const unchangedSlotCount = isDeltaUpdateOnExistingBoard
+              ? itemsForParticipant.filter(i => {
+                  const id = this.getItemId(i);
+                  return !id || (!itemDelta.new.has(id) && !itemDelta.updated.has(id));
+                }).length
+              : 0;
+            let deltaRenderIdx = 0;
 
             // Place all items for this participant in this round in deterministic slots.
             for (let itemIdx = 0; itemIdx < itemsForParticipant.length; itemIdx++) {
@@ -501,25 +514,35 @@ export class ShowcaseWsStrategicComponent implements OnInit {
                 continue;
               }
 
-              const itemLeftX = participantStartX + itemIdx * (itemBlockW + ITEM_GAP);
+              // In delta mode use an append slot (after all unchanged items) so that
+              // new and updated items are always added rather than replacing existing ones.
+              const slotIdx = isDeltaUpdateOnExistingBoard
+                ? unchangedSlotCount + deltaRenderIdx
+                : itemIdx;
+              deltaRenderIdx++;
+
+              const itemLeftX = participantStartX + slotIdx * (itemBlockW + ITEM_GAP);
               const tagCenterX = itemLeftX + TAG_STICKY_W / 2;
               const imageCenterX = itemLeftX + TAG_STICKY_W + BLOCK_INNER_GAP + IMAGE_W / 2;
-              const contentTitle = this.getContentTitle(item) || `Item ${itemIdx + 1}`;
+              const contentTitle = this.getContentTitle(item) || `Item ${slotIdx + 1}`;
               // Check whether this slot already has sticky notes on the board.
               // If it does, the facilitator may have edited them — never overwrite.
               // If it doesn't (new slot or first export), create the HMW stickies.
               const stickySlotLeft = tagCenterX - TAG_STICKY_W / 2 - 8;
               const stickySlotRight = tagCenterX + TAG_STICKY_W / 2 + 8;
-              const hasExistingStickyInSlot = existingFrame && frameItems.some(fi =>
+              const existingStickiesInSlot = existingFrame ? frameItems.filter(fi =>
                 fi?.type === 'sticky_note' &&
                 Number(fi?.position?.x) >= stickySlotLeft &&
                 Number(fi?.position?.x) <= stickySlotRight &&
                 Number(fi?.position?.y) >= imageTopY - 8 &&
                 Number(fi?.position?.y) <= imageTopY + IMAGE_H + 8,
-              );
+              ) : [];
+              const hasExistingStickyInSlot = existingStickiesInSlot.length > 0;
               const shouldCreateStickies = !hasExistingStickyInSlot;
 
-              if (existingFrame) {
+              // In delta mode we only ever append to empty slots — never clear existing
+              // board content. In a fresh full export, clear any stale image in the slot.
+              if (existingFrame && !isDeltaUpdateOnExistingBoard) {
                 frameItems = await this.clearExistingItemsInBlock(
                   token,
                   finalBoardId,
@@ -540,6 +563,8 @@ export class ShowcaseWsStrategicComponent implements OnInit {
                 ...(itemId ? [{ tagTitle: `item_id:${itemId}` }] : []),
               ];
 
+              const stickyIdsToTag: string[] = [];
+
               if (shouldCreateStickies) {
                 for (let tagIdx = 0; tagIdx < 3; tagIdx++) {
                   const tagCenterY = imageTopY + TAG_STICKY_H / 2 + tagIdx * (TAG_STICKY_H + TAG_STICKY_GAP);
@@ -549,17 +574,30 @@ export class ShowcaseWsStrategicComponent implements OnInit {
                     geometry: { width: TAG_STICKY_W },
                     position: { x: tagCenterX, y: tagCenterY, origin: 'center' },
                   });
-
-                  for (const datapointTag of datapointTags) {
-                    const tagId = await this.getOrCreateBoardTag(
-                      token,
-                      finalBoardId,
-                      boardTagCache,
-                      datapointTag.tagTitle,
-                      this.toMiroTagColor(group.color),
-                    );
-                    await this.attachTagToItem(token, finalBoardId, sticky.id as string, tagId);
+                  const stickyId = typeof sticky?.id === 'string' ? sticky.id : '';
+                  if (stickyId) {
+                    stickyIdsToTag.push(stickyId);
                   }
+                }
+              } else {
+                for (const sticky of existingStickiesInSlot) {
+                  const stickyId = typeof sticky?.id === 'string' ? sticky.id : '';
+                  if (stickyId) {
+                    stickyIdsToTag.push(stickyId);
+                  }
+                }
+              }
+
+              for (const stickyId of stickyIdsToTag) {
+                for (const datapointTag of datapointTags) {
+                  const tagId = await this.getOrCreateBoardTag(
+                    token,
+                    finalBoardId,
+                    boardTagCache,
+                    datapointTag.tagTitle,
+                    this.toMiroTagColor(group.color),
+                  );
+                  await this.attachTagToItem(token, finalBoardId, stickyId, tagId);
                 }
               }
 
@@ -811,9 +849,9 @@ export class ShowcaseWsStrategicComponent implements OnInit {
       const rounds = Array.from({ length: totalRounds }, (_, idx) => {
         const round = idx + 1;
         const prompt = prompts[idx] || `Round ${round}`;
-        const participantRows = participants.map(([participantId, participantName]) => {
+        const participantRows = participants.map(([participantId]) => {
           const itemsForParticipant = groupItems.filter((item) =>
-            (this.getAuthorId(item) === participantId || this.getParticipantName(item) === participantName)
+            (this.getAuthorId(item) || this.getParticipantName(item) || '') === participantId
             && Number(this.getWsRound(item)) === round
           );
 
@@ -985,15 +1023,16 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     }
   }
 
-  private getStoredBoardMode(): 'create' | 'add' {
+  private getStoredBoardMode(storedBoardId = this.getStoredMiroBoardId()): 'create' | 'add' {
     const key = this.workspace();
     if (!key || !this.hasLocalStorage()) {
-      return 'add';
+      return 'create';
     }
     try {
-      return localStorage.getItem(this.boardModeStorageKey()) === 'create' ? 'create' : 'add';
+      const storedMode = localStorage.getItem(this.boardModeStorageKey()) === 'add' ? 'add' : 'create';
+      return storedBoardId ? storedMode : 'create';
     } catch {
-      return 'add';
+      return 'create';
     }
   }
 
@@ -1301,18 +1340,42 @@ export class ShowcaseWsStrategicComponent implements OnInit {
   private async attachTagToItem(token: string, boardId: string, itemId: string, tagId: string): Promise<void> {
     const encodedItemId = encodeURIComponent(itemId);
     const url = `https://api.miro.com/v2/boards/${boardId}/items/${encodedItemId}?tag_id=${encodeURIComponent(tagId)}`;
-    // Retry attach in case of transient API hiccups.
-    const attempts = 3;
+    // Retry attach and verify the tag is actually present on the item.
+    const attempts = 4;
     for (let attempt = 0; attempt < attempts; attempt++) {
       try {
         await this.miroPostNoContent(token, url);
-        return;
       } catch (error) {
-        if (attempt === attempts - 1) {
+        const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+        const isAlreadyAttached = message.includes('409')
+          && (message.includes('already') || message.includes('duplicate') || message.includes('exist'));
+        if (isAlreadyAttached) {
+          // Continue to verification below; duplicate attach should still result in the tag being present.
+        } else if (attempt === attempts - 1) {
           throw error;
         }
-        await new Promise((resolve) => setTimeout(resolve, 250 + attempt * 200));
       }
+
+      if (await this.itemHasTag(token, boardId, itemId, tagId)) {
+        return;
+      }
+
+      if (attempt === attempts - 1) {
+        throw new Error(`Tag assignment was not persisted for item ${itemId} and tag ${tagId}.`);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 350 + attempt * 250));
+    }
+  }
+
+  private async itemHasTag(token: string, boardId: string, itemId: string, tagId: string): Promise<boolean> {
+    try {
+      const encodedItemId = encodeURIComponent(itemId);
+      const resp = await this.miroGet(token, `https://api.miro.com/v2/boards/${boardId}/items/${encodedItemId}/tags?limit=50`);
+      const tags = Array.isArray(resp?.data) ? resp.data : [];
+      return tags.some((tag: any) => String(tag?.id || '') === tagId);
+    } catch {
+      return false;
     }
   }
 

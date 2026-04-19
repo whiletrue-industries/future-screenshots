@@ -1001,6 +1001,8 @@ The strategic showcase uses a persisted **Board Option** toggle:
 - **Off**: Create a new board and export full content.
 - **On**: Update the previously stored board.
 
+Before the first export, the toggle defaults to **Off** because no board has been stored yet. The control remains interactive, but export still falls back to creating a new board until a stored Miro board ID exists for the workspace.
+
 When **Board Option** is on, export always runs in update mode (no separate "Export Contents" selector):
 
 - Reads existing board items before writing.
