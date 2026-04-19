@@ -387,6 +387,50 @@
         &:hover input[type="radio"] {
           accent-color: @color-purple;
         }
+
+        &.ws-mode-option--switch {
+          input[type="checkbox"] {
+            position: absolute;
+            opacity: 0;
+            width: 1px;
+            height: 1px;
+            pointer-events: none;
+          }
+
+          .ws-switch {
+            width: 42px;
+            height: 24px;
+            border-radius: 999px;
+            background: #cdd1d6;
+            position: relative;
+            transition: background 0.2s ease;
+
+            &::after {
+              content: '';
+              position: absolute;
+              top: 3px;
+              left: 3px;
+              width: 18px;
+              height: 18px;
+              border-radius: 50%;
+              background: #fff;
+              box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+              transition: transform 0.2s ease;
+            }
+          }
+
+          input[type="checkbox"]:checked + .ws-switch {
+            background: @color-purple;
+          }
+
+          input[type="checkbox"]:checked + .ws-switch::after {
+            transform: translateX(18px);
+          }
+
+          input[type="checkbox"]:disabled + .ws-switch {
+            opacity: 0.6;
+          }
+        }
       }
 
       &:disabled {
@@ -472,6 +516,175 @@
         color: @color-purple;
         font-weight: 600;
         font-size: 0.95rem;
+      }
+    }
+
+    // Delta export mode styling
+    .ws-delta-info {
+      background: #f0f4ff;
+      border: 1px solid #c5d9ff;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+      color: #4a5568;
+
+      p {
+        margin: 0 0 0.75rem;
+        font-weight: 600;
+        color: #2c3e50;
+      }
+
+      .ws-delta-legend {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+
+        li {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.85rem;
+        }
+      }
+    }
+
+    .ws-delta-badge {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+
+      &.ws-delta-new {
+        background: #4caf50;
+      }
+
+      &.ws-delta-updated {
+        background: #ff9800;
+      }
+
+      &.ws-delta-unchanged {
+        background: #bdbdbd;
+      }
+    }
+
+    // Item status badge in preview cards
+    .ws-item-status-badge {
+      position: absolute;
+      top: 0.3rem;
+      right: 0.3rem;
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      line-height: 1;
+      pointer-events: none;
+      z-index: 10;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+
+      &.ws-item-status-new {
+        background: #4caf50;
+        color: white;
+      }
+
+      &.ws-item-status-updated {
+        background: #ff9800;
+        color: white;
+      }
+
+      &.ws-item-status-unchanged {
+        background: #bdbdbd;
+        color: white;
+      }
+    }
+
+    .ws-preview-item-block {
+      position: relative;
+
+      &.ws-item-new {
+        border-color: #4caf50;
+        border-width: 2px;
+      }
+
+      &.ws-item-updated {
+        border-color: #ff9800;
+        border-width: 2px;
+      }
+
+      &.ws-item-unchanged {
+        opacity: 0.6;
+      }
+    }
+
+    // Group header delta stats
+    .ws-preview-group-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1rem;
+
+      .ws-preview-group-title {
+        flex: 1;
+
+        h3 {
+          margin: 0 0 0.25rem;
+          font-size: 1.1rem;
+        }
+
+        p {
+          margin: 0;
+          font-size: 0.85rem;
+          color: #666;
+        }
+      }
+
+      .ws-preview-group-delta {
+        display: flex;
+        gap: 1rem;
+      }
+    }
+
+    .ws-delta-stat {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+
+      &.ws-delta-stat-new {
+        background: rgba(76, 175, 80, 0.1);
+        color: #2e7d32;
+      }
+
+      &.ws-delta-stat-updated {
+        background: rgba(255, 152, 0, 0.1);
+        color: #e65100;
+      }
+    }
+
+    .ws-delta-badge-small {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+
+      &.ws-delta-new {
+        background: #4caf50;
+      }
+
+      &.ws-delta-updated {
+        background: #ff9800;
       }
     }
   }

@@ -994,6 +994,22 @@ When participants create screenshots via the workshop URL, each item is stored w
 - `participant_name`: Display name (from URL param)
 - `author_id`: Persistent random UUID stored in localStorage
 
+### Miro Export Behavior (Strategic Showcase)
+
+The strategic showcase uses a persisted **Board Option** toggle:
+
+- **Off**: Create a new board and export full content.
+- **On**: Update the previously stored board.
+
+When **Board Option** is on, export always runs in update mode (no separate "Export Contents" selector):
+
+- Reads existing board items before writing.
+- Does **not** create new group frames.
+- Reuses existing group frame geometry and coordinates.
+- Re-renders changed items in deterministic slots.
+- Clears prior image/tag sticky content in the target slot before re-rendering, to avoid duplicates.
+- Skips groups that do not have a matching existing frame on the board.
+
 ## Getting Help
 
 - Review existing similar features in the codebase
