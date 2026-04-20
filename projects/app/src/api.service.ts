@@ -36,6 +36,10 @@ export class ApiService {
   workspace = signal<any>({});
   isWorkshop = signal<boolean>(false);
   isWorkshopFollowup = signal<boolean>(false);
+  wsGroupId = signal<string | null>(null); // Strategic workshop: assigned group ID
+  wsGroupName = signal<string | null>(null); // Strategic workshop: assigned group display name
+  wsParticipantName = signal<string | null>(null); // Strategic workshop: participant display name
+  wsStrategic = signal<boolean>(false); // Strategic workshop mode
   uploadImageInProgress = new ReplaySubject<boolean>(1);
   currentlyUploadingImage = signal<boolean>(false);
   currentUpload$: Observable<{item_id: string, item_key: string}> | null = null;
@@ -101,6 +105,15 @@ export class ApiService {
     this.isWorkshop.set(isWorkshop);
     const isWorkshopFollowup = !!route.queryParams['wsf'];
     this.isWorkshopFollowup.set(isWorkshopFollowup);
+
+    const wsStrategic = !!route.queryParams['ws_strategic'];
+    this.wsStrategic.set(wsStrategic);
+    const wsGroupId = route.queryParams['ws_group'] || null;
+    this.wsGroupId.set(wsGroupId);
+    const wsGroupName = route.queryParams['ws_group_name'] || null;
+    this.wsGroupName.set(wsGroupName);
+    const wsParticipantName = route.queryParams['participant_name'] || null;
+    this.wsParticipantName.set(wsParticipantName);
 
     const item_key = route.queryParams['key'];
     const item_id = route.queryParams['item-id'];

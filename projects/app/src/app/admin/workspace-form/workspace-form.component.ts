@@ -1,9 +1,9 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, computed } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminApiService } from '../../../admin-api.service';
-import { WorkspaceMetadata, CreateOrUpdateWorkspaceRequest } from '../workspace-metadata.interface';
+import { WorkspaceMetadata, CreateOrUpdateWorkspaceRequest, WsGroup } from '../workspace-metadata.interface';
 
 interface LanguageOption {
   code: string;
@@ -55,6 +55,21 @@ export class WorkspaceFormComponent implements OnInit {
 
   // Keyword input
   keywordInput = signal('');
+
+  // Strategic workshop: new group input
+  newGroupName = signal('');
+
+  // Strategic workshop: round prompts as string array
+  wsRoundPromptsRaw = computed(() => {
+    const prompts = this.formData().ws_round_prompts || [];
+    const rounds = this.formData().ws_rounds || 4;
+    // Pad to match round count
+    const padded = [...prompts];
+    while (padded.length < rounds) {
+      padded.push('');
+    }
+    return padded.slice(0, rounds);
+  });
 
   // Available templates
   availableTemplates = [
@@ -198,6 +213,27 @@ export class WorkspaceFormComponent implements OnInit {
       metadata.active_templates = [
         'post', 'chat', 'notification', 'review', 'prompt', 
         'photo', 'sign', 'holyland', 'world'
+      ];
+    }
+
+    // Initialize strategic workshop fields
+    if (metadata.ws_strategic === undefined) {
+      metadata.ws_strategic = false;
+    }
+    if (!metadata.ws_rounds) {
+      metadata.ws_rounds = 5;
+    }
+    if (!metadata.ws_groups) {
+      metadata.ws_groups = [];
+    }
+    if (!metadata.ws_round_prompts || metadata.ws_round_prompts.length === 0) {
+      // Default prompts from the Future Screenshots methodology
+      metadata.ws_round_prompts = [
+        "Imagine it's [year]. Your organisation has achieved its most ambitious goal. Take a screenshot of the digital proof.",
+        "What is the biggest challenge your organisation faces today? Take a screenshot that shows this barrier.",
+        "Which partner, community, or unexpected actor is key to your success? Take a screenshot showing this collaboration.",
+        "What tool, funding, or infrastructure would change everything? Take a screenshot of where you'd find it.",
+        "What is the very first thing your organisation will do after this workshop? Take a screenshot of the action.",
       ];
     }
   }
@@ -405,6 +441,77 @@ export class WorkspaceFormComponent implements OnInit {
         this.isSubmitting.set(false);
       }
     });
+  }
+
+  private generateGroupId(): string {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      try {
+        return crypto.randomUUID().slice(0, 8);
+      } catch {
+        // Fall through to fallback
+      }
+    }
+    return Math.random().toString(36).slice(2, 10);
+  }
+
+  onWsStrategicChange(value: boolean) {
+    this.formData.update(d => ({ ...d, ws_strategic: value }));
+  }
+
+  // ---- Strategic workshop: group management ----
+
+  addGroup() {
+    const name = this.newGroupName().trim();
+    if (!name) return;
+    const existing = this.formData().ws_groups || [];
+    const id = `group-${this.generateGroupId()}`;
+    const colors = ['#E91E63', '#9C27B0', '#3F51B5', '#2196F3', '#009688', '#FF9800', '#795548', '#607D8B'];
+    const color = colors[existing.length % colors.length];
+    const groups: WsGroup[] = [...existing, { id, name, color }];
+    this.formData.update(data => ({ ...data, ws_groups: groups }));
+    this.newGroupName.set('');
+  }
+
+  removeGroup(groupId: string) {
+    const groups = (this.formData().ws_groups || []).filter(g => g.id !== groupId);
+    this.formData.update(data => ({ ...data, ws_groups: groups }));
+  }
+
+  updateGroupName(groupId: string, value: string) {
+    const groups = (this.formData().ws_groups || []).map(g => g.id === groupId ? { ...g, name: value } : g);
+    this.formData.update(data => ({ ...data, ws_groups: groups }));
+  }
+
+  onGroupNameKeyPress(event: KeyboardEvent) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.addGroup();
+    }
+  }
+
+  // ---- Strategic workshop: round prompt management ----
+
+  updateRoundPrompt(roundIndex: number, value: string) {
+    const prompts = [...(this.formData().ws_round_prompts || [])];
+    while (prompts.length <= roundIndex) {
+      prompts.push('');
+    }
+    prompts[roundIndex] = value;
+    this.formData.update(data => ({ ...data, ws_round_prompts: prompts }));
+  }
+
+  updateRoundCount(value: number) {
+    const rounds = Math.max(1, Math.min(10, value || 4));
+    this.formData.update(data => ({ ...data, ws_rounds: rounds }));
+  }
+
+  getRoundPromptArray(): number[] {
+    const rounds = this.formData().ws_rounds || 4;
+    return Array.from({ length: rounds }, (_, i) => i);
+  }
+
+  getRoundPrompt(index: number): string {
+    return (this.formData().ws_round_prompts || [])[index] || '';
   }
 
   cancel() {

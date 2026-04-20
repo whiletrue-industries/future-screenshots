@@ -1,0 +1,691 @@
+@import '../../common.less';
+
+.ws-hub {
+  height: 100vh;
+  min-height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  background: @color-creme;
+  .font-sans;
+
+  .ws-hub-header {
+    background: @color-purple;
+    color: white;
+    padding: 2rem 2rem 1.5rem;
+
+    h1 {
+      margin: 0 0 0.25rem;
+      font-size: 1.6rem;
+      font-weight: 700;
+    }
+
+    .ws-hub-name {
+      margin: 0;
+      font-size: 1rem;
+      opacity: 0.8;
+    }
+  }
+
+  .ws-preview-section {
+    max-width: 1100px;
+
+    .ws-preview-group {
+      background: #fff;
+      border-left: 6px solid #607D8B;
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+    }
+
+    .ws-preview-group-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.75rem;
+
+      h3 {
+        margin: 0;
+        font-size: 2.5rem;
+        line-height: 1.05;
+        color: #222;
+      }
+
+      p {
+        margin: 0;
+        font-size: 0.85rem;
+        color: #666;
+      }
+    }
+
+    .ws-preview-round {
+      border: 1px solid #ececf5;
+      border-radius: 10px;
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+      background: linear-gradient(180deg, #fafafd 0%, #ffffff 100%);
+
+      h4 {
+        margin: 0 0 1.3rem;
+        font-size: 1rem;
+        color: @color-purple;
+      }
+    }
+
+    .ws-preview-participant {
+      margin-bottom: 0.65rem;
+    }
+
+    .ws-preview-participant-name {
+      margin: 0 0 0.35rem;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #1e1e1e;
+    }
+
+    .ws-preview-empty {
+      margin: 0.1rem 0 0.5rem;
+      color: #888;
+      font-size: 0.85rem;
+      font-style: italic;
+    }
+
+    .ws-preview-items-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.7rem;
+      align-items: flex-start;
+    }
+
+    .ws-preview-item-block {
+      width: 230px;
+      border: 1px solid #e5e5ee;
+      border-radius: 10px;
+      padding: 0.5rem;
+      background: #fff;
+      display: grid;
+      grid-template-columns: 98px 1fr;
+      grid-template-rows: 150px auto;
+      gap: 0.45rem 0.5rem;
+    }
+
+    .ws-preview-tag-stack {
+      grid-column: 1;
+      grid-row: 1;
+      display: grid;
+      grid-template-rows: repeat(3, 1fr);
+      gap: 0.35rem;
+      width: 88px;
+      height: 150px;
+    }
+
+    .ws-preview-tag-card {
+      border: 1px solid rgba(0, 0, 0, 0.18);
+      border-radius: 6px;
+      padding: 0.25rem;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+    }
+
+    .ws-preview-tag-line {
+      font-size: 0.62rem;
+      line-height: 1.2;
+      font-weight: 700;
+      color: #fff;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ws-preview-image-box {
+      grid-column: 2;
+      grid-row: 1;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #f5f5f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+    }
+
+    .ws-preview-image-missing {
+      font-size: 0.78rem;
+      color: #777;
+    }
+
+    .ws-preview-item-title {
+      grid-column: 1 / span 2;
+      grid-row: 2;
+      margin: 0;
+      font-size: 0.78rem;
+      color: #333;
+      line-height: 1.35;
+      max-height: 2.7em;
+      overflow: hidden;
+    }
+
+    .ws-preview-unplaced {
+      margin-top: 0.4rem;
+      padding: 0.5rem 0.6rem;
+      border-radius: 8px;
+      background: #fff5f5;
+      border: 1px solid #ffd7d7;
+      color: #8a2525;
+      font-size: 0.84rem;
+
+      ul {
+        margin: 0.35rem 0 0;
+        padding-left: 1rem;
+      }
+    }
+  }
+
+  .ws-loading {
+    padding: 3rem;
+    text-align: center;
+    color: #666;
+  }
+
+  .ws-error {
+    margin: 1.5rem;
+    padding: 1rem 1.25rem;
+    background: #ffeaea;
+    border: 1.5px solid #e53935;
+    border-radius: 8px;
+    color: #b71c1c;
+  }
+
+  .ws-section {
+    max-width: 720px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+
+    h2 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: @color-purple;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .ws-hint {
+      font-size: 0.92rem;
+      color: #555;
+      margin-bottom: 1rem;
+      line-height: 1.5;
+
+      &.ws-hint--small {
+        font-size: 0.82rem;
+        color: #777;
+
+        a {
+          color: @color-purple;
+        }
+      }
+    }
+
+    .ws-empty {
+      font-size: 0.9rem;
+      color: #888;
+      font-style: italic;
+    }
+  }
+
+  // Groups list
+  .ws-groups-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+
+    .ws-group-card {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: white;
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      border-left: 4px solid #607D8B;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+
+      .ws-group-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      .ws-group-name {
+        flex: 1;
+        font-weight: 600;
+        font-size: 1rem;
+      }
+
+      .ws-copy-btn {
+        padding: 0.4rem 1rem;
+        border-radius: 20px;
+        border: 1.5px solid @color-purple;
+        background: transparent;
+        color: @color-purple;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+        white-space: nowrap;
+
+        &:hover {
+          background: @color-purple;
+          color: white;
+        }
+
+        &.copied {
+          background: #4CAF50;
+          border-color: #4CAF50;
+          color: white;
+        }
+      }
+    }
+  }
+
+  // Round prompts
+  .ws-rounds-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    .ws-round-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+
+      .ws-round-badge {
+        flex-shrink: 0;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: @color-purple;
+        color: white;
+        font-size: 0.8rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .ws-round-prompt {
+        font-size: 0.92rem;
+        color: #333;
+        line-height: 1.5;
+        padding-top: 4px;
+      }
+    }
+  }
+
+  // Miro export section
+  .ws-miro-section {
+    .ws-miro-logo {
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+    }
+
+    .ws-board-mode {
+      margin-bottom: 1rem;
+      padding: 0.75rem 1rem;
+      border: 1.5px solid #ddd;
+      border-radius: 10px;
+      background: #fafafa;
+
+      legend {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: @color-purple;
+        margin-bottom: 0.5rem;
+        padding: 0 0.25rem;
+      }
+
+      .ws-mode-option {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        color: #333;
+        margin-bottom: 0.4rem;
+        cursor: pointer;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+
+        input[type="radio"] {
+          cursor: pointer;
+          margin: 0;
+        }
+
+        &:hover input[type="radio"] {
+          accent-color: @color-purple;
+        }
+
+        &.ws-mode-option--switch {
+          input[type="checkbox"] {
+            position: absolute;
+            opacity: 0;
+            width: 1px;
+            height: 1px;
+            pointer-events: none;
+          }
+
+          .ws-switch {
+            width: 42px;
+            height: 24px;
+            border-radius: 999px;
+            background: #cdd1d6;
+            position: relative;
+            transition: background 0.2s ease;
+
+            &::after {
+              content: '';
+              position: absolute;
+              top: 3px;
+              left: 3px;
+              width: 18px;
+              height: 18px;
+              border-radius: 50%;
+              background: #fff;
+              box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+              transition: transform 0.2s ease;
+            }
+          }
+
+          input[type="checkbox"]:checked + .ws-switch {
+            background: @color-purple;
+          }
+
+          input[type="checkbox"]:checked + .ws-switch::after {
+            transform: translateX(18px);
+          }
+
+          input[type="checkbox"]:disabled + .ws-switch {
+            opacity: 0.6;
+          }
+        }
+      }
+
+      &:disabled {
+        opacity: 0.6;
+      }
+    }
+
+    .ws-miro-form {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+
+      .ws-token-input {
+        flex: 1;
+        min-width: 240px;
+        padding: 0.65rem 1rem;
+        border-radius: 10px;
+        border: 1.5px solid #ccc;
+        font-size: 0.95rem;
+        outline: none;
+        transition: border-color 0.2s;
+
+        &:focus {
+          border-color: @color-purple;
+        }
+
+        &:disabled {
+          opacity: 0.6;
+        }
+      }
+
+      .ws-miro-btn {
+        padding: 0.65rem 1.4rem;
+        border-radius: 10px;
+        border: none;
+        background: #FFD02F;
+        color: #050038;
+        font-size: 0.95rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: filter 0.15s;
+        white-space: nowrap;
+
+        &:hover:not(:disabled) {
+          filter: brightness(0.95);
+        }
+
+        &:disabled {
+          opacity: 0.5;
+          cursor: default;
+        }
+      }
+    }
+
+    .ws-miro-progress {
+      font-size: 0.9rem;
+      color: #555;
+      font-style: italic;
+    }
+
+    .ws-miro-error {
+      font-size: 0.9rem;
+      color: #c62828;
+      background: #ffeaea;
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+    }
+
+    .ws-miro-result {
+      background: #e8f5e9;
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+
+      p {
+        margin: 0 0 0.5rem;
+        font-weight: 600;
+        color: #2e7d32;
+      }
+
+      .ws-miro-board-link {
+        color: @color-purple;
+        font-weight: 600;
+        font-size: 0.95rem;
+      }
+    }
+
+    // Delta export mode styling
+    .ws-delta-info {
+      background: #f0f4ff;
+      border: 1px solid #c5d9ff;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+      color: #4a5568;
+
+      p {
+        margin: 0 0 0.75rem;
+        font-weight: 600;
+        color: #2c3e50;
+      }
+
+      .ws-delta-legend {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+
+        li {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.85rem;
+        }
+      }
+    }
+
+    .ws-delta-badge {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+
+      &.ws-delta-new {
+        background: #4caf50;
+      }
+
+      &.ws-delta-updated {
+        background: #ff9800;
+      }
+
+      &.ws-delta-unchanged {
+        background: #bdbdbd;
+      }
+    }
+
+    // Item status badge in preview cards
+    .ws-item-status-badge {
+      position: absolute;
+      top: 0.3rem;
+      right: 0.3rem;
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      line-height: 1;
+      pointer-events: none;
+      z-index: 10;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+
+      &.ws-item-status-new {
+        background: #4caf50;
+        color: white;
+      }
+
+      &.ws-item-status-updated {
+        background: #ff9800;
+        color: white;
+      }
+
+      &.ws-item-status-unchanged {
+        background: #bdbdbd;
+        color: white;
+      }
+    }
+
+    .ws-preview-item-block {
+      position: relative;
+
+      &.ws-item-new {
+        border-color: #4caf50;
+        border-width: 2px;
+      }
+
+      &.ws-item-updated {
+        border-color: #ff9800;
+        border-width: 2px;
+      }
+
+      &.ws-item-unchanged {
+        opacity: 0.6;
+      }
+    }
+
+    // Group header delta stats
+    .ws-preview-group-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1rem;
+
+      .ws-preview-group-title {
+        flex: 1;
+
+        h3 {
+          margin: 0 0 0.25rem;
+          font-size: 1.1rem;
+        }
+
+        p {
+          margin: 0;
+          font-size: 0.85rem;
+          color: #666;
+        }
+      }
+
+      .ws-preview-group-delta {
+        display: flex;
+        gap: 1rem;
+      }
+    }
+
+    .ws-delta-stat {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+
+      &.ws-delta-stat-new {
+        background: rgba(76, 175, 80, 0.1);
+        color: #2e7d32;
+      }
+
+      &.ws-delta-stat-updated {
+        background: rgba(255, 152, 0, 0.1);
+        color: #e65100;
+      }
+    }
+
+    .ws-delta-badge-small {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+
+      &.ws-delta-new {
+        background: #4caf50;
+      }
+
+      &.ws-delta-updated {
+        background: #ff9800;
+      }
+    }
+  }
+}

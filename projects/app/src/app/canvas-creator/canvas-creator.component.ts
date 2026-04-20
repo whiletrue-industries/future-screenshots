@@ -1,6 +1,7 @@
 import { AfterViewInit, Component, DestroyRef, ElementRef, signal, ViewChild, computed, afterNextRender, Injector, inject, effect } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { marked } from 'marked';
 import { ApiService } from '../../api.service';
 import { PlatformService } from '../../platform.service';
 import { StateService } from '../../state.service';
@@ -29,6 +30,8 @@ const DEFAULT_ACTIVE_TEMPLATE_IDS = [
 })
 export class CanvasCreatorComponent implements AfterViewInit {
   @ViewChild('canvasEl', { static: false}) canvasEl!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('wsRoundsPager', { static: false }) wsRoundsPager?: ElementRef<HTMLElement>;
+  @ViewChild('wsStacksRow', { static: false }) wsStacksRow?: ElementRef<HTMLElement>;
   
   // Color palette: vibrant markers with WCAG AA contrast (4.5:1) from white paper
   private readonly colorPalette = [
@@ -142,6 +145,72 @@ export class CanvasCreatorComponent implements AfterViewInit {
     const activeTemplateIds = this.activeTemplateIds();
     const allowedTemplates = new Set(activeTemplateIds);
     return this.allTemplates.filter((template) => allowedTemplates.has(template.id));
+  });
+
+  // Strategic workshop signals
+  wsCurrentRound = signal<number>(1); // 1-based round number
+  wsAllDone = signal<boolean>(false); // true when all rounds are submitted
+  wsJustUploaded = signal<boolean>(false); // true right after an upload, show CTA screen
+  wsRoundUploadCount = signal<number>(1);
+  wsUploadedPreviewStack = signal<string[]>([]);
+  wsUploadedPreviewStacks = signal<Record<number, string[]>>({});
+  wsEditorBannerDismissed = signal<boolean>(false);
+  wsGalleryBannerDismissed = signal<boolean>(false);
+
+  // Onboarding state: 'group' = group picker, 'name-email' = name/email form, null = done
+  wsOnboardingStep = signal<'group' | 'name-email' | null>(null);
+  wsOnboardingGroupId = signal<string | null>(null); // group selected in onboarding
+  wsOnboardingName = signal<string>('');
+  wsOnboardingEmail = signal<string>('');
+
+  // Expose only the specific signals needed from ApiService (avoids making api public)
+  wsStrategicMode = computed(() => this.api.wsStrategic());
+
+  wsGroups = computed<any[]>(() => {
+    const ws = this.api.workspace();
+    return ws?.metadata?.ws_groups || ws?.ws_groups || [];
+  });
+
+  wsGroup = computed(() => {
+    const groupId = this.api.wsGroupId();
+    const groups = this.wsGroups();
+    const existing = groups.find((g: any) => g.id === groupId) || null;
+    if (existing || !groupId) {
+      return existing;
+    }
+    const fallbackName = this.api.wsGroupName() || groupId;
+    return {
+      id: groupId,
+      name: fallbackName,
+      color: '#607D8B',
+    };
+  });
+
+  wsTotalRounds = computed<number>(() => {
+    const ws = this.api.workspace();
+    return ws?.metadata?.ws_rounds || ws?.ws_rounds || 4;
+  });
+
+  wsRoundPrompt = computed<string>(() => {
+    const ws = this.api.workspace();
+    const prompts: string[] = ws?.metadata?.ws_round_prompts || ws?.ws_round_prompts || [];
+    const round = this.wsCurrentRound();
+    return prompts[round - 1] || '';
+  });
+
+  wsRoundPromptHtml = computed<string>(() => {
+    const text = this.wsRoundPrompt();
+    if (!text) return '';
+    // marked() returns string | Promise<string>; use inline option for no wrapping <p>
+    const result = marked.parseInline(text);
+    return typeof result === 'string' ? result : '';
+  });
+
+  wsRoundUploadOrdinal = computed<string>(() => this.toOrdinal(this.wsRoundUploadCount()));
+
+  wsStackRounds = computed<number[]>(() => {
+    const roundCount = Math.max(4, this.wsTotalRounds());
+    return Array.from({ length: roundCount }, (_, i) => i + 1);
   });
 
   // Template presets: GeoJSON with textbox positions and properties
@@ -644,6 +713,33 @@ export class CanvasCreatorComponent implements AfterViewInit {
     private api: ApiService,
   ) {
     this.api.updateFromRoute(this.route.snapshot);
+
+    // Initialize strategic workshop round from URL param
+    const wsRoundParam = this.route.snapshot.queryParams['ws_round'];
+    if (wsRoundParam) {
+      const round = parseInt(wsRoundParam, 10);
+      if (!isNaN(round) && round >= 1) {
+        this.wsCurrentRound.set(round);
+      }
+    }
+
+    // Check if all rounds are done
+    if (this.route.snapshot.queryParams['ws_done'] === 'true') {
+      this.wsAllDone.set(true);
+    }
+
+    // Check if we just uploaded (post-upload CTA screen)
+    if (this.route.snapshot.queryParams['ws_just_uploaded'] === 'true') {
+      this.wsJustUploaded.set(true);
+      this.updateWsUploadCounterFromRoute();
+      this.loadWsUploadedPreviewStacks();
+    }
+
+    // Strategic onboarding: if ws_strategic but no ws_group in URL → show group picker
+    if (this.api.wsStrategic() && !this.route.snapshot.queryParams['ws_group']) {
+      this.wsOnboardingStep.set('group');
+    }
+
     // Select random color on init
     this.currentColor.set(this.markerColors[Math.floor(Math.random() * this.markerColors.length)]);
     
@@ -702,6 +798,14 @@ export class CanvasCreatorComponent implements AfterViewInit {
     if (!this.platform.browser()) {
       return;
     }
+
+    if (this.wsJustUploaded()) {
+      setTimeout(() => {
+        this.wsCenterCurrentRoundPage('auto');
+      }, 0);
+      return;
+    }
+
     // If a specific template was requested (re-edit flow), open it
     const requestedId = this.route.snapshot.queryParamMap.get('template_id');
     if (requestedId) {
@@ -836,6 +940,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
   
   selectTemplate(template: Template) {
     this.selectedTemplate.set(template);
+    this.wsEditorBannerDismissed.set(false);
     this.showTemplateGallery.set(false);
     this.showModeSelection.set(false);
     // Wait for view to update before initializing canvas
@@ -859,8 +964,151 @@ export class CanvasCreatorComponent implements AfterViewInit {
   }
   
   backToGallery() {
+    this.wsGalleryBannerDismissed.set(false);
     this.showTemplateGallery.set(true);
     this.isEditorShowing.set(false);
+  }
+
+  // ---- Strategic workshop onboarding ----
+
+  wsSelectOnboardingGroup(groupId: string) {
+    this.wsOnboardingGroupId.set(groupId);
+    this.wsOnboardingStep.set('name-email');
+  }
+
+  wsSubmitOnboarding() {
+    const name = this.wsOnboardingName().trim();
+    if (!name) return; // name is required
+
+    const groupId = this.wsOnboardingGroupId();
+    const email = this.wsOnboardingEmail().trim();
+
+    // Navigate to same route with group + name (+ optional email) injected into URL
+    const params = { ...this.route.snapshot.queryParams };
+    if (groupId) params['ws_group'] = groupId;
+    params['participant_name'] = name;
+    if (email) params['participant_email'] = email;
+
+    this.router.navigate([], { queryParams: params, replaceUrl: true });
+    // Update api signals directly so the UI refreshes without a full navigation
+    this.api.wsGroupId.set(groupId);
+    this.api.wsParticipantName.set(name);
+    this.wsOnboardingStep.set(null);
+  }
+
+  // ---- Strategic workshop post-upload CTAs ----
+
+  /** Restart on the same round (add another screenshot) */
+  wsAddAnotherSameRound() {
+    this.wsJustUploaded.set(false);
+    this._wsResetCanvasForNewShot();
+  }
+
+  private wsJumpToRound(round: number) {
+    this.wsCurrentRound.set(round);
+    this.wsJustUploaded.set(false);
+    const params: Record<string, any> = { ...this.route.snapshot.queryParams, ws_round: round };
+    delete params['ws_just_uploaded'];
+    this.router.navigate([], { queryParams: params, replaceUrl: true });
+    this._wsResetCanvasForNewShot();
+  }
+
+  /** Move to the next round */
+  wsAdvanceRound() {
+    const next = this.wsCurrentRound() + 1;
+    this.wsJumpToRound(next);
+  }
+
+  /** Jump back to round 1 */
+  wsGoToRound1() {
+    this.wsJumpToRound(1);
+  }
+
+  wsGoToStrategicShowcase() {
+    const params: Record<string, any> = { ...this.route.snapshot.queryParams };
+    delete params['ws_just_uploaded'];
+    delete params['ws_done'];
+    delete params['ws_round'];
+    delete params['template'];
+    delete params['template_id'];
+    this.wsJustUploaded.set(false);
+    this.router.navigate(['/showcase-ws'], { queryParams: params });
+  }
+
+  /** Finish all rounds and show the "All Done" screen */
+  wsFinishAllRounds() {
+    this.wsJustUploaded.set(false);
+    this.wsAllDone.set(true);
+  }
+
+  private _wsResetCanvasForNewShot() {
+    // Destroy current canvas and go back to template gallery
+    const fabricCanvas = this.canvas();
+    if (fabricCanvas) {
+      fabricCanvas.dispose();
+      this.canvas.set(null);
+    }
+    this.placeholderTexts = [];
+    this.hasContent.set(false);
+    this.selectedTemplate.set(null);
+    this.wsGalleryBannerDismissed.set(false);
+    this.showTemplateGallery.set(true);
+    this.isEditorShowing.set(false);
+    this.state.currentImage.set(null);
+  }
+
+  dismissWsEditorBanner() {
+    this.wsEditorBannerDismissed.set(true);
+  }
+
+  dismissWsGalleryBanner() {
+    this.wsGalleryBannerDismissed.set(true);
+  }
+
+  private updateWsUploadCounterFromRoute() {
+    if (!this.platform.browser() || !this.wsStrategicMode()) {
+      return;
+    }
+
+    const workspaceId = this.api.workspaceId() || '';
+    const groupId = this.api.wsGroupId() || 'ungrouped';
+    const round = this.wsCurrentRound();
+    const nonce = String(this.route.snapshot.queryParams['ws_upload_nonce'] || '');
+    const countKey = `ws_upload_count_${workspaceId}_${groupId}_${round}`;
+    const lastNonceKey = `ws_upload_last_nonce_${workspaceId}_${groupId}_${round}`;
+
+    let count = 0;
+    try {
+      count = Number(localStorage.getItem(countKey) || '0');
+      const lastNonce = localStorage.getItem(lastNonceKey) || '';
+      if (nonce && nonce !== lastNonce) {
+        count += 1;
+        localStorage.setItem(countKey, String(count));
+        localStorage.setItem(lastNonceKey, nonce);
+      }
+    } catch {
+      // Ignore storage failures and keep in-memory fallback below.
+    }
+
+    this.wsRoundUploadCount.set(Math.max(1, count || 1));
+  }
+
+  private toOrdinal(value: number): string {
+    const abs = Math.abs(Math.trunc(value));
+    const mod100 = abs % 100;
+    if (mod100 >= 11 && mod100 <= 13) {
+      return `${abs}th`;
+    }
+    switch (abs % 10) {
+      case 1:
+        return `${abs}st`;
+      case 2:
+        return `${abs}nd`;
+      case 3:
+        return `${abs}rd`;
+      default:
+        return `${abs}th`;
+    }
   }
 
   cycleColor() {
@@ -1076,6 +1324,21 @@ export class CanvasCreatorComponent implements AfterViewInit {
     // Place initial chat placeholders (needs canvas to be registered first)
     this.placeInitialChatBoxes(fabricCanvas);
     this.updatePlaceholderVisibility(this.currentMode() === 'type');
+
+    // Strategic workshop: pre-fill the transition textbox with "Round N"
+    if (this.wsStrategicMode()) {
+      const round = this.wsCurrentRound();
+      const transitionBox = this.placeholderTexts.find(
+        (tb: any) => tb._placeholderText === 'transition'
+      );
+      if (transitionBox) {
+        transitionBox._placeholder = false;
+        transitionBox.set({ text: `Round ${round}`, fill: transitionBox.fill });
+        fabricCanvas.renderAll();
+        this.hasContent.set(true);
+      }
+    }
+
     this.bindUndoTracking(fabricCanvas);
     this.resetUndoHistory(fabricCanvas);
     
@@ -1533,6 +1796,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     this.canvas.set(null);
     this.selectedTemplate.set(null);
     this.transitionChoice.set(null);
+    this.wsGalleryBannerDismissed.set(false);
     this.showTemplateGallery.set(true);
     this.showModeSelection.set(false);
   }
@@ -1577,6 +1841,16 @@ export class CanvasCreatorComponent implements AfterViewInit {
       quality: 0.95,     // Match scanner quality
       multiplier: multiplier,  // Scale up to 1060x2000
     });
+
+    if (this.wsStrategicMode()) {
+      this.storeWsUploadedPreview(
+        fabricCanvas.toDataURL({
+          format: 'jpeg',
+          quality: 0.72,
+          multiplier: Math.max(0.18, Math.min(0.4, multiplier * 0.22)),
+        }),
+      );
+    }
     
     // Convert data URL to blob with explicit MIME type
     const response = await fetch(dataURL);
@@ -1587,7 +1861,243 @@ export class CanvasCreatorComponent implements AfterViewInit {
     
     this.state.setImage(jpegBlob);
     const sel = this.selectedTemplate();
-    this.router.navigate(['/confirm'], { queryParamsHandling: 'merge', queryParams: { template: 'true', template_id: sel?.id } });
+    const extraParams: any = { template: 'true', template_id: sel?.id };
+    // In strategic workshop mode, pass round number to confirm
+    if (this.wsStrategicMode()) {
+      extraParams['ws_round'] = this.wsCurrentRound();
+    }
+    this.router.navigate(['/confirm'], { queryParamsHandling: 'merge', queryParams: extraParams });
+  }
+
+  private wsUploadPreviewStorageKey(): string {
+    const workspaceId = this.api.workspaceId() || 'workspace';
+    const groupId = this.api.wsGroupId() || 'ungrouped';
+    const round = this.wsCurrentRound();
+    return `ws_upload_preview_stack_${workspaceId}_${groupId}_${round}`;
+  }
+
+  private wsUploadPreviewStorageKeyForRound(round: number): string {
+    const workspaceId = this.api.workspaceId() || 'workspace';
+    const groupId = this.api.wsGroupId() || 'ungrouped';
+    return `ws_upload_preview_stack_${workspaceId}_${groupId}_${round}`;
+  }
+
+  private loadWsUploadedPreviewStacks() {
+    if (!this.platform.browser()) {
+      return;
+    }
+    try {
+      const allStacks: Record<number, string[]> = {};
+      for (const round of this.wsStackRounds()) {
+        const raw = localStorage.getItem(this.wsUploadPreviewStorageKeyForRound(round));
+        const parsed = raw ? JSON.parse(raw) : [];
+        allStacks[round] = Array.isArray(parsed)
+          ? parsed.filter((v: unknown) => typeof v === 'string')
+          : [];
+      }
+      this.wsUploadedPreviewStacks.set(allStacks);
+      this.wsUploadedPreviewStack.set(allStacks[this.wsCurrentRound()] || []);
+
+      setTimeout(() => {
+        this.wsCenterCurrentRoundPage('auto');
+      }, 0);
+    } catch {
+      this.wsUploadedPreviewStacks.set({});
+      this.wsUploadedPreviewStack.set([]);
+    }
+  }
+
+  wsPlaceholderLabel(round: number): string {
+    const shots = this.wsRoundStack(round);
+    if (shots.length === 0 && round === this.wsCurrentRound() + 1) {
+      return 'skip to next round';
+    }
+    return 'add another';
+  }
+
+  wsOnRoundPlaceholderClick(round: number) {
+    const shots = this.wsRoundStack(round);
+    const isNextEmptyRound = shots.length === 0 && round === this.wsCurrentRound() + 1;
+
+    if (isNextEmptyRound) {
+      const nextRound = round + 1;
+      if (nextRound > this.wsTotalRounds()) {
+        this.wsFinishAllRounds();
+        return;
+      }
+      this.wsJumpToRound(nextRound);
+      return;
+    }
+
+    this.wsJumpToRound(round);
+  }
+
+  private wsCenterCurrentRoundPage(behavior: ScrollBehavior = 'smooth') {
+    if (!this.platform.browser()) return;
+    const pager = this.wsRoundsPager?.nativeElement;
+    if (!pager) return;
+
+    const current = this.wsCurrentRound();
+    const activePage = pager.querySelector(`[data-round-block="${current}"]`) as HTMLElement | null;
+    if (!activePage) return;
+
+    const targetLeft = activePage.offsetLeft + (activePage.offsetWidth / 2) - (pager.clientWidth / 2);
+    pager.scrollTo({ left: Math.max(0, targetLeft), behavior });
+  }
+
+  private storeWsUploadedPreview(previewDataUrl: string) {
+    if (!this.platform.browser() || !previewDataUrl) {
+      return;
+    }
+    try {
+      const key = this.wsUploadPreviewStorageKey();
+      const raw = localStorage.getItem(key);
+      const current = raw ? JSON.parse(raw) : [];
+      const list = Array.isArray(current)
+        ? current.filter((v: unknown) => typeof v === 'string')
+        : [];
+      list.push(previewDataUrl);
+      const capped = list.slice(-14);
+      localStorage.setItem(key, JSON.stringify(capped));
+
+      const round = this.wsCurrentRound();
+      const allStacks = { ...this.wsUploadedPreviewStacks(), [round]: capped };
+      this.wsUploadedPreviewStacks.set(allStacks);
+      this.wsUploadedPreviewStack.set(capped);
+    } catch {
+      // Ignore storage failures.
+    }
+  }
+
+  wsRoundStack(round: number): string[] {
+    return this.wsUploadedPreviewStacks()[round] || [];
+  }
+
+  wsRotateRoundStack(round: number) {
+    if (this.wsStacksWasDragging) {
+      this.wsStacksWasDragging = false;
+      return;
+    }
+
+    const current = this.wsUploadedPreviewStacks();
+    const stack = current[round] || [];
+    if (stack.length < 2) {
+      return;
+    }
+
+    // Top item is rendered last. Move it to the back.
+    const top = stack[stack.length - 1];
+    const rotated = [top, ...stack.slice(0, -1)];
+    const next = { ...current, [round]: rotated };
+    this.wsUploadedPreviewStacks.set(next);
+
+    if (round === this.wsCurrentRound()) {
+      this.wsUploadedPreviewStack.set(rotated);
+    }
+
+    if (this.platform.browser()) {
+      try {
+        localStorage.setItem(this.wsUploadPreviewStorageKeyForRound(round), JSON.stringify(rotated));
+      } catch {
+        // Ignore storage failures.
+      }
+    }
+  }
+
+  private wsStacksDragStartX: number | null = null;
+  private wsStacksStartScrollLeft = 0;
+  private wsStacksIsDragging = false;
+  private wsStacksDidMove = false;
+  private wsStacksWasDragging = false;
+
+  onWsStacksMouseDown(event: MouseEvent) {
+    if (event.button !== 0) return;
+    const row = this.wsStacksRow?.nativeElement;
+    if (!row) return;
+    this.wsStacksIsDragging = true;
+    this.wsStacksDidMove = false;
+    this.wsStacksDragStartX = event.clientX;
+    this.wsStacksStartScrollLeft = row.scrollLeft;
+  }
+
+  onWsStacksMouseMove(event: MouseEvent) {
+    if (!this.wsStacksIsDragging || this.wsStacksDragStartX === null) return;
+    const row = this.wsStacksRow?.nativeElement;
+    if (!row) return;
+
+    const delta = event.clientX - this.wsStacksDragStartX;
+    if (Math.abs(delta) > 4) {
+      this.wsStacksDidMove = true;
+    }
+    row.scrollLeft = this.wsStacksStartScrollLeft - delta;
+  }
+
+  onWsStacksMouseUp() {
+    this.wsEndStacksDrag();
+  }
+
+  onWsStacksMouseLeave() {
+    if (this.wsStacksIsDragging) {
+      this.wsEndStacksDrag();
+    }
+  }
+
+  onWsStacksTouchStart(event: TouchEvent) {
+    if (event.touches.length !== 1) return;
+    const row = this.wsStacksRow?.nativeElement;
+    if (!row) return;
+    this.wsStacksIsDragging = true;
+    this.wsStacksDidMove = false;
+    this.wsStacksDragStartX = event.touches[0].clientX;
+    this.wsStacksStartScrollLeft = row.scrollLeft;
+  }
+
+  onWsStacksTouchMove(event: TouchEvent) {
+    if (!this.wsStacksIsDragging || this.wsStacksDragStartX === null || event.touches.length !== 1) return;
+    const row = this.wsStacksRow?.nativeElement;
+    if (!row) return;
+
+    const delta = event.touches[0].clientX - this.wsStacksDragStartX;
+    if (Math.abs(delta) > 4) {
+      this.wsStacksDidMove = true;
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+    }
+    row.scrollLeft = this.wsStacksStartScrollLeft - delta;
+  }
+
+  onWsStacksTouchEnd() {
+    this.wsEndStacksDrag();
+  }
+
+  private wsEndStacksDrag() {
+    this.wsStacksIsDragging = false;
+    this.wsStacksDragStartX = null;
+    this.wsStacksWasDragging = this.wsStacksDidMove;
+    this.wsCenterCurrentRoundStack('smooth');
+  }
+
+  private wsCenterCurrentRoundStack(behavior: ScrollBehavior = 'smooth') {
+    if (!this.platform.browser()) return;
+    const row = this.wsStacksRow?.nativeElement;
+    if (!row) return;
+
+    const current = this.wsCurrentRound();
+    const activeStack = row.querySelector(`[data-round="${current}"]`) as HTMLElement | null;
+    if (!activeStack) return;
+
+    const targetLeft = activeStack.offsetLeft + (activeStack.offsetWidth / 2) - (row.clientWidth / 2);
+    row.scrollTo({ left: Math.max(0, targetLeft), behavior });
+  }
+
+  wsStackCardTransform(index: number, total: number): string {
+    const center = (total - 1) / 2;
+    const distance = index - center;
+    const rotate = distance * 2.2;
+    const x = distance * 8 + (index % 2 === 0 ? -3 : 3);
+    const y = Math.max(0, (total - 1 - index) * 5);
+    return `translate(${x}px, ${y}px) rotate(${rotate}deg)`;
   }
   
   undo() {
@@ -1662,7 +2172,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     this.moveCarouselDrag(ev.touches[0].clientX);
 
     // Prevent native scrolling while performing a horizontal swipe
-    if (Math.abs(this.touchDeltaX) > 8) {
+    if (Math.abs(this.touchDeltaX) > 8 && ev.cancelable) {
       ev.preventDefault();
     }
   }

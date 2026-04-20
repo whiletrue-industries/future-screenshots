@@ -1,9 +1,155 @@
 <div class="canvas-creator">
-  <!-- Template Carousel -->
-  @if (showTemplateGallery()) {
+  <!-- Strategic Workshop: Onboarding - Group Picker -->
+  @if (wsStrategicMode() && wsOnboardingStep() === 'group') {
+    <div class="ws-onboarding-screen">
+      <div class="ws-onboarding-content">
+        <h1 i18n>Choose your group</h1>
+        <p i18n>Select the thematic group you're working with today.</p>
+        <div class="ws-group-list">
+          @for (group of wsGroups(); track group.id) {
+            <button class="ws-group-pick-btn"
+                    [style.background]="group.color || '#607D8B'"
+                    (click)="wsSelectOnboardingGroup(group.id)"
+                    [attr.aria-label]="'Select group ' + group.name">
+              {{ group.name }}
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Strategic Workshop: Onboarding - Name / Email -->
+  @if (wsStrategicMode() && wsOnboardingStep() === 'name-email') {
+    <div class="ws-onboarding-screen">
+      <div class="ws-onboarding-content">
+        <h1 i18n>Who are you?</h1>
+        <p i18n>Enter your name (required) and email so we can send you your screenshots afterwards.</p>
+        <div class="ws-onboarding-form">
+          <input
+            type="text"
+            class="ws-input"
+            [value]="wsOnboardingName()"
+            (input)="wsOnboardingName.set($any($event.target).value)"
+            placeholder="Your name"
+            i18n-placeholder
+            autocomplete="name"
+          />
+          <input
+            type="email"
+            class="ws-input"
+            [value]="wsOnboardingEmail()"
+            (input)="wsOnboardingEmail.set($any($event.target).value)"
+            placeholder="Email (optional)"
+            i18n-placeholder
+            autocomplete="email"
+          />
+          <button
+            class="ws-submit-btn"
+            [disabled]="!wsOnboardingName().trim()"
+            (click)="wsSubmitOnboarding()"
+            i18n
+          >
+            Let's go →
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Strategic Workshop: Post-upload CTAs -->
+  @if (wsStrategicMode() && wsJustUploaded() && !wsAllDone()) {
+    <div class="ws-uploaded-screen">
+      <div class="ws-uploaded-content">
+        <div class="ws-chat-stack">
+          <div class="ws-chat-bubble ws-chat-bubble-ai">
+            <span i18n>You've added the {{ wsRoundUploadOrdinal() }} screenshots in round {{ wsCurrentRound() }}</span>
+          </div>
+        </div>
+
+        <div #wsRoundsPager class="ws-rounds-pager" aria-label="Screenshots by round">
+          <div class="ws-rounds-track">
+            @for (round of wsStackRounds(); track round) {
+              <section class="ws-round-block" [attr.data-round-block]="round" [attr.aria-label]="'Round ' + round">
+                <div class="ws-round-block-title">Round {{ round }}</div>
+
+                @for (shot of wsRoundStack(round); track $index; let i = $index) {
+                  <article class="ws-round-item ws-round-item-shot">
+                    <img [src]="shot" [alt]="'Round ' + round + ' screenshot ' + (i + 1)" />
+                  </article>
+                }
+
+                <button
+                  type="button"
+                  class="ws-round-item ws-round-item-placeholder"
+                  (click)="wsOnRoundPlaceholderClick(round)"
+                  [attr.aria-label]="wsPlaceholderLabel(round) + ' for round ' + round"
+                >
+                  {{ wsPlaceholderLabel(round) }}
+                </button>
+              </section>
+            }
+          </div>
+        </div>
+
+        <div class="ws-uploaded-actions" ltr>
+          <div class="buttons ws-uploaded-buttons">
+            <button class="button primary" (click)="wsAddAnotherSameRound()">
+              Add Another to Round {{ wsCurrentRound() }}
+            </button>
+
+            @if (wsCurrentRound() < wsTotalRounds()) {
+              <button class="button" (click)="wsAdvanceRound()">
+                Next round
+              </button>
+            } @else {
+              <button class="button" (click)="wsGoToStrategicShowcase()">
+                Done
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Strategic Workshop: All Done Screen -->
+  @if (wsStrategicMode() && wsAllDone()) {
+    <div class="ws-done-screen">
+      <div class="ws-done-content">
+        <div class="ws-done-icon">✓</div>
+        <h1 i18n>All Done!</h1>
+        <p i18n>You have completed all {{ wsTotalRounds() }} rounds. Thank you for your participation!</p>
+        @if (wsGroup()) {
+          <p class="ws-group-name">{{ wsGroup()!.name }}</p>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Template Carousel (hidden during onboarding / post-upload / all-done) -->
+  @if (!wsAllDone() && !wsJustUploaded() && wsOnboardingStep() === null && showTemplateGallery()) {
     <div class="template-gallery" [class.transitioning]="isTransitioning()">
       <div class="gallery-background"></div>
       <div class="gallery-content">
+        <!-- Strategic Workshop banner -->
+        @if (wsStrategicMode() && !wsGalleryBannerDismissed()) {
+          <div class="ws-round-banner">
+            <div class="ws-round-bubble ws-round-bubble-dark" (click)="dismissWsGalleryBanner()" role="button" tabindex="0" (keydown.enter)="dismissWsGalleryBanner()" (keydown.space)="dismissWsGalleryBanner()" aria-label="Hide round banner">
+              <span class="ws-bubble-content">
+                @if (wsGroup()) {
+                  <span class="ws-group-chip" [style.background]="wsGroup()!.color || '#607D8B'">{{ wsGroup()!.name }}</span>
+                }
+                <span class="ws-round-label" i18n>Round {{ wsCurrentRound() }} of {{ wsTotalRounds() }}</span>
+                @if (wsRoundPromptHtml()) {
+                  <span class="ws-round-separator" aria-hidden="true">•</span>
+                  <span class="ws-round-prompt" [innerHTML]="wsRoundPromptHtml()"></span>
+                }
+              </span>
+              <span class="ws-bubble-close" aria-hidden="true">×</span>
+            </div>
+          </div>
+        }
         <div class="gallery-header">
           <button class="back-button" [routerLink]="['/prescan']" queryParamsHandling="merge" aria-label="Back to prescan">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -58,8 +204,26 @@
   }
   
   <!-- Canvas Editor -->
-  @if (selectedTemplate() && !showTemplateGallery()) {
+  @if (!wsAllDone() && !wsJustUploaded() && wsOnboardingStep() === null && selectedTemplate() && !showTemplateGallery()) {
     <div class="editor" [class.entering]="isEditorShowing()">
+      <!-- Strategic workshop round indicator in editor -->
+      @if (wsStrategicMode() && !wsGalleryBannerDismissed() && !wsEditorBannerDismissed()) {
+        <div class="ws-editor-banner">
+          <div class="ws-round-bubble ws-round-bubble-dark" (click)="dismissWsEditorBanner()" role="button" tabindex="0" (keydown.enter)="dismissWsEditorBanner()" (keydown.space)="dismissWsEditorBanner()" aria-label="Hide round banner">
+            <span class="ws-bubble-content">
+              @if (wsGroup()) {
+                <span class="ws-group-chip" [style.background]="wsGroup()!.color || '#607D8B'">{{ wsGroup()!.name }}</span>
+              }
+              <span class="ws-round-label" i18n>Round {{ wsCurrentRound() }}/{{ wsTotalRounds() }}</span>
+              @if (wsRoundPromptHtml()) {
+                <span class="ws-round-separator" aria-hidden="true">•</span>
+                <span class="ws-round-prompt" [innerHTML]="wsRoundPromptHtml()"></span>
+              }
+            </span>
+            <span class="ws-bubble-close" aria-hidden="true">×</span>
+          </div>
+        </div>
+      }
       <div class="canvas-container">
         <canvas #canvasEl></canvas>
       </div>

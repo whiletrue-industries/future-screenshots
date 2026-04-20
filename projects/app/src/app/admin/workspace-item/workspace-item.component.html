@@ -25,6 +25,12 @@
                     <span class="icon">📺</span>
                     <span class="label">Display</span>
                 </a>
+                @if (w.metadata?.ws_strategic) {
+                    <a [routerLink]="['/showcase-ws-strategic']" [queryParams]="{ workspace: w.id, api_key: w.keys.collaborate, admin_key: w.keys.admin }" aria-label="Open strategic workshop hub" class="action-btn" title="Strategic Hub" (click)="$event.stopPropagation()">
+                        <span class="icon">🎯</span>
+                        <span class="label">Strategic</span>
+                    </a>
+                }
                 
                 <div class="action-btn ingest-btn" (click)="toggleIngestMenu($event)" [class.active]="ingestMenuOpen()" title="Ingest">
                     <span class="icon">⬇</span>

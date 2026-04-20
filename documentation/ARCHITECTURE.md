@@ -156,6 +156,23 @@ The application uses Angular standalone components organized by feature:
              - Excludes positions that would overlap header UI regions.
              - Slots are cached per hotspot to improve performance.
 
+10. **Showcase WS Strategic** (`/showcase-ws-strategic`)
+    - Facilitator view for strategic workshops using the Future Screenshots methodology
+    - **URL parameters**: `workspace`, `api_key`, `sticky_svg` (optional SVG background for notes)
+    - **Grid view**: Organizes screenshots in a table: groups (rows) × participants × rounds (columns)
+      - Shows round prompts as column headers
+      - Drag & drop screenshots to reposition within each cell
+      - Reset-to-default button per screenshot
+      - Copy participant link button per group
+    - **Comment system**: Miro-style sticky note comments on each screenshot
+      - Color picker (5 colors) for categorizing comments
+      - Comments stored as `ws_comments` array on each item
+    - **Sticky Notes view**: Displays all comments as draggable sticky notes
+      - Optional SVG semantic template background (via `sticky_svg` URL param)
+      - Notes can be dragged to positions on the SVG; positions are persisted
+      - Notes show comment text and participant name
+    - **Access**: Uses admin API key for read/write access to all items
+
 #### Admin Components
 
 10. **Admin Login** (`/admin/login`)

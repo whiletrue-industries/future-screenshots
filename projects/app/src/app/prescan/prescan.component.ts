@@ -43,6 +43,33 @@ I’m also about to ask you for **access to the camera**, and then we can get go
   topMenuOpen = signal(true);
   mainMenuOpen = signal(false);
   uiInitialized = signal(false);
+  newGroupName = signal('');
+  private loadedCreatedGroupsForWorkspace = signal<string | null>(null);
+  private groupCreatorId: string;
+
+  private createdWsGroups = signal<Array<{ id: string; name: string; creatorId: string }>>([]);
+
+  wsGroups = computed<any[]>(() => {
+    const workspace = this.api.workspace();
+    return workspace?.metadata?.ws_groups || workspace?.ws_groups || [];
+  });
+
+  strategicGroupChips = computed<any[]>(() => {
+    const merged = new Map<string, any>();
+    for (const group of this.wsGroups()) {
+      if (!group?.id) continue;
+      merged.set(group.id, group);
+    }
+    for (const group of this.createdWsGroups()) {
+      if (!group?.id) continue;
+      if (!merged.has(group.id)) {
+        merged.set(group.id, { id: group.id, name: group.name, color: '#B969FF' });
+      }
+    }
+    return Array.from(merged.values());
+  });
+
+  strategicNeedsGroup = computed(() => this.api.wsStrategic() && !this.api.wsGroupId());
 
   addMessage(message: Message) {
     message.setText(message.text.replace(/:EVENT_NAME:/g, this.api.workspace()?.event_name || $localize`the workshop`));
@@ -51,6 +78,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
 
   constructor(private route: ActivatedRoute, public api: ApiService, private platform: PlatformService, private router: Router, private ref: DestroyRef) {    
     this.api.updateFromRoute(this.route.snapshot);
+    this.groupCreatorId = this.getOrCreateGroupCreatorId();
     effect(() => {
       const workspace = this.api.workspace();
       if (workspace && workspace.source && this.initialInteraction.length === 0 && this.uiInitialized()) {
@@ -63,6 +91,35 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         ];
         this.interact();
       }
+    });
+
+    effect(() => {
+      const groupId = this.api.wsGroupId();
+      const groupName = this.api.wsGroupName();
+      const groups = this.wsGroups();
+      if (groupId && !groupName && groups.length > 0) {
+        const selected = groups.find((g: any) => g.id === groupId);
+        if (selected?.name) {
+          this.api.wsGroupName.set(selected.name);
+        }
+      }
+    });
+
+    effect(() => {
+      const workspaceId = this.api.workspaceId();
+      if (!workspaceId || this.loadedCreatedGroupsForWorkspace() === workspaceId) {
+        return;
+      }
+      this.loadedCreatedGroupsForWorkspace.set(workspaceId);
+      this.createdWsGroups.set(this.getStoredCreatedGroups(workspaceId));
+    });
+
+    effect(() => {
+      const workspaceId = this.api.workspaceId();
+      if (!workspaceId) {
+        return;
+      }
+      this.storeCreatedGroups(workspaceId, this.createdWsGroups());
     });
   }
 
@@ -109,6 +166,7 @@ I’m also about to ask you for **access to the camera**, and then we can get go
         }
       }),
       filter((answer) => answer === 'yes'),
+      filter(() => !this.strategicNeedsGroup()),
       tap(() => {
         this.addMessage(this.answer);
         this.showScanButton.set(false);
@@ -124,5 +182,131 @@ I’m also about to ask you for **access to the camera**, and then we can get go
       this.router.navigate(['scan'], { queryParamsHandling: 'preserve'});
       console.log('DONE');
     });
+  }
+
+  selectStrategicGroup(groupId: string, groupName: string) {
+    this.applyStrategicGroup(groupId, groupName);
+  }
+
+  createStrategicGroup() {
+    const name = this.newGroupName().trim();
+    if (!name) {
+      return;
+    }
+    const normalized = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 36);
+    const suffix = Math.random().toString(36).slice(2, 8);
+    const groupId = `custom-${normalized || 'group'}-${suffix}`;
+    this.createdWsGroups.update((groups) => [...groups, { id: groupId, name, creatorId: this.groupCreatorId }]);
+    this.applyStrategicGroup(groupId, name);
+    this.newGroupName.set('');
+  }
+
+  isRemovableCreatedGroup(groupId: string): boolean {
+    return this.createdWsGroups().some(g => g.id === groupId && g.creatorId === this.groupCreatorId);
+  }
+
+  removeStrategicGroup(groupId: string, event: Event) {
+    event.stopPropagation();
+    if (!this.isRemovableCreatedGroup(groupId)) {
+      return;
+    }
+
+    const groupName = this.strategicGroupChips().find(g => g.id === groupId)?.name || null;
+    const selectedGroupName = this.api.wsGroupName();
+    this.createdWsGroups.update((groups) => groups.filter(g => g.id !== groupId));
+
+    if (this.api.wsGroupId() !== groupId) {
+      return;
+    }
+
+    this.api.wsGroupId.set(null);
+    this.api.wsGroupName.set(null);
+
+    const params: any = { ...this.route.snapshot.queryParams };
+    delete params['ws_group'];
+    if (!groupName || selectedGroupName === groupName) {
+      delete params['ws_group_name'];
+    }
+    this.router.navigate([], { queryParams: params, replaceUrl: true });
+  }
+
+  private applyStrategicGroup(groupId: string, groupName: string) {
+    this.api.wsGroupId.set(groupId);
+    this.api.wsGroupName.set(groupName);
+    const params = {
+      ...this.route.snapshot.queryParams,
+      ws_group: groupId,
+      ws_group_name: groupName,
+    };
+    this.router.navigate([], { queryParams: params, replaceUrl: true });
+  }
+
+  private getCreatedGroupsStorageKey(workspaceId: string): string {
+    return `ws_created_groups_${workspaceId}`;
+  }
+
+  private getStoredCreatedGroups(workspaceId: string): Array<{ id: string; name: string; creatorId: string }> {
+    if (!this.platform.browser()) {
+      return [];
+    }
+    try {
+      const raw = localStorage.getItem(this.getCreatedGroupsStorageKey(workspaceId));
+      if (!raw) {
+        return [];
+      }
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+      return parsed
+        .filter((g: any) => typeof g?.id === 'string' && typeof g?.name === 'string')
+        .map((g: any) => ({
+          id: g.id,
+          name: g.name,
+          creatorId: typeof g?.creatorId === 'string' ? g.creatorId : '',
+        }));
+    } catch {
+      return [];
+    }
+  }
+
+  private storeCreatedGroups(workspaceId: string, groups: Array<{ id: string; name: string; creatorId: string }>) {
+    if (!this.platform.browser()) {
+      return;
+    }
+    try {
+      localStorage.setItem(this.getCreatedGroupsStorageKey(workspaceId), JSON.stringify(groups));
+    } catch {
+      // Ignore storage write failures.
+    }
+  }
+
+  private getOrCreateGroupCreatorId(): string {
+    if (!this.platform.browser()) {
+      return 'server';
+    }
+    const key = 'ws_group_creator_id';
+    const existing = localStorage.getItem(key);
+    if (existing) {
+      return existing;
+    }
+    const created = this.generateRandomId();
+    localStorage.setItem(key, created);
+    return created;
+  }
+
+  private generateRandomId(): string {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      try {
+        return crypto.randomUUID();
+      } catch {
+        // fallback below
+      }
+    }
+    return `id-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
   }
 }

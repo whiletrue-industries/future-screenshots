@@ -1232,8 +1232,54 @@ export class ConfirmComponent implements OnDestroy {
       metadata.tags = tags;
     }
 
+    // Strategic workshop: add group, round, and author metadata
+    if (this.api.wsStrategic()) {
+      const wsGroupId = this.api.wsGroupId();
+      if (wsGroupId) {
+        metadata['ws_group_id'] = wsGroupId;
+      }
+      const wsGroupName = this.api.wsGroupName() || this.route.snapshot.queryParams['ws_group_name'];
+      if (wsGroupName) {
+        metadata['ws_group_name'] = wsGroupName;
+      }
+      const wsRound = this.route.snapshot.queryParams['ws_round'];
+      if (wsRound) {
+        metadata['ws_round'] = parseInt(wsRound, 10);
+      }
+      const participantName = this.api.wsParticipantName();
+      if (participantName) {
+        metadata['participant_name'] = participantName;
+      }
+      // Include participant email for strategic workshop links email
+      const participantEmail = this.route.snapshot.queryParams['participant_email'];
+      if (participantEmail) {
+        metadata['_private_email'] = participantEmail;
+        metadata['_ws_strategic_email'] = true; // flag for server to send strategic links
+      }
+      // Ensure author_id is set
+      let authorId = localStorage.getItem('future_screenshots_author_id');
+      if (!authorId) {
+        authorId = this.generateFallbackUUID();
+        localStorage.setItem('future_screenshots_author_id', authorId);
+      }
+      metadata['author_id'] = authorId;
+    }
+
     if (!this.api.automatic()) {
       this.api.startBackgroundUpload(currentImage, metadata);
+
+      if (this.api.wsStrategic()) {
+        // Strategic workshop: navigate back to canvas-creator with ws_just_uploaded flag
+        // Canvas-creator will show the add-another / advance / back CTAs
+        const params = { ...this.route.snapshot.queryParams };
+        delete params['template'];
+        delete params['template_id'];
+        params['ws_just_uploaded'] = 'true';
+        params['ws_upload_nonce'] = Date.now().toString();
+        this.router.navigate(['/canvas-creator'], { queryParams: params });
+        return;
+      }
+
       const params: any = { 'item-id': null, 'key': null };
       if (this.isTemplateFlow) {
         params['template'] = 'true';
@@ -1244,6 +1290,20 @@ export class ConfirmComponent implements OnDestroy {
         this.router.navigate(['/scan'], { queryParamsHandling: 'preserve' });
       });
     }
+  }
+
+  private generateFallbackUUID(): string {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      try {
+        return crypto.randomUUID();
+      } catch {
+        // Fall through to fallback
+      }
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = (Math.random() * 16) | 0;
+      return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+    });
   }
 
   private uploadReplace(image: Blob, replaceItemId: string, itemKey?: string) {

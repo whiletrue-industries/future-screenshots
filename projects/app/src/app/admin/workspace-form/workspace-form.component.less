@@ -270,6 +270,89 @@
     border-top: 2px solid @color-dark-pink;
   }
 
+  .strategic-workshop-section {
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 2px solid @color-dark-pink;
+
+    h3 {
+      margin-bottom: 1rem;
+    }
+
+    .round-prompt-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+
+      .round-label {
+        min-width: 4rem;
+        font-weight: 600;
+        color: @color-purple;
+        font-size: 0.85rem;
+      }
+
+      input {
+        flex: 1;
+      }
+    }
+
+    .group-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+
+      .group-color-dot {
+        width: 1rem;
+        height: 1rem;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      input {
+        flex: 1;
+      }
+
+      .remove-btn {
+        padding: 0.2rem 0.5rem;
+        background: none;
+        border: 1px solid @color-dark-pink;
+        border-radius: 4px;
+        cursor: pointer;
+        color: @color-purple;
+
+        &:hover {
+          background-color: @color-pink;
+        }
+      }
+    }
+
+    .add-group-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+
+      input {
+        flex: 1;
+      }
+
+      .add-btn {
+        padding: 0.5rem 1rem;
+        background-color: @color-purple;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+
+        &:hover {
+          background-color: @color-light-purple;
+        }
+      }
+    }
+  }
+
   .form-actions {
     display: flex;
     justify-content: flex-end;

@@ -1,0 +1,295 @@
+<div class="ws-hub">
+
+  <header class="ws-hub-header">
+    <h1 i18n>Strategic Workshop Hub</h1>
+    @if (workspaceMeta()) {
+      <p class="ws-hub-name">{{ workshopName() }}</p>
+    }
+  </header>
+
+  @if (isLoading()) {
+    <div class="ws-loading" i18n>Loading…</div>
+  }
+
+  @if (errorMsg()) {
+    <div class="ws-error" role="alert">{{ errorMsg() }}</div>
+  }
+
+  @if (!isLoading() && !errorMsg()) {
+    <!-- Groups + Participant Links -->
+    <section class="ws-section" aria-labelledby="groups-heading">
+      <h2 id="groups-heading" i18n>Groups & Participant Links</h2>
+      <p class="ws-hint" i18n>Share each group's link with its members. They'll be guided through all {{ wsTotalRounds() }} rounds.</p>
+
+      @if (wsGroups().length === 0) {
+        <p class="ws-empty" i18n>No groups configured. Go to Settings → Strategic Workshop to add groups.</p>
+      }
+
+      <ul class="ws-groups-list" role="list">
+        @for (group of wsGroups(); track group.id) {
+          <li class="ws-group-card" [style.border-left-color]="group.color || '#607D8B'">
+            <span class="ws-group-dot" [style.background]="group.color || '#607D8B'" aria-hidden="true"></span>
+            <span class="ws-group-name">{{ group.name }}</span>
+            <button
+              class="ws-copy-btn"
+              [class.copied]="copiedGroupId() === group.id"
+              (click)="copyParticipantLink(group)"
+              [attr.aria-label]="'Copy participant link for ' + group.name"
+            >
+              @if (copiedGroupId() === group.id) {
+                <span i18n>✓ Copied!</span>
+              } @else {
+                <span i18n>Copy link</span>
+              }
+            </button>
+          </li>
+        }
+      </ul>
+    </section>
+
+    <!-- Round Prompts Summary -->
+    @if (wsRoundPrompts().length > 0) {
+      <section class="ws-section" aria-labelledby="rounds-heading">
+        <h2 id="rounds-heading" i18n>Round Prompts</h2>
+        <ol class="ws-rounds-list">
+          @for (prompt of wsRoundPrompts(); track $index) {
+            <li class="ws-round-item">
+              <span class="ws-round-badge">{{ $index + 1 }}</span>
+              <span class="ws-round-prompt">{{ prompt }}</span>
+            </li>
+          }
+        </ol>
+      </section>
+    }
+
+    <!-- Composition Preview -->
+    <section class="ws-section ws-preview-section" aria-labelledby="preview-heading">
+      <h2 id="preview-heading" i18n>Composition Preview</h2>
+      <p class="ws-hint" i18n>
+        This preview mirrors the Miro export composition (group → round → participant → items) so you can validate what will be sent.
+      </p>
+
+      @if (boardMode() === 'add' && miroBoardId()) {
+        <div class="ws-delta-info">
+          <p i18n><strong>Delta Mode:</strong> Only items marked as "new" will be exported.</p>
+          <ul class="ws-delta-legend">
+            <li><span class="ws-delta-badge ws-delta-new"></span> <span i18n>New item (will be added)</span></li>
+            <li><span class="ws-delta-badge ws-delta-updated"></span> <span i18n>Updated item</span></li>
+            <li><span class="ws-delta-badge ws-delta-unchanged"></span> <span i18n>Unchanged item (not exported in delta mode)</span></li>
+          </ul>
+        </div>
+      }
+
+      @if (previewComposition().length === 0) {
+        <p class="ws-empty" i18n>No composition data to preview.</p>
+      }
+
+      @for (groupPreview of previewComposition(); track groupPreview.id) {
+        <article class="ws-preview-group" [style.border-left-color]="groupPreview.color">
+          <header class="ws-preview-group-header">
+            <div class="ws-preview-group-title">
+              <h3 [style.color]="groupPreview.color">{{ groupPreview.name }}</h3>
+              <p>{{ groupPreview.totalItems }} items</p>
+            </div>
+            @if (boardMode() === 'add' && miroBoardId() && (groupPreview.newCount > 0 || groupPreview.updatedCount > 0)) {
+              <div class="ws-preview-group-delta">
+                @if (groupPreview.newCount > 0) {
+                  <span class="ws-delta-stat ws-delta-stat-new">
+                    <span class="ws-delta-badge-small ws-delta-new"></span>
+                    {{ groupPreview.newCount }} new
+                  </span>
+                }
+                @if (groupPreview.updatedCount > 0) {
+                  <span class="ws-delta-stat ws-delta-stat-updated">
+                    <span class="ws-delta-badge-small ws-delta-updated"></span>
+                    {{ groupPreview.updatedCount }} updated
+                  </span>
+                }
+              </div>
+            }
+          </header>
+
+          @for (roundPreview of groupPreview.rounds; track roundPreview.round) {
+            <section class="ws-preview-round">
+              <h4 [style.color]="groupPreview.color">
+                <span i18n>Round</span> {{ roundPreview.round }}: {{ roundPreview.prompt }}
+              </h4>
+
+              @for (participant of roundPreview.participants; track participant.participantId) {
+                <div class="ws-preview-participant">
+                  <p class="ws-preview-participant-name">{{ participant.participantName }}</p>
+
+                  @if (participant.items.length === 0) {
+                    <p class="ws-preview-empty" i18n>No items in this round.</p>
+                  }
+
+                  <div class="ws-preview-items-row">
+                    @for (item of participant.items; track item.id) {
+                      <article class="ws-preview-item-block" [class.ws-item-new]="item.changeStatus === 'new'" [class.ws-item-updated]="item.changeStatus === 'updated'" [class.ws-item-unchanged]="item.changeStatus === 'unchanged'">
+                        @if (item.changeStatus && boardMode() === 'add' && miroBoardId()) {
+                          <span 
+                            class="ws-item-status-badge" 
+                            [class.ws-item-status-new]="item.changeStatus === 'new'"
+                            [class.ws-item-status-updated]="item.changeStatus === 'updated'"
+                            [class.ws-item-status-unchanged]="item.changeStatus === 'unchanged'"
+                            [title]="item.changeStatus === 'new' ? 'New item (will be added)' : (item.changeStatus === 'updated' ? 'Updated item' : 'Unchanged item')">
+                            {{ item.changeStatus }}
+                          </span>
+                        }
+                        <div class="ws-preview-tag-stack" aria-hidden="true">
+                          <div class="ws-preview-tag-card" [style.background]="groupPreview.color">
+                            <span class="ws-preview-tag-line">HMW...</span>
+                          </div>
+                          <div class="ws-preview-tag-card" [style.background]="groupPreview.color">
+                            <span class="ws-preview-tag-line">HMW...</span>
+                          </div>
+                          <div class="ws-preview-tag-card" [style.background]="groupPreview.color">
+                            <span class="ws-preview-tag-line">HMW...</span>
+                          </div>
+                        </div>
+
+                        <div class="ws-preview-image-box">
+                          @if (item.hasImage) {
+                            <img [src]="item.imageUrl" [alt]="item.title" loading="lazy" />
+                          } @else {
+                            <div class="ws-preview-image-missing" i18n>No image</div>
+                          }
+                        </div>
+
+                        <p class="ws-preview-item-title">{{ item.title }}</p>
+                      </article>
+                    }
+                  </div>
+                </div>
+              }
+            </section>
+          }
+
+          @if (groupPreview.unplaced.length > 0) {
+            <div class="ws-preview-unplaced" role="status">
+              <strong i18n>Unplaced items:</strong>
+              <ul>
+                @for (item of groupPreview.unplaced; track item.id) {
+                  <li>{{ item.id }} — {{ item.reason }}</li>
+                }
+              </ul>
+            </div>
+          }
+        </article>
+      }
+    </section>
+
+    <!-- Miro Export -->
+    <section class="ws-section ws-miro-section" aria-labelledby="miro-heading">
+      <h2 id="miro-heading">
+        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" class="ws-miro-logo" aria-hidden="true">
+          <rect width="48" height="48" rx="8" fill="#FFD02F"/>
+          <text x="8" y="36" font-size="28" font-family="Arial, sans-serif" font-weight="900" fill="#050038">M</text>
+        </svg>
+        <span i18n>Export to Miro</span>
+      </h2>
+      <p class="ws-hint" i18n>
+        Paste a Miro personal access token to create a board with one frame per group,
+        a <strong>participant × round</strong> image grid, and sticky note space for facilitation.
+      </p>
+      <p class="ws-hint ws-hint--small" i18n>
+        Generate your token at
+        <a href="https://miro.com/app/settings/user-profile/apps" target="_blank" rel="noopener noreferrer">
+          miro.com → Profile → Apps → Token
+        </a>.
+        The token is stored locally in this browser for this workspace.
+        Boards created on Miro's free plan count against your 3-board limit.
+      </p>
+
+      <!-- Board Mode Selection -->
+      <fieldset class="ws-board-mode" [disabled]="miroExporting()">
+        <legend i18n>Board Option</legend>
+        <label class="ws-mode-option ws-mode-option--switch">
+          <input
+            type="checkbox"
+            [checked]="boardMode() === 'add'"
+            (change)="onBoardModeToggle($any($event.target).checked)"
+            [disabled]="miroExporting()"
+            aria-label="Toggle update existing board"
+          />
+          <span class="ws-switch" aria-hidden="true"></span>
+          <span i18n>Update existing board</span>
+        </label>
+        @if (miroBoardId()) {
+          <p class="ws-hint ws-hint--small" i18n>
+            When enabled, export reuses existing frames and updates changed slots.
+          </p>
+        } @else {
+          <p class="ws-hint ws-hint--small" i18n>
+            No existing board yet. First export will create a board; then you can enable this toggle.
+          </p>
+        }
+      </fieldset>
+
+      <form class="ws-miro-form" (submit)="$event.preventDefault(); sendToMiro()">
+        <input
+          type="password"
+          class="ws-token-input"
+          [value]="miroToken()"
+          (input)="onMiroTokenInput($any($event.target).value)"
+          placeholder="Paste your Miro token here…"
+          i18n-placeholder
+          autocomplete="off"
+          [disabled]="miroExporting()"
+          aria-label="Miro personal access token"
+        />
+        <button
+          class="ws-miro-btn"
+          type="submit"
+          [disabled]="!miroToken().trim() || miroExporting()"
+          i18n
+        >
+          @if (miroExporting()) {
+            Exporting…
+          } @else {
+            Send to Miro
+          }
+        </button>
+      </form>
+
+      @if (miroProgress()) {
+        <p class="ws-miro-progress" role="status" aria-live="polite">{{ miroProgress() }}</p>
+      }
+
+      @if (miroBoardLink()) {
+        <div class="ws-miro-result">
+          @if (miroExporting()) {
+            <p i18n>Board is ready. You can open it while export continues.</p>
+          }
+          <a [href]="miroBoardLink()!.boardUrl" target="_blank" rel="noopener noreferrer" class="ws-miro-board-link" i18n>
+            Open "{{ miroBoardLink()!.boardName }}" in Miro →
+          </a>
+        </div>
+      }
+
+      @if (miroError()) {
+        <p class="ws-miro-error" role="alert">{{ miroError() }}</p>
+      }
+
+      @if (miroResult()) {
+        <div class="ws-miro-result">
+          <p>
+            @if (miroResult()!.boardMode === 'add') {
+              <span i18n>Content added to existing board successfully!</span>
+            } @else {
+              <span i18n>Board created successfully!</span>
+            }
+          </p>
+          @if (miroResult()!.boardMode === 'add') {
+            <p i18n>
+              If this board is already open in Miro, refresh the tab to see newly attached tags.
+            </p>
+          }
+          <a [href]="miroResult()!.boardUrl" target="_blank" rel="noopener noreferrer" class="ws-miro-board-link" i18n>
+            Open "{{ miroResult()!.boardName }}" in Miro →
+          </a>
+        </div>
+      }
+    </section>
+  }
+</div>

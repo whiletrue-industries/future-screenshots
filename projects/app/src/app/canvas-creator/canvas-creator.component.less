@@ -48,7 +48,501 @@
   background: @color-creme;
   overflow: hidden;
 
-  .template-gallery {
+  // Strategic workshop done screen
+  .ws-done-screen {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0f0f11;
+    color: white;
+    text-align: center;
+
+    .ws-done-content {
+      padding: 2rem;
+
+      .ws-done-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        color: #4CAF50;
+      }
+
+      h1 {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+      }
+
+      p {
+        font-size: 1.1rem;
+        color: rgba(255,255,255,0.8);
+        margin-bottom: 0.5rem;
+      }
+
+      .ws-group-name {
+        font-size: 1.3rem;
+        font-weight: bold;
+        color: white;
+      }
+    }
+  }
+
+  // Strategic workshop banner (in gallery)
+  .ws-round-banner {
+    position: fixed;
+    z-index: 12;
+    left: 16px;
+    right: 16px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+    box-sizing: border-box;
+
+    .ws-round-bubble {
+      .font-sans;
+      display: inline-flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 0.55rem 0.9rem;
+      max-width: min(92ch, calc(100vw - 32px));
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
+      line-height: 1.25;
+      pointer-events: auto;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .ws-bubble-content {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      flex: 1;
+    }
+
+    .ws-round-bubble-dark {
+      background: rgba(31, 26, 44, 0.55);
+      color: #f6f1ff;
+      border-radius: 24px 24px 6px 24px;
+      border: 1px solid rgba(185, 105, 255, 0.35);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      cursor: pointer;
+    }
+
+    .ws-group-chip {
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: white;
+    }
+
+    .ws-round-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #f6f1ff;
+    }
+
+    .ws-round-separator {
+      opacity: 0.65;
+      font-weight: 700;
+    }
+
+    .ws-round-prompt {
+      font-size: 0.88rem;
+      color: rgba(246, 241, 255, 0.9);
+      font-style: normal;
+    }
+
+    .ws-bubble-close {
+      align-self: flex-start;
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+      margin-top: 0.05rem;
+      border-radius: 999px;
+      border: 1px solid rgba(246, 241, 255, 0.45);
+      background: rgba(255, 255, 255, 0.12);
+      color: #f6f1ff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      line-height: 1;
+    }
+  }
+
+  // Strategic workshop banner (in editor)
+  .ws-editor-banner {
+    position: absolute;
+    top: 0.75rem;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    background: transparent;
+    padding: 0 0.75rem;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    pointer-events: none;
+
+    .ws-round-bubble {
+      .font-sans;
+      display: inline-flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 0.55rem 0.9rem;
+      line-height: 1.25;
+      max-width: min(92ch, calc(100vw - 32px));
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      pointer-events: auto;
+    }
+
+    .ws-bubble-content {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      flex: 1;
+    }
+
+    .ws-round-bubble-dark {
+      background: rgba(31, 26, 44, 0.55);
+      color: #f6f1ff;
+      border-radius: 24px 24px 6px 24px;
+      border: 1px solid rgba(185, 105, 255, 0.35);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      cursor: pointer;
+    }
+
+    .ws-group-chip {
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: white;
+    }
+
+    .ws-round-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #f6f1ff;
+    }
+
+    .ws-round-separator {
+      opacity: 0.65;
+      font-weight: 700;
+    }
+
+    .ws-round-prompt {
+      font-size: 0.88rem;
+      color: rgba(246, 241, 255, 0.9);
+      font-style: normal;
+    }
+
+    .ws-bubble-close {
+      align-self: flex-start;
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+      margin-top: 0.05rem;
+      border-radius: 999px;
+      border: 1px solid rgba(246, 241, 255, 0.45);
+      background: rgba(255, 255, 255, 0.12);
+      color: #f6f1ff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      line-height: 1;
+    }
+  }
+
+  // Strategic workshop onboarding screens
+  .ws-onboarding-screen {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0f0f11;
+    color: white;
+    text-align: center;
+    padding: 1.5rem;
+    box-sizing: border-box;
+
+    .ws-onboarding-content {
+      max-width: 480px;
+      width: 100%;
+
+      h1 {
+        font-size: 1.8rem;
+        margin-bottom: 0.75rem;
+      }
+
+      p {
+        font-size: 1rem;
+        color: rgba(255,255,255,0.8);
+        margin-bottom: 1.5rem;
+        line-height: 1.5;
+      }
+
+      .ws-group-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        justify-content: center;
+
+        .ws-group-pick-btn {
+          padding: 0.75rem 1.5rem;
+          border-radius: 24px;
+          border: none;
+          cursor: pointer;
+          font-size: 1rem;
+          font-weight: 600;
+          color: white;
+          transition: transform 0.15s, box-shadow 0.15s;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+
+          &:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.45);
+          }
+
+          &:active {
+            transform: translateY(0);
+          }
+        }
+      }
+
+      .ws-onboarding-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: center;
+
+        .ws-input {
+          width: 100%;
+          padding: 0.75rem 1rem;
+          border-radius: 12px;
+          border: 1.5px solid rgba(255,255,255,0.25);
+          background: rgba(255,255,255,0.08);
+          color: white;
+          font-size: 1rem;
+          box-sizing: border-box;
+          outline: none;
+          transition: border-color 0.2s;
+
+          &:focus {
+            border-color: rgba(255,255,255,0.6);
+          }
+
+          &::placeholder {
+            color: rgba(255,255,255,0.4);
+          }
+        }
+
+        .ws-submit-btn {
+          margin-top: 0.5rem;
+          padding: 0.75rem 2rem;
+          border-radius: 24px;
+          border: none;
+          background: #4E02B2;
+          color: white;
+          font-size: 1rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.2s, transform 0.15s;
+
+          &:hover:not(:disabled) {
+            background: #6a1de0;
+            transform: translateY(-1px);
+          }
+
+          &:disabled {
+            opacity: 0.45;
+            cursor: default;
+          }
+        }
+      }
+    }
+  }
+
+  // Strategic workshop post-upload screen
+  .ws-uploaded-screen {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: stretch;
+    justify-content: flex-start;
+    background: @color-beige;
+    color: @color-primary;
+    text-align: center;
+    padding: 1.5rem 1.5rem calc(112px + env(safe-area-inset-bottom));
+    box-sizing: border-box;
+    position: relative;
+    overflow-y: auto;
+
+    .ws-uploaded-content {
+      max-width: 420px;
+      width: 100%;
+      margin: 0 auto;
+
+      .ws-chat-stack {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        margin-bottom: 1.25rem;
+
+        .ws-chat-bubble {
+          .font-sans;
+          padding: 14px 18px;
+          line-height: 1.35;
+          text-align: left;
+          box-shadow: 0 8px 20px rgba(48, 26, 78, 0.12);
+        }
+
+        .ws-chat-bubble-ai {
+          background: @color-accent-100;
+          color: @color-primary;
+          border-radius: 28px 28px 28px 8px;
+          align-self: flex-start;
+          max-width: 96%;
+        }
+      }
+
+      .ws-rounds-pager {
+        width: 100vw;
+        margin-left: calc(50% - 50vw);
+        margin-right: calc(50% - 50vw);
+        margin-top: 10px;
+        margin-bottom: 24px;
+        padding: 0 22px 8px;
+        box-sizing: border-box;
+        overflow-x: auto;
+        overflow-y: hidden;
+        touch-action: pan-x;
+        scroll-snap-type: x mandatory;
+        scroll-behavior: smooth;
+        scrollbar-width: thin;
+
+        .ws-rounds-track {
+          display: flex;
+          align-items: stretch;
+          gap: 56px;
+          width: max-content;
+        }
+
+        .ws-round-block {
+          display: flex;
+          align-items: stretch;
+          gap: 12px;
+          scroll-snap-align: start;
+        }
+
+        .ws-round-block-title {
+          .font-sans;
+          font-size: 14px;
+          line-height: 1.1;
+          font-weight: 700;
+          color: fade(@color-primary, 82%);
+          letter-spacing: 0.02em;
+          text-transform: uppercase;
+          width: 90px;
+          min-width: 90px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          padding: 10px 8px;
+        }
+
+        .ws-round-item {
+          flex: 0 0 auto;
+          width: 120px;
+          min-height: 170px;
+          border-radius: 12px;
+          overflow: hidden;
+        }
+
+        .ws-round-item-shot {
+          border: 1px solid rgba(78, 2, 178, 0.2);
+          box-shadow: 0 3px 8px rgba(26, 12, 46, 0.1);
+          background: #fff;
+
+          img {
+            display: block;
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+          }
+        }
+
+        .ws-round-item-placeholder {
+          border: 1px dashed rgba(78, 2, 178, 0.34);
+          background: rgba(255, 255, 255, 0.64);
+          color: fade(@color-primary, 85%);
+          padding: 10px 12px;
+          text-align: center;
+          .font-sans;
+          font-size: 13px;
+          line-height: 1.25;
+          font-weight: 600;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+
+          &:hover {
+            background: rgba(255, 255, 255, 0.82);
+            box-shadow: 0 4px 10px rgba(31, 16, 54, 0.14);
+          }
+
+          &:active {
+            transform: translateY(1px);
+          }
+        }
+      }
+
+      .ws-uploaded-actions {
+        position: fixed;
+        left: 0;
+        right: 0;
+        width: 100vw;
+        box-sizing: border-box;
+        bottom: 0;
+        padding: 8px calc(8px + env(safe-area-inset-bottom));
+        z-index: 12;
+        background: linear-gradient(to top, rgba(245, 240, 231, 0.98) 65%, rgba(245, 240, 231, 0));
+
+        .ws-uploaded-buttons {
+          display: flex;
+          width: 100%;
+          flex-flow: column nowrap;
+          align-items: stretch;
+          gap: 8px;
+          padding: 0 24px 2px;
+
+          .button {
+            width: 100%;
+            height: 52px;
+            padding: 0 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+          }
+        }
+      }
+    }
+  }
+
+
     width: 100%;
     height: 100%;
     display: flex;
@@ -85,7 +579,7 @@
       align-items: center;
       justify-content: flex-start;
       height: 100%;
-      padding: 24px 16px;
+      padding: 24px 16px 110px;
       gap: 16px;
     }
 
@@ -440,4 +934,3 @@
       }
     }
   }
-}
