@@ -2213,34 +2213,84 @@ export class CanvasCreatorComponent implements AfterViewInit {
     }
 
     const backgroundImage = fabricCanvas.backgroundImage;
-    const backgroundState = (backgroundImage && typeof (backgroundImage as any).toObject === 'function')
-      ? (backgroundImage as any).toObject(this.CANVAS_STATE_PROPS)
-      : null;
     this.isRestoringUndoState = true;
 
     fabricCanvas.discardActiveObject();
-    const nextState = backgroundState
-      ? { objects, backgroundImage: backgroundState }
-      : { objects };
+    const nextState = { objects };
 
     fabricCanvas.loadFromJSON(nextState, () => {
-      // Fallback: if fabric failed to revive background from JSON, keep prior background.
-      if (!fabricCanvas.backgroundImage && backgroundImage) {
-        fabricCanvas.set('backgroundImage', backgroundImage);
+      const finalizeUndoRestore = () => {
+        const textboxes = fabricCanvas.getObjects().filter((obj: any) => obj.type === 'textbox');
+        textboxes.forEach((textbox: any) => {
+          this.configureTextbox(textbox);
+          this.attachTextboxLifecycle(textbox, fabricCanvas, '#9aa0a6');
+        });
+
+        this.placeholderTexts = textboxes;
+        this.updateHasContentFromCanvas(fabricCanvas);
+        fabricCanvas.requestRenderAll();
+
+        this.isRestoringUndoState = false;
+        this.canUndo.set(this.undoHistory.length > 1);
+      };
+
+      const template = this.selectedTemplate();
+      if (!template) {
+        if (backgroundImage) {
+          fabricCanvas.set('backgroundImage', backgroundImage);
+        }
+        finalizeUndoRestore();
+        return;
       }
 
-      const textboxes = fabricCanvas.getObjects().filter((obj: any) => obj.type === 'textbox');
-      textboxes.forEach((textbox: any) => {
-        this.configureTextbox(textbox);
-        this.attachTextboxLifecycle(textbox, fabricCanvas, '#9aa0a6');
-      });
+      const restoreTemplateBackground = async () => {
+        const isSVG = template.url.endsWith('.svg');
 
-      this.placeholderTexts = textboxes;
-      this.updateHasContentFromCanvas(fabricCanvas);
-      fabricCanvas.requestRenderAll();
+        if (isSVG) {
+          const { objects: svgObjects, options } = await fabric.loadSVGFromURL(template.url);
+          const filteredObjects = svgObjects.filter((obj): obj is NonNullable<typeof obj> => obj !== null);
+          const grouped = fabric.util.groupSVGElements(filteredObjects, options);
+          const baseWidth = grouped.width || this.templateBaseWidth;
+          const baseHeight = grouped.height || this.templateBaseHeight;
+          grouped.set({
+            scaleX: fabricCanvas.width! / baseWidth,
+            scaleY: fabricCanvas.height! / baseHeight,
+            left: 0,
+            top: 0,
+            originX: 'left',
+            originY: 'top',
+            selectable: false,
+            evented: false,
+          });
+          fabricCanvas.set('backgroundImage', grouped);
+          return;
+        }
 
-      this.isRestoringUndoState = false;
-      this.canUndo.set(this.undoHistory.length > 1);
+        const img = await fabric.FabricImage.fromURL(template.url);
+        const baseWidth = img.width || this.templateBaseWidth;
+        const baseHeight = img.height || this.templateBaseHeight;
+        img.set({
+          scaleX: fabricCanvas.width! / baseWidth,
+          scaleY: fabricCanvas.height! / baseHeight,
+          left: 0,
+          top: 0,
+          originX: 'left',
+          originY: 'top',
+          selectable: false,
+          evented: false,
+        });
+        fabricCanvas.set('backgroundImage', img);
+      };
+
+      void restoreTemplateBackground()
+        .catch(() => {
+          if (backgroundImage) {
+            fabricCanvas.set('backgroundImage', backgroundImage);
+          }
+        })
+        .finally(() => {
+          finalizeUndoRestore();
+        });
     });
   }
 
