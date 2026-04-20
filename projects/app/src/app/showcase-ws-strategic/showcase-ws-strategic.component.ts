@@ -15,6 +15,11 @@ type ExistingMiroFrame = {
 
 type WsTab = 'export' | 'settings';
 
+type StoredExportItemState = {
+  screenshotUrl: string;
+  exportedAt: number;
+};
+
 @Component({
   selector: 'app-showcase-ws-strategic',
   imports: [],
@@ -58,6 +63,8 @@ export class ShowcaseWsStrategicComponent implements OnInit {
   includeTagRound = signal(true);
   includeTagContentTitle = signal(true);
   includeTagItemId = signal(true);
+  lastExportState = signal<Map<string, StoredExportItemState | null>>(new Map());
+  lastExportAt = signal<number | null>(null);
 
   // Copied link feedback
   copiedGroupId = signal<string | null>(null);
@@ -122,6 +129,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     const storedBoardId = this.getStoredMiroBoardId();
     this.miroBoardId.set(storedBoardId);
     this.boardMode.set(this.getStoredBoardMode(storedBoardId));
+    this.loadStoredLastExportState();
     this.initActiveTabFromUrl();
 
     if (this.workspace()) {
@@ -489,6 +497,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
       let groupOffsetY = existingBoardStartY;
       const prompts = this.wsRoundPrompts();
       let renderedItemCount = 0;
+      const exportedItemStateUpdates = new Map<string, string>();
 
       // Calculate delta information if in update mode for existing board
       let itemDelta = { new: new Set<string>(), updated: new Set<string>(), all: new Set<string>() };
@@ -832,6 +841,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
 
               if (itemId) {
                 placedItemIds.add(itemId);
+                exportedItemStateUpdates.set(itemId, this.getScreenshotUrl(item) || this.getThumbnailUrl(item) || '');
               }
             }
           }
@@ -880,8 +890,8 @@ export class ShowcaseWsStrategicComponent implements OnInit {
         boardMode: shouldAddToExisting ? 'add' : 'create',
       });
       
-      // Store the current item state (id → screenshotUrl) for delta-based exports in future runs.
-      this.storeLastExportState(filteredItems);
+      // Persist export baseline immediately so preview delta updates without a full refresh.
+      this.storeLastExportState(exportedItemStateUpdates);
       
       this.miroProgress.set('');
     } catch (err: any) {
@@ -1059,6 +1069,8 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     const totalRounds = this.wsTotalRounds();
     const prompts = this.wsRoundPrompts();
     const allItems = this.items().filter((item) => !this.isItemArchived(item));
+    const storedExportState = this.lastExportState();
+    const lastWorkspaceExportAt = this.lastExportAt();
     const exportMode: 'new' | 'update' = this.boardMode() === 'add' && !!this.miroBoardId() ? 'update' : 'new';
     
     // Calculate which items are new/updated only if in update mode
@@ -1095,6 +1107,11 @@ export class ShowcaseWsStrategicComponent implements OnInit {
             const changeStatus = exportMode === 'update'
               ? itemDelta.new.has(itemId) ? 'new' : itemDelta.updated.has(itemId) ? 'updated' : 'unchanged'
               : 'new';
+            const itemState = storedExportState.get(itemId);
+            const hasBeenExported = storedExportState.has(itemId);
+            const itemLastExportAt = itemState && itemState !== null
+              ? itemState.exportedAt
+              : lastWorkspaceExportAt;
             return {
               id: itemId,
               exportKey,
@@ -1102,6 +1119,14 @@ export class ShowcaseWsStrategicComponent implements OnInit {
               imageUrl,
               hasImage: !!imageUrl,
               changeStatus: changeStatus as 'new' | 'updated' | 'unchanged',
+              hasBeenExported,
+              lastExportAt: itemLastExportAt,
+              lastExportLabel: hasBeenExported
+                ? this.formatExportTimestamp(itemLastExportAt)
+                : 'never',
+              updatedSinceExport: hasBeenExported
+                ? changeStatus === 'updated'
+                : null,
             };
           });
 
@@ -1164,7 +1189,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
    * Returns sets of item IDs for: new items, updated items, and all items
    */
   private calculateItemDelta(allItems: any[]): { new: Set<string>; updated: Set<string>; all: Set<string> } {
-    const lastExportState = this.getStoredLastExportState();
+    const lastExportState = this.lastExportState();
     const newItems = new Set<string>();
     const updatedItems = new Set<string>();
     const allIds = new Set<string>();
@@ -1180,10 +1205,10 @@ export class ShowcaseWsStrategicComponent implements OnInit {
         // Item was exported before. Only mark as updated if the screenshot URL changed.
         // storedUrl === null means we have no URL baseline (old storage format migration);
         // in that case treat the item as unchanged to avoid spurious re-renders.
-        const storedUrl = lastExportState.get(id);
-        if (storedUrl !== null) {
+        const storedState = lastExportState.get(id);
+        if (storedState && storedState !== null) {
           const currentUrl = this.getScreenshotUrl(item) || this.getThumbnailUrl(item) || '';
-          if (currentUrl !== storedUrl) {
+          if (currentUrl !== storedState.screenshotUrl) {
             updatedItems.add(id);
           }
         }
@@ -1287,44 +1312,112 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     return `ws_miro_last_export_ids_${this.workspace()}`;
   }
 
+  private loadStoredLastExportState(): void {
+    const { state, lastExportAt } = this.readStoredLastExportState();
+    this.lastExportState.set(state);
+    this.lastExportAt.set(lastExportAt);
+  }
+
   /**
-   * Returns a Map<itemId, screenshotUrl | null> from the last export.
-   * null means the item was known to have been exported but we have no URL baseline
-   * (e.g. migrating from the old plain-array storage format). Items with a null stored
-   * URL are treated as unchanged to avoid spurious re-exports on the first run after
-   * the storage format was upgraded.
+   * Returns a reactive export baseline map from local storage.
+   * null value means item was exported but has no URL baseline (legacy migration case).
    */
-  private getStoredLastExportState(): Map<string, string | null> {
+  private readStoredLastExportState(): { state: Map<string, StoredExportItemState | null>; lastExportAt: number | null } {
     const key = this.workspace();
-    if (!key || !this.hasLocalStorage()) return new Map();
+    if (!key || !this.hasLocalStorage()) {
+      return { state: new Map(), lastExportAt: null };
+    }
     try {
       const stored = localStorage.getItem(this.miroLastExportItemIdsStorageKey());
-      if (!stored) return new Map();
+      if (!stored) {
+        return { state: new Map(), lastExportAt: null };
+      }
       const parsed: unknown = JSON.parse(stored);
       // Old format: plain array of IDs — no URL baseline; use null as sentinel.
       if (Array.isArray(parsed)) {
-        return new Map((parsed as string[]).map(id => [id, null] as [string, null]));
+        return {
+          state: new Map((parsed as string[]).map(id => [id, null] as [string, null])),
+          lastExportAt: null,
+        };
       }
-      // New format: object mapping itemId → screenshotUrl.
-      return new Map(Object.entries(parsed as Record<string, string>));
+
+      if (parsed && typeof parsed === 'object' && 'items' in (parsed as Record<string, unknown>)) {
+        const payload = parsed as {
+          items?: Record<string, { screenshotUrl?: string; exportedAt?: number } | null>;
+          lastExportAt?: number;
+        };
+        const state = new Map<string, StoredExportItemState | null>();
+        const items = payload.items || {};
+        for (const [itemId, itemState] of Object.entries(items)) {
+          if (!itemState || typeof itemState !== 'object') {
+            state.set(itemId, null);
+            continue;
+          }
+          const screenshotUrl = typeof itemState.screenshotUrl === 'string' ? itemState.screenshotUrl : '';
+          const exportedAt = Number(itemState.exportedAt);
+          state.set(itemId, {
+            screenshotUrl,
+            exportedAt: Number.isFinite(exportedAt) ? exportedAt : (Number(payload.lastExportAt) || 0),
+          });
+        }
+        const lastExportAt = Number(payload.lastExportAt);
+        return {
+          state,
+          lastExportAt: Number.isFinite(lastExportAt) ? lastExportAt : null,
+        };
+      }
+
+      // Legacy object format: itemId -> screenshotUrl
+      const legacyState = new Map<string, StoredExportItemState | null>();
+      for (const [itemId, screenshotUrl] of Object.entries(parsed as Record<string, string>)) {
+        legacyState.set(itemId, {
+          screenshotUrl: typeof screenshotUrl === 'string' ? screenshotUrl : '',
+          exportedAt: 0,
+        });
+      }
+      return { state: legacyState, lastExportAt: null };
     } catch {
-      return new Map();
+      return { state: new Map(), lastExportAt: null };
     }
   }
 
-  private storeLastExportState(items: any[]): void {
+  private storeLastExportState(exportedItems: Map<string, string>): void {
     const key = this.workspace();
     if (!key || !this.hasLocalStorage()) return;
     try {
-      const state: Record<string, string> = {};
-      for (const item of items) {
-        const id = this.getItemId(item);
-        if (!id) continue;
-        state[id] = this.getScreenshotUrl(item) || this.getThumbnailUrl(item) || '';
+      const exportTime = Date.now();
+      const next = new Map(this.lastExportState());
+      for (const [id, screenshotUrl] of exportedItems.entries()) {
+        next.set(id, {
+          screenshotUrl,
+          exportedAt: exportTime,
+        });
       }
-      localStorage.setItem(this.miroLastExportItemIdsStorageKey(), JSON.stringify(state));
+      this.lastExportState.set(next);
+      this.lastExportAt.set(exportTime);
+
+      const serializableItems: Record<string, StoredExportItemState | null> = {};
+      for (const [id, itemState] of next.entries()) {
+        serializableItems[id] = itemState;
+      }
+
+      localStorage.setItem(this.miroLastExportItemIdsStorageKey(), JSON.stringify({
+        lastExportAt: exportTime,
+        items: serializableItems,
+      }));
     } catch {
       // Ignore storage write failures
+    }
+  }
+
+  formatExportTimestamp(value: number | null): string {
+    if (!value || !Number.isFinite(value) || value <= 0) {
+      return 'unknown';
+    }
+    try {
+      return new Date(value).toLocaleString();
+    } catch {
+      return 'unknown';
     }
   }
 

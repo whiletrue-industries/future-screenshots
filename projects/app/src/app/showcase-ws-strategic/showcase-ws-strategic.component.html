@@ -81,147 +81,113 @@
     <section class="ws-section ws-preview-section ws-preview-section-full" aria-labelledby="preview-heading">
       <h2 id="preview-heading" i18n>Composition Preview</h2>
       <p class="ws-hint" i18n>
-        This preview mirrors the Miro export composition (group → round → participant → items) so you can validate what will be sent.
+        Group → round → participant → item hierarchy with export state for each item.
       </p>
 
-      @if (boardMode() === 'add' && miroBoardId()) {
-        <div class="ws-delta-info">
-          <p i18n><strong>Delta Mode:</strong> Only items marked as "new" will be exported.</p>
-          <ul class="ws-delta-legend">
-            <li><span class="ws-delta-badge ws-delta-new"></span> <span i18n>New item (will be added)</span></li>
-            <li><span class="ws-delta-badge ws-delta-updated"></span> <span i18n>Updated item</span></li>
-            <li><span class="ws-delta-badge ws-delta-unchanged"></span> <span i18n>Unchanged item (not exported in delta mode)</span></li>
-          </ul>
-        </div>
+      @if (lastExportAt()) {
+        <p class="ws-hint ws-hint--small">
+          Last export: {{ formatExportTimestamp(lastExportAt()) }}
+        </p>
       }
 
       @if (previewComposition().length === 0) {
         <p class="ws-empty" i18n>No composition data to preview.</p>
       }
 
-      @for (groupPreview of previewComposition(); track groupPreview.id) {
-        <article class="ws-preview-group" [style.border-left-color]="groupPreview.color">
-          <header class="ws-preview-group-header">
-            <div class="ws-preview-group-title">
-              <h3 [style.color]="groupPreview.color">{{ groupPreview.name }}</h3>
-              <p>{{ groupPreview.totalItems }} items</p>
-            </div>
-            <label class="ws-include-toggle">
-              <input
-                type="checkbox"
-                [checked]="isGroupIncluded(groupPreview.id)"
-                (change)="toggleGroupIncluded(groupPreview.id, $any($event.target).checked)"
-              />
-              <span>group</span>
-            </label>
-            @if (boardMode() === 'add' && miroBoardId() && (groupPreview.newCount > 0 || groupPreview.updatedCount > 0)) {
-              <div class="ws-preview-group-delta">
-                @if (groupPreview.newCount > 0) {
-                  <span class="ws-delta-stat ws-delta-stat-new">
-                    <span class="ws-delta-badge-small ws-delta-new"></span>
-                    {{ groupPreview.newCount }} new
-                  </span>
-                }
-                @if (groupPreview.updatedCount > 0) {
-                  <span class="ws-delta-stat ws-delta-stat-updated">
-                    <span class="ws-delta-badge-small ws-delta-updated"></span>
-                    {{ groupPreview.updatedCount }} updated
-                  </span>
-                }
-              </div>
-            }
-          </header>
-
-          @for (roundPreview of groupPreview.rounds; track roundPreview.round) {
-            <section class="ws-preview-round">
-              <h4 [style.color]="groupPreview.color">
-                <span i18n>Round</span> {{ roundPreview.round }}: {{ roundPreview.prompt }}
-              </h4>
-              <label class="ws-include-toggle ws-include-toggle-round">
+      <ul class="ws-preview-tree" role="list">
+        @for (groupPreview of previewComposition(); track groupPreview.id) {
+          <li class="ws-preview-node ws-preview-node-group" [style.border-left-color]="groupPreview.color">
+            <div class="ws-preview-row">
+              <label class="ws-include-toggle">
                 <input
                   type="checkbox"
-                  [checked]="isRoundIncluded(groupPreview.id, roundPreview.round)"
-                  (change)="toggleRoundIncluded(groupPreview.id, roundPreview.round, $any($event.target).checked)"
+                  [checked]="isGroupIncluded(groupPreview.id)"
+                  (change)="toggleGroupIncluded(groupPreview.id, $any($event.target).checked)"
                 />
-                <span>round</span>
+                <span>group</span>
               </label>
-
-              @for (participant of roundPreview.participants; track participant.participantId) {
-                <div class="ws-preview-participant">
-                  <p class="ws-preview-participant-name">{{ participant.participantName }}</p>
-
-                  @if (participant.items.length === 0) {
-                    <p class="ws-preview-empty" i18n>No items in this round.</p>
-                  }
-
-                  <div class="ws-preview-items-row">
-                    @for (item of participant.items; track item.id) {
-                      <article
-                        class="ws-preview-item-block"
-                        [class.ws-item-new]="item.changeStatus === 'new'"
-                        [class.ws-item-updated]="item.changeStatus === 'updated'"
-                        [class.ws-item-unchanged]="item.changeStatus === 'unchanged'"
-                        [class.ws-item-excluded]="!isExportPathIncluded(groupPreview.id, roundPreview.round, item.exportKey)"
-                      >
-                        <label class="ws-include-toggle ws-include-toggle-item">
-                          <input
-                            type="checkbox"
-                            [checked]="isItemIncluded(item.exportKey)"
-                            (change)="toggleItemIncluded(item.exportKey, $any($event.target).checked)"
-                          />
-                          <span>item</span>
-                        </label>
-                        @if (item.changeStatus && boardMode() === 'add' && miroBoardId()) {
-                          <span 
-                            class="ws-item-status-badge" 
-                            [class.ws-item-status-new]="item.changeStatus === 'new'"
-                            [class.ws-item-status-updated]="item.changeStatus === 'updated'"
-                            [class.ws-item-status-unchanged]="item.changeStatus === 'unchanged'"
-                            [title]="item.changeStatus === 'new' ? 'New item (will be added)' : (item.changeStatus === 'updated' ? 'Updated item' : 'Unchanged item')">
-                            {{ item.changeStatus }}
-                          </span>
-                        }
-                        <div class="ws-preview-tag-stack" aria-hidden="true">
-                          <div class="ws-preview-tag-card" [style.background]="groupPreview.color">
-                            <span class="ws-preview-tag-line">HMW...</span>
-                          </div>
-                          <div class="ws-preview-tag-card" [style.background]="groupPreview.color">
-                            <span class="ws-preview-tag-line">HMW...</span>
-                          </div>
-                          <div class="ws-preview-tag-card" [style.background]="groupPreview.color">
-                            <span class="ws-preview-tag-line">HMW...</span>
-                          </div>
-                        </div>
-
-                        <div class="ws-preview-image-box">
-                          @if (item.hasImage) {
-                            <img [src]="item.imageUrl" [alt]="item.title" loading="lazy" />
-                          } @else {
-                            <div class="ws-preview-image-missing" i18n>No image</div>
-                          }
-                        </div>
-
-                        <p class="ws-preview-item-title">{{ item.title }}</p>
-                      </article>
-                    }
-                  </div>
-                </div>
-              }
-            </section>
-          }
-
-          @if (groupPreview.unplaced.length > 0) {
-            <div class="ws-preview-unplaced" role="status">
-              <strong i18n>Unplaced items:</strong>
-              <ul>
-                @for (item of groupPreview.unplaced; track item.id) {
-                  <li>{{ item.id }} — {{ item.reason }}</li>
-                }
-              </ul>
+              <strong [style.color]="groupPreview.color">{{ groupPreview.name }}</strong>
+              <span class="ws-preview-meta">{{ groupPreview.totalItems }} items</span>
             </div>
-          }
-        </article>
-      }
+
+            <ul role="list">
+              @for (roundPreview of groupPreview.rounds; track roundPreview.round) {
+                <li class="ws-preview-node ws-preview-node-round">
+                  <div class="ws-preview-row">
+                    <label class="ws-include-toggle">
+                      <input
+                        type="checkbox"
+                        [checked]="isRoundIncluded(groupPreview.id, roundPreview.round)"
+                        (change)="toggleRoundIncluded(groupPreview.id, roundPreview.round, $any($event.target).checked)"
+                      />
+                      <span>round</span>
+                    </label>
+                    <span><strong>Round {{ roundPreview.round }}</strong>: {{ roundPreview.prompt }}</span>
+                  </div>
+
+                  <ul role="list">
+                    @for (participant of roundPreview.participants; track participant.participantId) {
+                      <li class="ws-preview-node ws-preview-node-participant">
+                        <div class="ws-preview-row">
+                          <strong>{{ participant.participantName }}</strong>
+                        </div>
+
+                        @if (participant.items.length === 0) {
+                          <p class="ws-preview-empty" i18n>No items in this round.</p>
+                        } @else {
+                          <ul role="list">
+                            @for (item of participant.items; track item.id) {
+                              <li class="ws-preview-node ws-preview-node-item" [class.ws-item-excluded]="!isExportPathIncluded(groupPreview.id, roundPreview.round, item.exportKey)">
+                                <div class="ws-preview-row ws-preview-row-item">
+                                  <label class="ws-include-toggle">
+                                    <input
+                                      type="checkbox"
+                                      [checked]="isItemIncluded(item.exportKey)"
+                                      (change)="toggleItemIncluded(item.exportKey, $any($event.target).checked)"
+                                    />
+                                    <span>item</span>
+                                  </label>
+                                  <span class="ws-preview-item-name">{{ item.title }}</span>
+                                  <span class="ws-preview-meta">{{ item.hasImage ? 'image' : 'no image' }}</span>
+                                  <span class="ws-item-state" [class.ws-item-state-new]="item.changeStatus === 'new'" [class.ws-item-state-updated]="item.changeStatus === 'updated'" [class.ws-item-state-unchanged]="item.changeStatus === 'unchanged'">
+                                    {{ item.changeStatus }}
+                                  </span>
+                                  <span class="ws-preview-meta">last export: {{ item.lastExportLabel }}</span>
+                                  <span class="ws-preview-meta">
+                                    updated since export:
+                                    @if (item.updatedSinceExport === null) {
+                                      <span>n/a</span>
+                                    } @else if (item.updatedSinceExport) {
+                                      <span>yes</span>
+                                    } @else {
+                                      <span>no</span>
+                                    }
+                                  </span>
+                                </div>
+                              </li>
+                            }
+                          </ul>
+                        }
+                      </li>
+                    }
+                  </ul>
+                </li>
+              }
+            </ul>
+
+            @if (groupPreview.unplaced.length > 0) {
+              <div class="ws-preview-unplaced" role="status">
+                <strong i18n>Unplaced items:</strong>
+                <ul>
+                  @for (item of groupPreview.unplaced; track item.id) {
+                    <li>{{ item.id }} — {{ item.reason }}</li>
+                  }
+                </ul>
+              </div>
+            }
+          </li>
+        }
+      </ul>
     </section>
 
     <!-- Miro Export -->

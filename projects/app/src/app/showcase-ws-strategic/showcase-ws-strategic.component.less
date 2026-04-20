@@ -81,6 +81,87 @@
   .ws-preview-section {
     max-width: 1100px;
 
+    .ws-preview-tree {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+
+      ul {
+        list-style: none;
+        margin: 0.4rem 0 0.8rem;
+        padding-left: 1rem;
+        border-left: 1px dashed #ddd7ea;
+      }
+    }
+
+    .ws-preview-node {
+      margin-bottom: 0.35rem;
+    }
+
+    .ws-preview-node-group {
+      background: #fff;
+      border-left: 5px solid #607D8B;
+      border-radius: 10px;
+      padding: 0.7rem 0.8rem;
+      box-shadow: 0 1px 5px rgba(0, 0, 0, 0.06);
+      margin-bottom: 0.9rem;
+    }
+
+    .ws-preview-node-round,
+    .ws-preview-node-participant,
+    .ws-preview-node-item {
+      padding: 0.3rem 0;
+    }
+
+    .ws-preview-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      font-size: 0.86rem;
+      color: #333;
+    }
+
+    .ws-preview-row-item {
+      gap: 0.45rem 0.65rem;
+    }
+
+    .ws-preview-item-name {
+      font-weight: 600;
+      color: #1f1f1f;
+    }
+
+    .ws-preview-meta {
+      color: #666;
+      font-size: 0.79rem;
+    }
+
+    .ws-item-state {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 0.1rem 0.45rem;
+      font-size: 0.73rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      line-height: 1.25;
+
+      &.ws-item-state-new {
+        background: rgba(76, 175, 80, 0.12);
+        color: #2e7d32;
+      }
+
+      &.ws-item-state-updated {
+        background: rgba(255, 152, 0, 0.14);
+        color: #b45309;
+      }
+
+      &.ws-item-state-unchanged {
+        background: rgba(120, 120, 120, 0.12);
+        color: #5f6368;
+      }
+    }
+
     .ws-preview-group {
       background: #fff;
       border-left: 6px solid #607D8B;
