@@ -1,0 +1,3165 @@
+<!DOCTYPE html><html lang="nl" dir="ltr"><head>
+  <meta charset="utf-8">
+
+  <title>The Futures Map</title>
+  <meta name="title" content="The Futures Map">
+  <meta name="description" content="Navigating political imagination through screenshots from the futures we may shape together.">
+  
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="site.webmanifest" crossorigin="anonymous">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://mapfutur.es/">
+  <meta property="twitter:title" content="The Futures Map">
+  <meta property="twitter:description" content="Navigating political imagination through screenshots from the futures we may shape together.">
+  <meta property="twitter:image" content="https://mapfutur.es/og_image.jpg">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="fb:app_id" content="966242223397117">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://mapfutur.es/">
+  <meta property="og:title" content="The Futures Map">
+  <meta property="og:description" content="Navigating political imagination through screenshots from the futures we may shape together.">
+  <meta property="og:image" itemprop="image" content="https://mapfutur.es/og_image.jpg">
+  <meta property="og:image:secure_url" itemprop="image" content="https://mapfutur.es/og_image.jpg">
+
+  <base href="/nl/">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no, user-scalable=no">
+  <meta http-equiv="ScreenOrientation" content="autoRotate:disabled">
+  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(self), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()">
+  
+  <script src="https://docs.opencv.org/4.7.0/opencv.js" async=""></script>
+  <!-- warning: loading OpenCV can take some time. Load asynchronously -->
+  <script src="https://cdn.jsdelivr.net/gh/ColonelParrot/jscanify@master/src/jscanify.min.js"></script>
+<link rel="stylesheet" href="styles-7M4R3UQD.css"><link rel="preload" href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&amp;family=Permanent+Marker&amp;family=Shadows+Into+Light&amp;family=Indie+Flower&amp;display=swap" as="style"><style ng-app-id="ng">
+
+.font-sans[_ngcontent-ng-c1849885136] {
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+}
+.buttons[_ngcontent-ng-c1849885136] {
+  width: 100%;
+  display: flex;
+  flex-flow: column;
+  padding: 8px 0;
+  gap: 4px;
+}
+.buttons[_ngcontent-ng-c1849885136]   .button-row[_ngcontent-ng-c1849885136] {
+  width: 100%;
+  display: flex;
+  flex-flow: row;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+.buttons[_ngcontent-ng-c1849885136]   .button-row[_ngcontent-ng-c1849885136]    > .button[_ngcontent-ng-c1849885136] {
+  flex: 1 1 auto;
+}
+.buttons[_ngcontent-ng-c1849885136]   .button[_ngcontent-ng-c1849885136] {
+  height: 52px;
+  padding: 0px 8px;
+  display: flex;
+  flex-flow: row;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  font-size: 16px;
+  line-height: normal;
+  font-weight: 400;
+  border: 1px solid #E7CBFF;
+  background: #FBF5F6;
+  color: #4E02B2;
+  cursor: pointer;
+}
+.buttons[_ngcontent-ng-c1849885136]   .button.primary[_ngcontent-ng-c1849885136] {
+  border: 1px solid #4E02B2;
+  background: #4E02B2;
+  color: #FFFFFF;
+  font-weight: 700;
+}
+.buttons[_ngcontent-ng-c1849885136]   a[_ngcontent-ng-c1849885136] {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+[_nghost-ng-c1849885136] {
+  display: flex;
+  flex-flow: column;
+  align-items: stretch;
+  width: 100%;
+  overflow-y: auto;
+  height: 100%;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+}
+.moderate-container[_ngcontent-ng-c1849885136] {
+  display: flex;
+  flex-flow: column;
+  gap: 12px;
+  padding: 12px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  flex: 1;
+}
+.topbar[_ngcontent-ng-c1849885136] {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(78, 2, 178, 0.2);
+  gap: 12px;
+}
+.topbar[_ngcontent-ng-c1849885136]   .actions-left[_ngcontent-ng-c1849885136] {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.topbar[_ngcontent-ng-c1849885136]   .actions-left[_ngcontent-ng-c1849885136]   .back-link[_ngcontent-ng-c1849885136] {
+  color: #4E02B2;
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.topbar[_ngcontent-ng-c1849885136]   .actions-left[_ngcontent-ng-c1849885136]   .back-link[_ngcontent-ng-c1849885136]:hover {
+  color: #B969FF;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136] {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .logo[_ngcontent-ng-c1849885136] {
+  background: #E7CBFF;
+  color: #4E02B2;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .title-stack[_ngcontent-ng-c1849885136] {
+  position: relative;
+  min-width: 0;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .breadcrumbs[_ngcontent-ng-c1849885136] {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  color: #9B90AA;
+  font-size: 12px;
+  font-weight: 500;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .breadcrumbs[_ngcontent-ng-c1849885136]   a[_ngcontent-ng-c1849885136] {
+  color: #4E02B2;
+  text-decoration: none;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .breadcrumbs[_ngcontent-ng-c1849885136]   a[_ngcontent-ng-c1849885136]:hover {
+  color: #B969FF;
+  text-decoration: underline;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .breadcrumbs[_ngcontent-ng-c1849885136]   .sep[_ngcontent-ng-c1849885136] {
+  color: #9B90AA;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .title-row[_ngcontent-ng-c1849885136] {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   h1[_ngcontent-ng-c1849885136] {
+  color: #4E02B2;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .title-dropdown-icon[_ngcontent-ng-c1849885136] {
+  padding: 2px 6px;
+  min-width: 28px;
+  height: 28px;
+  border: 1px solid #F1E5F3;
+  border-radius: 6px;
+  background: #FFFFFF;
+  color: #6C707B;
+  font-size: 12px;
+  cursor: pointer;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .title-dropdown-icon[_ngcontent-ng-c1849885136]:hover {
+  border-color: #B969FF;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .title-dropdown-icon[_ngcontent-ng-c1849885136]:focus {
+  outline: none;
+  border-color: #4E02B2;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .workspace-name[_ngcontent-ng-c1849885136] {
+  color: #9B90AA;
+  font-size: 16px;
+  font-weight: 400;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .workspace-selector-in-title[_ngcontent-ng-c1849885136] {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  width: 100%;
+  pointer-events: none;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .workspace-selector-in-title[_ngcontent-ng-c1849885136]   .workspace-dropdown[_ngcontent-ng-c1849885136] {
+  position: relative;
+  left: 0;
+  background: #FFFFFF;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 4px;
+  width: min(740px, calc(100vw - 72px));
+  max-width: 100%;
+  min-width: min(420px, calc(100vw - 72px));
+  pointer-events: auto;
+  margin: 0 auto;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .workspace-selector-in-title[_ngcontent-ng-c1849885136]   .workspace-dropdown[_ngcontent-ng-c1849885136]   .multiselect-search[_ngcontent-ng-c1849885136] {
+  padding: 6px;
+  border-bottom: 1px solid #F1E5F3;
+  margin-bottom: 4px;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .workspace-selector-in-title[_ngcontent-ng-c1849885136]   .workspace-dropdown[_ngcontent-ng-c1849885136]   .multiselect-search[_ngcontent-ng-c1849885136]   .search-input[_ngcontent-ng-c1849885136] {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 6px;
+  background: #FBF5F6;
+  color: #6C707B;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .workspace-selector-in-title[_ngcontent-ng-c1849885136]   .workspace-dropdown[_ngcontent-ng-c1849885136]   .multiselect-search[_ngcontent-ng-c1849885136]   .search-input[_ngcontent-ng-c1849885136]:focus {
+  outline: none;
+  border-color: #4E02B2;
+  background: #FFFFFF;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .workspace-selector-in-title[_ngcontent-ng-c1849885136]   .workspace-dropdown[_ngcontent-ng-c1849885136]   .multiselect-search[_ngcontent-ng-c1849885136]   .search-input[_ngcontent-ng-c1849885136]::placeholder {
+  color: #9B90AA;
+  font-weight: 400;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .workspace-selector-in-title[_ngcontent-ng-c1849885136]   .workspace-dropdown[_ngcontent-ng-c1849885136]   .multiselect-controls[_ngcontent-ng-c1849885136] {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-bottom: 1px solid #F1E5F3;
+  margin-bottom: 4px;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .workspace-selector-in-title[_ngcontent-ng-c1849885136]   .workspace-dropdown[_ngcontent-ng-c1849885136]   .multiselect-controls[_ngcontent-ng-c1849885136]   .control-btn[_ngcontent-ng-c1849885136] {
+  flex: 1;
+  padding: 6px 8px;
+  background: #FBF5F6;
+  border: 1px solid #F1E5F3;
+  border-radius: 4px;
+  color: #4E02B2;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .workspace-selector-in-title[_ngcontent-ng-c1849885136]   .workspace-dropdown[_ngcontent-ng-c1849885136]   .multiselect-controls[_ngcontent-ng-c1849885136]   .control-btn[_ngcontent-ng-c1849885136]:hover {
+  background: #F1E5F3;
+  border-color: #4E02B2;
+  color: #301A4E;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .workspace-selector-in-title[_ngcontent-ng-c1849885136]   .workspace-dropdown[_ngcontent-ng-c1849885136]   .multiselect-controls[_ngcontent-ng-c1849885136]   .control-btn[_ngcontent-ng-c1849885136]:active {
+  transform: scale(0.98);
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .workspace-selector-in-title[_ngcontent-ng-c1849885136]   .workspace-dropdown[_ngcontent-ng-c1849885136]   .workspace-option[_ngcontent-ng-c1849885136] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 13px;
+  color: #6C707B;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .workspace-selector-in-title[_ngcontent-ng-c1849885136]   .workspace-dropdown[_ngcontent-ng-c1849885136]   .workspace-option[_ngcontent-ng-c1849885136]:hover {
+  background: #FBF5F6;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .workspace-selector-in-title[_ngcontent-ng-c1849885136]   .workspace-dropdown[_ngcontent-ng-c1849885136]   .workspace-option[_ngcontent-ng-c1849885136]   input[type=checkbox][_ngcontent-ng-c1849885136] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+  accent-color: #4E02B2;
+}
+.topbar[_ngcontent-ng-c1849885136]   .brand[_ngcontent-ng-c1849885136]   .workspace-selector-in-title[_ngcontent-ng-c1849885136]   .workspace-dropdown[_ngcontent-ng-c1849885136]   .workspace-option[_ngcontent-ng-c1849885136]   .option-label[_ngcontent-ng-c1849885136] {
+  flex: 1;
+  font-weight: 500;
+}
+.topbar[_ngcontent-ng-c1849885136]   .actions[_ngcontent-ng-c1849885136] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.topbar[_ngcontent-ng-c1849885136]   .actions[_ngcontent-ng-c1849885136]   .multi-select-toggle[_ngcontent-ng-c1849885136] {
+  padding: 8px 12px;
+  border: 1px solid #F1E5F3;
+  background: #FBF5F6;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  color: #301A4E;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+.topbar[_ngcontent-ng-c1849885136]   .actions[_ngcontent-ng-c1849885136]   .multi-select-toggle[_ngcontent-ng-c1849885136]:hover {
+  background: rgba(241, 229, 243, 0.6);
+  box-shadow: 0 2px 6px rgba(155, 144, 170, 0.2);
+}
+.topbar[_ngcontent-ng-c1849885136]   .actions[_ngcontent-ng-c1849885136]   .multi-select-toggle[_ngcontent-ng-c1849885136]   .icon[_ngcontent-ng-c1849885136] {
+  font-size: 14px;
+}
+.topbar[_ngcontent-ng-c1849885136]   .actions[_ngcontent-ng-c1849885136]   .multi-select-toggle[_ngcontent-ng-c1849885136]   .multi-select-count[_ngcontent-ng-c1849885136] {
+  color: #301A4E;
+  font-weight: 700;
+  background: #fff;
+  border: 1px solid #F1E5F3;
+  border-radius: 6px;
+  padding: 2px 6px;
+  line-height: 1;
+  font-size: 11px;
+}
+.topbar[_ngcontent-ng-c1849885136]   .actions[_ngcontent-ng-c1849885136]   .cred-inline[_ngcontent-ng-c1849885136] {
+  display: flex;
+  gap: 8px;
+}
+.topbar[_ngcontent-ng-c1849885136]   .actions[_ngcontent-ng-c1849885136]   .cred-inline[_ngcontent-ng-c1849885136]   input[_ngcontent-ng-c1849885136] {
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  font-size: 13px;
+  min-width: 140px;
+}
+.topbar[_ngcontent-ng-c1849885136]   .actions[_ngcontent-ng-c1849885136]   .cred-inline[_ngcontent-ng-c1849885136]   input[_ngcontent-ng-c1849885136]:focus {
+  outline: 2px solid #B969FF;
+  outline-offset: 1px;
+}
+.filters-bar[_ngcontent-ng-c1849885136] {
+  margin-bottom: 8px;
+  background: #FFFFFF;
+  border: 1px solid #F1E5F3;
+  border-radius: 10px;
+  padding: 12px;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group[_ngcontent-ng-c1849885136] {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 110px;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group[_ngcontent-ng-c1849885136]   label[_ngcontent-ng-c1849885136] {
+  font-size: 10px;
+  font-weight: 700;
+  color: #4E02B2;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group[_ngcontent-ng-c1849885136]   select[_ngcontent-ng-c1849885136] {
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #6C707B;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238A3FFC' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 32px;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group[_ngcontent-ng-c1849885136]   select[_ngcontent-ng-c1849885136]:focus {
+  outline: none;
+  border-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group[_ngcontent-ng-c1849885136]   select[_ngcontent-ng-c1849885136]:hover {
+  border-color: #B969FF;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group.custom-multiselect[_ngcontent-ng-c1849885136] {
+  position: relative;
+  min-width: 180px;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group.custom-multiselect[_ngcontent-ng-c1849885136]   .multiselect-container[_ngcontent-ng-c1849885136] {
+  position: relative;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group.custom-multiselect[_ngcontent-ng-c1849885136]   .multiselect-trigger[_ngcontent-ng-c1849885136] {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #6C707B;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group.custom-multiselect[_ngcontent-ng-c1849885136]   .multiselect-trigger[_ngcontent-ng-c1849885136]:hover {
+  border-color: #B969FF;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group.custom-multiselect[_ngcontent-ng-c1849885136]   .multiselect-trigger[_ngcontent-ng-c1849885136]:focus {
+  outline: none;
+  border-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group.custom-multiselect[_ngcontent-ng-c1849885136]   .multiselect-trigger[_ngcontent-ng-c1849885136]   .multiselect-label[_ngcontent-ng-c1849885136] {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group.custom-multiselect[_ngcontent-ng-c1849885136]   .multiselect-trigger[_ngcontent-ng-c1849885136]   .multiselect-arrow[_ngcontent-ng-c1849885136] {
+  font-size: 10px;
+  color: #9B90AA;
+  flex-shrink: 0;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group.custom-multiselect[_ngcontent-ng-c1849885136]   .multiselect-dropdown[_ngcontent-ng-c1849885136] {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #FFFFFF;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 4px;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group.custom-multiselect[_ngcontent-ng-c1849885136]   .multiselect-dropdown[_ngcontent-ng-c1849885136]   .multiselect-option[_ngcontent-ng-c1849885136] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 13px;
+  color: #6C707B;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group.custom-multiselect[_ngcontent-ng-c1849885136]   .multiselect-dropdown[_ngcontent-ng-c1849885136]   .multiselect-option[_ngcontent-ng-c1849885136]:hover {
+  background: #FBF5F6;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group.custom-multiselect[_ngcontent-ng-c1849885136]   .multiselect-dropdown[_ngcontent-ng-c1849885136]   .multiselect-option[_ngcontent-ng-c1849885136]   input[type=checkbox][_ngcontent-ng-c1849885136] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+  accent-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group.custom-multiselect[_ngcontent-ng-c1849885136]   .multiselect-dropdown[_ngcontent-ng-c1849885136]   .multiselect-option[_ngcontent-ng-c1849885136]   .option-label[_ngcontent-ng-c1849885136] {
+  flex: 1;
+  font-weight: 500;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group.custom-multiselect[_ngcontent-ng-c1849885136]   .multiselect-dropdown[_ngcontent-ng-c1849885136]   .multiselect-option[_ngcontent-ng-c1849885136]   .option-count[_ngcontent-ng-c1849885136] {
+  font-size: 12px;
+  color: #9B90AA;
+  font-weight: 600;
+  background: #FBF5F6;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group.search-group[_ngcontent-ng-c1849885136] {
+  flex: 1;
+  min-width: 160px;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group.search-group[_ngcontent-ng-c1849885136]   input[_ngcontent-ng-c1849885136] {
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #6C707B;
+  font-size: 13px;
+  font-weight: 500;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group.search-group[_ngcontent-ng-c1849885136]   input[_ngcontent-ng-c1849885136]:focus {
+  outline: none;
+  border-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-group.search-group[_ngcontent-ng-c1849885136]   input[_ngcontent-ng-c1849885136]::placeholder {
+  color: #9B90AA;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-info[_ngcontent-ng-c1849885136] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-info[_ngcontent-ng-c1849885136]   .count-display[_ngcontent-ng-c1849885136] {
+  color: #6C707B;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-info[_ngcontent-ng-c1849885136]   .view-toggle-btn[_ngcontent-ng-c1849885136] {
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #4E02B2;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 44px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-info[_ngcontent-ng-c1849885136]   .view-toggle-btn[_ngcontent-ng-c1849885136]:hover {
+  background: #4E02B2;
+  color: #FFFFFF;
+  border-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c1849885136]   .filters-row[_ngcontent-ng-c1849885136]   .filter-info[_ngcontent-ng-c1849885136]   .view-toggle-btn[_ngcontent-ng-c1849885136]:focus {
+  outline: 2px solid #B969FF;
+  outline-offset: 2px;
+}
+.pagination-section[_ngcontent-ng-c1849885136] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.pagination-section[_ngcontent-ng-c1849885136]   .pagination-btn[_ngcontent-ng-c1849885136] {
+  padding: 8px 16px;
+  border-radius: 16px;
+  border: 2px solid #F1E5F3;
+  background: #FFFFFF;
+  color: #4E02B2;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.pagination-section[_ngcontent-ng-c1849885136]   .pagination-btn[_ngcontent-ng-c1849885136]:hover:not(:disabled) {
+  background: #E7CBFF;
+  border-color: #B969FF;
+}
+.pagination-section[_ngcontent-ng-c1849885136]   .pagination-btn[_ngcontent-ng-c1849885136]:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.pagination-section[_ngcontent-ng-c1849885136]   .page-info[_ngcontent-ng-c1849885136] {
+  color: #4E02B2;
+  font-size: 16px;
+  font-weight: 700;
+  min-width: 80px;
+  text-align: center;
+}
+.index-notice[_ngcontent-ng-c1849885136] {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 16px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.index-notice[_ngcontent-ng-c1849885136]   span[_ngcontent-ng-c1849885136] {
+  color: #856404;
+  font-weight: 600;
+}
+.index-notice[_ngcontent-ng-c1849885136]   .index-link[_ngcontent-ng-c1849885136] {
+  color: #0056b3;
+  font-weight: 600;
+  text-decoration: underline;
+}
+.index-notice[_ngcontent-ng-c1849885136]   .index-link[_ngcontent-ng-c1849885136]:hover {
+  color: #003d82;
+}
+.items-grid[_ngcontent-ng-c1849885136] {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  width: 100%;
+}
+.item-card[_ngcontent-ng-c1849885136] {
+  background: #FFFFFF;
+  border: 2px solid #F1E5F3;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s;
+  max-width: 420px;
+  margin: 0 auto;
+}
+.item-card[_ngcontent-ng-c1849885136]:hover {
+  box-shadow: 0 6px 20px rgba(78, 2, 178, 0.15);
+  transform: translateY(-2px);
+}
+.item-card[data-status=highlighted][_ngcontent-ng-c1849885136] {
+  border: 3px solid #ffc107;
+}
+.item-card[data-status=approved][_ngcontent-ng-c1849885136] {
+  border-color: #698CFF;
+}
+.item-card[data-status=flagged][_ngcontent-ng-c1849885136] {
+  border-color: #F73C3C;
+}
+.item-card[data-status=banned][_ngcontent-ng-c1849885136] {
+  border: 1px dashed #301A4E;
+  opacity: 0.5;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-header[_ngcontent-ng-c1849885136] {
+  padding: 12px 16px;
+  background: #FBF5F6;
+  border-bottom: 1px solid #F1E5F3;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-header[_ngcontent-ng-c1849885136]   .screenshot-type[_ngcontent-ng-c1849885136] {
+  font-size: 18px;
+  cursor: help;
+  margin-left: auto;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-header[_ngcontent-ng-c1849885136]   .user-info[_ngcontent-ng-c1849885136] {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.2s;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-header[_ngcontent-ng-c1849885136]   .user-info[_ngcontent-ng-c1849885136]:hover {
+  color: #4E02B2;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-header[_ngcontent-ng-c1849885136]   .user-info[_ngcontent-ng-c1849885136]   .user-count-link[_ngcontent-ng-c1849885136] {
+  font-size: 14px;
+  color: #4E02B2;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-header[_ngcontent-ng-c1849885136]   .user-info[_ngcontent-ng-c1849885136]   .user-count-link[_ngcontent-ng-c1849885136]:hover {
+  text-decoration-style: solid;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136] {
+  width: 100%;
+  min-height: 300px;
+  max-height: 600px;
+  overflow: hidden;
+  background: #F5F0E7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   img[_ngcontent-ng-c1849885136] {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .screenshot-image-wrapper[_ngcontent-ng-c1849885136] {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .screenshot-image-wrapper[_ngcontent-ng-c1849885136]   img[_ngcontent-ng-c1849885136] {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .screenshot-image-wrapper[_ngcontent-ng-c1849885136]   .screenshot-actions[_ngcontent-ng-c1849885136] {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 8px;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .screenshot-image-wrapper[_ngcontent-ng-c1849885136]   .screenshot-actions[_ngcontent-ng-c1849885136]   .image-action-btn[_ngcontent-ng-c1849885136] {
+  padding: 8px 12px;
+  border-radius: 20px;
+  border: 1px solid #F1E5F3;
+  background: rgba(255, 255, 255, 0.92);
+  color: #301A4E;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(155, 144, 170, 0.25);
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .screenshot-image-wrapper[_ngcontent-ng-c1849885136]   .screenshot-actions[_ngcontent-ng-c1849885136]   .image-action-btn.ghost[_ngcontent-ng-c1849885136] {
+  background: rgba(78, 2, 178, 0.1);
+  color: #4E02B2;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .screenshot-image-wrapper[_ngcontent-ng-c1849885136]   .screenshot-actions[_ngcontent-ng-c1849885136]   .image-action-btn[_ngcontent-ng-c1849885136]:hover {
+  background: #4E02B2;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(78, 2, 178, 0.3);
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .screenshot-image-wrapper[_ngcontent-ng-c1849885136]   .plausibility-scale[_ngcontent-ng-c1849885136] {
+  position: absolute;
+  top: 12px;
+  right: 6px;
+  bottom: 12px;
+  width: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+  gap: 8px;
+  z-index: 1;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .screenshot-image-wrapper[_ngcontent-ng-c1849885136]   .plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot[_ngcontent-ng-c1849885136] {
+  width: 7px;
+  height: 7px;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .screenshot-image-wrapper[_ngcontent-ng-c1849885136]   .plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot.active[_ngcontent-ng-c1849885136] {
+  width: 16px;
+  height: 16px;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .toggle-view-btn[_ngcontent-ng-c1849885136] {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #F1E5F3;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .toggle-view-btn[_ngcontent-ng-c1849885136]:hover {
+  background: #FFFFFF;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .description-view[_ngcontent-ng-c1849885136] {
+  width: 100%;
+  padding: 20px;
+  cursor: pointer;
+  overflow-y: auto;
+  max-height: 600px;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .description-view[_ngcontent-ng-c1849885136]   .field-display[_ngcontent-ng-c1849885136] {
+  margin-bottom: 16px;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .description-view[_ngcontent-ng-c1849885136]   .field-display[_ngcontent-ng-c1849885136]:last-child {
+  margin-bottom: 0;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .description-view[_ngcontent-ng-c1849885136]   .field-display[_ngcontent-ng-c1849885136]   strong[_ngcontent-ng-c1849885136] {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6C707B;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .description-view[_ngcontent-ng-c1849885136]   .field-display[_ngcontent-ng-c1849885136]   p[_ngcontent-ng-c1849885136] {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #6C707B;
+  white-space: pre-wrap;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .description-view[_ngcontent-ng-c1849885136]   p[_ngcontent-ng-c1849885136] {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #6C707B;
+  white-space: pre-wrap;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .description-view[_ngcontent-ng-c1849885136]   .description-empty[_ngcontent-ng-c1849885136] {
+  color: #9B90AA;
+  font-style: italic;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .description-view[_ngcontent-ng-c1849885136]:hover {
+  background: rgba(251, 245, 246, 0.5);
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .description-edit[_ngcontent-ng-c1849885136] {
+  width: 100%;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .description-edit[_ngcontent-ng-c1849885136]   .field-group[_ngcontent-ng-c1849885136] {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .description-edit[_ngcontent-ng-c1849885136]   .field-group[_ngcontent-ng-c1849885136]   label[_ngcontent-ng-c1849885136] {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6C707B;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .description-edit[_ngcontent-ng-c1849885136]   .field-group[_ngcontent-ng-c1849885136]   textarea[_ngcontent-ng-c1849885136] {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.6;
+  resize: vertical;
+  min-height: 80px;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .description-edit[_ngcontent-ng-c1849885136]   .field-group[_ngcontent-ng-c1849885136]   textarea[_ngcontent-ng-c1849885136]:focus {
+  outline: none;
+  border-color: #4E02B2;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .description-edit[_ngcontent-ng-c1849885136]   .edit-actions[_ngcontent-ng-c1849885136] {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .description-edit[_ngcontent-ng-c1849885136]   .edit-actions[_ngcontent-ng-c1849885136]   .btn-icon[_ngcontent-ng-c1849885136] {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .description-edit[_ngcontent-ng-c1849885136]   .edit-actions[_ngcontent-ng-c1849885136]   .btn-icon.btn-save[_ngcontent-ng-c1849885136] {
+  background: #698CFF;
+  color: #FFFFFF;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .description-edit[_ngcontent-ng-c1849885136]   .edit-actions[_ngcontent-ng-c1849885136]   .btn-icon.btn-save[_ngcontent-ng-c1849885136]:hover {
+  background: #3665ff;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .description-edit[_ngcontent-ng-c1849885136]   .edit-actions[_ngcontent-ng-c1849885136]   .btn-icon.btn-cancel[_ngcontent-ng-c1849885136] {
+  background: #9B90AA;
+  color: #FFFFFF;
+}
+.item-card[_ngcontent-ng-c1849885136]   .screenshot-container[_ngcontent-ng-c1849885136]   .description-edit[_ngcontent-ng-c1849885136]   .edit-actions[_ngcontent-ng-c1849885136]   .btn-icon.btn-cancel[_ngcontent-ng-c1849885136]:hover {
+  background: #6C707B;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-metadata[_ngcontent-ng-c1849885136] {
+  padding: 12px 16px;
+  border-bottom: 1px solid #F1E5F3;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-metadata[_ngcontent-ng-c1849885136]   .metadata-row[_ngcontent-ng-c1849885136] {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-metadata[_ngcontent-ng-c1849885136]   .metadata-row[_ngcontent-ng-c1849885136]   .date[_ngcontent-ng-c1849885136] {
+  font-size: 14px;
+  color: #6C707B;
+  font-weight: 600;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-metadata[_ngcontent-ng-c1849885136]   .metadata-row[_ngcontent-ng-c1849885136]   .icon-btn[_ngcontent-ng-c1849885136] {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+  transition: transform 0.2s;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-metadata[_ngcontent-ng-c1849885136]   .metadata-row[_ngcontent-ng-c1849885136]   .icon-btn[_ngcontent-ng-c1849885136]:hover {
+  transform: scale(1.1);
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-metadata[_ngcontent-ng-c1849885136]   .metadata-row[_ngcontent-ng-c1849885136]   .icon-btn.star-btn[_ngcontent-ng-c1849885136] {
+  color: #9B90AA;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-metadata[_ngcontent-ng-c1849885136]   .metadata-row[_ngcontent-ng-c1849885136]   .icon-btn.star-btn.active[_ngcontent-ng-c1849885136] {
+  color: gold;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-metadata[_ngcontent-ng-c1849885136]   .metadata-row[_ngcontent-ng-c1849885136]   .icon-btn.trash-btn[_ngcontent-ng-c1849885136] {
+  font-size: 18px;
+  opacity: 0.6;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-metadata[_ngcontent-ng-c1849885136]   .metadata-row[_ngcontent-ng-c1849885136]   .icon-btn.trash-btn[_ngcontent-ng-c1849885136]:hover {
+  opacity: 1;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-metadata[_ngcontent-ng-c1849885136]   .metadata-row[_ngcontent-ng-c1849885136]   .ai-confidence[_ngcontent-ng-c1849885136] {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-left: auto;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-metadata[_ngcontent-ng-c1849885136]   .metadata-row[_ngcontent-ng-c1849885136]   .ai-confidence[data-confidence=high][_ngcontent-ng-c1849885136] {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-metadata[_ngcontent-ng-c1849885136]   .metadata-row[_ngcontent-ng-c1849885136]   .ai-confidence[data-confidence=medium][_ngcontent-ng-c1849885136] {
+  background: #fff3cd;
+  color: #856404;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-metadata[_ngcontent-ng-c1849885136]   .metadata-row[_ngcontent-ng-c1849885136]   .ai-confidence[data-confidence=low][_ngcontent-ng-c1849885136] {
+  background: #f8d7da;
+  color: #842029;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-content[_ngcontent-ng-c1849885136] {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+}
+.item-card[_ngcontent-ng-c1849885136]   .tagline-section[_ngcontent-ng-c1849885136]   .tagline[_ngcontent-ng-c1849885136] {
+  width: 100%;
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.4;
+  color: #4E02B2;
+  cursor: pointer;
+  border-radius: 8px;
+  background: #FBF5F6;
+  transition: all 0.2s;
+  min-height: 60px;
+  white-space: pre-wrap;
+}
+.item-card[_ngcontent-ng-c1849885136]   .tagline-section[_ngcontent-ng-c1849885136]   .tagline[_ngcontent-ng-c1849885136]:hover {
+  background: #E7CBFF;
+}
+.item-card[_ngcontent-ng-c1849885136]   .tagline-section[_ngcontent-ng-c1849885136]   .tagline.tagline-empty[_ngcontent-ng-c1849885136] {
+  color: #9B90AA;
+  font-weight: 500;
+  border: 2px dashed #F1E5F3;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.item-card[_ngcontent-ng-c1849885136]   .tagline-section[_ngcontent-ng-c1849885136]   .tagline.tagline-empty[_ngcontent-ng-c1849885136]:hover {
+  border-color: #B969FF;
+  color: #4E02B2;
+}
+.item-card[_ngcontent-ng-c1849885136]   .tagline-section[_ngcontent-ng-c1849885136]   .tagline-edit[_ngcontent-ng-c1849885136] {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.item-card[_ngcontent-ng-c1849885136]   .tagline-section[_ngcontent-ng-c1849885136]   .tagline-edit[_ngcontent-ng-c1849885136]   textarea[_ngcontent-ng-c1849885136] {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #F1E5F3;
+  border-radius: 8px;
+  font-size: 15px;
+  color: #4E02B2;
+  font-weight: 600;
+  font-family: inherit;
+  line-height: 1.4;
+  resize: vertical;
+  min-height: 80px;
+}
+.item-card[_ngcontent-ng-c1849885136]   .tagline-section[_ngcontent-ng-c1849885136]   .tagline-edit[_ngcontent-ng-c1849885136]   textarea[_ngcontent-ng-c1849885136]:focus {
+  outline: none;
+  border-color: #B969FF;
+}
+.item-card[_ngcontent-ng-c1849885136]   .tagline-section[_ngcontent-ng-c1849885136]   .tagline-edit[_ngcontent-ng-c1849885136]   .edit-actions[_ngcontent-ng-c1849885136] {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.item-card[_ngcontent-ng-c1849885136]   .tagline-section[_ngcontent-ng-c1849885136]   .tagline-edit[_ngcontent-ng-c1849885136]   .edit-actions[_ngcontent-ng-c1849885136]   .btn-icon[_ngcontent-ng-c1849885136] {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+.item-card[_ngcontent-ng-c1849885136]   .tagline-section[_ngcontent-ng-c1849885136]   .tagline-edit[_ngcontent-ng-c1849885136]   .edit-actions[_ngcontent-ng-c1849885136]   .btn-icon.btn-save[_ngcontent-ng-c1849885136] {
+  background: #698CFF;
+  color: white;
+}
+.item-card[_ngcontent-ng-c1849885136]   .tagline-section[_ngcontent-ng-c1849885136]   .tagline-edit[_ngcontent-ng-c1849885136]   .edit-actions[_ngcontent-ng-c1849885136]   .btn-icon.btn-save[_ngcontent-ng-c1849885136]:hover {
+  background: #0030CC;
+  transform: scale(1.05);
+}
+.item-card[_ngcontent-ng-c1849885136]   .tagline-section[_ngcontent-ng-c1849885136]   .tagline-edit[_ngcontent-ng-c1849885136]   .edit-actions[_ngcontent-ng-c1849885136]   .btn-icon.btn-cancel[_ngcontent-ng-c1849885136] {
+  background: #EDECEC;
+  color: #6C707B;
+}
+.item-card[_ngcontent-ng-c1849885136]   .tagline-section[_ngcontent-ng-c1849885136]   .tagline-edit[_ngcontent-ng-c1849885136]   .edit-actions[_ngcontent-ng-c1849885136]   .btn-icon.btn-cancel[_ngcontent-ng-c1849885136]:hover {
+  background: #F73C3C;
+  color: white;
+}
+.item-card[_ngcontent-ng-c1849885136]   .tags-section[_ngcontent-ng-c1849885136]   .tags-container[_ngcontent-ng-c1849885136] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.item-card[_ngcontent-ng-c1849885136]   .tags-section[_ngcontent-ng-c1849885136]   .tag[_ngcontent-ng-c1849885136] {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #FFFFFF;
+  border: 1px solid #F1E5F3;
+  border-radius: 16px;
+  font-size: 13px;
+  color: #4E02B2;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+.item-card[_ngcontent-ng-c1849885136]   .tags-section[_ngcontent-ng-c1849885136]   .tag[_ngcontent-ng-c1849885136]:hover {
+  border-color: #4E02B2;
+  background: #FBF5F6;
+}
+.item-card[_ngcontent-ng-c1849885136]   .tags-section[_ngcontent-ng-c1849885136]   .tag[_ngcontent-ng-c1849885136]   .tag-remove[_ngcontent-ng-c1849885136] {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  color: #9B90AA;
+  padding: 0;
+  margin-left: 2px;
+  transition: color 0.2s;
+}
+.item-card[_ngcontent-ng-c1849885136]   .tags-section[_ngcontent-ng-c1849885136]   .tag[_ngcontent-ng-c1849885136]   .tag-remove[_ngcontent-ng-c1849885136]:hover {
+  color: #F73C3C;
+}
+.item-card[_ngcontent-ng-c1849885136]   .tags-section[_ngcontent-ng-c1849885136]   .tag-input-wrapper[_ngcontent-ng-c1849885136] {
+  display: inline-flex;
+}
+.item-card[_ngcontent-ng-c1849885136]   .tags-section[_ngcontent-ng-c1849885136]   .tag-input-wrapper[_ngcontent-ng-c1849885136]   .tag-input[_ngcontent-ng-c1849885136] {
+  padding: 6px 12px;
+  border: 1px dashed #F1E5F3;
+  border-radius: 16px;
+  font-size: 13px;
+  background: transparent;
+  color: #4E02B2;
+  min-width: 100px;
+  transition: all 0.2s;
+}
+.item-card[_ngcontent-ng-c1849885136]   .tags-section[_ngcontent-ng-c1849885136]   .tag-input-wrapper[_ngcontent-ng-c1849885136]   .tag-input[_ngcontent-ng-c1849885136]:focus {
+  outline: none;
+  border-color: #4E02B2;
+  border-style: solid;
+  background: #FFFFFF;
+}
+.item-card[_ngcontent-ng-c1849885136]   .tags-section[_ngcontent-ng-c1849885136]   .tag-input-wrapper[_ngcontent-ng-c1849885136]   .tag-input[_ngcontent-ng-c1849885136]::placeholder {
+  color: #9B90AA;
+}
+.item-card[_ngcontent-ng-c1849885136]   .topics-section[_ngcontent-ng-c1849885136] {
+  margin-top: 4px;
+}
+.item-card[_ngcontent-ng-c1849885136]   .topics-section[_ngcontent-ng-c1849885136]   .topics-container[_ngcontent-ng-c1849885136] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.item-card[_ngcontent-ng-c1849885136]   .topics-section[_ngcontent-ng-c1849885136]   .topic-chip[_ngcontent-ng-c1849885136] {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  background: #E8F5E9;
+  border: 1px solid #C8E6C9;
+  border-radius: 12px;
+  font-size: 11px;
+  color: #2E7D32;
+  cursor: default;
+  white-space: nowrap;
+}
+.item-card[_ngcontent-ng-c1849885136]   .topics-section[_ngcontent-ng-c1849885136]   .topic-chip.primary[_ngcontent-ng-c1849885136] {
+  background: #C8E6C9;
+  font-weight: 600;
+}
+.item-card[_ngcontent-ng-c1849885136]   .topics-section[_ngcontent-ng-c1849885136]   .topic-chip.primary[_ngcontent-ng-c1849885136]::before {
+  content: "\25cf";
+  font-size: 6px;
+  margin-right: 2px;
+}
+.item-card[_ngcontent-ng-c1849885136]   .properties-selectors[_ngcontent-ng-c1849885136] {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.item-card[_ngcontent-ng-c1849885136]   .properties-selectors[_ngcontent-ng-c1849885136]   .property-selector[_ngcontent-ng-c1849885136] {
+  width: 100%;
+}
+.item-card[_ngcontent-ng-c1849885136]   .properties-selectors[_ngcontent-ng-c1849885136]   .property-selector[_ngcontent-ng-c1849885136]   select[_ngcontent-ng-c1849885136] {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 2px solid #F1E5F3;
+  background: #FFFFFF;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234E02B2' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+.item-card[_ngcontent-ng-c1849885136]   .properties-selectors[_ngcontent-ng-c1849885136]   .property-selector[_ngcontent-ng-c1849885136]   select[_ngcontent-ng-c1849885136]:focus {
+  outline: none;
+  border-color: #B969FF;
+}
+.item-card[_ngcontent-ng-c1849885136]   .properties-selectors[_ngcontent-ng-c1849885136]   .property-selector[_ngcontent-ng-c1849885136]   select.desirability-select.prefer[_ngcontent-ng-c1849885136] {
+  color: #0030CC;
+  border-color: #698CFF;
+}
+.item-card[_ngcontent-ng-c1849885136]   .properties-selectors[_ngcontent-ng-c1849885136]   .property-selector[_ngcontent-ng-c1849885136]   select.desirability-select.prevent[_ngcontent-ng-c1849885136] {
+  color: #B50F0F;
+  border-color: #F73C3C;
+}
+.item-card[_ngcontent-ng-c1849885136]   .properties-selectors[_ngcontent-ng-c1849885136]   .property-selector[_ngcontent-ng-c1849885136]   select.desirability-select.uncertain[_ngcontent-ng-c1849885136] {
+  color: #9B90AA;
+}
+.item-card[_ngcontent-ng-c1849885136]   .properties-selectors[_ngcontent-ng-c1849885136]   .property-selector[_ngcontent-ng-c1849885136]   select.plausibility-select.high[_ngcontent-ng-c1849885136] {
+  color: #0030CC;
+  border-color: #698CFF;
+}
+.item-card[_ngcontent-ng-c1849885136]   .properties-selectors[_ngcontent-ng-c1849885136]   .property-selector[_ngcontent-ng-c1849885136]   select.plausibility-select.medium[_ngcontent-ng-c1849885136] {
+  color: #856404;
+  border-color: #ffc107;
+}
+.item-card[_ngcontent-ng-c1849885136]   .properties-selectors[_ngcontent-ng-c1849885136]   .property-selector[_ngcontent-ng-c1849885136]   select.plausibility-select.low[_ngcontent-ng-c1849885136] {
+  color: #B50F0F;
+  border-color: #F73C3C;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-footer[_ngcontent-ng-c1849885136] {
+  padding: 16px;
+  background: #FBF5F6;
+  border-top: 1px solid #F1E5F3;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-footer[_ngcontent-ng-c1849885136]   .publish-btn[_ngcontent-ng-c1849885136] {
+  width: 100%;
+  padding: 16px;
+  border-radius: 12px;
+  border: none;
+  background: #4E02B2;
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-footer[_ngcontent-ng-c1849885136]   .publish-btn[_ngcontent-ng-c1849885136]:hover {
+  background: #B969FF;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(78, 2, 178, 0.3);
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-footer[_ngcontent-ng-c1849885136]   .publish-btn.published[_ngcontent-ng-c1849885136] {
+  background: #698CFF;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-footer[_ngcontent-ng-c1849885136]   .publish-btn.published[_ngcontent-ng-c1849885136]:hover {
+  background: #0030CC;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-footer[_ngcontent-ng-c1849885136]   .publish-btn.archived[_ngcontent-ng-c1849885136] {
+  background: #9B90AA;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-footer[_ngcontent-ng-c1849885136]   .publish-btn.archived[_ngcontent-ng-c1849885136]   .btn-default[_ngcontent-ng-c1849885136] {
+  display: block;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-footer[_ngcontent-ng-c1849885136]   .publish-btn.archived[_ngcontent-ng-c1849885136]   .btn-hover[_ngcontent-ng-c1849885136] {
+  display: none;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-footer[_ngcontent-ng-c1849885136]   .publish-btn.archived[_ngcontent-ng-c1849885136]:hover {
+  background: #F73C3C;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-footer[_ngcontent-ng-c1849885136]   .publish-btn.archived[_ngcontent-ng-c1849885136]:hover   .btn-default[_ngcontent-ng-c1849885136] {
+  display: none;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-footer[_ngcontent-ng-c1849885136]   .publish-btn.archived[_ngcontent-ng-c1849885136]:hover   .btn-hover[_ngcontent-ng-c1849885136] {
+  display: block;
+}
+.item-card[_ngcontent-ng-c1849885136]   .card-footer[_ngcontent-ng-c1849885136]   .publish-btn[_ngcontent-ng-c1849885136]   .btn-default[_ngcontent-ng-c1849885136], 
+.item-card[_ngcontent-ng-c1849885136]   .card-footer[_ngcontent-ng-c1849885136]   .publish-btn[_ngcontent-ng-c1849885136]   .btn-hover[_ngcontent-ng-c1849885136] {
+  display: block;
+}
+.grid-layout[_ngcontent-ng-c1849885136] {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  flex: 1;
+  width: 100%;
+  flex-flow: column;
+}
+.loading-indicator[_ngcontent-ng-c1849885136] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  gap: 12px;
+}
+.loading-indicator.workspace-loading[_ngcontent-ng-c1849885136] {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(155, 144, 170, 0.2);
+  z-index: 10;
+}
+.loading-indicator.items-loading[_ngcontent-ng-c1849885136] {
+  margin: 16px auto;
+}
+.loading-indicator[_ngcontent-ng-c1849885136]   .spinner[_ngcontent-ng-c1849885136] {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #F1E5F3;
+  border-top-color: #4E02B2;
+  border-radius: 50%;
+  animation: _ngcontent-ng-c1849885136_spin 0.8s linear infinite;
+}
+.loading-indicator[_ngcontent-ng-c1849885136]   p[_ngcontent-ng-c1849885136] {
+  color: #6C707B;
+  font-size: 14px;
+  margin: 0;
+}
+@keyframes _ngcontent-ng-c1849885136_spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.lightbox-overlay[_ngcontent-ng-c1849885136] {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(51, 50, 49, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: _ngcontent-ng-c1849885136_fadeIn 0.2s ease-in-out;
+}
+@keyframes _ngcontent-ng-c1849885136_fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.lightbox-container[_ngcontent-ng-c1849885136] {
+  display: flex;
+  gap: 20px;
+  max-width: 95vw;
+  max-height: 95vh;
+  width: 100%;
+  transition: transform 0.3s ease-in-out;
+}
+.lightbox-content[_ngcontent-ng-c1849885136] {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  flex: 1;
+}
+.lightbox-close-btn[_ngcontent-ng-c1849885136] {
+  position: fixed;
+  top: 32px;
+  left: 32px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: #FFFFFF;
+  color: #6C707B;
+  font-size: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  line-height: 1;
+  padding: 0;
+  font-weight: 300;
+  z-index: 1001;
+}
+.lightbox-close-btn[_ngcontent-ng-c1849885136]:hover {
+  background: #F73C3C;
+  color: #FFFFFF;
+  transform: scale(1.1);
+}
+.lightbox-close-btn[_ngcontent-ng-c1849885136]:focus {
+  outline: 2px solid #B969FF;
+  outline-offset: 2px;
+}
+.lightbox-sidebar-toggle-btn[_ngcontent-ng-c1849885136] {
+  position: fixed;
+  top: 32px;
+  right: 32px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: #FFFFFF;
+  color: #4E02B2;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  padding: 0;
+  z-index: 1001;
+}
+.lightbox-sidebar-toggle-btn[_ngcontent-ng-c1849885136]:hover {
+  background: #4E02B2;
+  color: #FFFFFF;
+  transform: scale(1.1);
+}
+.lightbox-sidebar-toggle-btn[_ngcontent-ng-c1849885136]:focus {
+  outline: 2px solid #B969FF;
+  outline-offset: 2px;
+}
+.lightbox-main[_ngcontent-ng-c1849885136] {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  justify-content: center;
+  flex: 1;
+  max-height: 75vh;
+}
+.lightbox-actions[_ngcontent-ng-c1849885136] {
+  position: fixed;
+  top: 32px;
+  right: 88px;
+  display: flex;
+  gap: 10px;
+  z-index: 1001;
+}
+.lightbox-actions[_ngcontent-ng-c1849885136]   .image-action-btn[_ngcontent-ng-c1849885136] {
+  padding: 10px 14px;
+  border-radius: 24px;
+  border: 1px solid #F1E5F3;
+  background: rgba(255, 255, 255, 0.92);
+  color: #301A4E;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(155, 144, 170, 0.25);
+  transition: all 0.2s;
+}
+.lightbox-actions[_ngcontent-ng-c1849885136]   .image-action-btn.ghost[_ngcontent-ng-c1849885136] {
+  background: rgba(78, 2, 178, 0.1);
+  color: #4E02B2;
+}
+.lightbox-actions[_ngcontent-ng-c1849885136]   .image-action-btn[_ngcontent-ng-c1849885136]:hover {
+  background: #4E02B2;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(78, 2, 178, 0.3);
+}
+.lightbox-image-section[_ngcontent-ng-c1849885136] {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  flex: 1;
+}
+.lightbox-image-container[_ngcontent-ng-c1849885136] {
+  max-width: 50vw;
+  max-height: 75vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.lightbox-image-container[_ngcontent-ng-c1849885136]   img[_ngcontent-ng-c1849885136] {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+.lightbox-image-container[_ngcontent-ng-c1849885136]   .plausibility-scale[_ngcontent-ng-c1849885136] {
+  top: 16px;
+  right: 12px;
+  bottom: 16px;
+  width: 22px;
+  gap: 10px;
+}
+.lightbox-image-container[_ngcontent-ng-c1849885136]   .plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot[_ngcontent-ng-c1849885136] {
+  width: 8px;
+  height: 8px;
+}
+.lightbox-image-container[_ngcontent-ng-c1849885136]   .plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot.active[_ngcontent-ng-c1849885136] {
+  width: 18px;
+  height: 18px;
+}
+.lightbox-info-boxes[_ngcontent-ng-c1849885136] {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  width: 370px;
+  max-width: 370px;
+  height: 600px;
+  flex-shrink: 0;
+}
+.lightbox-info-boxes[_ngcontent-ng-c1849885136]   .info-box[_ngcontent-ng-c1849885136] {
+  flex-shrink: 0;
+}
+.lightbox-info-boxes[_ngcontent-ng-c1849885136]   .info-box.info-box-content[_ngcontent-ng-c1849885136] {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.lightbox-info-boxes[_ngcontent-ng-c1849885136]   .info-box.info-box-content[_ngcontent-ng-c1849885136]   label[_ngcontent-ng-c1849885136] {
+  flex-shrink: 0;
+  margin-bottom: 4px;
+}
+.lightbox-info-boxes[_ngcontent-ng-c1849885136]   .info-box.info-box-content[_ngcontent-ng-c1849885136]   textarea[_ngcontent-ng-c1849885136] {
+  flex: 1;
+  resize: none;
+}
+.lightbox-info-boxes[_ngcontent-ng-c1849885136]   .info-box.info-box-screenshot-type[_ngcontent-ng-c1849885136], 
+.lightbox-info-boxes[_ngcontent-ng-c1849885136]   .info-box.info-box-transition[_ngcontent-ng-c1849885136] {
+  height: 58px;
+  justify-content: center;
+  gap: 0;
+}
+.info-box[_ngcontent-ng-c1849885136] {
+  background: transparent;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: none;
+  border: 1px solid #F1E5F3;
+  box-sizing: border-box;
+}
+.info-box[_ngcontent-ng-c1849885136]   label[_ngcontent-ng-c1849885136] {
+  font-size: 11px;
+  font-weight: 700;
+  color: #F1E5F3;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.info-box[_ngcontent-ng-c1849885136]   select[_ngcontent-ng-c1849885136], 
+.info-box[_ngcontent-ng-c1849885136]   input[_ngcontent-ng-c1849885136], 
+.info-box[_ngcontent-ng-c1849885136]   textarea[_ngcontent-ng-c1849885136] {
+  font-family: "Source Sans Pro", sans-serif;
+  font-size: 16px;
+  line-height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #FFFFFF;
+}
+.info-box[_ngcontent-ng-c1849885136]   select[_ngcontent-ng-c1849885136]:focus, 
+.info-box[_ngcontent-ng-c1849885136]   input[_ngcontent-ng-c1849885136]:focus, 
+.info-box[_ngcontent-ng-c1849885136]   textarea[_ngcontent-ng-c1849885136]:focus {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+.info-box[_ngcontent-ng-c1849885136]   select[_ngcontent-ng-c1849885136]::placeholder, 
+.info-box[_ngcontent-ng-c1849885136]   input[_ngcontent-ng-c1849885136]::placeholder, 
+.info-box[_ngcontent-ng-c1849885136]   textarea[_ngcontent-ng-c1849885136]::placeholder {
+  color: #9B90AA;
+  opacity: 0.5;
+}
+.info-box[_ngcontent-ng-c1849885136]   select[_ngcontent-ng-c1849885136] {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='white' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0 center;
+  padding-right: 24px;
+}
+.info-box[_ngcontent-ng-c1849885136]   textarea[_ngcontent-ng-c1849885136] {
+  resize: none;
+  min-height: auto;
+}
+.radio-group[_ngcontent-ng-c1849885136] {
+  display: flex;
+  flex-direction: row;
+  gap: 48px;
+  justify-content: center;
+  margin-top: 8px;
+}
+.radio-group-inline[_ngcontent-ng-c1849885136] {
+  display: flex;
+  flex-direction: row;
+  gap: 32px;
+  align-items: center;
+  position: absolute;
+  bottom: -50px;
+}
+.radio-label[_ngcontent-ng-c1849885136] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-family: "Source Sans Pro", sans-serif;
+  font-size: 14px;
+  line-height: 18px;
+  color: #6C707B;
+}
+.radio-label[_ngcontent-ng-c1849885136]   input[type=radio][_ngcontent-ng-c1849885136] {
+  appearance: none;
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  background: #0D001F;
+  border: 1px solid #6C707B;
+  border-radius: 8px;
+  position: relative;
+  margin: 0;
+}
+.radio-label[_ngcontent-ng-c1849885136]   input[type=radio][_ngcontent-ng-c1849885136]:checked {
+  border-color: #F1E5F3;
+}
+.radio-label[_ngcontent-ng-c1849885136]   input[type=radio][_ngcontent-ng-c1849885136]:checked::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #F1E5F3;
+  border-radius: 8px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.radio-label[_ngcontent-ng-c1849885136]   span[_ngcontent-ng-c1849885136] {
+  flex: none;
+}
+.radio-label[_ngcontent-ng-c1849885136]:has(input:checked) {
+  color: #F1E5F3;
+}
+.transition-content[_ngcontent-ng-c1849885136] {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  position: relative;
+}
+.transition-content[_ngcontent-ng-c1849885136]   .transition-event-input[_ngcontent-ng-c1849885136] {
+  flex: 0 0 auto;
+  width: 100%;
+}
+.transition-content[_ngcontent-ng-c1849885136]   .transition-event-input[_ngcontent-ng-c1849885136]   input[_ngcontent-ng-c1849885136] {
+  width: 100%;
+  min-width: 120px;
+}
+.transition-content[_ngcontent-ng-c1849885136]   .transition-arrows[_ngcontent-ng-c1849885136] {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+.transition-content[_ngcontent-ng-c1849885136]   .radio-group-inline[_ngcontent-ng-c1849885136] {
+  flex: 1;
+  justify-content: flex-end;
+}
+.radio-disabled[_ngcontent-ng-c1849885136] {
+  font-family: "Source Sans Pro", sans-serif;
+  font-size: 14px;
+  line-height: 18px;
+  color: #6C707B;
+  font-style: italic;
+  text-align: center;
+}
+.nav-btn[_ngcontent-ng-c1849885136] {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  border: 2px solid #FFFFFF;
+  background: rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  font-weight: 300;
+  flex-shrink: 0;
+  z-index: 1001;
+}
+.nav-btn.nav-prev[_ngcontent-ng-c1849885136] {
+  left: 32px;
+}
+.nav-btn.nav-next[_ngcontent-ng-c1849885136] {
+  right: 32px;
+}
+.nav-btn[_ngcontent-ng-c1849885136]:hover:not(:disabled) {
+  background: #FFFFFF;
+  color: #6C707B;
+  transform: translateY(-50%) scale(1.1);
+}
+.nav-btn[_ngcontent-ng-c1849885136]:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.nav-btn[_ngcontent-ng-c1849885136]:focus {
+  outline: 2px solid #B969FF;
+  outline-offset: 2px;
+}
+.lightbox-counter[_ngcontent-ng-c1849885136] {
+  position: fixed;
+  bottom: 32px;
+  left: 32px;
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  z-index: 1001;
+}
+.lightbox-sidebar[_ngcontent-ng-c1849885136] {
+  width: 420px;
+  height: 90vh;
+  background: #FFFFFF;
+  border-radius: 12px;
+  border: 1px solid #F1E5F3;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  animation: _ngcontent-ng-c1849885136_slideIn 0.3s ease-in-out;
+}
+@keyframes _ngcontent-ng-c1849885136_slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+.lightbox-sidebar[_ngcontent-ng-c1849885136]   .sidebar-header[_ngcontent-ng-c1849885136] {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #F1E5F3;
+  background: #FBF5F6;
+}
+.lightbox-sidebar[_ngcontent-ng-c1849885136]   .sidebar-header[_ngcontent-ng-c1849885136]   h2[_ngcontent-ng-c1849885136] {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #4E02B2;
+}
+.lightbox-sidebar[_ngcontent-ng-c1849885136]   .sidebar-header[_ngcontent-ng-c1849885136]   .close-sidebar-btn[_ngcontent-ng-c1849885136] {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6C707B;
+  cursor: pointer;
+  padding: 4px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+  line-height: 1;
+  font-weight: 300;
+}
+.lightbox-sidebar[_ngcontent-ng-c1849885136]   .sidebar-header[_ngcontent-ng-c1849885136]   .close-sidebar-btn[_ngcontent-ng-c1849885136]:hover {
+  background: #F73C3C;
+  color: #FFFFFF;
+}
+.lightbox-sidebar[_ngcontent-ng-c1849885136]   .sidebar-header[_ngcontent-ng-c1849885136]   .close-sidebar-btn[_ngcontent-ng-c1849885136]:focus {
+  outline: 2px solid #B969FF;
+  outline-offset: 2px;
+}
+.lightbox-sidebar[_ngcontent-ng-c1849885136]   .sidebar-content[_ngcontent-ng-c1849885136] {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+.lightbox-sidebar[_ngcontent-ng-c1849885136]   .sidebar-content[_ngcontent-ng-c1849885136]   .item-card[_ngcontent-ng-c1849885136] {
+  margin: 0;
+  max-width: none;
+  border: none;
+  box-shadow: none;
+}
+.lightbox-sidebar[_ngcontent-ng-c1849885136]   .sidebar-content[_ngcontent-ng-c1849885136]   .item-card[_ngcontent-ng-c1849885136]:hover {
+  box-shadow: none;
+  transform: none;
+}
+.thumbnails-grid[_ngcontent-ng-c1849885136] {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(106px, 106px));
+  gap: 4px;
+  padding: 8px;
+  background: #FBF5F6;
+  border-radius: 16px;
+  border: 1px solid #F1E5F3;
+  align-content: start;
+  justify-content: start;
+  width: 100%;
+}
+.thumbnails-grid[_ngcontent-ng-c1849885136]   .thumbnail-item.select-mode[_ngcontent-ng-c1849885136] {
+  position: relative;
+  cursor: pointer;
+  outline: 2px solid transparent;
+  transition: outline-color 120ms ease, box-shadow 120ms ease;
+}
+.thumbnails-grid[_ngcontent-ng-c1849885136]   .thumbnail-item.bulk-selected[_ngcontent-ng-c1849885136] {
+  outline-color: #4E02B2;
+  box-shadow: 0 0 0 3px rgba(78, 2, 178, 0.25);
+}
+.thumbnails-grid[_ngcontent-ng-c1849885136]   .thumbnail-item[_ngcontent-ng-c1849885136]   .select-checkbox[_ngcontent-ng-c1849885136], 
+.thumbnails-grid[_ngcontent-ng-c1849885136]   .item-card[_ngcontent-ng-c1849885136]   .select-checkbox[_ngcontent-ng-c1849885136] {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #F1E5F3;
+  border-radius: 6px;
+  padding: 0;
+  z-index: 8;
+  box-shadow: 0 2px 6px rgba(155, 144, 170, 0.25);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.thumbnails-grid[_ngcontent-ng-c1849885136]   .thumbnail-item[_ngcontent-ng-c1849885136]:hover   .select-checkbox[_ngcontent-ng-c1849885136], 
+.thumbnails-grid[_ngcontent-ng-c1849885136]   .thumbnail-item.bulk-selected[_ngcontent-ng-c1849885136]   .select-checkbox[_ngcontent-ng-c1849885136] {
+  opacity: 1;
+  visibility: visible;
+}
+.thumbnails-grid[_ngcontent-ng-c1849885136]   .thumbnail-item[_ngcontent-ng-c1849885136]   .select-checkbox[_ngcontent-ng-c1849885136]   input[type=checkbox][_ngcontent-ng-c1849885136] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #4E02B2;
+}
+.thumbnails-grid[_ngcontent-ng-c1849885136]   .item-card.select-mode[_ngcontent-ng-c1849885136] {
+  position: relative;
+}
+.thumbnails-grid[_ngcontent-ng-c1849885136]   .item-card.bulk-selected[_ngcontent-ng-c1849885136] {
+  border-color: #4E02B2;
+  box-shadow: 0 0 0 3px rgba(78, 2, 178, 0.25);
+}
+.filters-bar-row[_ngcontent-ng-c1849885136] {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #FFFFFF;
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  margin-bottom: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #F1E5F3;
+  margin-left: -12px;
+  margin-right: -12px;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+.filters-bar-row[_ngcontent-ng-c1849885136]   app-filters-bar[_ngcontent-ng-c1849885136] {
+  flex: 1;
+}
+.multi-select-toggle[_ngcontent-ng-c1849885136] {
+  padding: 10px 14px;
+  border: 1px solid #F1E5F3;
+  background: #FBF5F6;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
+  color: #301A4E;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 150px;
+  justify-content: center;
+  transition:
+    background 120ms ease,
+    box-shadow 120ms ease,
+    transform 80ms ease;
+}
+.multi-select-toggle[_ngcontent-ng-c1849885136]   .icon[_ngcontent-ng-c1849885136] {
+  font-size: 16px;
+}
+.multi-select-toggle[_ngcontent-ng-c1849885136]:hover {
+  background: rgba(241, 229, 243, 0.6);
+  box-shadow: 0 2px 6px rgba(155, 144, 170, 0.2);
+}
+.multi-select-toggle[_ngcontent-ng-c1849885136]:active {
+  transform: translateY(1px);
+}
+.multi-select-count[_ngcontent-ng-c1849885136] {
+  color: #301A4E;
+  font-weight: 700;
+  background: #fff;
+  border: 1px solid #F1E5F3;
+  border-radius: 10px;
+  padding: 2px 8px;
+  line-height: 1;
+}
+.bulk-bar[_ngcontent-ng-c1849885136] {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #fff;
+  border-top: 1px solid #F1E5F3;
+  box-shadow: 0 -6px 18px rgba(155, 144, 170, 0.18);
+  padding: 10px 12px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bulk-header[_ngcontent-ng-c1849885136] {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 0;
+}
+.bulk-summary[_ngcontent-ng-c1849885136] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.bulk-right[_ngcontent-ng-c1849885136] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.count[_ngcontent-ng-c1849885136] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #301A4E;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: #fff;
+}
+.bulk-controls[_ngcontent-ng-c1849885136] {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+.bulk-controls[_ngcontent-ng-c1849885136]   label[_ngcontent-ng-c1849885136] {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: stretch;
+}
+.bulk-controls[_ngcontent-ng-c1849885136]   label.tags-field[_ngcontent-ng-c1849885136] {
+  flex: 1 1 auto;
+  min-width: 150px;
+}
+.bulk-controls[_ngcontent-ng-c1849885136]   label[_ngcontent-ng-c1849885136]   .label-text[_ngcontent-ng-c1849885136] {
+  font-size: 12px;
+  color: #9B90AA;
+  font-weight: 600;
+}
+.bulk-controls[_ngcontent-ng-c1849885136]   label[_ngcontent-ng-c1849885136]   select[_ngcontent-ng-c1849885136], 
+.bulk-controls[_ngcontent-ng-c1849885136]   label[_ngcontent-ng-c1849885136]   input[_ngcontent-ng-c1849885136] {
+  padding: 8px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 6px;
+  background: #fff;
+  color: #301A4E;
+  font-size: 13px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
+.tags-input-wrapper[_ngcontent-ng-c1849885136] {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  border: 1px solid #F1E5F3;
+  border-radius: 6px;
+  background: #fff;
+  min-height: 32px;
+  flex: 1 1 auto;
+}
+.tags-input-wrapper[_ngcontent-ng-c1849885136]   .tag-chip[_ngcontent-ng-c1849885136] {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: #FBF5F6;
+  border: 1px solid #F1E5F3;
+  border-radius: 12px;
+  font-size: 12px;
+  color: #4E02B2;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tags-input-wrapper[_ngcontent-ng-c1849885136]   .tag-chip[_ngcontent-ng-c1849885136]:hover:not(:disabled) {
+  background: rgba(247, 60, 60, 0.15);
+  border-color: #F73C3C;
+  color: #F73C3C;
+}
+.tags-input-wrapper[_ngcontent-ng-c1849885136]   .tag-chip[_ngcontent-ng-c1849885136]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.tags-input-wrapper[_ngcontent-ng-c1849885136]   .tag-chip[_ngcontent-ng-c1849885136]   .tag-remove[_ngcontent-ng-c1849885136] {
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 600;
+}
+.tags-input-wrapper[_ngcontent-ng-c1849885136]   input[_ngcontent-ng-c1849885136] {
+  flex: 1 1 auto;
+  min-width: 120px;
+  border: none !important;
+  padding: 4px 6px;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  color: #301A4E;
+}
+.tags-input-wrapper[_ngcontent-ng-c1849885136]   input[_ngcontent-ng-c1849885136]::placeholder {
+  color: #9B90AA;
+}
+.bulk-actions[_ngcontent-ng-c1849885136] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bulk-btn[_ngcontent-ng-c1849885136] {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+  border-radius: 8px;
+  border: 1px solid #F1E5F3;
+  background: #4E02B2;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  transition:
+    transform 100ms ease,
+    box-shadow 120ms ease,
+    background 120ms ease;
+}
+.bulk-btn[_ngcontent-ng-c1849885136]:hover:not(:disabled) {
+  box-shadow: 0 2px 8px rgba(155, 144, 170, 0.25);
+  transform: translateY(-1px);
+}
+.bulk-btn[_ngcontent-ng-c1849885136]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.bulk-btn.ghost[_ngcontent-ng-c1849885136] {
+  background: #fff;
+  color: #301A4E;
+}
+.bulk-btn.close[_ngcontent-ng-c1849885136] {
+  background: #fff;
+  border: none;
+  color: #9B90AA;
+  font-size: 20px;
+  line-height: 1;
+  min-height: 32px;
+  min-width: 32px;
+  padding: 0;
+  min-width: auto;
+}
+.bulk-btn.close[_ngcontent-ng-c1849885136]:hover:not(:disabled) {
+  color: #F73C3C;
+}
+.bulk-error[_ngcontent-ng-c1849885136] {
+  color: #c62828;
+  font-weight: 600;
+  font-size: 13px;
+  margin-top: 8px;
+}
+.bulk-progress[_ngcontent-ng-c1849885136] {
+  color: #301A4E;
+  font-size: 13px;
+  margin-top: 8px;
+}
+.plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot[_ngcontent-ng-c1849885136] {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+  transition: all 120ms ease;
+}
+.plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot.prefer[_ngcontent-ng-c1849885136] {
+  background: rgba(105, 140, 255, 0.35);
+  border-color: rgba(105, 140, 255, 0.55);
+}
+.plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot.prevent[_ngcontent-ng-c1849885136] {
+  background: rgba(247, 60, 60, 0.35);
+  border-color: rgba(247, 60, 60, 0.55);
+}
+.plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot.neutral[_ngcontent-ng-c1849885136] {
+  background: rgba(155, 144, 170, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+.plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot.active[_ngcontent-ng-c1849885136] {
+  width: 14px;
+  height: 14px;
+  background: #FFFFFF;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+}
+.plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot.active.prefer[_ngcontent-ng-c1849885136] {
+  background: #698CFF;
+  border-color: rgba(105, 140, 255, 0.75);
+  box-shadow: 0 0 0 2px rgba(105, 140, 255, 0.3), 0 0 0 4px rgba(255, 255, 255, 0.35);
+}
+.plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot.active.prevent[_ngcontent-ng-c1849885136] {
+  background: #F73C3C;
+  border-color: rgba(247, 60, 60, 0.75);
+  box-shadow: 0 0 0 2px rgba(247, 60, 60, 0.3), 0 0 0 4px rgba(255, 255, 255, 0.35);
+}
+.plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot.active.mostly-prefer[_ngcontent-ng-c1849885136] {
+  box-shadow: 0 0 0 2px rgba(105, 140, 255, 0.3), 0 0 0 4px rgba(247, 60, 60, 0.45);
+}
+.plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot.active.mostly-prevent[_ngcontent-ng-c1849885136] {
+  box-shadow: 0 0 0 2px rgba(247, 60, 60, 0.3), 0 0 0 4px rgba(105, 140, 255, 0.45);
+}
+.thumbnail-item[_ngcontent-ng-c1849885136] {
+  position: relative;
+  width: 106px;
+  height: 200px;
+  border-radius: 2px;
+  overflow: visible;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 2px solid #F1E5F3;
+  background: #F1E5F3;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]:hover {
+  border: 2px solid #4E02B2;
+  transform: scale(1.02);
+  z-index: 10;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]:hover   .thumbnail-hover-info[_ngcontent-ng-c1849885136] {
+  opacity: 1 !important;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]:focus-within   .thumbnail-hover-info[_ngcontent-ng-c1849885136] {
+  opacity: 1 !important;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]:focus {
+  outline: 2px solid #B969FF;
+  outline-offset: 2px;
+}
+.thumbnail-item.selected[_ngcontent-ng-c1849885136] {
+  border-color: #4E02B2;
+  box-shadow: 0 0 0 2px rgba(78, 1, 178, 0.5) inset;
+}
+.thumbnail-item.same-workspace-related[_ngcontent-ng-c1849885136] {
+  border-color: #4E02B2;
+}
+.thumbnail-item.same-workspace-related[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136] {
+  background: #4E02B2;
+}
+.thumbnail-item.same-workspace-related[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   img[_ngcontent-ng-c1849885136] {
+  opacity: 0.9;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136] {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #F1E5F3;
+  overflow: hidden;
+  border-radius: 2px;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   app-skeleton-loader[_ngcontent-ng-c1849885136] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   img[_ngcontent-ng-c1849885136] {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   img[_ngcontent-ng-c1849885136]:not([src]) {
+  opacity: 0;
+  visibility: hidden;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   .thumbnail-hover-info[_ngcontent-ng-c1849885136] {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.4),
+      rgba(0, 0, 0, 0.85));
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 8px;
+  z-index: 5;
+  pointer-events: none;
+  border-radius: 2px;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   .thumbnail-hover-info[_ngcontent-ng-c1849885136]   .hover-bottom-section[_ngcontent-ng-c1849885136] {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   .thumbnail-hover-info[_ngcontent-ng-c1849885136]   .hover-bottom-section[_ngcontent-ng-c1849885136]   .hover-title[_ngcontent-ng-c1849885136] {
+  color: #FFFFFF;
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 600;
+  margin: 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   .thumbnail-hover-info[_ngcontent-ng-c1849885136]   .hover-bottom-section[_ngcontent-ng-c1849885136]   .hover-title.no-title[_ngcontent-ng-c1849885136] {
+  opacity: 0.6;
+  font-style: italic;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   .thumbnail-hover-info[_ngcontent-ng-c1849885136]   .hover-bottom-section[_ngcontent-ng-c1849885136]   .hover-topic-chip[_ngcontent-ng-c1849885136] {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(200, 230, 201, 0.85);
+  border-radius: 8px;
+  font-size: 9px;
+  color: #1B5E20;
+  font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   .thumbnail-hover-info[_ngcontent-ng-c1849885136]   .hover-bottom-section[_ngcontent-ng-c1849885136]   .hover-button-group[_ngcontent-ng-c1849885136] {
+  display: flex;
+  gap: 4px;
+  pointer-events: auto;
+  justify-content: center;
+  width: 100%;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   .thumbnail-hover-info[_ngcontent-ng-c1849885136]   .hover-bottom-section[_ngcontent-ng-c1849885136]   .hover-button-group[_ngcontent-ng-c1849885136]   .hover-btn[_ngcontent-ng-c1849885136] {
+  flex: 1;
+  height: 32px;
+  border-radius: 4px;
+  border: none;
+  background: rgba(255, 255, 255, 0.85);
+  color: #301A4E;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  transition:
+    transform 120ms ease,
+    background 120ms ease,
+    flex 120ms ease;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   .thumbnail-hover-info[_ngcontent-ng-c1849885136]   .hover-bottom-section[_ngcontent-ng-c1849885136]   .hover-button-group[_ngcontent-ng-c1849885136]   .hover-btn[_ngcontent-ng-c1849885136]:hover {
+  transform: scale(1.05);
+  background: #FFFFFF;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   .thumbnail-hover-info[_ngcontent-ng-c1849885136]   .hover-bottom-section[_ngcontent-ng-c1849885136]   .hover-button-group[_ngcontent-ng-c1849885136]   .hover-btn.star-btn.active[_ngcontent-ng-c1849885136] {
+  background: #B969FF;
+  color: #FFFFFF;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   .thumbnail-hover-info[_ngcontent-ng-c1849885136]   .hover-bottom-section[_ngcontent-ng-c1849885136]   .hover-button-group[_ngcontent-ng-c1849885136]   .hover-btn.edit-btn[_ngcontent-ng-c1849885136]:hover {
+  background: #B969FF;
+  color: #FFFFFF;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   .thumbnail-hover-info[_ngcontent-ng-c1849885136]   .hover-bottom-section[_ngcontent-ng-c1849885136]   .hover-button-group[_ngcontent-ng-c1849885136]   .hover-btn.trash-btn[_ngcontent-ng-c1849885136]:hover {
+  background: #F73C3C;
+  color: #FFFFFF;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   .plausibility-scale[_ngcontent-ng-c1849885136] {
+  position: absolute;
+  top: 6px;
+  right: 4px;
+  bottom: 6px;
+  width: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+  gap: 6px;
+  z-index: 3;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   .plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot[_ngcontent-ng-c1849885136] {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+  transition: all 120ms ease;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   .plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot.prefer[_ngcontent-ng-c1849885136] {
+  background: rgba(105, 140, 255, 0.35);
+  border-color: rgba(105, 140, 255, 0.55);
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   .plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot.prevent[_ngcontent-ng-c1849885136] {
+  background: rgba(247, 60, 60, 0.35);
+  border-color: rgba(247, 60, 60, 0.55);
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   .plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot.neutral[_ngcontent-ng-c1849885136] {
+  background: rgba(155, 144, 170, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   .plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot.active[_ngcontent-ng-c1849885136] {
+  width: 14px;
+  height: 14px;
+  background: #FFFFFF;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   .plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot.active.prefer[_ngcontent-ng-c1849885136] {
+  background: #698CFF;
+  border-color: rgba(105, 140, 255, 0.75);
+  box-shadow: 0 0 0 2px rgba(105, 140, 255, 0.3), 0 0 0 4px rgba(255, 255, 255, 0.35);
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   .plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot.active.prevent[_ngcontent-ng-c1849885136] {
+  background: #F73C3C;
+  border-color: rgba(247, 60, 60, 0.75);
+  box-shadow: 0 0 0 2px rgba(247, 60, 60, 0.3), 0 0 0 4px rgba(255, 255, 255, 0.35);
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   .plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot.active.mostly-prefer[_ngcontent-ng-c1849885136] {
+  box-shadow: 0 0 0 2px rgba(105, 140, 255, 0.3), 0 0 0 4px rgba(247, 60, 60, 0.45);
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .thumbnail-image[_ngcontent-ng-c1849885136]   .plausibility-scale[_ngcontent-ng-c1849885136]   .scale-dot.active.mostly-prevent[_ngcontent-ng-c1849885136] {
+  box-shadow: 0 0 0 2px rgba(247, 60, 60, 0.3), 0 0 0 4px rgba(105, 140, 255, 0.45);
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .workspace-tooltip-wrapper[_ngcontent-ng-c1849885136] {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]   .workspace-tooltip-wrapper[_ngcontent-ng-c1849885136]   .workspace-tooltip[_ngcontent-ng-c1849885136] {
+  background: #E7CBFF;
+  color: #4E02B2;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  display: inline-block;
+  text-align: center;
+  white-space: nowrap;
+}
+.thumbnail-item[_ngcontent-ng-c1849885136]:hover   .workspace-tooltip-wrapper[_ngcontent-ng-c1849885136]   .workspace-tooltip[_ngcontent-ng-c1849885136] {
+  opacity: 1;
+  visibility: visible;
+}
+.thumbnail-item[data-status=highlighted][_ngcontent-ng-c1849885136] {
+  border: 3px solid #ffc107;
+}
+.thumbnail-item[data-status=banned][_ngcontent-ng-c1849885136] {
+  border: 1px dashed #301A4E;
+  opacity: 0.5;
+}
+.item-sidebar[_ngcontent-ng-c1849885136] {
+  width: 420px;
+  max-width: 35vw;
+  max-height: 90vh;
+  background: #FFFFFF;
+  border-radius: 12px;
+  border: 1px solid #F1E5F3;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.item-sidebar[_ngcontent-ng-c1849885136]   .sidebar-header[_ngcontent-ng-c1849885136] {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #F1E5F3;
+  background: #FBF5F6;
+}
+.item-sidebar[_ngcontent-ng-c1849885136]   .sidebar-header[_ngcontent-ng-c1849885136]   h2[_ngcontent-ng-c1849885136] {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #4E02B2;
+}
+.item-sidebar[_ngcontent-ng-c1849885136]   .sidebar-header[_ngcontent-ng-c1849885136]   .close-sidebar-btn[_ngcontent-ng-c1849885136] {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #6C707B;
+  cursor: pointer;
+  padding: 4px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+  line-height: 1;
+  font-weight: 300;
+}
+.item-sidebar[_ngcontent-ng-c1849885136]   .sidebar-header[_ngcontent-ng-c1849885136]   .close-sidebar-btn[_ngcontent-ng-c1849885136]:hover {
+  background: #F73C3C;
+  color: #FFFFFF;
+}
+.item-sidebar[_ngcontent-ng-c1849885136]   .sidebar-header[_ngcontent-ng-c1849885136]   .close-sidebar-btn[_ngcontent-ng-c1849885136]:focus {
+  outline: 2px solid #B969FF;
+  outline-offset: 2px;
+}
+.item-sidebar[_ngcontent-ng-c1849885136]   .sidebar-content[_ngcontent-ng-c1849885136] {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 12px calc(12px + 70px);
+}
+.item-sidebar[_ngcontent-ng-c1849885136]   .sidebar-content[_ngcontent-ng-c1849885136]   .item-card[_ngcontent-ng-c1849885136] {
+  margin: 0;
+  max-width: none;
+  border: none;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+}
+.item-sidebar[_ngcontent-ng-c1849885136]   .sidebar-content[_ngcontent-ng-c1849885136]   .item-card[_ngcontent-ng-c1849885136]:hover {
+  box-shadow: none;
+  transform: none;
+}
+.item-sidebar[_ngcontent-ng-c1849885136]   .card-footer[_ngcontent-ng-c1849885136] {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 420px;
+  max-width: 35vw;
+  padding: 16px;
+  background: #FFFFFF;
+  border-top: 1px solid #F1E5F3;
+  z-index: 100;
+}
+.pinned-footer[_ngcontent-ng-c1849885136] {
+  margin-top: auto;
+  background: #FFFFFF;
+}
+.status-row[_ngcontent-ng-c1849885136] {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+}
+.status-row[_ngcontent-ng-c1849885136]   label[_ngcontent-ng-c1849885136] {
+  font-size: 12px;
+  font-weight: 700;
+  color: #4E02B2;
+}
+.status-row[_ngcontent-ng-c1849885136]   select[_ngcontent-ng-c1849885136] {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #F1E5F3;
+  background: #fff;
+  font-weight: 600;
+}
+.metadata-editor[_ngcontent-ng-c1849885136] {
+  margin-top: 16px;
+}
+.metadata-editor[_ngcontent-ng-c1849885136]   h3[_ngcontent-ng-c1849885136] {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #4E02B2;
+}
+.metadata-editor[_ngcontent-ng-c1849885136]   .metadata-grid[_ngcontent-ng-c1849885136] {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px 12px;
+}
+.metadata-editor[_ngcontent-ng-c1849885136]   .metadata-field[_ngcontent-ng-c1849885136] {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.metadata-editor[_ngcontent-ng-c1849885136]   .metadata-field[_ngcontent-ng-c1849885136]   .field-name[_ngcontent-ng-c1849885136] {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6C707B;
+  text-transform: uppercase;
+}
+.metadata-editor[_ngcontent-ng-c1849885136]   .metadata-field[_ngcontent-ng-c1849885136]   input[_ngcontent-ng-c1849885136] {
+  padding: 8px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.ai-regenerate[_ngcontent-ng-c1849885136] {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px dashed #F1E5F3;
+  border-radius: 10px;
+  background: #FBF5F6;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.ai-regenerate[_ngcontent-ng-c1849885136]   .ai-regenerate-help[_ngcontent-ng-c1849885136] {
+  margin: 0;
+  color: #6C707B;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.ai-regenerate[_ngcontent-ng-c1849885136]   .regenerate-actions[_ngcontent-ng-c1849885136] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ai-regenerate[_ngcontent-ng-c1849885136]   .regenerate-btn[_ngcontent-ng-c1849885136] {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #4E02B2;
+  background: #4E02B2;
+  color: #FFFFFF;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 13px;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.1s ease;
+}
+.ai-regenerate[_ngcontent-ng-c1849885136]   .regenerate-btn[_ngcontent-ng-c1849885136]:hover {
+  background: #B969FF;
+  box-shadow: 0 4px 12px rgba(78, 2, 178, 0.35);
+}
+.ai-regenerate[_ngcontent-ng-c1849885136]   .regenerate-btn[_ngcontent-ng-c1849885136]:focus {
+  outline: 2px solid #4E02B2;
+  outline-offset: 2px;
+}
+.ai-regenerate[_ngcontent-ng-c1849885136]   .regenerate-btn[_ngcontent-ng-c1849885136]:active {
+  transform: translateY(1px);
+}
+@media (max-width: 768px) {
+  .grid-layout[_ngcontent-ng-c1849885136] {
+    min-height: calc(100vh - 160px);
+  }
+  .item-sidebar[_ngcontent-ng-c1849885136] {
+    width: 100%;
+    max-height: 70vh;
+  }
+  .thumbnails-grid[_ngcontent-ng-c1849885136] {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    min-height: calc(100vh - 260px);
+  }
+  .thumbnail-item[_ngcontent-ng-c1849885136] {
+    height: 150px;
+  }
+  .items-grid[_ngcontent-ng-c1849885136] {
+    grid-template-columns: 1fr;
+  }
+  .credentials[_ngcontent-ng-c1849885136]   .creds-row[_ngcontent-ng-c1849885136] {
+    flex-direction: column;
+  }
+  .credentials[_ngcontent-ng-c1849885136]   .creds-row[_ngcontent-ng-c1849885136]   .input-group[_ngcontent-ng-c1849885136] {
+    min-width: 100%;
+  }
+  .filters-section[_ngcontent-ng-c1849885136]   .filter-chips[_ngcontent-ng-c1849885136] {
+    justify-content: center;
+  }
+  .filters-section[_ngcontent-ng-c1849885136]   .filter-chips[_ngcontent-ng-c1849885136]   .filter-chip[_ngcontent-ng-c1849885136] {
+    flex: 1 1 auto;
+    min-width: 120px;
+    justify-content: center;
+  }
+  .pagination-section[_ngcontent-ng-c1849885136] {
+    flex-wrap: wrap;
+  }
+  .item-card[_ngcontent-ng-c1849885136]   .card-actions[_ngcontent-ng-c1849885136] {
+    grid-template-columns: 1fr;
+  }
+  .item-card[_ngcontent-ng-c1849885136]   .card-actions[_ngcontent-ng-c1849885136]   .action-btn[_ngcontent-ng-c1849885136] {
+    flex-direction: row;
+    justify-content: center;
+  }
+  .item-card[_ngcontent-ng-c1849885136]   .properties-grid[_ngcontent-ng-c1849885136] {
+    grid-template-columns: 1fr;
+  }
+}</style><style ng-app-id="ng">
+
+.font-sans[_ngcontent-ng-c752339609] {
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+}
+.buttons[_ngcontent-ng-c752339609] {
+  width: 100%;
+  display: flex;
+  flex-flow: column;
+  padding: 8px 0;
+  gap: 4px;
+}
+.buttons[_ngcontent-ng-c752339609]   .button-row[_ngcontent-ng-c752339609] {
+  width: 100%;
+  display: flex;
+  flex-flow: row;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+.buttons[_ngcontent-ng-c752339609]   .button-row[_ngcontent-ng-c752339609]    > .button[_ngcontent-ng-c752339609] {
+  flex: 1 1 auto;
+}
+.buttons[_ngcontent-ng-c752339609]   .button[_ngcontent-ng-c752339609] {
+  height: 52px;
+  padding: 0px 8px;
+  display: flex;
+  flex-flow: row;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  font-size: 16px;
+  line-height: normal;
+  font-weight: 400;
+  border: 1px solid #E7CBFF;
+  background: #FBF5F6;
+  color: #4E02B2;
+  cursor: pointer;
+}
+.buttons[_ngcontent-ng-c752339609]   .button.primary[_ngcontent-ng-c752339609] {
+  border: 1px solid #4E02B2;
+  background: #4E02B2;
+  color: #FFFFFF;
+  font-weight: 700;
+}
+.buttons[_ngcontent-ng-c752339609]   a[_ngcontent-ng-c752339609] {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+.filters-bar[_ngcontent-ng-c752339609] {
+  background: #FFFFFF;
+  border: 1px solid #F1E5F3;
+  border-radius: 10px;
+  padding: 12px;
+  font-family: var(--showcase-font-family, "Readex Pro", "Miriam Libre", "Source Sans 3", sans-serif);
+}
+.filters-bar[_ngcontent-ng-c752339609]   button[_ngcontent-ng-c752339609], 
+.filters-bar[_ngcontent-ng-c752339609]   input[_ngcontent-ng-c752339609], 
+.filters-bar[_ngcontent-ng-c752339609]   select[_ngcontent-ng-c752339609], 
+.filters-bar[_ngcontent-ng-c752339609]   label[_ngcontent-ng-c752339609] {
+  font-family: inherit;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group[_ngcontent-ng-c752339609] {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 110px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group[_ngcontent-ng-c752339609]   label[_ngcontent-ng-c752339609] {
+  font-size: 10px;
+  font-weight: 700;
+  color: #4E02B2;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group[_ngcontent-ng-c752339609]   select[_ngcontent-ng-c752339609] {
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #6C707B;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238A3FFC' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 32px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group[_ngcontent-ng-c752339609]   select[_ngcontent-ng-c752339609]:focus {
+  outline: none;
+  border-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group[_ngcontent-ng-c752339609]   select[_ngcontent-ng-c752339609]:hover {
+  border-color: #B969FF;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609] {
+  position: relative;
+  min-width: 180px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-container[_ngcontent-ng-c752339609] {
+  position: relative;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609] {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #6C707B;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  min-height: 34px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]:hover {
+  border-color: #B969FF;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]:focus {
+  outline: none;
+  border-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609] {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-placeholder[_ngcontent-ng-c752339609], 
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-text[_ngcontent-ng-c752339609] {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-chips[_ngcontent-ng-c752339609] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-chips[_ngcontent-ng-c752339609]   .chip[_ngcontent-ng-c752339609] {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: #F1E5F3;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #4E02B2;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-chips[_ngcontent-ng-c752339609]   .chip[_ngcontent-ng-c752339609]   .chip-label[_ngcontent-ng-c752339609] {
+  display: inline;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-chips[_ngcontent-ng-c752339609]   .chip[_ngcontent-ng-c752339609]   .chip-remove[_ngcontent-ng-c752339609] {
+  background: none;
+  border: none;
+  color: #4E02B2;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.15s;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-chips[_ngcontent-ng-c752339609]   .chip[_ngcontent-ng-c752339609]   .chip-remove[_ngcontent-ng-c752339609]:hover {
+  background: #4E02B2;
+  color: #FFFFFF;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-chips[_ngcontent-ng-c752339609]   .chip.chip-deselected[_ngcontent-ng-c752339609] {
+  background: #EDECEC;
+  color: #9B90AA;
+  opacity: 0.65;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-chips[_ngcontent-ng-c752339609]   .chip.chip-deselected[_ngcontent-ng-c752339609]   .chip-label[_ngcontent-ng-c752339609] {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-chips[_ngcontent-ng-c752339609]   .chip.chip-deselected[_ngcontent-ng-c752339609]   .chip-remove[_ngcontent-ng-c752339609] {
+  color: #9B90AA;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-chips[_ngcontent-ng-c752339609]   .chip.chip-deselected[_ngcontent-ng-c752339609]   .chip-remove[_ngcontent-ng-c752339609]:hover {
+  background: #9B90AA;
+  color: #FFFFFF;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-label[_ngcontent-ng-c752339609] {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-arrow[_ngcontent-ng-c752339609] {
+  font-size: 10px;
+  color: #9B90AA;
+  flex-shrink: 0;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609] {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #FFFFFF;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-search[_ngcontent-ng-c752339609] {
+  padding: 6px;
+  border-bottom: 1px solid #F1E5F3;
+  margin-bottom: 4px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-search[_ngcontent-ng-c752339609]   .search-input[_ngcontent-ng-c752339609] {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 6px;
+  background: #FBF5F6;
+  color: #6C707B;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-search[_ngcontent-ng-c752339609]   .search-input[_ngcontent-ng-c752339609]:focus {
+  outline: none;
+  border-color: #4E02B2;
+  background: #FFFFFF;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-search[_ngcontent-ng-c752339609]   .search-input[_ngcontent-ng-c752339609]::placeholder {
+  color: #9B90AA;
+  font-weight: 400;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-controls[_ngcontent-ng-c752339609] {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-bottom: 1px solid #F1E5F3;
+  margin-bottom: 4px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-controls[_ngcontent-ng-c752339609]   .control-btn[_ngcontent-ng-c752339609] {
+  flex: 1;
+  padding: 6px 8px;
+  background: #FBF5F6;
+  border: 1px solid #F1E5F3;
+  border-radius: 4px;
+  color: #4E02B2;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-controls[_ngcontent-ng-c752339609]   .control-btn[_ngcontent-ng-c752339609]:hover {
+  background: #F1E5F3;
+  border-color: #4E02B2;
+  color: #301A4E;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-controls[_ngcontent-ng-c752339609]   .control-btn[_ngcontent-ng-c752339609]:active {
+  transform: scale(0.98);
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-option[_ngcontent-ng-c752339609] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 13px;
+  color: #6C707B;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-option[_ngcontent-ng-c752339609]:hover {
+  background: #FBF5F6;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-option[_ngcontent-ng-c752339609]   input[type=checkbox][_ngcontent-ng-c752339609] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+  accent-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-option[_ngcontent-ng-c752339609]   .option-label[_ngcontent-ng-c752339609] {
+  flex: 1;
+  font-weight: 500;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-option[_ngcontent-ng-c752339609]   .option-count[_ngcontent-ng-c752339609] {
+  font-size: 12px;
+  color: #9B90AA;
+  font-weight: 600;
+  background: #FBF5F6;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609] {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: #FFFFFF;
+  border: 1px solid #F1E5F3;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+  z-index: 1000;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-toolbar[_ngcontent-ng-c752339609] {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #F1E5F3;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-toolbar[_ngcontent-ng-c752339609]   .topic-search[_ngcontent-ng-c752339609] {
+  flex: 1;
+  padding: 5px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 6px;
+  background: #FBF5F6;
+  color: #6C707B;
+  font-size: 12px;
+  font-weight: 500;
+  transition: border-color 0.15s, background 0.15s;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-toolbar[_ngcontent-ng-c752339609]   .topic-search[_ngcontent-ng-c752339609]:focus {
+  outline: none;
+  border-color: #4E02B2;
+  background: #FFFFFF;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-toolbar[_ngcontent-ng-c752339609]   .topic-search[_ngcontent-ng-c752339609]::placeholder {
+  color: #9B90AA;
+  font-weight: 400;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-toolbar[_ngcontent-ng-c752339609]   .topic-toggle-all[_ngcontent-ng-c752339609] {
+  padding: 5px 10px;
+  background: none;
+  border: 1px solid #F1E5F3;
+  border-radius: 6px;
+  color: #4E02B2;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-toolbar[_ngcontent-ng-c752339609]   .topic-toggle-all[_ngcontent-ng-c752339609]:hover {
+  background: #FBF5F6;
+  border-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609] {
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]:not(:last-child) {
+  border-bottom: 1px solid rgba(241, 229, 243, 0.6);
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .theme-row[_ngcontent-ng-c752339609] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: background 0.1s;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .theme-row[_ngcontent-ng-c752339609]:hover {
+  background: #FBF5F6;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .theme-row[_ngcontent-ng-c752339609]   input[type=checkbox][_ngcontent-ng-c752339609] {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  flex-shrink: 0;
+  accent-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .theme-row[_ngcontent-ng-c752339609]   .theme-name[_ngcontent-ng-c752339609] {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: #301A4E;
+  line-height: 1.2;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .theme-row[_ngcontent-ng-c752339609]   .theme-count[_ngcontent-ng-c752339609] {
+  font-size: 11px;
+  color: #9B90AA;
+  font-weight: 600;
+  min-width: 18px;
+  text-align: right;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .theme-row[_ngcontent-ng-c752339609]   .theme-chevron[_ngcontent-ng-c752339609] {
+  display: flex;
+  align-items: center;
+  color: #9B90AA;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group.expanded[_ngcontent-ng-c752339609]   .theme-row[_ngcontent-ng-c752339609]   .theme-chevron[_ngcontent-ng-c752339609] {
+  transform: rotate(180deg);
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .sub-theme-list[_ngcontent-ng-c752339609] {
+  background: #FBF5F6;
+  padding: 2px 0;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .sub-theme-list[_ngcontent-ng-c752339609]   .sub-theme-row[_ngcontent-ng-c752339609] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px 5px 36px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: background 0.1s;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .sub-theme-list[_ngcontent-ng-c752339609]   .sub-theme-row[_ngcontent-ng-c752339609]:hover {
+  background: rgba(241, 229, 243, 0.5);
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .sub-theme-list[_ngcontent-ng-c752339609]   .sub-theme-row[_ngcontent-ng-c752339609]   input[type=checkbox][_ngcontent-ng-c752339609] {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+  accent-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .sub-theme-list[_ngcontent-ng-c752339609]   .sub-theme-row[_ngcontent-ng-c752339609]   .sub-theme-name[_ngcontent-ng-c752339609] {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 400;
+  color: #6C707B;
+  line-height: 1.2;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .sub-theme-list[_ngcontent-ng-c752339609]   .sub-theme-row[_ngcontent-ng-c752339609]   .sub-theme-count[_ngcontent-ng-c752339609] {
+  font-size: 10px;
+  color: #9B90AA;
+  font-weight: 600;
+  min-width: 18px;
+  text-align: right;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.search-group[_ngcontent-ng-c752339609] {
+  flex: 1;
+  min-width: 160px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.search-group[_ngcontent-ng-c752339609]   input[_ngcontent-ng-c752339609] {
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #6C707B;
+  font-size: 13px;
+  font-weight: 500;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.search-group[_ngcontent-ng-c752339609]   input[_ngcontent-ng-c752339609]:focus {
+  outline: none;
+  border-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.search-group[_ngcontent-ng-c752339609]   input[_ngcontent-ng-c752339609]::placeholder {
+  color: #9B90AA;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-info[_ngcontent-ng-c752339609] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-info[_ngcontent-ng-c752339609]   .count-display[_ngcontent-ng-c752339609] {
+  color: #6C707B;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-info[_ngcontent-ng-c752339609]   .view-toggle-btn[_ngcontent-ng-c752339609] {
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #4E02B2;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 44px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-info[_ngcontent-ng-c752339609]   .view-toggle-btn[_ngcontent-ng-c752339609]:hover {
+  background: #4E02B2;
+  color: #FFFFFF;
+  border-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-info[_ngcontent-ng-c752339609]   .view-toggle-btn[_ngcontent-ng-c752339609]:focus {
+  outline: 2px solid #B969FF;
+  outline-offset: 2px;
+}</style></head>
+<body><!--nghm-->
+  <app-root ng-version="19.2.17" ngh="0" ng-server-context="ssg"><router-outlet></router-outlet><app-moderate ngskiphydration="true" _nghost-ng-c1849885136=""><div _ngcontent-ng-c1849885136="" class="moderate-container"><header _ngcontent-ng-c1849885136="" role="banner" class="topbar"><div _ngcontent-ng-c1849885136="" class="brand"><span _ngcontent-ng-c1849885136="" aria-hidden="true" class="logo">✦</span><div _ngcontent-ng-c1849885136="" class="title-stack"><nav _ngcontent-ng-c1849885136="" aria-label="Breadcrumb" class="breadcrumbs"><a _ngcontent-ng-c1849885136="" href="/nl/admin">admin</a><span _ngcontent-ng-c1849885136="" class="sep">/</span><span _ngcontent-ng-c1849885136="">workspace</span></nav><div _ngcontent-ng-c1849885136="" class="title-row"><!----><h1 _ngcontent-ng-c1849885136="">Content Moderation</h1><!----><!----></div><!----></div></div><div _ngcontent-ng-c1849885136="" class="actions"><button _ngcontent-ng-c1849885136="" aria-label="Toggle multi-edit mode" class="multi-select-toggle"><span _ngcontent-ng-c1849885136="" class="icon">🗂</span><span _ngcontent-ng-c1849885136="">Multi-edit</span><!----></button><div _ngcontent-ng-c1849885136="" class="cred-inline"><input _ngcontent-ng-c1849885136="" type="text" placeholder="workspace" aria-label="Workspace ID" value="" class="ng-untouched ng-pristine ng-valid"><input _ngcontent-ng-c1849885136="" type="text" placeholder="api key" aria-label="API key" value="" class="ng-untouched ng-pristine ng-valid"></div><!----></div></header><div _ngcontent-ng-c1849885136="" class="filters-bar-row"><app-filters-bar _ngcontent-ng-c1849885136="" _nghost-ng-c752339609=""><section _ngcontent-ng-c752339609="" aria-label="Filters" class="filters-bar"><div _ngcontent-ng-c752339609="" class="filters-row"><div _ngcontent-ng-c752339609="" class="filter-group custom-multiselect"><label _ngcontent-ng-c752339609="">Status:</label><div _ngcontent-ng-c752339609="" class="multiselect-container"><button _ngcontent-ng-c752339609="" type="button" class="multiselect-trigger"><div _ngcontent-ng-c752339609="" class="multiselect-content"><!----><!----><div _ngcontent-ng-c752339609="" class="multiselect-chips"><span _ngcontent-ng-c752339609="" class="chip chip-deselected"><span _ngcontent-ng-c752339609="" class="chip-label">Rejected</span><button _ngcontent-ng-c752339609="" type="button" title="Add back" class="chip-remove">×</button></span><span _ngcontent-ng-c752339609="" class="chip chip-deselected"><span _ngcontent-ng-c752339609="" class="chip-label">pending</span><button _ngcontent-ng-c752339609="" type="button" title="Add back" class="chip-remove">×</button></span><!----><!----><!----></div><!----></div><span _ngcontent-ng-c752339609="" class="multiselect-arrow">▼</span></button><!----></div></div><div _ngcontent-ng-c752339609="" class="filter-group"><label _ngcontent-ng-c752339609="" for="filter-author">Author:</label><select _ngcontent-ng-c752339609="" id="filter-author" class="ng-untouched ng-pristine ng-valid"><option _ngcontent-ng-c752339609="" value="all">all</option><!----></select></div><div _ngcontent-ng-c752339609="" class="filter-group custom-multiselect"><label _ngcontent-ng-c752339609="">Preference:</label><div _ngcontent-ng-c752339609="" class="multiselect-container"><button _ngcontent-ng-c752339609="" type="button" class="multiselect-trigger"><div _ngcontent-ng-c752339609="" class="multiselect-content"><!----><span _ngcontent-ng-c752339609="" class="multiselect-text">All preferences</span><!----><!----></div><span _ngcontent-ng-c752339609="" class="multiselect-arrow">▼</span></button><!----></div></div><div _ngcontent-ng-c752339609="" class="filter-group custom-multiselect"><label _ngcontent-ng-c752339609="">Potential:</label><div _ngcontent-ng-c752339609="" class="multiselect-container"><button _ngcontent-ng-c752339609="" type="button" class="multiselect-trigger"><div _ngcontent-ng-c752339609="" class="multiselect-content"><!----><span _ngcontent-ng-c752339609="" class="multiselect-text">All potentials</span><!----><!----></div><span _ngcontent-ng-c752339609="" class="multiselect-arrow">▼</span></button><!----></div></div><div _ngcontent-ng-c752339609="" class="filter-group"><label _ngcontent-ng-c752339609="" for="filter-type">Type:</label><select _ngcontent-ng-c752339609="" id="filter-type" class="ng-untouched ng-pristine ng-valid"><option _ngcontent-ng-c752339609="" value="all">all</option><option _ngcontent-ng-c752339609="" value="sign_in_a_demonstration">🪧 Sign (0)</option><option _ngcontent-ng-c752339609="" value="social_media_post">📣 Social (0)</option><option _ngcontent-ng-c752339609="" value="chat_conversation">💬 Chat (0)</option><option _ngcontent-ng-c752339609="" value="notification_alert">🔔 Alert (0)</option><option _ngcontent-ng-c752339609="" value="ai_agent_query">🤖 AI (0)</option><option _ngcontent-ng-c752339609="" value="review">⭐ Review (0)</option><option _ngcontent-ng-c752339609="" value="map_visualization">🗺️ Map (0)</option><option _ngcontent-ng-c752339609="" value="photograph">📸 Photo (0)</option></select></div><div _ngcontent-ng-c752339609="" class="filter-group custom-multiselect topic-multiselect"><label _ngcontent-ng-c752339609="">Topic:</label><div _ngcontent-ng-c752339609="" class="multiselect-container"><button _ngcontent-ng-c752339609="" type="button" class="multiselect-trigger"><div _ngcontent-ng-c752339609="" class="multiselect-content"><!----><span _ngcontent-ng-c752339609="" class="multiselect-text">All topics</span><!----><!----></div><span _ngcontent-ng-c752339609="" class="multiselect-arrow">▼</span></button><!----></div></div><!----><div _ngcontent-ng-c752339609="" class="filter-group search-group"><label _ngcontent-ng-c752339609="" for="filter-search">Search:</label><input _ngcontent-ng-c752339609="" id="filter-search" type="text" placeholder="any text" value="" class="ng-untouched ng-pristine ng-valid"></div><div _ngcontent-ng-c752339609="" class="filter-group"><label _ngcontent-ng-c752339609="" for="order-by">Order by:</label><select _ngcontent-ng-c752339609="" id="order-by" class="ng-untouched ng-pristine ng-valid"><option _ngcontent-ng-c752339609="" value="date">Date</option><option _ngcontent-ng-c752339609="" value="status">Status</option><option _ngcontent-ng-c752339609="" value="author">Author</option><option _ngcontent-ng-c752339609="" value="confidence">AI Confidence</option><option _ngcontent-ng-c752339609="" value="type">Type</option><option _ngcontent-ng-c752339609="" value="preference">Preference</option><option _ngcontent-ng-c752339609="" value="topic">Topic</option></select></div><!----><div _ngcontent-ng-c752339609="" class="filter-info"><span _ngcontent-ng-c752339609="" class="count-display">0 / 0</span><button _ngcontent-ng-c752339609="" class="view-toggle-btn" title="List view" aria-label="Switch to list view"> ☰ </button><!----></div></div></section></app-filters-bar></div><!----><div _ngcontent-ng-c1849885136="" class="grid-layout"><!----><!----><!----><div _ngcontent-ng-c1849885136="" role="list" class="thumbnails-grid"><!----><!----><!----></div></div><!----><!----><!----><!----></div></app-moderate><!----></app-root>
+<link rel="modulepreload" href="chunk-JAQRBAZC.js"><link rel="modulepreload" href="chunk-IL7K2TLE.js"><script src="polyfills-J42HH2UI.js" type="module"></script><script src="main-ASISMIAH.js" type="module"></script>
+
+<script id="ng-state" type="application/json">{"2068105690":{"b":{"item_count":3560,"themes":[{"definition":"Scenarios centered on the structure, transition, or reform of political systems, government leadership, constitutions, or legal frameworks at national or regional levels.","id":"political-systems-governance","item_count":582,"name":{"arabic":"الأنظمة السياسية والحكم","dutch":"Politieke Systemen & Bestuur","english":"Political Systems & Governance","hebrew":"מערכות שלטון וממשל"},"sub_themes":[{"definition":"Scenarios about changes in political leadership, historic elections, or new governing coalitions.","id":"leadership-elections","item_count":171,"name":{"arabic":"القيادة والانتخابات","dutch":"Leiderschap & Verkiezingen","english":"Leadership & Elections","hebrew":"מנהיגות ובחירות"}},{"definition":"Scenarios focusing on the creation, amendment, or celebration of constitutions, laws, and foundational legal structures.","id":"constitutional-legal-reform","item_count":28,"name":{"arabic":"الإصلاح الدستوري والقانوني","dutch":"Grondwettelijke & Juridische Hervorming","english":"Constitutional & Legal Reform","hebrew":"רפורמה חוקתית ומשפטית"}},{"definition":"Scenarios imagining new forms of government, power-sharing, or shifts between democratic, authoritarian, or other systems.","id":"governance-models","item_count":204,"name":{"arabic":"نماذج الحكم","dutch":"Bestuursmodellen","english":"Governance Models","hebrew":"מודלים של ממשל"}},{"definition":"Scenarios addressing transparency, anti-corruption efforts, or holding leaders and officials legally accountable.","id":"accountability-corruption","item_count":13,"name":{"arabic":"المساءلة والفساد","dutch":"Verantwoording & Corruptie","english":"Accountability & Corruption","hebrew":"אחריות ושחיתות"}},{"definition":"Scenarios featuring citizen assemblies, digital budgeting, or widespread civic participation in governance.","id":"participatory-democracy-civic-engagement","item_count":166,"name":{"arabic":"الديمقراطية التشاركية والمشاركة المدنية","dutch":"Participatieve Democratie & Burgerbetrokkenheid","english":"Participatory Democracy & Civic Engagement","hebrew":"דמוקרטיה השתתפותית ומעורבות אזרחית"}}]},{"definition":"Scenarios about war, peace processes, security threats, or transitions from violence to stability at local, regional, or global scales.","id":"peace-conflict-security","item_count":1813,"name":{"arabic":"السلام، الصراع والأمن","dutch":"Vrede, Conflict & Veiligheid","english":"Peace, Conflict & Security","hebrew":"שלום, סכסוך וביטחון"},"sub_themes":[{"definition":"Scenarios depicting active warfare, invasions, civil unrest, or the aftermath of conflict.","id":"war-armed-conflict","item_count":557,"name":{"arabic":"الحرب والنزاع المسلح","dutch":"Oorlog & Gewapend Conflict","english":"War & Armed Conflict","hebrew":"מלחמה ועימות מזוין"}},{"definition":"Scenarios describing the negotiation, signing, or effects of peace agreements and demilitarization.","id":"peace-agreements-transitions","item_count":578,"name":{"arabic":"اتفاقيات السلام والتحولات","dutch":"Vredesakkoorden & Overgangen","english":"Peace Agreements & Transitions","hebrew":"הסכמי שלום ומעברים"}},{"definition":"Scenarios involving terrorism, surveillance, abductions, nuclear threats, or security alerts.","id":"security-threats","item_count":201,"name":{"arabic":"الأمن والتهديدات","dutch":"Veiligheid & Dreigingen","english":"Security & Threats","hebrew":"ביטחון ואיומים"}},{"definition":"Scenarios about post-conflict justice, reparations, transitional justice, or efforts at societal healing.","id":"justice-reconciliation","item_count":477,"name":{"arabic":"العدالة والمصالحة","dutch":"Gerechtigheid & Verzoening","english":"Justice & Reconciliation","hebrew":"צדק ופיוס"}}]},{"definition":"Scenarios focused on the movement of people, changes in borders, migration, freedom of travel, or the status of refugees and displaced populations.","id":"borders-mobility-migration","item_count":1068,"name":{"arabic":"الحدود، التنقل والهجرة","dutch":"Grenzen, Mobiliteit & Migratie","english":"Borders, Mobility & Migration","hebrew":"גבולות, ניידות והגירה"},"sub_themes":[{"definition":"Scenarios imagining reduced or erased borders, increased mobility, or new travel rights.","id":"open-borders-freedom-of-movement","item_count":514,"name":{"arabic":"الحدود المفتوحة وحرية التنقل","dutch":"Open Grenzen & Vrije Beweging","english":"Open Borders & Freedom of Movement","hebrew":"גבולות פתוחים וחופש תנועה"}},{"definition":"Scenarios about refugees, returnees, population transfers, or mass migration due to conflict, crisis, or opportunity.","id":"migration-displacement","item_count":307,"name":{"arabic":"الهجرة والنزوح","dutch":"Migratie & Ontheemding","english":"Migration & Displacement","hebrew":"הגירה ועקירה"}},{"definition":"Scenarios addressing passports, nationalities, recognition of new states, or changes in citizenship status.","id":"identity-citizenship","item_count":125,"name":{"arabic":"الهوية والمواطنة","dutch":"Identiteit & Burgerschap","english":"Identity & Citizenship","hebrew":"זהות ואזרחות"}},{"definition":"Scenarios about new forms of temporary, rotational, or flexible residency and living arrangements across regions.","id":"flexible-residency-living","item_count":122,"name":{"arabic":"الإقامة المرنة والمعيشة","dutch":"Flexibel Wonen & Verblijf","english":"Flexible Residency & Living","hebrew":"מגורים וגמישות תושבות"}}]},{"definition":"Scenarios centered on human rights, equality, activism, protest movements, and the recognition or expansion of social, minority, or civil rights.","id":"social-justice-rights","item_count":822,"name":{"arabic":"العدالة الاجتماعية والحقوق","dutch":"Sociale Rechtvaardigheid & Rechten","english":"Social Justice & Rights","hebrew":"צדק חברתי וזכויות"},"sub_themes":[{"definition":"Scenarios about legal or social recognition of rights, constitutional protections, or campaigns for equality.","id":"human-civil-rights","item_count":127,"name":{"arabic":"حقوق الإنسان والمواطنة","dutch":"Mensen- & Burgerrechten","english":"Human & Civil Rights","hebrew":"זכויות אדם ואזרח"}},{"definition":"Scenarios focusing on the rights and recognition of ethnic, religious, gender, or LGBTQ+ groups.","id":"minority-identity-rights","item_count":67,"name":{"arabic":"حقوق الأقليات والهوية","dutch":"Minderheden- & Identiteitsrechten","english":"Minority & Identity Rights","hebrew":"זכויות מיעוט וזהות"}},{"definition":"Scenarios involving mass demonstrations, social movements, or civic mobilization for justice or reform.","id":"activism-protest","item_count":444,"name":{"arabic":"النشاط والاحتجاج","dutch":"Activisme & Protest","english":"Activism & Protest","hebrew":"אקטיביזם ומחאה"}},{"definition":"Scenarios about rights of digital personas, users, or emerging forms of identity in the digital age.","id":"digital-new-rights","item_count":115,"name":{"arabic":"الحقوق الرقمية والجديدة","dutch":"Digitale & Nieuwe Rechten","english":"Digital & New Rights","hebrew":"זכויות דיגיטליות וחדשות"}},{"definition":"Scenarios focusing on legal and social recognition, protection, and advocacy for children's rights.","id":"children-s-rights","item_count":69,"name":{"arabic":"حقوق الأطفال","dutch":"Kinderrechten","english":"Children's Rights","hebrew":"זכויות ילדים"}}]},{"definition":"Scenarios exploring cultural exchange, shared spaces, pluralism, reconciliation, and evolving forms of collective or personal identity.","id":"culture-identity-coexistence","item_count":1516,"name":{"arabic":"الثقافة، الهوية والتعايش","dutch":"Cultuur, Identiteit & Samenleven","english":"Culture, Identity & Coexistence","hebrew":"תרבות, זהות ודו-קיום"},"sub_themes":[{"definition":"Scenarios about multicultural societies, celebration of diversity, or the normalization of coexistence.","id":"pluralism-diversity","item_count":363,"name":{"arabic":"التعددية والتنوع","dutch":"Pluralisme & Diversiteit","english":"Pluralism & Diversity","hebrew":"פלורליזם וגיוון"}},{"definition":"Scenarios about healing divides, intergroup dialogue, and building new forms of togetherness.","id":"reconciliation-shared-life","item_count":647,"name":{"arabic":"المصالحة والحياة المشتركة","dutch":"Verzoening & Gedeeld Leven","english":"Reconciliation & Shared Life","hebrew":"פיוס וחיים משותפים"}},{"definition":"Scenarios focusing on preservation, loss, or transformation of cultural memory, traditions, and heritage.","id":"cultural-heritage-memory","item_count":175,"name":{"arabic":"التراث الثقافي والذاكرة","dutch":"Cultureel Erfgoed & Herinnering","english":"Cultural Heritage & Memory","hebrew":"מורשת תרבותית וזיכרון"}},{"definition":"Scenarios addressing religious change, freedom of worship, spiritual events, or interfaith relations.","id":"religion-spirituality","item_count":133,"name":{"arabic":"الدين والروحانية","dutch":"Religie & Spiritualiteit","english":"Religion & Spirituality","hebrew":"דת ורוחניות"}},{"definition":"Scenarios where art, visual language, or creative forms are central to communication or social identity.","id":"artistic-expression-communication","item_count":198,"name":{"arabic":"التعبير الفني والتواصل","dutch":"Artistieke Expressie & Communicatie","english":"Artistic Expression & Communication","hebrew":"ביטוי אמנותי ותקשורת"}}]},{"definition":"Scenarios about economic systems, labor, wealth distribution, social safety nets, and the impact of economic change on daily life.","id":"economy-work-welfare","item_count":212,"name":{"arabic":"الاقتصاد، العمل والرفاه","dutch":"Economie, Werk & Welzijn","english":"Economy, Work & Welfare","hebrew":"כלכלה, עבודה ורווחה"},"sub_themes":[{"definition":"Scenarios about universal basic income, circular economy, or major economic restructuring.","id":"economic-systems-reform","item_count":59,"name":{"arabic":"الأنظمة الاقتصادية والإصلاح","dutch":"Economische Systemen & Hervorming","english":"Economic Systems & Reform","hebrew":"מערכות כלכליות ורפורמה"}},{"definition":"Scenarios focusing on employment, labor rights, automation, or changing job conditions.","id":"labor-workplace","item_count":64,"name":{"arabic":"العمل ومكان العمل","dutch":"Arbeid & Werkplek","english":"Labor & Workplace","hebrew":"עבודה ומקום עבודה"}},{"definition":"Scenarios about poverty, hunger, housing, healthcare, or state-provided social support.","id":"welfare-social-services","item_count":30,"name":{"arabic":"الرفاهية والخدمات الاجتماعية","dutch":"Welzijn & Sociale Diensten","english":"Welfare & Social Services","hebrew":"רווחה ושירותים חברתיים"}},{"definition":"Scenarios addressing wealth gaps, abolition of billionaires, reparations, or redistribution.","id":"wealth-inequality","item_count":31,"name":{"arabic":"الثروة وعدم المساواة","dutch":"Welvaart & Ongelijkheid","english":"Wealth & Inequality","hebrew":"עושר ואי-שוויון"}},{"definition":"Scenarios about money transfer, digital payments, banking, and the role of financial technology in daily life.","id":"financial-systems-transactions","item_count":28,"name":{"arabic":"الأنظمة المالية والمعاملات","dutch":"Financiële Systemen & Transacties","english":"Financial Systems & Transactions","hebrew":"מערכות פיננסיות ועסקאות"}}]},{"definition":"Scenarios addressing climate change, environmental crises, resource management, and ecological adaptation or restoration.","id":"climate-environment-resources","item_count":576,"name":{"arabic":"المناخ، البيئة والموارد","dutch":"Klimaat, Milieu & Grondstoffen","english":"Climate, Environment & Resources","hebrew":"אקלים, סביבה ומשאבים"},"sub_themes":[{"definition":"Scenarios about natural disasters, rising sea levels, pollution, or extreme weather.","id":"climate-change-disasters","item_count":116,"name":{"arabic":"تغير المناخ والكوارث","dutch":"Klimaatverandering & Rampen","english":"Climate Change & Disasters","hebrew":"שינויי אקלים ואסונות"}},{"definition":"Scenarios about water, energy, food security, or new approaches to resource sharing.","id":"resource-management","item_count":88,"name":{"arabic":"إدارة الموارد","dutch":"Grondstoffenbeheer","english":"Resource Management","hebrew":"ניהול משאבים"}},{"definition":"Scenarios about rewilding, circular economies, urban agriculture, or ecological healing.","id":"sustainability-restoration","item_count":265,"name":{"arabic":"الاستدامة والترميم","dutch":"Duurzaamheid & Herstel","english":"Sustainability & Restoration","hebrew":"קיימות ושיקום"}},{"definition":"Scenarios about species extinction, conservation efforts, or the memory of lost natural heritage.","id":"extinction-conservation","item_count":107,"name":{"arabic":"الانقراض والحفاظ","dutch":"Uitsterving & Natuurbehoud","english":"Extinction & Conservation","hebrew":"הכחדה ושימור"}}]},{"definition":"Scenarios where technological advancement, digital platforms, artificial intelligence, or surveillance fundamentally shape society, communication, or daily life.","id":"technology-digital-society","item_count":2573,"name":{"arabic":"التكنولوجيا والمجتمع الرقمي","dutch":"Technologie & Digitale Samenleving","english":"Technology & Digital Society","hebrew":"טכנולוגיה וחברה דיגיטלית"},"sub_themes":[{"definition":"Scenarios about AI integration, AI failures, AI governance, or automation of work and services.","id":"artificial-intelligence-automation","item_count":344,"name":{"arabic":"الذكاء الاصطناعي والأتمتة","dutch":"Kunstmatige Intelligentie & Automatisering","english":"Artificial Intelligence & Automation","hebrew":"בינה מלאכותית ואוטומציה"}},{"definition":"Scenarios focused on digital platforms, censorship, information flows, or new forms of online interaction.","id":"digital-communication-media","item_count":417,"name":{"arabic":"الاتصالات الرقمية والإعلام","dutch":"Digitale Communicatie & Media","english":"Digital Communication & Media","hebrew":"תקשורת דיגיטלית ומדיה"}},{"definition":"Scenarios about mass surveillance, privacy rights, or societal responses to technological monitoring.","id":"surveillance-privacy","item_count":926,"name":{"arabic":"المراقبة والخصوصية","dutch":"Toezicht & Privacy","english":"Surveillance & Privacy","hebrew":"מעקב ופרטיות"}},{"definition":"Scenarios about digital divides, access to technology, or technological infrastructure shaping urban or rural life.","id":"tech-infrastructure-access","item_count":348,"name":{"arabic":"البنية التحتية التقنية والوصول","dutch":"Technische Infrastructuur & Toegang","english":"Tech Infrastructure & Access","hebrew":"תשתיות טכנולוגיות ונגישות"}},{"definition":"Scenarios where AI plays a central role in emotional support, social interaction, or the mediation of personal and collective feelings.","id":"ai-emotional-life","item_count":538,"name":{"arabic":"الذكاء الاصطناعي والحياة العاطفية","dutch":"AI & Emotioneel Leven","english":"AI & Emotional Life","hebrew":"בינה מלאכותית וחיים רגשיים"}}]},{"definition":"Scenarios focused on the development, transformation, or disruption of urban spaces, housing, transport, and public services.","id":"urban-life-infrastructure","item_count":441,"name":{"arabic":"الحياة الحضرية والبنية التحتية","dutch":"Stedelijk Leven & Infrastructuur","english":"Urban Life & Infrastructure","hebrew":"חיים עירוניים ותשתיות"},"sub_themes":[{"definition":"Scenarios about new transit systems, sustainable transport, or urban accessibility.","id":"urban-mobility-transport","item_count":108,"name":{"arabic":"التنقل الحضري والنقل","dutch":"Stedelijke Mobiliteit & Vervoer","english":"Urban Mobility & Transport","hebrew":"תחבורה ותנועה עירונית"}},{"definition":"Scenarios about housing availability, urban planning, gentrification, or changes in city landscapes.","id":"housing-urban-development","item_count":119,"name":{"arabic":"الإسكان والتطوير الحضري","dutch":"Huisvesting & Stedelijke Ontwikkeling","english":"Housing & Urban Development","hebrew":"דיור ופיתוח עירוני"}},{"definition":"Scenarios about the provision, disruption, or innovation in utilities like electricity, water, or waste management.","id":"public-services-utilities","item_count":78,"name":{"arabic":"الخدمات العامة والمرافق","dutch":"Openbare Diensten & Nutsvoorzieningen","english":"Public Services & Utilities","hebrew":"שירותים ציבוריים ותשתיות"}},{"definition":"Scenarios emphasizing communal spaces, local initiatives, or the social fabric of neighborhoods.","id":"public-spaces-community-life","item_count":136,"name":{"arabic":"المساحات العامة والحياة المجتمعية","dutch":"Publieke Ruimtes & Gemeenschapsleven","english":"Public Spaces & Community Life","hebrew":"מרחבים ציבוריים וחיי קהילה"}}]},{"definition":"Scenarios centered on the transformation of education, learning, and personal growth, including reforms, access, and new pedagogical approaches.","id":"education-knowledge-personal-development","item_count":144,"name":{"arabic":"التعليم، المعرفة والتطور الشخصي","dutch":"Onderwijs, Kennis & Persoonlijke Ontwikkeling","english":"Education, Knowledge & Personal Development","hebrew":"חינוך, ידע והתפתחות אישית"},"sub_themes":[{"definition":"Scenarios about free education, curriculum changes, or inclusive educational policies.","id":"educational-reform-access","item_count":60,"name":{"arabic":"إصلاح التعليم والوصول","dutch":"Onderwijshervorming & Toegang","english":"Educational Reform & Access","hebrew":"רפורמה וגישה בחינוך"}},{"definition":"Scenarios about access to information, museums, or new modes of learning and knowledge-sharing.","id":"knowledge-information","item_count":51,"name":{"arabic":"المعرفة والمعلومات","dutch":"Kennis & Informatie","english":"Knowledge & Information","hebrew":"ידע ומידע"}},{"definition":"Scenarios focusing on self-actualization, emotional health, or systems that support personal development.","id":"personal-growth-wellbeing","item_count":21,"name":{"arabic":"النمو الشخصي والرفاهية","dutch":"Persoonlijke Groei & Welzijn","english":"Personal Growth & Wellbeing","hebrew":"צמיחה אישית ורווחה"}},{"definition":"Scenarios about media literacy, critical thinking, and adaptation to digital knowledge environments.","id":"digital-literacy-critical-thinking","item_count":12,"name":{"arabic":"المعرفة الرقمية والتفكير النقدي","dutch":"Digitale Geletterdheid & Kritisch Denken","english":"Digital Literacy & Critical Thinking","hebrew":"אוריינות דיגיטלית וחשיבה ביקורתית"}}]},{"definition":"Scenarios about public health, demographic changes, population movements, and the societal impacts of health crises or advances.","id":"health-wellbeing-demographics","item_count":151,"name":{"arabic":"الصحة، الرفاهية والديموغرافيا","dutch":"Gezondheid, Welzijn & Demografie","english":"Health, Wellbeing & Demographics","hebrew":"בריאות, רווחה ודמוגרפיה"},"sub_themes":[{"definition":"Scenarios about disease outbreaks, vaccination campaigns, or health emergencies.","id":"public-health-epidemics","item_count":24,"name":{"arabic":"الصحة العامة والأوبئة","dutch":"Volksgezondheid & Epidemieën","english":"Public Health & Epidemics","hebrew":"בריאות הציבור ומגפות"}},{"definition":"Scenarios about the structure, reform, or automation of healthcare and insurance.","id":"healthcare-systems","item_count":29,"name":{"arabic":"أنظمة الرعاية الصحية","dutch":"Zorgsystemen","english":"Healthcare Systems","hebrew":"מערכות בריאות"}},{"definition":"Scenarios about population growth, decline, aging, or shifts due to migration or crisis.","id":"demographic-change","item_count":7,"name":{"arabic":"التغير الديموغرافي","dutch":"Demografische Verandering","english":"Demographic Change","hebrew":"שינוי דמוגרפי"}},{"definition":"Scenarios about psychological wellbeing, collective emotional states, or support systems for resilience.","id":"wellbeing-mental-health","item_count":72,"name":{"arabic":"الرفاهية والصحة النفسية","dutch":"Welzijn & Geestelijke Gezondheid","english":"Wellbeing & Mental Health","hebrew":"רווחה ובריאות הנפש"}},{"definition":"Scenarios about universal health access, health equity, and the reduction of barriers to healthcare for all populations.","id":"access-equity-in-health","item_count":19,"name":{"arabic":"الوصول والمساواة في الصحة","dutch":"Toegang & Gelijkheid in Gezondheid","english":"Access & Equity in Health","hebrew":"נגישות ושוויון בבריאות"}}]},{"definition":"Scenarios concerning food production, distribution, community agriculture, food security, and the resilience of local food systems.","id":"food-agriculture-local-resilience","item_count":172,"name":{"arabic":"الغذاء، الزراعة والمرونة المحلية","dutch":"Voedsel, Landbouw & Lokale Veerkracht","english":"Food, Agriculture & Local Resilience","hebrew":"מזון, חקלאות וחוסן מקומי"},"sub_themes":[{"definition":"Scenarios about hunger, famine, food shortages, or disruptions to food supply chains.","id":"food-security-scarcity","item_count":57,"name":{"arabic":"الأمن الغذائي والندرة","dutch":"Voedselzekerheid & Schaarste","english":"Food Security & Scarcity","hebrew":"ביטחון תזונתי ומחסור"}},{"definition":"Scenarios about local food production, community farming, food sharing, or neighborhood food networks.","id":"community-agriculture-exchange","item_count":40,"name":{"arabic":"الزراعة المجتمعية والتبادل","dutch":"Gemeenschapslandbouw & Uitwisseling","english":"Community Agriculture & Exchange","hebrew":"חקלאות קהילתית וחליפין"}},{"definition":"Scenarios about eco-friendly farming, foraging, reduction of food waste, or innovations in sustainable food production.","id":"sustainable-food-systems","item_count":75,"name":{"arabic":"أنظمة غذائية مستدامة","dutch":"Duurzame Voedselsystemen","english":"Sustainable Food Systems","hebrew":"מערכות מזון ברות קיימא"}}]}],"version":"2026-03-24T22:35:21.820221+00:00"},"h":{},"s":200,"st":"OK","u":"https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/taxonomy","rt":"json"},"__nghData__":[{"c":{"0":[{"i":"c1849885136","r":1}]}}]}</script></body></html>
