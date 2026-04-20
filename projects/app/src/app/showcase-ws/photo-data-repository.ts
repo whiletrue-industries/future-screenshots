@@ -28,7 +28,9 @@ export class PhotoDataRepository {
   // Configuration
   private enableRandomShowcase = false;
   private enableSvgAutoPositioning = false;
-  private isDragEnabled = true; // Permission-based flag for dragging
+  private isDragEnabled = false; // Admin permission flag for dragging
+  private isDragAllEnabled = false; // Temporary drag_all mode (any viewer can drag)
+  private userAuthorId: string | null = null; // Author ID for item_key-authenticated users
   private svgVisible = false; // Whether SVG background is visible (enables drag)
   private svgStrategy: SvgBackgroundLayoutStrategy | null = null; // SVG strategy reference for drag handlers
   private showcaseInterval: number = ANIMATION_CONSTANTS.SHOWCASE_INTERVAL;
@@ -102,14 +104,16 @@ export class PhotoDataRepository {
       const allPhotos = Array.from(this.photos.values());
       const allPositions = await this.layoutStrategy.calculateAllPositions(allPhotos);
 
-      // Override with saved drag positions (layout_x/layout_y) when SVG is visible
-      // but the active strategy is circle-packing (auto-positioning off)
-      allPhotos.forEach((photo, index) => {
-        const dragOverride = this.getDragPositionOverride(photo);
-        if (dragOverride) {
-          allPositions[index] = dragOverride;
-        }
-      });
+      // Only apply persisted drag overrides in SVG-related modes.
+      const activeLayoutName = this.layoutStrategy.getConfiguration().name;
+      if (this.shouldApplyDragOverrides(activeLayoutName)) {
+        allPhotos.forEach((photo, index) => {
+          const dragOverride = this.getDragPositionOverride(photo);
+          if (dragOverride) {
+            allPositions[index] = dragOverride;
+          }
+        });
+      }
 
       // Update all photos with new positions
       const animationPromises: Promise<void>[] = [];
@@ -218,6 +222,7 @@ export class PhotoDataRepository {
     const mesh = await this.renderer.createPhotoMesh(photoData);
     photoData.setMesh(mesh);
     this.renderer.setMeshPhotoId(mesh, photoData.id);
+    this.renderer.setMeshPhotoData(mesh, photoData);
 
     // Enable hover detection for cursor feedback
     this.setupHoverDetectionForPhoto(photoData);
@@ -353,14 +358,15 @@ export class PhotoDataRepository {
       enableAutoPositioning: this.enableSvgAutoPositioning
     });
 
-    // Override with saved drag positions (layout_x/layout_y) when SVG is visible
-    // but the active strategy is circle-packing (auto-positioning off)
-    currentPhotos.forEach((photo, index) => {
-      const dragOverride = this.getDragPositionOverride(photo);
-      if (dragOverride) {
-        newPositions[index] = dragOverride;
-      }
-    });
+    // Only apply persisted drag overrides in SVG-related modes.
+    if (this.shouldApplyDragOverrides(toLayout)) {
+      currentPhotos.forEach((photo, index) => {
+        const dragOverride = this.getDragPositionOverride(photo);
+        if (dragOverride) {
+          newPositions[index] = dragOverride;
+        }
+      });
+    }
 
     // Update layout strategy
     this.layoutStrategy = newStrategy;
@@ -460,6 +466,7 @@ export class PhotoDataRepository {
       for (const photo of currentPhotos) {
         if (photo.mesh) {
           this.renderer.setMeshPhotoId(photo.mesh, photo.id);
+          this.renderer.setMeshPhotoData(photo.mesh, photo);
           this.setupDragForPhoto(photo);
         }
       }
@@ -485,13 +492,91 @@ export class PhotoDataRepository {
   setSvgAutoPositioningEnabled(enabled: boolean): void {
     this.enableSvgAutoPositioning = enabled;
   }
+
+  /**
+   * Persisted drag coordinates are only relevant for SVG-based editing modes.
+   */
+  private shouldApplyDragOverrides(layoutName: string): boolean {
+    return this.svgVisible && (layoutName === 'svg-background' || layoutName === 'circle-packing');
+  }
   
   /**
-   * Enable or disable drag functionality (permission-based)
-   * When disabled, users can view but not drag items
+   * Enable or disable drag functionality (admin permission)
+   * When disabled, non-admin users cannot drag items
    */
   setDragEnabled(enabled: boolean): void {
     this.isDragEnabled = enabled;
+    if (this.svgVisible) {
+      this.refreshDragPermissions();
+    }
+  }
+
+  /**
+   * Enable or disable drag_all mode (temporary flag allowing all viewers to drag)
+   */
+  setDragAllEnabled(enabled: boolean): void {
+    this.isDragAllEnabled = enabled;
+    if (this.svgVisible) {
+      this.refreshDragPermissions();
+    }
+  }
+
+  /**
+   * Set the author ID for item_key-authenticated users.
+   * These users can drag all items belonging to the same author.
+   */
+  setUserAuthorId(authorId: string | null): void {
+    this.userAuthorId = authorId;
+    if (this.svgVisible) {
+      this.refreshDragPermissions();
+    }
+  }
+
+  /**
+   * Update drag_all mode and user author simultaneously with a single permissions refresh.
+   */
+  updateDragPermissions(dragAllEnabled: boolean, authorId: string | null): void {
+    this.isDragAllEnabled = dragAllEnabled;
+    this.userAuthorId = authorId;
+    if (this.svgVisible) {
+      this.refreshDragPermissions();
+    }
+  }
+
+  /**
+   * Check if the current user can drag a specific photo.
+   * Admin → all; drag_all active → all; author key match → same-author items.
+   */
+  canDragPhoto(photoData: PhotoData): boolean {
+    if (this.isDragEnabled) return true;
+    if (this.isDragAllEnabled) return true;
+    if (this.userAuthorId && photoData.metadata['author_id'] === this.userAuthorId) return true;
+    return false;
+  }
+
+  /**
+   * Re-evaluate drag permissions for all photos that are currently visible.
+   * Called when any permission signal changes (drag_all toggled, author set, etc.).
+   * Uses restoreDragForMesh when a callback is already registered to avoid
+   * creating redundant closures.
+   */
+  refreshDragPermissions(): void {
+    if (!this.renderer) return;
+    this.photos.forEach(photoData => {
+      if (!photoData.mesh) return;
+      if (this.canDragPhoto(photoData)) {
+        // Prefer restoring from existing callback; only re-register if needed
+        const restored = this.renderer!.restoreDragForMesh(photoData.mesh);
+        if (!restored) {
+          this.renderer!.enableDragForMesh(photoData.mesh, (position) => {
+            photoData.setCurrentPosition(position);
+            photoData.setTargetPosition(position);
+          });
+        }
+      } else {
+        this.renderer!.disableDragForMesh(photoData.mesh);
+      }
+    });
   }
 
   setSvgVisible(visible: boolean, svgStrategy?: SvgBackgroundLayoutStrategy): void {
@@ -930,15 +1015,15 @@ export class PhotoDataRepository {
 
   /**
    * Set up drag functionality for a photo.
-   * Only enables if isDragEnabled is true (admin permission).
+   * Uses canDragPhoto() to check per-photo permission (admin, drag_all, or same-author).
    */
   private setupDragForPhoto(photoData: PhotoData): void {
     if (!photoData.mesh || !this.renderer || !this.layoutStrategy) {
       return;
     }
 
-    // Check permission before enabling drag
-    if (!this.isDragEnabled) {
+    // Check permission for this specific photo
+    if (!this.canDragPhoto(photoData)) {
       this.setupHoverDetectionForPhoto(photoData);
       return;
     }

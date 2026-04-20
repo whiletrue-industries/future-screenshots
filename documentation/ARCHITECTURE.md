@@ -121,9 +121,15 @@ The application uses Angular standalone components organized by feature:
    - 3D immersive visualization using Three.js
    - Multiple layout strategies:
      - Grid: Random positioning in a grid
-     - TSNE: AI-powered clustering based on image similarity
+     - TSNE / Thematic: Hex-grid layout driven by taxonomy and embedding similarity. Accessible via the **Thematic** toggle button.
      - SVG: Interactive placement on custom background with hotspots
      - Circle Packing: Clustered circular arrangement by group
+   - **Taxonomy overlay labels** (shown in Thematic layout):
+       - Only sub-theme labels are shown; positions are derived from taxonomy label nodes, with TSNE cluster regions as fallback when topic metadata is unavailable
+     - Labels update position in real-time at 60 fps using `ThreeRendererService.addFrameCallback()`
+    - TSNE fallback mapping: items missing from server TSNE grid are still positioned in Thematic layout using deterministic topic/theme centroid fallback (instead of being hidden)
+    - TSNE collision handling: all items in Thematic layout (including uncertain/non-evaluated) are assigned globally unique hexbins; collisions are resolved by nearest-free-bin deterministic hex-spiral allocation, and sub-theme label anchor bins are kept free so labels do not share a bin with a photo node
+   - Rejected items are excluded from showcase ingestion (`_private_moderation === 0` or `status === rejected`) and are not rendered in showcase-ws or output-map loops
    - User camera controls:
      - Pan: Click and drag to move around the canvas
      - Zoom: Mouse wheel to zoom in/out (centered on cursor)
@@ -159,6 +165,7 @@ The application uses Angular standalone components organized by feature:
     - Content moderation interface
     - Approve/reject items
     - Edit item properties
+    - Display and filter by auto-assigned taxonomy topics
 
 12. **Workspace Form** (`/admin/workspace-form`)
     - Workspace creation and configuration
@@ -239,6 +246,11 @@ The application uses Angular standalone components organized by feature:
 - Admin-specific operations
 - Moderation actions
 - Workspace management
+
+**TaxonomyService** (`projects/app/src/app/shared/taxonomy.service.ts`)
+- Fetches and caches the cross-workspace taxonomy from `GET /taxonomy`
+- Resolves topic IDs (e.g. `"climate-disaster/rising-sea-levels"`) to localized display names
+- Provides theme options for the topic filter in admin views
 
 ## Data Flow
 
@@ -341,22 +353,39 @@ Base URL: Configured via environment/workspace settings
 
 #### Access Control
 
-The showcase supports three levels of access:
+The showcase supports four levels of access:
 
-1. **Visitors** (no admin_key)
+1. **Visitors** (no admin_key, no item_key)
    - Can view items in the showcase
-   - Can click items to view details in sidebar
+   - Can click items to trigger focus animation
    - Cannot drag items or edit evaluations
-   - Read-only mode
+   - When `drag_all` mode is active, can drag any item to the SVG map
 
 2. **Editors** (with admin_key) 
-   - Can drag items in interactive layouts (SVG)
+   - Can drag all items in interactive layouts (SVG) at any time
    - Can click items to edit evaluations in sidebar
    - Full editing permissions for all items
+   - Can enable/disable/adjust the `drag_all` countdown timer
 
-3. **Authors** (with item_key)
-   - Can edit their own items via special edit link
-   - Edit link includes item-specific key for authentication
+3. **Authors** (with `?key=<item_key>` URL parameter)
+   - Can drag all items belonging to the same author_id
+   - Positions are saved to the API using the item_key for authentication
+   - Author identity is resolved by matching the item_key against loaded items
+
+#### drag_all Mode
+
+The `drag_all` mode is a temporary workshop feature that allows any participant (even unauthenticated) to drag screenshots onto the SVG map:
+
+- **Activated by** an admin from the showcase UI (button in the controls panel)
+- **Duration**: 15 minutes by default; the admin can add/subtract minutes or stop early
+- **Expiry**: Stored as `drag_all_until` (ISO timestamp) in the workspace metadata
+- **Cross-client sync**: All clients poll workspace metadata every 30 seconds and pick up the flag
+- **Countdown banner**: Shown to all viewers while active; admin controls are embedded
+- **Position saves**: Positions are persisted using the best available credential:
+  1. Admin key (if present)
+  2. API key / collaborate key (if present in URL)
+  3. Photo's own item_key (for authors)
+  4. Graceful silent failure (visual drag only, no server persistence)
 
 #### Workspace Management
 

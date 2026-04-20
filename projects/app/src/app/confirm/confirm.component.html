@@ -75,12 +75,97 @@
   </div>
 }
 <div class='img'>
+  @if (state.rawCaptureSource()) {
+    @if (canToggleCaptureSource()) {
+      <button type="button"
+              class="capture-source-chip capture-source-toggle"
+              (click)="toggleCaptureSource()"
+              [attr.aria-label]="state.rawCaptureSource() === 'still' ? 'Switch to video capture' : 'Switch to still capture'">
+        <span class="capture-source-label">{{ alternateCaptureLabel() }}</span>
+        @if (alternateCapturePreviewUrl()) {
+          <img class="capture-source-thumb" [src]="alternateCapturePreviewUrl()!" alt="Alternate source preview" />
+        } @else {
+          <span class="capture-source-thumb-placeholder" [class.busy]="alternateCapturePreviewBusy()"></span>
+        }
+      </button>
+    } @else {
+      <div class="capture-source-chip">{{ state.rawCaptureSource() === 'still' ? 'S' : 'V' }}</div>
+    }
+  }
+  @if (state.rawCapturedImageUrl() && showCropEditor() && cropDirty()) {
+    <a (click)="cancelCropChanges()"
+       class="crop-close-static"
+       i18n-aria-label
+       aria-label="Cancel crop changes">
+      <svg xmlns="http://www.w3.org/2000/svg" width="33" height="32" viewBox="0 0 33 32" fill="none">
+        <path d="M9.4086 8.00799C10.1897 7.22694 11.456 7.22694 12.237 8.00799L17.4167 13.1877L22.5957 8.00868L22.7483 7.87127C23.5339 7.23087 24.692 7.27656 25.4242 8.00868C26.1561 8.74081 26.2019 9.89903 25.5616 10.6845L25.4242 10.8371L20.2452 16.0161L25.4242 21.1951L25.5616 21.3477C26.2019 22.1333 26.1563 23.2914 25.4242 24.0235C24.692 24.7555 23.5338 24.8013 22.7483 24.161L22.5957 24.0235L17.4167 18.8445L12.237 24.0242C11.456 24.8049 10.1896 24.805 9.4086 24.0242C8.62767 23.2433 8.62789 21.9769 9.4086 21.1958L14.5883 16.0161L9.4086 10.8364C8.62761 10.0554 8.62773 8.78905 9.4086 8.00799Z" fill="white"/>
+      </svg>
+    </a>
+  }
   <div class='inner'>
+    @if (state.rawCapturedImageUrl() && showCropEditor()) {
+      <div class="crop-frame">
+        <img #rawImage [src]="state.rawCapturedImageUrl()!" alt="Captured image" (load)="onRawImageLoaded()">
+        @if (cropFrameWidth() > 0) {
+          <svg class="crop-overlay"
+               [attr.viewBox]="'0 0 ' + cropFrameWidth() + ' ' + cropFrameHeight()"
+            [style.left.px]="overlayOffsetX()"
+            [style.top.px]="overlayOffsetY()"
+            [style.width.px]="cropFrameWidth()"
+            [style.height.px]="cropFrameHeight()"
+            overflow="visible"
+               preserveAspectRatio="none">
+            <defs>
+              <mask id="crop-overlay-handle-cutout-mask" maskUnits="userSpaceOnUse">
+                <rect x="0" y="0" [attr.width]="cropFrameWidth()" [attr.height]="cropFrameHeight()" fill="white" />
+                @for (corner of cropCorners(); track $index; let idx = $index) {
+                  <circle [attr.cx]="corner.x"
+                          [attr.cy]="corner.y"
+                          [attr.r]="centerHandleRadius(idx) + 2"
+                          fill="black" />
+                }
+              </mask>
+            </defs>
+
+            <g mask="url(#crop-overlay-handle-cutout-mask)">
+              <path class="outside-mask"
+                    [attr.d]="'M0 0 H ' + cropFrameWidth() + ' V ' + cropFrameHeight() + ' H 0 Z M ' + cropPolygonPoints() + ' Z'"
+                    fill-rule="evenodd" />
+              <polygon class="crop-frame-stroke" [attr.points]="cropPolygonPoints()" />
+              @for (corner of cropCorners(); track $index; let idx = $index) {
+                <circle class="corner-handle-circle"
+                        [attr.cx]="corner.x"
+                        [attr.cy]="corner.y"
+                        [attr.r]="handleRadius(idx)" />
+              }
+            </g>
+
+            <polygon class="crop-frame-stroke-inner" [attr.points]="cropPolygonPoints()" />
+
+            @for (corner of cropCorners(); track $index; let idx = $index) {
+              <circle class="corner-handle-center-ring"
+                      [attr.cx]="corner.x"
+                      [attr.cy]="corner.y"
+                      [attr.r]="centerHandleRadius(idx)" />
+            }
+          </svg>
+          @for (corner of cropCorners(); track $index; let idx = $index) {
+            <button type="button" class="corner-hitbox"
+                  [style.left.px]="overlayOffsetX() + corner.x"
+                  [style.top.px]="overlayOffsetY() + corner.y"
+                    (pointerdown)="startDraggingCorner(idx, $event)"
+                    i18n-aria-label aria-label="Move crop corner">
+            </button>
+          }
+        }
+      </div>
+    } @else {
       <img [src]="state.currentImageUrl()" alt="Confirmation Image">
+    }
   </div>
 </div>
 <div class="confirm-buttons" ltr>
-  @if (isTemplateFlow) {
+  @if (isTemplateFlow && !state.rawCapturedImageUrl()) {
     <a [routerLink]="['/canvas-creator']" queryParamsHandling="merge" class="again">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="25" viewBox="0 0 24 25" fill="none">
         <path d="M11 18.5H14.75C16.1424 18.5 17.4777 17.9469 18.4623 16.9623C19.4469 15.9777 20 14.6424 20 13.25C20 11.8576 19.4469 10.5223 18.4623 9.53769C17.4777 8.55312 16.1424 8 14.75 8H5M7.5 4.5L4 8L7.5 11.5" stroke="#EDECEC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -88,20 +173,38 @@
       <span i18n>re-edit</span>
     </a>
   } @else {
-    <a [routerLink]="['/scan']" queryParamsHandling="merge" class="again">
+    <a (click)="scanAgain()" class="again">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="25" viewBox="0 0 24 25" fill="none">
         <path d="M11 18.5H14.75C16.1424 18.5 17.4777 17.9469 18.4623 16.9623C19.4469 15.9777 20 14.6424 20 13.25C20 11.8576 19.4469 10.5223 18.4623 9.53769C17.4777 8.55312 16.1424 8 14.75 8H5M7.5 4.5L4 8L7.5 11.5" stroke="#EDECEC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
       <span i18n>scan again</span>
     </a>
   }
-  @if (!api.currentlyUploadingImage()) {
-    <a (click)='upload()' class="confirm">
-      <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 25 25" fill="none">
-        <path d="M5.5 15.5V17.5C5.5 18.0304 5.71071 18.5391 6.08579 18.9142C6.46086 19.2893 6.96957 19.5 7.5 19.5H17.5C18.0304 19.5 18.5391 19.2893 18.9142 18.9142C19.2893 18.5391 19.5 18.0304 19.5 17.5V15.5" stroke="#4E02B2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M12.5 14.4844L12.5 5.98437M12.5 5.98437L9.5 8.98437M12.5 5.98437L15.5 8.98438" stroke="#4E02B2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+  @if (state.rawCapturedImageUrl() && !showCropEditor()) {
+    <a (click)="reopenCropEditor()" class="crop-toggle" i18n-aria-label aria-label="Edit crop">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 2v14a2 2 0 0 0 2 2h14"/>
+        <path d="M18 22V8a2 2 0 0 0-2-2H2"/>
       </svg>
-      <span i18n>Looking Good</span>
+    </a>
+  }
+
+  @if (!api.currentlyUploadingImage()) {
+    <a (click)="state.rawCapturedImageUrl() && showCropEditor() ? cropPreview() : upload()" class="confirm">
+      @if (state.rawCapturedImageUrl() && showCropEditor()) {
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 2v14a2 2 0 0 0 2 2h14"/>
+          <path d="M18 22V8a2 2 0 0 0-2-2H2"/>
+        </svg>
+        <span i18n>Crop</span>
+      } @else {
+        <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 25 25" fill="none">
+          <path d="M5.5 15.5V17.5C5.5 18.0304 5.71071 18.5391 6.08579 18.9142C6.46086 19.2893 6.96957 19.5 7.5 19.5H17.5C18.0304 19.5 18.5391 19.2893 18.9142 18.9142C19.2893 18.5391 19.5 18.0304 19.5 17.5V15.5" stroke="#4E02B2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M12.5 14.4844L12.5 5.98437M12.5 5.98437L9.5 8.98437M12.5 5.98437L15.5 8.98438" stroke="#4E02B2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span i18n>Looking Good</span>
+      }
     </a>
   } @else {
     <span class="confirm">

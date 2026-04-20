@@ -4,7 +4,7 @@ import { ApiService } from '../../api.service';
 import { CollectPropertiesFavorableComponent } from "../collect-properties-favorable/collect-properties-favorable.component";
 import { ActivatedRoute, Router } from '@angular/router';
 import { CollectPropertiesPotentialComponent } from "../collect-properties-potential/collect-properties-potential.component";
-import { filter, firstValueFrom, switchMap, tap, timer } from 'rxjs';
+import { firstValueFrom, switchMap, take, timer } from 'rxjs';
 import { CollectEmailComponent } from "../collect-properties-email/collect-properties-email.component";
 import { CompleteEvaluationComponent } from "../complete-evaluation/complete-evaluation.component";
 import { DirectToMapComponent } from "../direct-to-map/direct-to-map.component";
@@ -89,9 +89,6 @@ export class CollectPropertiesComponent implements AfterViewInit {
       id: 10,
       instructions: '',
       skip: () => {
-        const item_id = this.api.itemId();
-        const item_key = this.api.itemKey();
-
         // Check if item has an author_id field, if not add it
         const currentItem = this.api.item();
         if (currentItem && !currentItem.author_id) {
@@ -99,24 +96,23 @@ export class CollectPropertiesComponent implements AfterViewInit {
           this.propsUpdate.update(s => Object.assign({}, s, { author_id: authorId }));
         }
 
-        const propsUpdate = this.propsUpdate();
-        console.log('CONSIDERING IF UPDATE IS NEEDED', propsUpdate);
-        if (item_id && item_key) {
-          for (const _ in propsUpdate) {
-            this.api.item.update((item: any) => Object.assign({}, item, propsUpdate));
-            console.log('Updating item with props:', propsUpdate);
-            this.messages.thinking.set(true);
-            this.api.uploadImageInProgress.pipe(
-              filter((inProgress) => inProgress === false),
-              switchMap(() => this.api.updateItem(propsUpdate, item_id, item_key)),
-              tap(() => {
-                this.messages.thinking.set(false);
-              })
+        // Snapshot props and reset — data isolation for parallel images
+        const propsSnapshot = { ...this.propsUpdate() };
+        this.propsUpdate.set({});
+
+        const hasProps = Object.keys(propsSnapshot).length > 0;
+        if (hasProps) {
+          this.api.item.update((item: any) => Object.assign({}, item, propsSnapshot));
+
+          // Capture the current upload observable for data isolation
+          const upload$ = this.api.currentUpload$;
+          if (upload$) {
+            upload$.pipe(
+              take(1),
+              switchMap(({ item_id, item_key }) => this.api.updateItem(propsSnapshot, item_id, item_key))
             ).subscribe();
-            break;
           }
         }
-        this.propsUpdate.set({});
         return {};
       }
     },

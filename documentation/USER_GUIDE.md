@@ -27,6 +27,7 @@ The language menu reflects the active workspace's supported languages (e.g., Eng
 
 The Canvas Creator lets you compose a screenshot using templates:
 - Swipe or tap arrows to browse templates; dragging snaps to the next/previous item.
+- The gallery only shows templates enabled in the active workspace's settings.
 - The active template is centered; tap to enter the editor.
 - The canvas auto-resizes to fit the visible area and avoids being covered by the bottom controls.
 - Drawing and text layers use multiply blending for natural results.
@@ -54,6 +55,8 @@ The Showcase WS view provides an interactive 3D visualization of all submitted p
 **Photo Interaction (SVG Layout Only):**
 - Click and drag photos to reposition them on the canvas
 - Photos can be dropped on designated hotspots for categorization
+- When participant drag mode is active, the remaining time appears inside the `Map` tab as a live countdown badge
+- Dropped photos stay on the SVG map and their saved position/category metadata is persisted
 
 ### Keyboard Controls
 

@@ -132,7 +132,9 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
           cluster.fontSize[key] = cluster.w / (title.length * 0.75);
         });
       });
-      config.grid = config.grid.sort((a: any, b: any) => {
+      config.grid = (Array.isArray(config.grid) ? config.grid : [])
+        .filter((item: any) => !this.isRejectedGridItem(item))
+        .sort((a: any, b: any) => {
         return -((a.metadata.timestamp as string)?.localeCompare(b.metadata.timestamp) || 0);
       });
       this.sortCorrectly = true;
@@ -242,6 +244,20 @@ export class OutputMapComponent implements OnInit, AfterViewInit {
       }
     }
     this.lang.set(options[options.length - 1]);
+  }
+
+  private isRejectedGridItem(item: any): boolean {
+    const metadata = item?.metadata;
+    if (!metadata || typeof metadata !== 'object') {
+      return false;
+    }
+
+    if (metadata._private_moderation === 0) {
+      return true;
+    }
+
+    const status = typeof metadata.status === 'string' ? metadata.status.toLowerCase().trim() : '';
+    return status === 'rejected';
   }
 
   ngAfterViewInit() {

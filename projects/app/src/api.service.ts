@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { computed, effect, Inject, Injectable, LOCALE_ID, NgZone, signal } from '@angular/core';
 import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
-import { map, Observable, ReplaySubject, switchMap, tap, timer } from 'rxjs';
+import { catchError, map, Observable, of, ReplaySubject, shareReplay, switchMap, tap, timer } from 'rxjs';
 
 export type DiscussResult = {
   complete: boolean;
@@ -38,6 +38,7 @@ export class ApiService {
   isWorkshopFollowup = signal<boolean>(false);
   uploadImageInProgress = new ReplaySubject<boolean>(1);
   currentlyUploadingImage = signal<boolean>(false);
+  currentUpload$: Observable<{item_id: string, item_key: string}> | null = null;
   locale = 'en';
 
   passwordProtected = computed(() => {
@@ -71,7 +72,7 @@ export class ApiService {
 
   updateFromRoute(route: ActivatedRouteSnapshot) {
     const workspace = route.queryParams['workspace'] || this.workspaceId();
-    const api_key = route.queryParams['api_key'] || this.api_key();
+    const api_key = route.queryParams['api_key'] || route.queryParams['admin_key'] || this.api_key();
     const automatic = route.queryParams['automatic'] || this.automatic();
     const demo = route.queryParams['demo'] || this.demo();
     if (automatic) {
@@ -111,21 +112,32 @@ export class ApiService {
   }
 
   fetchWorkspace(workspaceId: string): Observable<any> {
-    return this.http.get(`${this.CHRONOMAPS_API_URL}/${workspaceId}`).pipe(
+    const apiKey = this.api_key();
+    const headers: Record<string, string> = {};
+    if (apiKey) {
+      headers['Authorization'] = apiKey;
+    }
+
+    return this.http.get(`${this.CHRONOMAPS_API_URL}/${workspaceId}`, { headers }).pipe(
       map((response: any) => {
         this.workspace.set(response);
         return response;
+      }),
+      catchError((error) => {
+        console.error('Error fetching workspace:', error);
+        return of(null);
       })
     );
   }
 
-  fetchItem(item_id: string, item_key: string): Observable<any> { 
+  fetchItem(item_id: string, item_key: string): Observable<any> {
     const params: any = item_key ? {
       'item-key': item_key,
     } : {};
     const headers: any = this.api_key() ? {
       'Authorization': this.api_key(),
     } : {};
+    this.currentUpload$ = of({item_id, item_key});
     return this.http.get(`${this.CHRONOMAPS_API_URL}/${this.workspaceId()}/${item_id}`, {params, headers}).pipe(
       map((response: any) => {
         response.item_id = item_id;
@@ -173,9 +185,11 @@ export class ApiService {
   }
 
   updateProperties(metadata: any, item_id: string, item_key?: string): Observable<any> {
-    const headers = {
-      'Authorization': this.api_key() as string,
-    };
+    const headers: Record<string, string> = {};
+    const apiKey = this.api_key();
+    if (apiKey) {
+      headers['Authorization'] = apiKey;
+    }
     let params: any = {};
     if (item_key) {
       params['item-key'] = item_key;  
@@ -187,57 +201,143 @@ export class ApiService {
     );
   }
 
-  uploadImage(image: Blob, item_id: string, item_key: string): void {
-    this.uploadImageInProgress.next(true);
-    this.startDiscussion(image, item_id, item_key).pipe(
-      switchMap((ret: any) => {
-        this.uploadImageInProgress.next(false);
-        return this.sendInitMessageNoStream(item_id, item_key);
-      })
-    ).subscribe((x: any) => {
-    });
-  }    
+  /**
+   * Activate or adjust temporary collaboration for a workspace.
+   * When `properties` IS provided, `timeSeconds` is duration from now.
+   * When `properties` is OMITTED, `timeSeconds` is a delta on the existing expiry.
+   */
+  setTemporaryCollaboration(
+    workspaceId: string, adminKey: string, timeSeconds: number, properties?: string
+  ): Observable<{ expiry: string; ttl: number; allowed_properties: string[] }> {
+    const headers = { 'Authorization': adminKey };
+    const params: Record<string, string> = { time: String(timeSeconds) };
+    if (properties !== undefined) {
+      params['properties'] = properties;
+    }
+    return this.http.post<{ expiry: string; ttl: number; allowed_properties: string[] }>(
+      `${this.CHRONOMAPS_API_URL}/${workspaceId}/temporary-collaboration`, null, { headers, params }
+    );
+  }
 
-  uploadImageAuto(image: Blob, item_id: string, item_key: string): Observable<any> {
+  /**
+   * Delete (cancel) temporary collaboration for a workspace immediately.
+   */
+  deleteTemporaryCollaboration(workspaceId: string, adminKey: string): Observable<any> {
+    const headers = { 'Authorization': adminKey };
+    return this.http.delete(`${this.CHRONOMAPS_API_URL}/${workspaceId}/temporary-collaboration`, { headers });
+  }
+
+  /**
+   * Fetch workspace data with an explicit auth token (no signal side-effects).
+   */
+  fetchWorkspaceRaw(workspaceId: string, authToken?: string): Observable<any> {
+    const headers: Record<string, string> = {};
+    if (authToken) {
+      headers['Authorization'] = authToken;
+    }
+    return this.http.get(`${this.CHRONOMAPS_API_URL}/${workspaceId}`, { headers }).pipe(
+      catchError((error) => {
+        console.error('Error fetching workspace:', error);
+        return of(null);
+      })
+    );
+  }
+
+  startBackgroundUpload(image: Blob, metadata?: Record<string, any>): void {
+    // Reset item state to prevent stale data from previous items
+    this.item.set({});
+    this.itemId.set(null);
+    this.itemKey.set(null);
     this.uploadImageInProgress.next(true);
-    this.startDiscussion(image, item_id, item_key).pipe(
-      tap(() => {
+
+    // Snapshot metadata to prevent mutation by caller
+    const metadataSnapshot = metadata ? { ...metadata } : undefined;
+
+    this.currentUpload$ = this.startDiscussion(image, undefined, undefined, metadataSnapshot).pipe(
+      map((data: any) => {
+        const item_id = data.item_id || data.metadata?.item_id;
+        const item_key = data.item_key || data.metadata?.item_key;
         this.uploadImageInProgress.next(false);
-        // After AI processing, save the item with preserved tags back to database
-        const currentItem = this.item();
-        if (currentItem && currentItem.tags && currentItem.tags.length > 0) {
-          console.log('[API] Saving item with preserved tags:', currentItem.tags);
-          // Send tags to database via updateItem to persist them
-          this.updateItem({ tags: currentItem.tags }, item_id, item_key).subscribe(
-            () => console.log('[API] Tags saved to database successfully'),
-            (err) => console.error('[API] Failed to save tags to database:', err)
-          );
+        // Fire background work: apply metadata then send init message
+        const background$ = (metadataSnapshot && Object.keys(metadataSnapshot).length > 0)
+          ? this.updateProperties(metadataSnapshot, item_id, item_key).pipe(
+              switchMap(() => this.sendInitMessageNoStream(item_id, item_key))
+            )
+          : this.sendInitMessageNoStream(item_id, item_key);
+        background$.subscribe();
+        return { item_id, item_key };
+      }),
+      shareReplay(1)
+    );
+
+    // Subscribe to kick off the HTTP request
+    this.currentUpload$.subscribe();
+  }
+
+  uploadImage(image: Blob, metadata?: Record<string, any>): Observable<{ item_id: string; item_key: string }> {
+    this.uploadImageInProgress.next(true);
+    return this.startDiscussion(image).pipe(
+      map((data: any) => {
+        const item_id = data.item_id || data.metadata?.item_id;
+        const item_key = data.item_key || data.metadata?.item_key;
+        this.uploadImageInProgress.next(false);
+        // Fire background work: apply metadata then send init message
+        const background$ = (metadata && Object.keys(metadata).length > 0)
+          ? this.updateProperties(metadata, item_id, item_key).pipe(
+              switchMap(() => this.sendInitMessageNoStream(item_id, item_key))
+            )
+          : this.sendInitMessageNoStream(item_id, item_key);
+        background$.subscribe();
+        return { item_id, item_key };
+      })
+    );
+  }
+
+  uploadImageAuto(image: Blob, metadata?: Record<string, any>): Observable<any> {
+    this.uploadImageInProgress.next(true);
+    this.startDiscussion(image).pipe(
+      switchMap((data: any) => {
+        const item_id = data.item_id || data.metadata?.item_id;
+        const item_key = data.item_key || data.metadata?.item_key;
+        this.uploadImageInProgress.next(false);
+        if (metadata && Object.keys(metadata).length > 0) {
+          return this.updateProperties(metadata, item_id, item_key);
         }
+        return of(true);
       })
     ).subscribe(() => {
       console.log('Auto upload image complete');
     });
     return timer(2000);
-  }    
+  }
 
-  startDiscussion(image: Blob, item_id: string, item_key: string): Observable<any> {
+  startDiscussion(image: Blob, item_id?: string, item_key?: string, metadata?: Record<string, any>): Observable<any> {
     const formData = new FormData();
     formData.append('image', image);
+    if (metadata) {
+      formData.append('metadata', JSON.stringify(metadata));
+    }
     const params: any = {
       workspace: this.workspaceId(),
       api_key: this.api_key(),
-      item_id: item_id,
-      item_key: item_key,
     };
+    if (item_id) {
+      params['item_id'] = item_id;
+    }
+    if (item_key) {
+      params['item_key'] = item_key;
+    }
     if (this.automatic()) {
       params['automatic'] = 'true';
     }
     return this.http.post(this.SCREENSHOT_HANDLER_URL, formData, { params }).pipe(
       tap((data: any) => {
         console.log('Screenshot uploaded successfully', data.metadata);
-        this.item.update((item: any) => {
-          return Object.assign({}, item, data.metadata);
-        });
+        const item_id = data.item_id || data.metadata?.item_id;
+        const item_key = data.item_key || data.metadata?.item_key;
+        this.item.set(Object.assign({}, data.metadata, { item_id, item_key }));
+        this.itemId.set(item_id);
+        this.itemKey.set(item_key);
       })
     );
   }

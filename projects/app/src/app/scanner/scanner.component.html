@@ -3,17 +3,25 @@
         {{ displayMsg() }}
     </div>
 }
-@if (displayCameraButton()) {
-    <div class='camera-button' (click)='cameraClicked.set(true)'>
-
-    </div>
-}
+<div class='camera-button'
+     [class.ready]='buttonReady()'
+     [class.capturing]='isCapturing()'
+     (click)='captureAndNavigate()'
+     role="button"
+     [attr.aria-label]="isCapturing() ? 'Capturing photo' : (buttonReady() ? 'Capture photo' : 'Detecting edges...')"
+     [attr.aria-busy]="isCapturing() ? 'true' : null">
+    @if (isCapturing()) {
+        <span class="capture-spinner" aria-hidden="true"></span>
+    }
+</div>
 <a [routerLink]='["/"]' queryParamsHandling="preserve" class='close'>
     <svg xmlns="http://www.w3.org/2000/svg" width="33" height="32" viewBox="0 0 33 32" fill="none">
         <path d="M9.4086 8.00799C10.1897 7.22694 11.456 7.22694 12.237 8.00799L17.4167 13.1877L22.5957 8.00868L22.7483 7.87127C23.5339 7.23087 24.692 7.27656 25.4242 8.00868C26.1561 8.74081 26.2019 9.89903 25.5616 10.6845L25.4242 10.8371L20.2452 16.0161L25.4242 21.1951L25.5616 21.3477C26.2019 22.1333 26.1563 23.2914 25.4242 24.0235C24.692 24.7555 23.5338 24.8013 22.7483 24.161L22.5957 24.0235L17.4167 18.8445L12.237 24.0242C11.456 24.8049 10.1896 24.805 9.4086 24.0242C8.62767 23.2433 8.62789 21.9769 9.4086 21.1958L14.5883 16.0161L9.4086 10.8364C8.62761 10.0554 8.62773 8.78905 9.4086 8.00799Z" fill="white"/>
     </svg>
 </a>
 <div class='action'>
+    <div class="capture-feedback-overlay shine" [class.visible]="captureShineVisible()" aria-hidden="true"></div>
+    <div class="capture-feedback-overlay whiteout" [class.visible]="captureWhiteoutVisible()" aria-hidden="true"></div>
     <canvas #canvas></canvas>
     <video #video autoplay playsinline muted volume='0' (loadeddata)='playing()'></video>
     <svg xmlns="http://www.w3.org/2000/svg" class='overlay' [attr.viewBox]='viewBox()' class='overlay-svg' preserveAspectRatio="false">
@@ -25,6 +33,16 @@
                     <circle [attr.cx]="point.x" [attr.cy]="point.y" stroke-width="4" r="12" fill="white" stroke="white"/>
                 }
             </mask>
+            <clipPath id="scan-clip-path">
+                <path [attr.d]="maskPath()"></path>
+            </clipPath>
+            <linearGradient id="scan-beam-gradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="rgba(255,255,255,0)" />
+                <stop offset="18%" stop-color="rgba(255,255,255,0.14)" />
+                <stop offset="50%" stop-color="rgba(255,255,255,0.56)" />
+                <stop offset="82%" stop-color="rgba(255,255,255,0.14)" />
+                <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+            </linearGradient>
         </defs>
         <g class='overlay' mask="url(#mask)">
             <rect x="0" y="0" width="100%" height="100%"/>
@@ -33,5 +51,35 @@
                 <circle [attr.cx]="point.x" [attr.cy]="point.y" stroke-width="4" r="12" />
             }
         </g>
+        @if (isCapturing() && maskPath()) {
+            <g class="scan-sweep" clip-path="url(#scan-clip-path)">
+                <rect x="0"
+                      [attr.y]="scanBeamStartY()"
+                      width="100%"
+                      [attr.height]="scanBeamHeight()"
+                      fill="url(#scan-beam-gradient)">
+                    <animate attributeName="y"
+                             [attr.from]="scanBeamStartY()"
+                             [attr.to]="scanBeamEndY()"
+                                                         dur="460ms"
+                             repeatCount="indefinite" />
+                                        <animate attributeName="height"
+                                                         [attr.values]="scanBeamHeight() + ';' + scanBeamExpandedHeight() + ';' + scanBeamHeight()"
+                                                         dur="460ms"
+                                                         repeatCount="indefinite" />
+                </rect>
+                <rect class="scan-sweep-line"
+                      x="0"
+                      [attr.y]="scanBeamStartY() + (scanBeamHeight() / 2)"
+                      width="100%"
+                        height="3.5">
+                    <animate attributeName="y"
+                             [attr.from]="scanBeamStartY() + (scanBeamHeight() / 2)"
+                             [attr.to]="scanBeamEndY() + (scanBeamHeight() / 2)"
+                                                         dur="460ms"
+                             repeatCount="indefinite" />
+                </rect>
+            </g>
+        }
     </svg>
 </div>

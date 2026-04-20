@@ -1,0 +1,15 @@
+<div class="cluster-labels-container">
+  @for (label of activeLabels; track label.id) {
+    <div
+      class="cluster-label sub-theme"
+      role="button"
+      tabindex="0"
+      [attr.aria-label]="label.name"
+      (mouseenter)="onLabelEnter(label)"
+      (mouseleave)="onLabelLeave()"
+      (focus)="onLabelEnter(label)"
+      (blur)="onLabelLeave()">
+      <span class="cluster-label-text">{{ label.name }}</span>
+    </div>
+  }
+</div>

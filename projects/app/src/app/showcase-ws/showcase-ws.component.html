@@ -39,6 +39,7 @@
       [showViewToggle]='false'
       [showOrderBy]='false'
       [initialState]='currentFilters()'
+      [topicTree]='taxonomyService.topicTree()'
       (filtersChange)='onFiltersChange($event)'
       (filtersCommit)='onFiltersChange($event)'
     ></app-filters-bar>
@@ -151,6 +152,18 @@
         <circle cx='18' cy='12' r='2' fill='currentColor'/>
       </svg>
     </button>
+
+    <!-- drag_all enable button (visible to admin when not already active) -->
+    @if (!dragAllActive()) {
+      <button
+        class='drag-all-toggle hide-on-mobile'
+        (click)='enableDragAllMode()'
+        title='Enable participant drag mode (15 min)'>
+        <svg viewBox='0 0 24 24' class='button-icon'>
+          <path d='M9 11.24V7.5C9 6.12 10.12 5 11.5 5S14 6.12 14 7.5v3.74c1.21-.81 2-2.18 2-3.74C16 5.01 13.99 3 11.5 3S7 5.01 7 7.5c0 1.56.79 2.93 2 3.74zm9.84 4.63l-4.54-2.26c-.17-.07-.35-.11-.54-.11H13v-6c0-.83-.67-1.5-1.5-1.5S10 6.67 10 7.5v10.74l-3.43-.72c-.08-.01-.15-.03-.24-.03-.31 0-.59.13-.79.33l-.79.8 4.94 4.94c.27.27.65.44 1.06.44h6.79c.75 0 1.33-.55 1.44-1.28l.75-5.27c.01-.07.02-.14.02-.2 0-.62-.38-1.16-.91-1.38z' fill='currentColor'/>
+        </svg>
+      </button>
+    }
     
     <button 
       class='filter-toggle hide-on-mobile'
@@ -179,6 +192,34 @@
         <div class='button-content'>
           <img src='/icon-cone.svg' alt='Map' class='button-icon'>
           <span class='button-label'>Map</span>
+          @if (dragAllActive()) {
+            <span
+              class='map-drag-counter'
+              [class.admin]='isAdmin()'
+              [class.breathing]='dragAllActive()'
+              role='status'
+              aria-live='polite'
+              (click)='isAdmin() ? toggleDragAllControls($event) : null'
+              [attr.aria-label]="'Drag mode active, ' + dragAllRemainingFormatted() + ' remaining'">
+              {{ dragAllRemainingFormatted() }}
+              @if (isAdmin()) {
+                <span class='counter-caret' [class.open]='dragAllControlsOpen()' aria-hidden='true'>▲</span>
+              }
+            </span>
+          }
+        </div>
+      </button>
+      <button
+        class='toggle-button thematic-button'
+        [class.active]='currentLayout() === "tsne"'
+        (click)='switchToTsneLayout()'
+        title='Thematic Layout'>
+        <div class='button-content'>
+          <svg viewBox='0 0 24 24' class='button-icon' aria-hidden='true'>
+            <polygon points='12,3 21,8 21,16 12,21 3,16 3,8' stroke='currentColor' stroke-width='2' fill='none'/>
+            <polygon points='12,8 16,10.5 16,15.5 12,18 8,15.5 8,10.5' fill='currentColor' opacity='0.6'/>
+          </svg>
+          <span class='button-label'>Thematic</span>
         </div>
       </button>
       <button 
@@ -192,21 +233,36 @@
         </div>
       </button>
     </div>
+    @if (dragAllActive() && isAdmin() && dragAllControlsOpen()) {
+      <div class='drag-all-controls-popup' role='group' aria-label='Drag mode controls' (click)='$event.stopPropagation()'>
+        <button class='drag-time-btn' (click)='adjustDragAllTime(-1)' title='Remove 1 minute' aria-label='Remove 1 minute'>−1m</button>
+        <button class='drag-time-btn' (click)='adjustDragAllTime(1)' title='Add 1 minute' aria-label='Add 1 minute'>+1m</button>
+        <button class='drag-time-btn' (click)='adjustDragAllTime(5)' title='Add 5 minutes' aria-label='Add 5 minutes'>+5m</button>
+        <button class='drag-stop-btn' (click)='disableDragAllMode()' title='Stop drag mode' aria-label='Stop drag mode'>
+          <svg viewBox='0 0 24 24' class='button-icon' aria-hidden='true'>
+            <path d='M6 6h12v12H6z' fill='currentColor'/>
+          </svg>
+          Stop
+        </button>
+      </div>
+    }
   </div>
-  
-  <!-- SVG Auto-Positioning Toggle (only visible when SVG layout is active and user is admin) -->
-  @if (currentLayout() === 'svg' && isAdmin()) {
-    <div class='svg-auto-toggle'>
-      <button 
-        class='svg-auto-button'
-        [class.active]='enableSvgAutoPositioning()'
-        (click)='toggleSvgAutoPositioning()'
-        title='Toggle SVG Auto-Positioning'>
-        <svg viewBox='0 0 24 24' class='button-icon'>
-          <path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z' fill='currentColor'/>
-        </svg>
-      </button>
-    </div>
-  }
+
 </div>
+
+<!-- Taxonomy cluster labels overlay (visible only in Thematic / TSNE layout) -->
+@if (currentLayout() === 'tsne') {
+  <app-taxonomy-clusters-overlay
+    [themeLabels]='taxonomyThemeLabels()'
+    [subThemeLabels]='taxonomySubThemeLabels()'
+    [zoomLevel]='currentZoomLevel()'
+    (labelHover)='onTaxonomyLabelHover($event)'
+  ></app-taxonomy-clusters-overlay>
+}
+
+@if (currentLayout() === 'tsne' && fisheyeEnabled() && fisheyeTaxonomyFocusLabel()) {
+  <div class='fisheye-taxonomy-focus-label' aria-live='polite'>
+    {{ fisheyeTaxonomyFocusLabel() }}
+  </div>
+}
 
