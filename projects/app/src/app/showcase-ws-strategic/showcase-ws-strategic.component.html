@@ -256,6 +256,17 @@
         <p class="ws-miro-progress" role="status" aria-live="polite">{{ miroProgress() }}</p>
       }
 
+      @if (miroBoardLink()) {
+        <div class="ws-miro-result">
+          @if (miroExporting()) {
+            <p i18n>Board is ready. You can open it while export continues.</p>
+          }
+          <a [href]="miroBoardLink()!.boardUrl" target="_blank" rel="noopener noreferrer" class="ws-miro-board-link" i18n>
+            Open "{{ miroBoardLink()!.boardName }}" in Miro →
+          </a>
+        </div>
+      }
+
       @if (miroError()) {
         <p class="ws-miro-error" role="alert">{{ miroError() }}</p>
       }

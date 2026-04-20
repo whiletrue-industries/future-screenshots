@@ -39,11 +39,13 @@ export class ShowcaseWsStrategicComponent implements OnInit {
   // Miro export state
   miroToken = signal<string>('');
   miroExporting = signal(false);
+  miroBoardLink = signal<{ boardUrl: string; boardName: string; boardMode: 'create' | 'add' } | null>(null);
   miroResult = signal<{ boardUrl: string; boardName: string; boardMode: 'create' | 'add' } | null>(null);
   miroError = signal<string | null>(null);
   miroProgress = signal<string>('');
   miroBoardId = signal<string | null>(null);
   boardMode = signal<'create' | 'add'>('add'); // 'add' updates existing board when available
+  private readonly MIRO_REQUEST_TIMEOUT_MS = 30000;
 
   // Copied link feedback
   copiedGroupId = signal<string | null>(null);
@@ -229,6 +231,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
 
     this.miroExporting.set(true);
     this.miroError.set(null);
+    this.miroBoardLink.set(null);
     this.miroResult.set(null);
 
     const groups = this.wsGroups();
@@ -258,6 +261,9 @@ export class ShowcaseWsStrategicComponent implements OnInit {
           const existingBoard = await this.miroGet(token, `https://api.miro.com/v2/boards/${storedBoardId}`);
           boardId = storedBoardId;
           boardUrl = (existingBoard.viewLink as string) || '';
+          if (boardUrl) {
+            this.miroBoardLink.set({ boardUrl, boardName, boardMode: 'add' });
+          }
           this.miroProgress.set('Updating existing Miro board…');
         } catch {
           this.miroError.set('Could not access existing board. Creating a new board instead.');
@@ -276,6 +282,9 @@ export class ShowcaseWsStrategicComponent implements OnInit {
         boardUrl = board.viewLink as string;
         this.miroBoardId.set(boardId);
         this.storeMiroBoardId(boardId);
+        if (boardUrl) {
+          this.miroBoardLink.set({ boardUrl, boardName, boardMode: 'create' });
+        }
       }
 
       const finalBoardId = boardId as string;
@@ -431,6 +440,8 @@ export class ShowcaseWsStrategicComponent implements OnInit {
           });
         }
 
+        this.miroProgress.set(`Adding headers for group: ${group.name}…`);
+
         if (participants.length === 0 && !existingFrame) {
           await this.miroPost(token, `https://api.miro.com/v2/boards/${finalBoardId}/sticky_notes`, {
             data: { content: 'No submissions yet', shape: 'rectangle' },
@@ -469,6 +480,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
         }
 
         for (let round = 1; round <= totalRounds; round++) {
+          this.miroProgress.set(`Placing round ${round} for group: ${group.name}…`);
           const roundIdx = round - 1;
           const roundStartY = contentTopY + roundIdx * (roundRowH + ROUND_GAP);
           const roundHeaderY = roundStartY + ROUND_HEADER_H / 2;
@@ -610,19 +622,6 @@ export class ShowcaseWsStrategicComponent implements OnInit {
                 }
               }
 
-              for (const stickyId of stickyIdsToTag) {
-                for (const datapointTag of datapointTags) {
-                  const tagId = await this.getOrCreateBoardTag(
-                    token,
-                    finalBoardId,
-                    boardTagCache,
-                    datapointTag.tagTitle,
-                    this.toMiroTagColor(group.color),
-                  );
-                  await this.attachTagToItem(token, finalBoardId, stickyId, tagId);
-                }
-              }
-
               const imgUrl = this.getScreenshotUrl(item) || this.getThumbnailUrl(item);
               if (imgUrl) {
                 this.miroProgress.set(`Placing image: ${participantName} / Round ${round} / Item ${itemIdx + 1}…`);
@@ -640,6 +639,19 @@ export class ShowcaseWsStrategicComponent implements OnInit {
                   geometry: { width: IMAGE_W },
                   position: { x: imageCenterX, y: imageCenterY, origin: 'center' },
                 });
+              }
+
+              for (const stickyId of stickyIdsToTag) {
+                for (const datapointTag of datapointTags) {
+                  const tagId = await this.getOrCreateBoardTag(
+                    token,
+                    finalBoardId,
+                    boardTagCache,
+                    datapointTag.tagTitle,
+                    this.toMiroTagColor(group.color),
+                  );
+                  await this.attachTagToItem(token, finalBoardId, stickyId, tagId);
+                }
               }
 
               if (itemId) {
@@ -1373,43 +1385,42 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     return all;
   }
 
-  private async attachTagToItem(token: string, boardId: string, itemId: string, tagId: string): Promise<void> {
+  private async attachTagToItem(token: string, boardId: string, itemId: string, tagId: string): Promise<boolean> {
     const encodedItemId = encodeURIComponent(itemId);
     const url = `https://api.miro.com/v2/boards/${boardId}/items/${encodedItemId}?tag_id=${encodeURIComponent(tagId)}`;
-    // Retry attach and verify the tag is actually present on the item.
-    const attempts = 4;
-    for (let attempt = 0; attempt < attempts; attempt++) {
-      try {
-        await this.miroPostNoContent(token, url);
-      } catch (error) {
-        const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
-        const isAlreadyAttached = message.includes('409')
-          && (message.includes('already') || message.includes('duplicate') || message.includes('exist'));
-        if (isAlreadyAttached) {
-          // Continue to verification below; duplicate attach should still result in the tag being present.
-        } else if (attempt === attempts - 1) {
-          throw error;
-        }
+    try {
+      await this.miroPostNoContent(token, url);
+      return true;
+    } catch (error) {
+      const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+      const isAlreadyAttached = message.includes('409')
+        && (message.includes('already') || message.includes('duplicate') || message.includes('exist'));
+      if (isAlreadyAttached) {
+        return true;
       }
-
-      if (await this.itemHasTag(token, boardId, itemId, tagId)) {
-        return;
-      }
-
-      if (attempt === attempts - 1) {
-        throw new Error(`Tag assignment was not persisted for item ${itemId} and tag ${tagId}.`);
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 350 + attempt * 250));
+      console.warn(`[Miro Export] Failed to attach tag ${tagId} to item ${itemId}. Continuing export.`, error);
+      return false;
     }
   }
 
   private async itemHasTag(token: string, boardId: string, itemId: string, tagId: string): Promise<boolean> {
     try {
       const encodedItemId = encodeURIComponent(itemId);
-      const resp = await this.miroGet(token, `https://api.miro.com/v2/boards/${boardId}/items/${encodedItemId}/tags?limit=50`);
-      const tags = Array.isArray(resp?.data) ? resp.data : [];
-      return tags.some((tag: any) => String(tag?.id || '') === tagId);
+      let nextUrl = `https://api.miro.com/v2/boards/${boardId}/items/${encodedItemId}/tags?limit=50`;
+      let pageCount = 0;
+      const maxPages = 40;
+
+      while (nextUrl && pageCount < maxPages) {
+        const resp = await this.miroGet(token, nextUrl);
+        const tags = Array.isArray(resp?.data) ? resp.data : [];
+        if (tags.some((tag: any) => String(tag?.id || '') === tagId)) {
+          return true;
+        }
+        nextUrl = resp?.links?.next || '';
+        pageCount += 1;
+      }
+
+      return false;
     } catch {
       return false;
     }
@@ -1419,7 +1430,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     if (!token) {
       throw new Error('Miro token is missing. Paste a personal access token and try again.');
     }
-    const resp = await fetch(url, {
+    const resp = await this.miroFetch(url, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -1436,7 +1447,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     if (!token) {
       throw new Error('Miro token is missing. Paste a personal access token and try again.');
     }
-    const resp = await fetch(url, {
+    const resp = await this.miroFetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1455,7 +1466,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     if (!token) {
       throw new Error('Miro token is missing. Paste a personal access token and try again.');
     }
-    const resp = await fetch(url, {
+    const resp = await this.miroFetch(url, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -1472,7 +1483,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     if (!token) {
       throw new Error('Miro token is missing. Paste a personal access token and try again.');
     }
-    const resp = await fetch(url, {
+    const resp = await this.miroFetch(url, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -1489,7 +1500,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     if (!token) {
       throw new Error('Miro token is missing. Paste a personal access token and try again.');
     }
-    const resp = await fetch(url, {
+    const resp = await this.miroFetch(url, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -1502,6 +1513,25 @@ export class ShowcaseWsStrategicComponent implements OnInit {
       throw new Error(`Miro API error ${resp.status}: ${text}`);
     }
     return resp.json();
+  }
+
+  private async miroFetch(url: string, init: RequestInit): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.MIRO_REQUEST_TIMEOUT_MS);
+
+    try {
+      return await fetch(url, {
+        ...init,
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error(`Miro API request timed out after ${this.MIRO_REQUEST_TIMEOUT_MS / 1000} seconds.`);
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   /**
