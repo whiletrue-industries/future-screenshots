@@ -13,6 +13,13 @@ type ExistingMiroFrame = {
   height: number;
 };
 
+type WsTab = 'export' | 'settings';
+
+type StoredExportItemState = {
+  screenshotUrl: string;
+  exportedAt: number;
+};
+
 @Component({
   selector: 'app-showcase-ws-strategic',
   imports: [],
@@ -37,6 +44,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
   errorMsg = signal<string | null>(null);
 
   // Miro export state
+  activeTab = signal<WsTab>('export');
   miroToken = signal<string>('');
   miroExporting = signal(false);
   miroBoardLink = signal<{ boardUrl: string; boardName: string; boardMode: 'create' | 'add' } | null>(null);
@@ -47,6 +55,18 @@ export class ShowcaseWsStrategicComponent implements OnInit {
   boardMode = signal<'create' | 'add'>('add'); // 'add' updates existing board when available
   private readonly MIRO_REQUEST_TIMEOUT_MS = 30000;
   private readonly MIRO_TAG_TITLE_MAX_LENGTH = 120;
+  private readonly MIRO_TAG_RETRY_ATTEMPTS = 6;
+  excludedGroupIds = signal<Set<string>>(new Set());
+  excludedRoundKeys = signal<Set<string>>(new Set());
+  excludedItemKeys = signal<Set<string>>(new Set());
+  includeTagGroup = signal(true);
+  includeTagRound = signal(true);
+  includeTagContentTitle = signal(true);
+  includeTagItemId = signal(true);
+  collapsedGroupIds = signal<Set<string>>(new Set());
+  collapsedRoundKeys = signal<Set<string>>(new Set());
+  lastExportState = signal<Map<string, StoredExportItemState | null>>(new Map());
+  lastExportAt = signal<number | null>(null);
 
   // Copied link feedback
   copiedGroupId = signal<string | null>(null);
@@ -111,6 +131,8 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     const storedBoardId = this.getStoredMiroBoardId();
     this.miroBoardId.set(storedBoardId);
     this.boardMode.set(this.getStoredBoardMode(storedBoardId));
+    this.loadStoredLastExportState();
+    this.initActiveTabFromUrl();
 
     if (this.workspace()) {
       this.loadWorkspace();
@@ -219,6 +241,191 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     this.storeBoardMode(mode);
   }
 
+  setActiveTab(tab: WsTab) {
+    this.activeTab.set(tab);
+    this.updateTabPermalink(tab);
+  }
+
+  getTabPermalink(tab: WsTab): string {
+    if (typeof window === 'undefined') {
+      return `#${tab}`;
+    }
+    return `${window.location.origin}${window.location.pathname}${window.location.search}#${tab}`;
+  }
+
+  private initActiveTabFromUrl(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const hash = (window.location.hash || '').replace('#', '').toLowerCase();
+    if (hash === 'export' || hash === 'settings') {
+      this.activeTab.set(hash as WsTab);
+      return;
+    }
+
+    this.updateTabPermalink(this.activeTab());
+  }
+
+  private updateTabPermalink(tab: WsTab): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const url = `${window.location.pathname}${window.location.search}#${tab}`;
+    window.history.replaceState(window.history.state, '', url);
+  }
+
+  isGroupIncluded(groupId: string): boolean {
+    return !this.excludedGroupIds().has(groupId);
+  }
+
+  toggleGroupIncluded(groupId: string, included: boolean): void {
+    this.excludedGroupIds.update((current) => {
+      const next = new Set(current);
+      if (included) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  }
+
+  isRoundIncluded(groupId: string, round: number): boolean {
+    return !this.excludedRoundKeys().has(this.roundSelectionKey(groupId, round));
+  }
+
+  toggleRoundIncluded(groupId: string, round: number, included: boolean): void {
+    const key = this.roundSelectionKey(groupId, round);
+    this.excludedRoundKeys.update((current) => {
+      const next = new Set(current);
+      if (included) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
+  isGroupCollapsed(groupId: string): boolean {
+    return this.collapsedGroupIds().has(groupId);
+  }
+
+  toggleGroupCollapsed(groupId: string): void {
+    this.collapsedGroupIds.update((current) => {
+      const next = new Set(current);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  }
+
+  isRoundCollapsed(groupId: string, round: number): boolean {
+    return this.collapsedRoundKeys().has(this.roundSelectionKey(groupId, round));
+  }
+
+  toggleRoundCollapsed(groupId: string, round: number): void {
+    const key = this.roundSelectionKey(groupId, round);
+    this.collapsedRoundKeys.update((current) => {
+      const next = new Set(current);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
+  participantIdLast4(participantId: string): string {
+    const raw = (participantId || '').trim();
+    if (!raw) {
+      return '----';
+    }
+    return raw.length <= 4 ? raw : raw.slice(-4);
+  }
+
+  isItemIncluded(itemKey: string): boolean {
+    return !this.excludedItemKeys().has(itemKey);
+  }
+
+  toggleItemIncluded(itemKey: string, included: boolean): void {
+    this.excludedItemKeys.update((current) => {
+      const next = new Set(current);
+      if (included) {
+        next.delete(itemKey);
+      } else {
+        next.add(itemKey);
+      }
+      return next;
+    });
+  }
+
+  setIncludeTagGroup(enabled: boolean): void {
+    this.includeTagGroup.set(enabled);
+  }
+
+  setIncludeTagRound(enabled: boolean): void {
+    this.includeTagRound.set(enabled);
+  }
+
+  setIncludeTagContentTitle(enabled: boolean): void {
+    this.includeTagContentTitle.set(enabled);
+  }
+
+  setIncludeTagItemId(enabled: boolean): void {
+    this.includeTagItemId.set(enabled);
+  }
+
+  isExportPathIncluded(groupId: string, round: number, itemKey: string): boolean {
+    return this.isGroupIncluded(groupId)
+      && this.isRoundIncluded(groupId, round)
+      && this.isItemIncluded(itemKey);
+  }
+
+  private roundSelectionKey(groupId: string, round: number): string {
+    return `${groupId}:${round}`;
+  }
+
+  private itemSelectionKey(item: any): string {
+    const id = this.getItemId(item);
+    if (id) {
+      return `id:${id}`;
+    }
+    const groupId = this.getWsGroupId(item) || 'nogroup';
+    const round = Number(this.getWsRound(item)) || 0;
+    const participant = this.getAuthorId(item) || this.getParticipantName(item) || 'unknown';
+    const title = this.getContentTitle(item) || 'untitled';
+    return `${groupId}|${round}|${participant}|${title}`;
+  }
+
+  private exportBaselineKey(item: any): string {
+    return this.itemSelectionKey(item);
+  }
+
+  private buildDatapointTags(groupName: string, round: number, contentTitle: string, itemId: string): Array<{ tagTitle: string }> {
+    const tags: Array<{ tagTitle: string }> = [];
+
+    if (this.includeTagGroup()) {
+      tags.push({ tagTitle: this.sanitizeMiroTagTitle(`group:${groupName}`) });
+    }
+    if (this.includeTagRound()) {
+      tags.push({ tagTitle: this.sanitizeMiroTagTitle(`round:${round}`) });
+    }
+    if (this.includeTagContentTitle()) {
+      tags.push({ tagTitle: this.sanitizeMiroTagTitle(`content_title:${contentTitle}`) });
+    }
+    if (this.includeTagItemId() && itemId) {
+      tags.push({ tagTitle: this.sanitizeMiroTagTitle(`item_id:${itemId}`) });
+    }
+
+    return tags.filter((tag) => tag.tagTitle.length > 0);
+  }
+
   // ---- Miro export (Option C2 – token paste) ----
 
   /** Push all groups to Miro as separate boards, each with a participant × round image grid */
@@ -238,6 +445,20 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     const groups = this.wsGroups();
     const totalRounds = this.wsTotalRounds();
     const allItems = this.items().filter((item) => !this.isItemArchived(item));
+    const filteredItems = allItems.filter((item) => {
+      const groupId = this.getWsGroupId(item);
+      const round = Number(this.getWsRound(item));
+      const itemKey = this.itemSelectionKey(item);
+      if (!groupId || !Number.isFinite(round)) {
+        return false;
+      }
+      return this.isExportPathIncluded(groupId, round, itemKey);
+    });
+    if (filteredItems.length === 0) {
+      this.miroError.set('No items selected for export. Enable at least one group/round/item and try again.');
+      this.miroExporting.set(false);
+      return;
+    }
     const workshopName = this.workshopName();
 
     try {
@@ -322,6 +543,8 @@ export class ShowcaseWsStrategicComponent implements OnInit {
 
       let groupOffsetY = existingBoardStartY;
       const prompts = this.wsRoundPrompts();
+      let renderedItemCount = 0;
+      const exportedItemStateUpdates = new Map<string, string>();
 
       // Calculate delta information if in update mode for existing board
       let itemDelta = { new: new Set<string>(), updated: new Set<string>(), all: new Set<string>() };
@@ -331,7 +554,11 @@ export class ShowcaseWsStrategicComponent implements OnInit {
       }
 
       for (const group of groups) {
-        const groupItemsAll = allItems.filter(item => this.getWsGroupId(item) === group.id);
+        if (!this.isGroupIncluded(group.id)) {
+          continue;
+        }
+
+        const groupItemsAll = filteredItems.filter(item => this.getWsGroupId(item) === group.id);
 
         let groupItems = groupItemsAll;
         
@@ -339,14 +566,14 @@ export class ShowcaseWsStrategicComponent implements OnInit {
         if (isDeltaUpdateOnExistingBoard) {
           const originalCount = groupItemsAll.length;
           groupItems = groupItemsAll.filter(item => {
-            const itemId = this.getItemId(item);
-            return itemId && (itemDelta.new.has(itemId) || itemDelta.updated.has(itemId));
+            const baselineKey = this.exportBaselineKey(item);
+            return itemDelta.new.has(baselineKey) || itemDelta.updated.has(baselineKey);
           });
           console.log(`[Miro Export] Group "${group.name}": ${originalCount} total → ${groupItems.length} changed items (delta mode)`);
         } else {
           console.log(`[Miro Export] Group "${group.name}": ${groupItemsAll.length} total items`);
         }
-        const placedItemIds = new Set<string>();
+        const placedItemKeys = new Set<string>();
 
         // In delta mode, skip groups that have no changed items.
         if (isDeltaUpdateOnExistingBoard && groupItems.length === 0) {
@@ -481,6 +708,9 @@ export class ShowcaseWsStrategicComponent implements OnInit {
         }
 
         for (let round = 1; round <= totalRounds; round++) {
+          if (!this.isRoundIncluded(group.id, round)) {
+            continue;
+          }
           this.miroProgress.set(`Placing round ${round} for group: ${group.name}…`);
           const roundIdx = round - 1;
           const roundStartY = contentTopY + roundIdx * (roundRowH + ROUND_GAP);
@@ -533,8 +763,8 @@ export class ShowcaseWsStrategicComponent implements OnInit {
             // are always additive and never overwrite existing board content.
             const unchangedSlotCount = isDeltaUpdateOnExistingBoard
               ? itemsForParticipant.filter(i => {
-                  const id = this.getItemId(i);
-                  return !id || (!itemDelta.new.has(id) && !itemDelta.updated.has(id));
+                  const baselineKey = this.exportBaselineKey(i);
+                  return !itemDelta.new.has(baselineKey) && !itemDelta.updated.has(baselineKey);
                 }).length
               : 0;
             let deltaRenderIdx = 0;
@@ -543,11 +773,14 @@ export class ShowcaseWsStrategicComponent implements OnInit {
             for (let itemIdx = 0; itemIdx < itemsForParticipant.length; itemIdx++) {
               const item = itemsForParticipant[itemIdx];
               const itemId = this.getItemId(item);
+              const baselineKey = this.exportBaselineKey(item);
+              const itemKey = this.itemSelectionKey(item);
               const shouldRenderItem = !isDeltaUpdateOnExistingBoard
-                || (itemId && (itemDelta.new.has(itemId) || itemDelta.updated.has(itemId)));
-              if (!shouldRenderItem) {
+                || (itemDelta.new.has(baselineKey) || itemDelta.updated.has(baselineKey));
+              if (!shouldRenderItem || !this.isItemIncluded(itemKey)) {
                 continue;
               }
+              renderedItemCount++;
 
               // In delta mode use an append slot (after all unchanged items) so that
               // new and updated items are always added rather than replacing existing ones.
@@ -591,12 +824,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
                 );
               }
 
-              const datapointTags = [
-                { tagTitle: this.sanitizeMiroTagTitle(`group:${group.name}`) },
-                { tagTitle: this.sanitizeMiroTagTitle(`round:${round}`) },
-                { tagTitle: this.sanitizeMiroTagTitle(`content_title:${contentTitle}`) },
-                ...(itemId ? [{ tagTitle: this.sanitizeMiroTagTitle(`item_id:${itemId}`) }] : []),
-              ].filter((tag) => tag.tagTitle.length > 0);
+              const datapointTags = this.buildDatapointTags(group.name, round, contentTitle, itemId || '');
 
               const stickyIdsToTag: string[] = [];
 
@@ -659,19 +887,18 @@ export class ShowcaseWsStrategicComponent implements OnInit {
                 }
               }
 
-              if (itemId) {
-                placedItemIds.add(itemId);
-              }
+              placedItemKeys.add(baselineKey);
+              exportedItemStateUpdates.set(baselineKey, this.getScreenshotUrl(item) || this.getThumbnailUrl(item) || '');
             }
           }
         }
 
         const unplaced = groupItems.filter((item) => {
-          const id = this.getItemId(item);
-          if (isDeltaUpdateOnExistingBoard && (!id || !itemDelta.new.has(id) && !itemDelta.updated.has(id))) {
+          const baselineKey = this.exportBaselineKey(item);
+          if (isDeltaUpdateOnExistingBoard && !itemDelta.new.has(baselineKey) && !itemDelta.updated.has(baselineKey)) {
             return false;
           }
-          return !id || !placedItemIds.has(id);
+          return !placedItemKeys.has(baselineKey);
         });
         if (unplaced.length > 0) {
           console.log(`[Miro Export] Unplaced items in group "${group.name}": ${unplaced.length}`);
@@ -694,14 +921,23 @@ export class ShowcaseWsStrategicComponent implements OnInit {
         }
       }
 
+      if (renderedItemCount === 0) {
+        const noOpMessage = shouldAddToExisting
+          ? 'No changes were exported. In update mode, only newly added or updated items are sent.'
+          : 'No items were exported. Check your include toggles and try again.';
+        this.miroError.set(noOpMessage);
+        this.miroProgress.set('');
+        return;
+      }
+
       this.miroResult.set({
         boardUrl,
         boardName,
         boardMode: shouldAddToExisting ? 'add' : 'create',
       });
       
-      // Store the current item state (id → screenshotUrl) for delta-based exports in future runs.
-      this.storeLastExportState(allItems);
+      // Persist export baseline immediately so preview delta updates without a full refresh.
+      this.storeLastExportState(exportedItemStateUpdates);
       
       this.miroProgress.set('');
     } catch (err: any) {
@@ -879,12 +1115,18 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     const totalRounds = this.wsTotalRounds();
     const prompts = this.wsRoundPrompts();
     const allItems = this.items().filter((item) => !this.isItemArchived(item));
+    const storedExportState = this.lastExportState();
+    const lastWorkspaceExportAt = this.lastExportAt();
     const exportMode: 'new' | 'update' = this.boardMode() === 'add' && !!this.miroBoardId() ? 'update' : 'new';
     
     // Calculate which items are new/updated only if in update mode
     const itemDelta = exportMode === 'update'
       ? this.calculateItemDelta(allItems)
-      : { new: new Set(allItems.map(i => this.getItemId(i))), updated: new Set<string>(), all: new Set(allItems.map(i => this.getItemId(i))) };
+      : {
+          new: new Set(allItems.map(i => this.exportBaselineKey(i))),
+          updated: new Set<string>(),
+          all: new Set(allItems.map(i => this.exportBaselineKey(i))),
+        };
 
     return groups.map((group) => {
       const groupItems = allItems.filter((item) => this.getWsGroupId(item) === group.id);
@@ -911,15 +1153,31 @@ export class ShowcaseWsStrategicComponent implements OnInit {
           const items = itemsForParticipant.map((item, itemIdx) => {
             const imageUrl = this.getScreenshotUrl(item) || this.getThumbnailUrl(item) || '';
             const itemId = this.getItemId(item) || `${participantId}-${round}-${itemIdx}`;
+            const baselineKey = this.exportBaselineKey(item);
+            const exportKey = this.itemSelectionKey(item);
             const changeStatus = exportMode === 'update'
-              ? itemDelta.new.has(itemId) ? 'new' : itemDelta.updated.has(itemId) ? 'updated' : 'unchanged'
+              ? itemDelta.new.has(baselineKey) ? 'new' : itemDelta.updated.has(baselineKey) ? 'updated' : 'unchanged'
               : 'new';
+            const itemState = storedExportState.get(baselineKey);
+            const hasBeenExported = storedExportState.has(baselineKey);
+            const itemLastExportAt = itemState && itemState !== null
+              ? itemState.exportedAt
+              : lastWorkspaceExportAt;
             return {
               id: itemId,
+              exportKey,
               title: this.getContentTitle(item) || `Item ${itemIdx + 1}`,
               imageUrl,
               hasImage: !!imageUrl,
               changeStatus: changeStatus as 'new' | 'updated' | 'unchanged',
+              hasBeenExported,
+              lastExportAt: itemLastExportAt,
+              lastExportLabel: hasBeenExported
+                ? this.formatExportTimestamp(itemLastExportAt)
+                : 'never',
+              updatedSinceExport: hasBeenExported
+                ? changeStatus === 'updated'
+                : null,
             };
           });
 
@@ -928,14 +1186,14 @@ export class ShowcaseWsStrategicComponent implements OnInit {
             participantName,
             items,
           };
-        });
+        }).filter((participantRow) => participantRow.items.length > 0);
 
         return {
           round,
           prompt,
           participants: participantRows,
         };
-      });
+      }).filter((roundRow) => roundRow.participants.length > 0);
 
       const unplaced = groupItems
         .filter((item) => {
@@ -948,8 +1206,8 @@ export class ShowcaseWsStrategicComponent implements OnInit {
           reason: this.getItemSkipReason(item, totalRounds),
         }));
 
-      const groupNewCount = groupItems.filter(i => itemDelta.new.has(this.getItemId(i) || '')).length;
-      const groupUpdatedCount = groupItems.filter(i => itemDelta.updated.has(this.getItemId(i) || '')).length;
+      const groupNewCount = groupItems.filter(i => itemDelta.new.has(this.exportBaselineKey(i))).length;
+      const groupUpdatedCount = groupItems.filter(i => itemDelta.updated.has(this.exportBaselineKey(i))).length;
 
       return {
         id: group.id,
@@ -982,27 +1240,27 @@ export class ShowcaseWsStrategicComponent implements OnInit {
    * Returns sets of item IDs for: new items, updated items, and all items
    */
   private calculateItemDelta(allItems: any[]): { new: Set<string>; updated: Set<string>; all: Set<string> } {
-    const lastExportState = this.getStoredLastExportState();
+    const lastExportState = this.lastExportState();
     const newItems = new Set<string>();
     const updatedItems = new Set<string>();
     const allIds = new Set<string>();
 
     for (const item of allItems) {
-      const id = this.getItemId(item);
-      if (!id) continue;
-      allIds.add(id);
-      if (!lastExportState.has(id)) {
+      const key = this.exportBaselineKey(item);
+      if (!key) continue;
+      allIds.add(key);
+      if (!lastExportState.has(key)) {
         // Item was not in the last export → genuinely new.
-        newItems.add(id);
+        newItems.add(key);
       } else {
         // Item was exported before. Only mark as updated if the screenshot URL changed.
         // storedUrl === null means we have no URL baseline (old storage format migration);
         // in that case treat the item as unchanged to avoid spurious re-renders.
-        const storedUrl = lastExportState.get(id);
-        if (storedUrl !== null) {
+        const storedState = lastExportState.get(key);
+        if (storedState && storedState !== null) {
           const currentUrl = this.getScreenshotUrl(item) || this.getThumbnailUrl(item) || '';
-          if (currentUrl !== storedUrl) {
-            updatedItems.add(id);
+          if (currentUrl !== storedState.screenshotUrl) {
+            updatedItems.add(key);
           }
         }
         // else (storedUrl === null): unchanged baseline — skip entirely, do not re-render.
@@ -1105,44 +1363,112 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     return `ws_miro_last_export_ids_${this.workspace()}`;
   }
 
+  private loadStoredLastExportState(): void {
+    const { state, lastExportAt } = this.readStoredLastExportState();
+    this.lastExportState.set(state);
+    this.lastExportAt.set(lastExportAt);
+  }
+
   /**
-   * Returns a Map<itemId, screenshotUrl | null> from the last export.
-   * null means the item was known to have been exported but we have no URL baseline
-   * (e.g. migrating from the old plain-array storage format). Items with a null stored
-   * URL are treated as unchanged to avoid spurious re-exports on the first run after
-   * the storage format was upgraded.
+   * Returns a reactive export baseline map from local storage.
+   * null value means item was exported but has no URL baseline (legacy migration case).
    */
-  private getStoredLastExportState(): Map<string, string | null> {
+  private readStoredLastExportState(): { state: Map<string, StoredExportItemState | null>; lastExportAt: number | null } {
     const key = this.workspace();
-    if (!key || !this.hasLocalStorage()) return new Map();
+    if (!key || !this.hasLocalStorage()) {
+      return { state: new Map(), lastExportAt: null };
+    }
     try {
       const stored = localStorage.getItem(this.miroLastExportItemIdsStorageKey());
-      if (!stored) return new Map();
+      if (!stored) {
+        return { state: new Map(), lastExportAt: null };
+      }
       const parsed: unknown = JSON.parse(stored);
       // Old format: plain array of IDs — no URL baseline; use null as sentinel.
       if (Array.isArray(parsed)) {
-        return new Map((parsed as string[]).map(id => [id, null] as [string, null]));
+        return {
+          state: new Map((parsed as string[]).map(id => [id, null] as [string, null])),
+          lastExportAt: null,
+        };
       }
-      // New format: object mapping itemId → screenshotUrl.
-      return new Map(Object.entries(parsed as Record<string, string>));
+
+      if (parsed && typeof parsed === 'object' && 'items' in (parsed as Record<string, unknown>)) {
+        const payload = parsed as {
+          items?: Record<string, { screenshotUrl?: string; exportedAt?: number } | null>;
+          lastExportAt?: number;
+        };
+        const state = new Map<string, StoredExportItemState | null>();
+        const items = payload.items || {};
+        for (const [itemId, itemState] of Object.entries(items)) {
+          if (!itemState || typeof itemState !== 'object') {
+            state.set(itemId, null);
+            continue;
+          }
+          const screenshotUrl = typeof itemState.screenshotUrl === 'string' ? itemState.screenshotUrl : '';
+          const exportedAt = Number(itemState.exportedAt);
+          state.set(itemId, {
+            screenshotUrl,
+            exportedAt: Number.isFinite(exportedAt) ? exportedAt : (Number(payload.lastExportAt) || 0),
+          });
+        }
+        const lastExportAt = Number(payload.lastExportAt);
+        return {
+          state,
+          lastExportAt: Number.isFinite(lastExportAt) ? lastExportAt : null,
+        };
+      }
+
+      // Legacy object format: itemId -> screenshotUrl
+      const legacyState = new Map<string, StoredExportItemState | null>();
+      for (const [itemId, screenshotUrl] of Object.entries(parsed as Record<string, string>)) {
+        legacyState.set(itemId, {
+          screenshotUrl: typeof screenshotUrl === 'string' ? screenshotUrl : '',
+          exportedAt: 0,
+        });
+      }
+      return { state: legacyState, lastExportAt: null };
     } catch {
-      return new Map();
+      return { state: new Map(), lastExportAt: null };
     }
   }
 
-  private storeLastExportState(items: any[]): void {
+  private storeLastExportState(exportedItems: Map<string, string>): void {
     const key = this.workspace();
     if (!key || !this.hasLocalStorage()) return;
     try {
-      const state: Record<string, string> = {};
-      for (const item of items) {
-        const id = this.getItemId(item);
-        if (!id) continue;
-        state[id] = this.getScreenshotUrl(item) || this.getThumbnailUrl(item) || '';
+      const exportTime = Date.now();
+      const next = new Map(this.lastExportState());
+      for (const [id, screenshotUrl] of exportedItems.entries()) {
+        next.set(id, {
+          screenshotUrl,
+          exportedAt: exportTime,
+        });
       }
-      localStorage.setItem(this.miroLastExportItemIdsStorageKey(), JSON.stringify(state));
+      this.lastExportState.set(next);
+      this.lastExportAt.set(exportTime);
+
+      const serializableItems: Record<string, StoredExportItemState | null> = {};
+      for (const [id, itemState] of next.entries()) {
+        serializableItems[id] = itemState;
+      }
+
+      localStorage.setItem(this.miroLastExportItemIdsStorageKey(), JSON.stringify({
+        lastExportAt: exportTime,
+        items: serializableItems,
+      }));
     } catch {
       // Ignore storage write failures
+    }
+  }
+
+  formatExportTimestamp(value: number | null): string {
+    if (!value || !Number.isFinite(value) || value <= 0) {
+      return 'unknown';
+    }
+    try {
+      return new Date(value).toLocaleString();
+    } catch {
+      return 'unknown';
     }
   }
 
@@ -1296,26 +1622,36 @@ export class ShowcaseWsStrategicComponent implements OnInit {
       return cachedId;
     }
 
-    try {
-      const tag = await this.miroPost(token, `https://api.miro.com/v2/boards/${boardId}/tags`, {
-        title,
-        fillColor,
-      });
+    for (let attempt = 0; attempt < this.MIRO_TAG_RETRY_ATTEMPTS; attempt++) {
+      try {
+        const tag = await this.miroPost(token, `https://api.miro.com/v2/boards/${boardId}/tags`, {
+          title,
+          fillColor,
+        });
 
-      const tagId = tag.id as string;
-      tagCache.set(cacheKey, tagId);
-      return tagId;
-    } catch (err) {
-      const message = (err instanceof Error ? err.message : String(err)).toLowerCase();
-      const isDuplicate = message.includes('already exists') || message.includes('already_exist') || message.includes('duplicate');
-      if (isDuplicate) {
-        const existingId = await this.findBoardTagIdByTitle(token, boardId, normalizedTitle, tagCache);
-        if (existingId) {
-          return existingId;
+        const tagId = tag.id as string;
+        tagCache.set(cacheKey, tagId);
+        return tagId;
+      } catch (err) {
+        const message = (err instanceof Error ? err.message : String(err)).toLowerCase();
+        const isDuplicate = message.includes('already exists') || message.includes('already_exist') || message.includes('duplicate');
+        if (isDuplicate) {
+          const existingId = await this.findBoardTagIdByTitle(token, boardId, normalizedTitle, tagCache);
+          if (existingId) {
+            return existingId;
+          }
         }
+
+        const shouldRetry = this.isRetriableMiroError(err);
+        if (!shouldRetry || attempt === this.MIRO_TAG_RETRY_ATTEMPTS - 1) {
+          throw err;
+        }
+
+        await this.delay(this.retryDelayMs(attempt));
       }
-      throw err;
     }
+
+    throw new Error('Failed to create or resolve Miro tag after retries.');
   }
 
   private async preloadBoardTags(token: string, boardId: string, tagCache: Map<string, string>): Promise<void> {
@@ -1401,19 +1737,49 @@ export class ShowcaseWsStrategicComponent implements OnInit {
   private async attachTagToItem(token: string, boardId: string, itemId: string, tagId: string): Promise<boolean> {
     const encodedItemId = encodeURIComponent(itemId);
     const url = `https://api.miro.com/v2/boards/${boardId}/items/${encodedItemId}?tag_id=${encodeURIComponent(tagId)}`;
-    try {
-      await this.miroPostNoContent(token, url);
-      return true;
-    } catch (error) {
-      const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
-      const isAlreadyAttached = message.includes('409')
-        && (message.includes('already') || message.includes('duplicate') || message.includes('exist'));
-      if (isAlreadyAttached) {
+    for (let attempt = 0; attempt < this.MIRO_TAG_RETRY_ATTEMPTS; attempt++) {
+      try {
+        await this.miroPostNoContent(token, url);
         return true;
+      } catch (error) {
+        const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+        const isAlreadyAttached = message.includes('409')
+          && (message.includes('already') || message.includes('duplicate') || message.includes('exist'));
+        if (isAlreadyAttached) {
+          return true;
+        }
+
+        const shouldRetry = this.isRetriableMiroError(error);
+        if (!shouldRetry || attempt === this.MIRO_TAG_RETRY_ATTEMPTS - 1) {
+          console.warn(`[Miro Export] Failed to attach tag ${tagId} to item ${itemId}. Continuing export.`, error);
+          return false;
+        }
+
+        await this.delay(this.retryDelayMs(attempt));
       }
-      console.warn(`[Miro Export] Failed to attach tag ${tagId} to item ${itemId}. Continuing export.`, error);
-      return false;
     }
+
+    return false;
+  }
+
+  private isRetriableMiroError(error: unknown): boolean {
+    const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+    return message.includes('429')
+      || message.includes(' 500')
+      || message.includes(' 502')
+      || message.includes(' 503')
+      || message.includes(' 504')
+      || message.includes('timed out')
+      || message.includes('networkerror')
+      || message.includes('failed to fetch');
+  }
+
+  private retryDelayMs(attempt: number): number {
+    return Math.min(5000, 450 * Math.pow(2, attempt));
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private async itemHasTag(token: string, boardId: string, itemId: string, tagId: string): Promise<boolean> {
