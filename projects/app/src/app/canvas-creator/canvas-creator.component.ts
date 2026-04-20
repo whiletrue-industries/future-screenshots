@@ -17,14 +17,6 @@ interface Template {
   preview: string;
 }
 
-interface WsRoundNavSlot {
-  label: string;
-  round: number | null;
-  enabled: boolean;
-  variant: 'primary' | 'secondary' | 'disabled';
-  action: 'current' | 'jump' | 'done';
-}
-
 const DEFAULT_ACTIVE_TEMPLATE_IDS = [
   'post', 'chat', 'notification', 'review', 'prompt',
   'photo', 'sign', 'holyland', 'world'
@@ -214,46 +206,6 @@ export class CanvasCreatorComponent implements AfterViewInit {
   wsStackRounds = computed<number[]>(() => {
     const roundCount = Math.max(4, this.wsTotalRounds());
     return Array.from({ length: roundCount }, (_, i) => i + 1);
-  });
-
-  wsRoundNavSlots = computed<WsRoundNavSlot[]>(() => {
-    const current = this.wsCurrentRound();
-    const total = this.wsTotalRounds();
-    const previous = current >= 3 ? 1 : (current > 1 ? current - 1 : null);
-    const next = current < total ? current + 1 : null;
-    const afterNext = current + 2 <= total ? current + 2 : null;
-    const isFinalRound = current >= total;
-
-    return [
-      {
-        label: previous ? `R${previous}` : '',
-        round: previous,
-        enabled: previous !== null,
-        variant: previous !== null ? 'secondary' : 'disabled',
-        action: 'jump',
-      },
-      {
-        label: isFinalRound ? 'DONE' : `R${current}: ADD ANOTHER`,
-        round: current,
-        enabled: true,
-        variant: 'primary',
-        action: isFinalRound ? 'done' : 'current',
-      },
-      {
-        label: next ? `R${next}` : '',
-        round: next,
-        enabled: next !== null,
-        variant: next !== null ? 'secondary' : 'disabled',
-        action: 'jump',
-      },
-      {
-        label: afterNext ? `R${afterNext}` : '',
-        round: afterNext,
-        enabled: false,
-        variant: 'disabled',
-        action: 'jump',
-      },
-    ];
   });
 
   // Template presets: GeoJSON with textbox positions and properties
@@ -1039,24 +991,6 @@ export class CanvasCreatorComponent implements AfterViewInit {
     this._wsResetCanvasForNewShot();
   }
 
-  wsOnRoundNavClick(slot: WsRoundNavSlot) {
-    if (!slot.enabled) return;
-
-    if (slot.action === 'done') {
-      this.wsFinishAllRounds();
-      return;
-    }
-
-    if (slot.action === 'current') {
-      this.wsAddAnotherSameRound();
-      return;
-    }
-
-    if (slot.round !== null) {
-      this.wsJumpToRound(slot.round);
-    }
-  }
-
   private wsJumpToRound(round: number) {
     this.wsCurrentRound.set(round);
     this.wsJustUploaded.set(false);
@@ -1075,6 +1009,17 @@ export class CanvasCreatorComponent implements AfterViewInit {
   /** Jump back to round 1 */
   wsGoToRound1() {
     this.wsJumpToRound(1);
+  }
+
+  wsGoToStrategicShowcase() {
+    const params: Record<string, any> = { ...this.route.snapshot.queryParams };
+    delete params['ws_just_uploaded'];
+    delete params['ws_done'];
+    delete params['ws_round'];
+    delete params['template'];
+    delete params['template_id'];
+    this.wsJustUploaded.set(false);
+    this.router.navigate(['/showcase-ws'], { queryParams: params });
   }
 
   /** Finish all rounds and show the "All Done" screen */
@@ -1974,10 +1919,10 @@ export class CanvasCreatorComponent implements AfterViewInit {
     if (!pager) return;
 
     const current = this.wsCurrentRound();
-    const activePage = pager.querySelector(`[data-round-page="${current}"]`) as HTMLElement | null;
+    const activePage = pager.querySelector(`[data-round-block="${current}"]`) as HTMLElement | null;
     if (!activePage) return;
 
-    const targetLeft = activePage.offsetLeft;
+    const targetLeft = activePage.offsetLeft + (activePage.offsetWidth / 2) - (pager.clientWidth / 2);
     pager.scrollTo({ left: Math.max(0, targetLeft), behavior });
   }
 

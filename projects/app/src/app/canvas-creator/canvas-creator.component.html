@@ -68,11 +68,11 @@
         </div>
 
         <div #wsRoundsPager class="ws-rounds-pager" aria-label="Screenshots by round">
-          @for (round of wsStackRounds(); track round) {
-            <section class="ws-round-page" [attr.data-round-page]="round" [attr.aria-label]="'Round ' + round">
-              <div class="ws-round-page-title">Round {{ round }}</div>
+          <div class="ws-rounds-track">
+            @for (round of wsStackRounds(); track round) {
+              <section class="ws-round-block" [attr.data-round-block]="round" [attr.aria-label]="'Round ' + round">
+                <div class="ws-round-block-title">Round {{ round }}</div>
 
-              <div class="ws-round-gallery">
                 @for (shot of wsRoundStack(round); track $index; let i = $index) {
                   <article class="ws-round-item ws-round-item-shot">
                     <img [src]="shot" [alt]="'Round ' + round + ' screenshot ' + (i + 1)" />
@@ -87,21 +87,24 @@
                 >
                   {{ wsPlaceholderLabel(round) }}
                 </button>
-              </div>
-            </section>
-          }
+              </section>
+            }
+          </div>
         </div>
 
         <div class="ws-uploaded-actions" ltr>
-          <div class="ws-round-nav buttons" role="group" aria-label="Round navigation">
-            @for (slot of wsRoundNavSlots(); track $index) {
-              <button
-                class="button ws-round-nav-button"
-                [class.primary]="slot.variant === 'primary'"
-                [disabled]="!slot.enabled"
-                (click)="wsOnRoundNavClick(slot)"
-              >
-                {{ slot.label }}
+          <div class="buttons ws-uploaded-buttons">
+            <button class="button primary" (click)="wsAddAnotherSameRound()">
+              Add Another to Round {{ wsCurrentRound() }}
+            </button>
+
+            @if (wsCurrentRound() < wsTotalRounds()) {
+              <button class="button" (click)="wsAdvanceRound()">
+                Next round
+              </button>
+            } @else {
+              <button class="button" (click)="wsGoToStrategicShowcase()">
+                Done
               </button>
             }
           </div>

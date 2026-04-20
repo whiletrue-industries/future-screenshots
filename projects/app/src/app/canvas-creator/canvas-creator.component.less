@@ -425,10 +425,8 @@
         margin-right: calc(50% - 50vw);
         margin-top: 10px;
         margin-bottom: 24px;
-        padding: 0 0 8px;
+        padding: 0 22px 8px;
         box-sizing: border-box;
-        display: flex;
-        gap: 0;
         overflow-x: auto;
         overflow-y: hidden;
         touch-action: pan-x;
@@ -436,18 +434,21 @@
         scroll-behavior: smooth;
         scrollbar-width: thin;
 
-        .ws-round-page {
-          width: 100vw;
-          flex: 0 0 100vw;
-          scroll-snap-align: start;
-          box-sizing: border-box;
-          padding: 0 22px;
+        .ws-rounds-track {
           display: flex;
-          flex-direction: column;
-          gap: 10px;
+          align-items: stretch;
+          gap: 56px;
+          width: max-content;
         }
 
-        .ws-round-page-title {
+        .ws-round-block {
+          display: flex;
+          align-items: stretch;
+          gap: 12px;
+          scroll-snap-align: start;
+        }
+
+        .ws-round-block-title {
           .font-sans;
           font-size: 14px;
           line-height: 1.1;
@@ -455,16 +456,13 @@
           color: fade(@color-primary, 82%);
           letter-spacing: 0.02em;
           text-transform: uppercase;
-        }
-
-        .ws-round-gallery {
+          width: 90px;
+          min-width: 90px;
           display: flex;
-          align-items: stretch;
-          gap: 12px;
-          overflow-x: auto;
-          overflow-y: hidden;
-          padding-bottom: 2px;
-          scrollbar-width: thin;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          padding: 10px 8px;
         }
 
         .ws-round-item {
@@ -524,30 +522,20 @@
         z-index: 12;
         background: linear-gradient(to top, rgba(245, 240, 231, 0.98) 65%, rgba(245, 240, 231, 0));
 
-        .ws-round-nav {
+        .ws-uploaded-buttons {
           display: flex;
           width: 100%;
-          flex-flow: row nowrap;
+          flex-flow: column nowrap;
           align-items: stretch;
           gap: 8px;
-          overflow-x: auto;
-          overflow-y: hidden;
-          white-space: nowrap;
           padding: 0 24px 2px;
-          scrollbar-width: thin;
 
-          .ws-round-nav-button {
-            min-width: 72px;
+          .button {
+            width: 100%;
             height: 52px;
             padding: 0 14px;
             text-transform: uppercase;
             letter-spacing: 0.02em;
-            flex: 0 0 auto;
-          }
-
-          .button:disabled {
-            opacity: 0.45;
-            cursor: default;
           }
         }
       }
