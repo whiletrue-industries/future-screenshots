@@ -1,5 +1,4 @@
 <div class="ws-hub">
-
   <header class="ws-hub-header">
     <h1 i18n>Strategic Workshop Hub</h1>
     @if (workspaceMeta()) {
@@ -28,320 +27,355 @@
     </nav>
 
     @if (activeTab() === 'settings') {
-    <!-- Groups + Participant Links -->
-    <section class="ws-section" aria-labelledby="groups-heading">
-      <h2 id="groups-heading" i18n>Groups & Participant Links</h2>
-      <p class="ws-hint" i18n>Share each group's link with its members. They'll be guided through all {{ wsTotalRounds() }} rounds.</p>
+      <section class="ws-section" aria-labelledby="groups-heading">
+        <h2 id="groups-heading" i18n>Groups & Participant Links</h2>
+        <p class="ws-hint" i18n>Share each group's link with its members. They'll be guided through all {{ wsTotalRounds() }} rounds.</p>
 
-      @if (wsGroups().length === 0) {
-        <p class="ws-empty" i18n>No groups configured. Go to Settings → Strategic Workshop to add groups.</p>
-      }
-
-      <ul class="ws-groups-list" role="list">
-        @for (group of wsGroups(); track group.id) {
-          <li class="ws-group-card" [style.border-left-color]="group.color || '#607D8B'">
-            <span class="ws-group-dot" [style.background]="group.color || '#607D8B'" aria-hidden="true"></span>
-            <span class="ws-group-name">{{ group.name }}</span>
-            <button
-              type="button"
-              class="ws-copy-btn"
-              [class.copied]="copiedGroupId() === group.id"
-              (click)="copyParticipantLink(group)"
-              [attr.aria-label]="'Copy participant link for ' + group.name"
-            >
-              @if (copiedGroupId() === group.id) {
-                <span i18n>✓ Copied!</span>
-              } @else {
-                <span i18n>Copy link</span>
-              }
-            </button>
-          </li>
+        @if (wsGroups().length === 0) {
+          <p class="ws-empty" i18n>No groups configured. Go to Settings → Strategic Workshop to add groups.</p>
         }
-      </ul>
-    </section>
 
-    <!-- Round Prompts Summary -->
-    @if (wsRoundPrompts().length > 0) {
-      <section class="ws-section" aria-labelledby="rounds-heading">
-        <h2 id="rounds-heading" i18n>Round Prompts</h2>
-        <ol class="ws-rounds-list">
-          @for (prompt of wsRoundPrompts(); track $index) {
-            <li class="ws-round-item">
-              <span class="ws-round-badge">{{ $index + 1 }}</span>
-              <span class="ws-round-prompt">{{ prompt }}</span>
+        <ul class="ws-groups-list" role="list">
+          @for (group of wsGroups(); track group.id) {
+            <li class="ws-group-card" [style.border-left-color]="group.color || '#607D8B'">
+              <span class="ws-group-dot" [style.background]="group.color || '#607D8B'" aria-hidden="true"></span>
+              <span class="ws-group-name">{{ group.name }}</span>
+              <button
+                type="button"
+                class="ws-copy-btn"
+                [class.copied]="copiedGroupId() === group.id"
+                (click)="copyParticipantLink(group)"
+                [attr.aria-label]="'Copy participant link for ' + group.name"
+              >
+                @if (copiedGroupId() === group.id) {
+                  <span i18n>✓ Copied!</span>
+                } @else {
+                  <span i18n>Copy link</span>
+                }
+              </button>
             </li>
           }
-        </ol>
+        </ul>
       </section>
-    }
+
+      @if (wsRoundPrompts().length > 0) {
+        <section class="ws-section" aria-labelledby="rounds-heading">
+          <h2 id="rounds-heading" i18n>Round Prompts</h2>
+          <ol class="ws-rounds-list">
+            @for (prompt of wsRoundPrompts(); track $index) {
+              <li class="ws-round-item">
+                <span class="ws-round-badge">{{ $index + 1 }}</span>
+                <span class="ws-round-prompt">{{ prompt }}</span>
+              </li>
+            }
+          </ol>
+        </section>
+      }
     }
 
     @if (activeTab() === 'export') {
-    <!-- Composition Preview -->
-    <section class="ws-section ws-preview-section ws-preview-section-full" aria-labelledby="preview-heading">
-      <h2 id="preview-heading" i18n>Composition Preview</h2>
-      <p class="ws-hint" i18n>
-        Group → round → participant → item hierarchy with export state for each item.
-      </p>
-
-      @if (lastExportAt()) {
-        <p class="ws-hint ws-hint--small">
-          Last export: {{ formatExportTimestamp(lastExportAt()) }}
+      <section class="ws-section ws-preview-section ws-preview-section-full" aria-labelledby="preview-heading">
+        <h2 id="preview-heading" i18n>Composition Preview</h2>
+        <p class="ws-hint" i18n>
+          Group → round → participant → item hierarchy with export state for each item.
         </p>
-      }
 
-      @if (previewComposition().length === 0) {
-        <p class="ws-empty" i18n>No composition data to preview.</p>
-      }
+        @if (lastExportAt()) {
+          <p class="ws-hint ws-hint--small">Last export: {{ formatExportTimestamp(lastExportAt()) }}</p>
+        }
 
-      <ul class="ws-preview-tree" role="list">
-        @for (groupPreview of previewComposition(); track groupPreview.id) {
-          <li class="ws-preview-node ws-preview-node-group" [style.border-left-color]="groupPreview.color">
-            <div class="ws-preview-row">
-              <label class="ws-include-toggle">
-                <input
-                  type="checkbox"
-                  [checked]="isGroupIncluded(groupPreview.id)"
-                  (change)="toggleGroupIncluded(groupPreview.id, $any($event.target).checked)"
-                />
-                <span>group</span>
-              </label>
-              <strong [style.color]="groupPreview.color">{{ groupPreview.name }}</strong>
-              <span class="ws-preview-meta">{{ groupPreview.totalItems }} items</span>
-            </div>
+        @if (previewComposition().length === 0) {
+          <p class="ws-empty" i18n>No composition data to preview.</p>
+        }
 
-            <ul role="list">
-              @for (roundPreview of groupPreview.rounds; track roundPreview.round) {
-                <li class="ws-preview-node ws-preview-node-round">
-                  <div class="ws-preview-row">
+        <div class="ws-preview-table-wrap">
+          <table class="ws-preview-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Include</th>
+                <th>Item</th>
+                <th>Status</th>
+                <th>Exported</th>
+                <th>Updated</th>
+                <th>User</th>
+              </tr>
+            </thead>
+
+            @for (groupPreview of previewComposition(); track groupPreview.id) {
+              <tbody>
+                <tr class="ws-preview-row-group" [style.--group-color]="groupPreview.color">
+                  <td>
+                    <button
+                      type="button"
+                      class="ws-collapse-carrot"
+                      (click)="toggleGroupCollapsed(groupPreview.id)"
+                      [attr.aria-label]="(isGroupCollapsed(groupPreview.id) ? 'Expand ' : 'Collapse ') + groupPreview.name"
+                    >
+                      @if (isGroupCollapsed(groupPreview.id)) { ▸ } @else { ▾ }
+                    </button>
+                  </td>
+                  <td>
                     <label class="ws-include-toggle">
                       <input
                         type="checkbox"
-                        [checked]="isRoundIncluded(groupPreview.id, roundPreview.round)"
-                        (change)="toggleRoundIncluded(groupPreview.id, roundPreview.round, $any($event.target).checked)"
+                        [checked]="isGroupIncluded(groupPreview.id)"
+                        (change)="toggleGroupIncluded(groupPreview.id, $any($event.target).checked)"
                       />
-                      <span>round</span>
                     </label>
-                    <span><strong>Round {{ roundPreview.round }}</strong>: {{ roundPreview.prompt }}</span>
-                  </div>
+                  </td>
+                  <td colspan="5">
+                    <strong [style.color]="groupPreview.color">{{ groupPreview.name }}</strong>
+                    <span class="ws-preview-meta">{{ groupPreview.totalItems }} items</span>
+                  </td>
+                </tr>
 
-                  <ul role="list">
-                    @for (participant of roundPreview.participants; track participant.participantId) {
-                      <li class="ws-preview-node ws-preview-node-participant">
-                        <div class="ws-preview-row">
-                          <strong>{{ participant.participantName }}</strong>
-                        </div>
+                @if (!isGroupCollapsed(groupPreview.id)) {
+                @for (roundPreview of groupPreview.rounds; track roundPreview.round) {
+                  <tr class="ws-preview-row-round" [style.--group-color]="groupPreview.color">
+                    <td>
+                      <button
+                        type="button"
+                        class="ws-collapse-carrot"
+                        (click)="toggleRoundCollapsed(groupPreview.id, roundPreview.round)"
+                        [attr.aria-label]="(isRoundCollapsed(groupPreview.id, roundPreview.round) ? 'Expand round ' : 'Collapse round ') + roundPreview.round"
+                      >
+                        @if (isRoundCollapsed(groupPreview.id, roundPreview.round)) { ▸ } @else { ▾ }
+                      </button>
+                    </td>
+                    <td>
+                      <label class="ws-include-toggle">
+                        <input
+                          type="checkbox"
+                          [checked]="isRoundIncluded(groupPreview.id, roundPreview.round)"
+                          [disabled]="!isGroupIncluded(groupPreview.id)"
+                          (change)="toggleRoundIncluded(groupPreview.id, roundPreview.round, $any($event.target).checked)"
+                        />
+                      </label>
+                    </td>
+                    <td colspan="5">
+                      <strong [style.color]="groupPreview.color">Round {{ roundPreview.round }}</strong>
+                      <span class="ws-preview-meta">{{ roundPreview.prompt }}</span>
+                    </td>
+                  </tr>
 
-                        @if (participant.items.length === 0) {
-                          <p class="ws-preview-empty" i18n>No items in this round.</p>
-                        } @else {
-                          <ul role="list">
-                            @for (item of participant.items; track item.id) {
-                              <li class="ws-preview-node ws-preview-node-item" [class.ws-item-excluded]="!isExportPathIncluded(groupPreview.id, roundPreview.round, item.exportKey)">
-                                <div class="ws-preview-row ws-preview-row-item">
-                                  <label class="ws-include-toggle">
-                                    <input
-                                      type="checkbox"
-                                      [checked]="isItemIncluded(item.exportKey)"
-                                      (change)="toggleItemIncluded(item.exportKey, $any($event.target).checked)"
-                                    />
-                                    <span>item</span>
-                                  </label>
-                                  <span class="ws-preview-item-name">{{ item.title }}</span>
-                                  <span class="ws-preview-meta">{{ item.hasImage ? 'image' : 'no image' }}</span>
-                                  <span class="ws-item-state" [class.ws-item-state-new]="item.changeStatus === 'new'" [class.ws-item-state-updated]="item.changeStatus === 'updated'" [class.ws-item-state-unchanged]="item.changeStatus === 'unchanged'">
-                                    {{ item.changeStatus }}
-                                  </span>
-                                  <span class="ws-preview-meta">last export: {{ item.lastExportLabel }}</span>
-                                  <span class="ws-preview-meta">
-                                    updated since export:
-                                    @if (item.updatedSinceExport === null) {
-                                      <span>n/a</span>
-                                    } @else if (item.updatedSinceExport) {
-                                      <span>yes</span>
-                                    } @else {
-                                      <span>no</span>
-                                    }
-                                  </span>
-                                </div>
-                              </li>
-                            }
-                          </ul>
-                        }
-                      </li>
+                  @if (!isRoundCollapsed(groupPreview.id, roundPreview.round)) {
+                  @for (participant of roundPreview.participants; track participant.participantId) {
+                    @for (item of participant.items; track item.id) {
+                      <tr class="ws-preview-row-item" [style.--group-color]="groupPreview.color" [class.ws-item-excluded]="!isExportPathIncluded(groupPreview.id, roundPreview.round, item.exportKey)">
+                        <td>
+                          @if (item.hasImage) {
+                            <img class="ws-preview-thumb" [src]="item.imageUrl" [alt]="item.title" loading="lazy" />
+                          } @else {
+                            <span class="ws-thumb-empty">No image</span>
+                          }
+                        </td>
+                        <td>
+                          <label class="ws-include-toggle">
+                            <input
+                              type="checkbox"
+                              [checked]="isItemIncluded(item.exportKey)"
+                              [disabled]="!isGroupIncluded(groupPreview.id) || !isRoundIncluded(groupPreview.id, roundPreview.round)"
+                              (change)="toggleItemIncluded(item.exportKey, $any($event.target).checked)"
+                            />
+                          </label>
+                        </td>
+                        <td class="ws-preview-item-name">{{ item.title }}</td>
+                        <td>
+                          <span class="ws-item-state" [class.ws-item-state-new]="item.changeStatus === 'new'" [class.ws-item-state-updated]="item.changeStatus === 'updated'" [class.ws-item-state-unchanged]="item.changeStatus === 'unchanged'">
+                            {{ item.changeStatus }}
+                          </span>
+                        </td>
+                        <td>{{ item.lastExportLabel }}</td>
+                        <td>
+                          @if (item.updatedSinceExport === null) {
+                            n/a
+                          } @else if (item.updatedSinceExport) {
+                            yes
+                          } @else {
+                            no
+                          }
+                        </td>
+                        <td>
+                          <span class="ws-user-id" [title]="participant.participantId || participant.participantName">…{{ participantIdLast4(participant.participantId) }}</span>
+                        </td>
+                      </tr>
                     }
-                  </ul>
-                </li>
-              }
-            </ul>
-
-            @if (groupPreview.unplaced.length > 0) {
-              <div class="ws-preview-unplaced" role="status">
-                <strong i18n>Unplaced items:</strong>
-                <ul>
-                  @for (item of groupPreview.unplaced; track item.id) {
-                    <li>{{ item.id }} — {{ item.reason }}</li>
                   }
-                </ul>
-              </div>
+                  }
+                }
+                }
+
+                @if (groupPreview.unplaced.length > 0) {
+                  <tr>
+                    <td colspan="7">
+                      <div class="ws-preview-unplaced" role="status">
+                        <strong i18n>Unplaced items:</strong>
+                        <ul>
+                          @for (item of groupPreview.unplaced; track item.id) {
+                            <li>{{ item.id }} — {{ item.reason }}</li>
+                          }
+                        </ul>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
             }
-          </li>
-        }
-      </ul>
-    </section>
-
-    <!-- Miro Export -->
-    <section class="ws-section ws-miro-section" aria-labelledby="miro-heading">
-      <h2 id="miro-heading">
-        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" class="ws-miro-logo" aria-hidden="true">
-          <rect width="48" height="48" rx="8" fill="#FFD02F"/>
-          <text x="8" y="36" font-size="28" font-family="Arial, sans-serif" font-weight="900" fill="#050038">M</text>
-        </svg>
-        <span i18n>Export to Miro</span>
-      </h2>
-      <p class="ws-hint" i18n>
-        Select what to include using the checkboxes above, then export.
-      </p>
-      <fieldset class="ws-tag-type-controls" [disabled]="miroExporting()">
-        <legend>Tag types</legend>
-        <label class="ws-include-toggle">
-          <input
-            type="checkbox"
-            [checked]="includeTagGroup()"
-            (change)="setIncludeTagGroup($any($event.target).checked)"
-          />
-          <span>group</span>
-        </label>
-        <label class="ws-include-toggle">
-          <input
-            type="checkbox"
-            [checked]="includeTagRound()"
-            (change)="setIncludeTagRound($any($event.target).checked)"
-          />
-          <span>round</span>
-        </label>
-        <label class="ws-include-toggle">
-          <input
-            type="checkbox"
-            [checked]="includeTagContentTitle()"
-            (change)="setIncludeTagContentTitle($any($event.target).checked)"
-          />
-          <span>content_title</span>
-        </label>
-        <label class="ws-include-toggle">
-          <input
-            type="checkbox"
-            [checked]="includeTagItemId()"
-            (change)="setIncludeTagItemId($any($event.target).checked)"
-          />
-          <span>item_id</span>
-        </label>
-      </fieldset>
-      <p class="ws-hint ws-hint--small" i18n>
-        Generate your token at
-        <a href="https://miro.com/app/settings/user-profile/apps" target="_blank" rel="noopener noreferrer">
-          miro.com → Profile → Apps → Token
-        </a>.
-        The token is stored locally in this browser for this workspace.
-        Boards created on Miro's free plan count against your 3-board limit.
-      </p>
-
-      <!-- Board Mode Selection -->
-      <fieldset class="ws-board-mode" [disabled]="miroExporting()">
-        <legend i18n>Board Option</legend>
-        <label class="ws-mode-option ws-mode-option--switch">
-          <input
-            type="checkbox"
-            [checked]="boardMode() === 'add'"
-            (change)="onBoardModeToggle($any($event.target).checked)"
-            [disabled]="miroExporting()"
-            aria-label="Toggle update existing board"
-          />
-          <span class="ws-switch" aria-hidden="true"></span>
-          <span i18n>Update existing board</span>
-        </label>
-        @if (miroBoardId()) {
-          <p class="ws-hint ws-hint--small" i18n>
-            When enabled, export reuses existing frames and updates changed slots.
-          </p>
-        } @else {
-          <p class="ws-hint ws-hint--small" i18n>
-            No existing board yet. First export will create a board; then you can enable this toggle.
-          </p>
-        }
-      </fieldset>
-
-      @if (miroBoardLink()) {
-        <div class="ws-miro-result">
-          @if (miroExporting()) {
-            <p i18n>Board is ready. You can open it while export continues.</p>
-          }
-          <a [href]="miroBoardLink()!.boardUrl" target="_blank" rel="noopener noreferrer" class="ws-miro-board-link" i18n>
-            Open "{{ miroBoardLink()!.boardName }}" in Miro →
-          </a>
+          </table>
         </div>
-      }
+      </section>
 
-      @if (miroError()) {
-        <p class="ws-miro-error" role="alert">{{ miroError() }}</p>
-      }
+      <section class="ws-section ws-miro-section" aria-labelledby="miro-heading">
+        <h2 id="miro-heading">
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" class="ws-miro-logo" aria-hidden="true">
+            <rect width="48" height="48" rx="8" fill="#FFD02F"/>
+            <text x="8" y="36" font-size="28" font-family="Arial, sans-serif" font-weight="900" fill="#050038">M</text>
+          </svg>
+          <span i18n>Export to Miro</span>
+        </h2>
+        <p class="ws-hint" i18n>
+          Select what to include using the checkboxes above, then export.
+        </p>
+        <fieldset class="ws-tag-type-controls" [disabled]="miroExporting()">
+          <legend>Tag types</legend>
+          <label class="ws-include-toggle">
+            <input
+              type="checkbox"
+              [checked]="includeTagGroup()"
+              (change)="setIncludeTagGroup($any($event.target).checked)"
+            />
+            <span>group</span>
+          </label>
+          <label class="ws-include-toggle">
+            <input
+              type="checkbox"
+              [checked]="includeTagRound()"
+              (change)="setIncludeTagRound($any($event.target).checked)"
+            />
+            <span>round</span>
+          </label>
+          <label class="ws-include-toggle">
+            <input
+              type="checkbox"
+              [checked]="includeTagContentTitle()"
+              (change)="setIncludeTagContentTitle($any($event.target).checked)"
+            />
+            <span>content_title</span>
+          </label>
+          <label class="ws-include-toggle">
+            <input
+              type="checkbox"
+              [checked]="includeTagItemId()"
+              (change)="setIncludeTagItemId($any($event.target).checked)"
+            />
+            <span>item_id</span>
+          </label>
+        </fieldset>
+        <p class="ws-hint ws-hint--small" i18n>
+          Generate your token at
+          <a href="https://miro.com/app/settings/user-profile/apps" target="_blank" rel="noopener noreferrer">
+            miro.com → Profile → Apps → Token
+          </a>.
+          The token is stored locally in this browser for this workspace.
+          Boards created on Miro's free plan count against your 3-board limit.
+        </p>
 
-      @if (miroResult()) {
-        <div class="ws-miro-result">
-          <p>
-            @if (miroResult()!.boardMode === 'add') {
-              <span i18n>Content added to existing board successfully!</span>
-            } @else {
-              <span i18n>Board created successfully!</span>
-            }
-          </p>
-          @if (miroResult()!.boardMode === 'add') {
-            <p i18n>
-              If this board is already open in Miro, refresh the tab to see newly attached tags.
+        <fieldset class="ws-board-mode" [disabled]="miroExporting()">
+          <legend i18n>Board Option</legend>
+          <label class="ws-mode-option ws-mode-option--switch">
+            <input
+              type="checkbox"
+              [checked]="boardMode() === 'add'"
+              (change)="onBoardModeToggle($any($event.target).checked)"
+              [disabled]="miroExporting()"
+              aria-label="Toggle update existing board"
+            />
+            <span class="ws-switch" aria-hidden="true"></span>
+            <span i18n>Update existing board</span>
+          </label>
+          @if (miroBoardId()) {
+            <p class="ws-hint ws-hint--small" i18n>
+              When enabled, export reuses existing frames and updates changed slots.
+            </p>
+          } @else {
+            <p class="ws-hint ws-hint--small" i18n>
+              No existing board yet. First export will create a board; then you can enable this toggle.
             </p>
           }
-          <a [href]="miroResult()!.boardUrl" target="_blank" rel="noopener noreferrer" class="ws-miro-board-link" i18n>
-            Open "{{ miroResult()!.boardName }}" in Miro →
-          </a>
-        </div>
-      }
-    </section>
+        </fieldset>
 
-    <div class="ws-export-bottom-bar">
-      <input
-        type="password"
-        class="ws-token-input ws-token-input-minimal"
-        [value]="miroToken()"
-        (input)="onMiroTokenInput($any($event.target).value)"
-        placeholder="Miro access token"
-        i18n-placeholder
-        autocomplete="off"
-        [disabled]="miroExporting()"
-        aria-label="Miro personal access token"
-      />
-      <button
-        class="ws-miro-btn"
-        type="button"
-        [disabled]="!miroToken().trim() || miroExporting()"
-        (click)="sendToMiro()"
-        i18n
-      >
-        @if (miroExporting()) {
-          Exporting…
-        } @else {
-          Send to Miro
+        @if (miroBoardLink()) {
+          <div class="ws-miro-result">
+            @if (miroExporting()) {
+              <p i18n>Board is ready. You can open it while export continues.</p>
+            }
+            <a [href]="miroBoardLink()!.boardUrl" target="_blank" rel="noopener noreferrer" class="ws-miro-board-link" i18n>
+              Open "{{ miroBoardLink()!.boardName }}" in Miro →
+            </a>
+          </div>
         }
-      </button>
 
-      <div class="ws-export-status" role="status" aria-live="polite">
-        @if (miroProgress()) {
-          <span class="ws-miro-progress">{{ miroProgress() }}</span>
-        }
         @if (miroError()) {
-          <span class="ws-miro-error">{{ miroError() }}</span>
+          <p class="ws-miro-error" role="alert">{{ miroError() }}</p>
         }
+
+        @if (miroResult()) {
+          <div class="ws-miro-result">
+            <p>
+              @if (miroResult()!.boardMode === 'add') {
+                <span i18n>Content added to existing board successfully!</span>
+              } @else {
+                <span i18n>Board created successfully!</span>
+              }
+            </p>
+            @if (miroResult()!.boardMode === 'add') {
+              <p i18n>
+                If this board is already open in Miro, refresh the tab to see newly attached tags.
+              </p>
+            }
+            <a [href]="miroResult()!.boardUrl" target="_blank" rel="noopener noreferrer" class="ws-miro-board-link" i18n>
+              Open "{{ miroResult()!.boardName }}" in Miro →
+            </a>
+          </div>
+        }
+      </section>
+
+      <div class="ws-export-bottom-bar">
+        <input
+          type="password"
+          class="ws-token-input ws-token-input-minimal"
+          [value]="miroToken()"
+          (input)="onMiroTokenInput($any($event.target).value)"
+          placeholder="Miro access token"
+          i18n-placeholder
+          autocomplete="off"
+          [disabled]="miroExporting()"
+          aria-label="Miro personal access token"
+        />
+        <button
+          class="ws-miro-btn"
+          type="button"
+          [disabled]="!miroToken().trim() || miroExporting()"
+          (click)="sendToMiro()"
+          i18n
+        >
+          @if (miroExporting()) {
+            Exporting…
+          } @else {
+            Send to Miro
+          }
+        </button>
+
+        <div class="ws-export-status" role="status" aria-live="polite">
+          @if (miroProgress()) {
+            <span class="ws-miro-progress">{{ miroProgress() }}</span>
+          }
+          @if (miroError()) {
+            <span class="ws-miro-error">{{ miroError() }}</span>
+          }
+        </div>
       </div>
-    </div>
     }
   }
 </div>

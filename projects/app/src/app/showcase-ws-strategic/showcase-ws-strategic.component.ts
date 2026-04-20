@@ -63,6 +63,8 @@ export class ShowcaseWsStrategicComponent implements OnInit {
   includeTagRound = signal(true);
   includeTagContentTitle = signal(true);
   includeTagItemId = signal(true);
+  collapsedGroupIds = signal<Set<string>>(new Set());
+  collapsedRoundKeys = signal<Set<string>>(new Set());
   lastExportState = signal<Map<string, StoredExportItemState | null>>(new Map());
   lastExportAt = signal<number | null>(null);
 
@@ -306,6 +308,47 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     });
   }
 
+  isGroupCollapsed(groupId: string): boolean {
+    return this.collapsedGroupIds().has(groupId);
+  }
+
+  toggleGroupCollapsed(groupId: string): void {
+    this.collapsedGroupIds.update((current) => {
+      const next = new Set(current);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  }
+
+  isRoundCollapsed(groupId: string, round: number): boolean {
+    return this.collapsedRoundKeys().has(this.roundSelectionKey(groupId, round));
+  }
+
+  toggleRoundCollapsed(groupId: string, round: number): void {
+    const key = this.roundSelectionKey(groupId, round);
+    this.collapsedRoundKeys.update((current) => {
+      const next = new Set(current);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
+  participantIdLast4(participantId: string): string {
+    const raw = (participantId || '').trim();
+    if (!raw) {
+      return '----';
+    }
+    return raw.length <= 4 ? raw : raw.slice(-4);
+  }
+
   isItemIncluded(itemKey: string): boolean {
     return !this.excludedItemKeys().has(itemKey);
   }
@@ -358,6 +401,10 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     const participant = this.getAuthorId(item) || this.getParticipantName(item) || 'unknown';
     const title = this.getContentTitle(item) || 'untitled';
     return `${groupId}|${round}|${participant}|${title}`;
+  }
+
+  private exportBaselineKey(item: any): string {
+    return this.itemSelectionKey(item);
   }
 
   private buildDatapointTags(groupName: string, round: number, contentTitle: string, itemId: string): Array<{ tagTitle: string }> {
@@ -519,14 +566,14 @@ export class ShowcaseWsStrategicComponent implements OnInit {
         if (isDeltaUpdateOnExistingBoard) {
           const originalCount = groupItemsAll.length;
           groupItems = groupItemsAll.filter(item => {
-            const itemId = this.getItemId(item);
-            return itemId && (itemDelta.new.has(itemId) || itemDelta.updated.has(itemId));
+            const baselineKey = this.exportBaselineKey(item);
+            return itemDelta.new.has(baselineKey) || itemDelta.updated.has(baselineKey);
           });
           console.log(`[Miro Export] Group "${group.name}": ${originalCount} total → ${groupItems.length} changed items (delta mode)`);
         } else {
           console.log(`[Miro Export] Group "${group.name}": ${groupItemsAll.length} total items`);
         }
-        const placedItemIds = new Set<string>();
+        const placedItemKeys = new Set<string>();
 
         // In delta mode, skip groups that have no changed items.
         if (isDeltaUpdateOnExistingBoard && groupItems.length === 0) {
@@ -716,8 +763,8 @@ export class ShowcaseWsStrategicComponent implements OnInit {
             // are always additive and never overwrite existing board content.
             const unchangedSlotCount = isDeltaUpdateOnExistingBoard
               ? itemsForParticipant.filter(i => {
-                  const id = this.getItemId(i);
-                  return !id || (!itemDelta.new.has(id) && !itemDelta.updated.has(id));
+                  const baselineKey = this.exportBaselineKey(i);
+                  return !itemDelta.new.has(baselineKey) && !itemDelta.updated.has(baselineKey);
                 }).length
               : 0;
             let deltaRenderIdx = 0;
@@ -726,9 +773,10 @@ export class ShowcaseWsStrategicComponent implements OnInit {
             for (let itemIdx = 0; itemIdx < itemsForParticipant.length; itemIdx++) {
               const item = itemsForParticipant[itemIdx];
               const itemId = this.getItemId(item);
+              const baselineKey = this.exportBaselineKey(item);
               const itemKey = this.itemSelectionKey(item);
               const shouldRenderItem = !isDeltaUpdateOnExistingBoard
-                || (itemId && (itemDelta.new.has(itemId) || itemDelta.updated.has(itemId)));
+                || (itemDelta.new.has(baselineKey) || itemDelta.updated.has(baselineKey));
               if (!shouldRenderItem || !this.isItemIncluded(itemKey)) {
                 continue;
               }
@@ -839,20 +887,18 @@ export class ShowcaseWsStrategicComponent implements OnInit {
                 }
               }
 
-              if (itemId) {
-                placedItemIds.add(itemId);
-                exportedItemStateUpdates.set(itemId, this.getScreenshotUrl(item) || this.getThumbnailUrl(item) || '');
-              }
+              placedItemKeys.add(baselineKey);
+              exportedItemStateUpdates.set(baselineKey, this.getScreenshotUrl(item) || this.getThumbnailUrl(item) || '');
             }
           }
         }
 
         const unplaced = groupItems.filter((item) => {
-          const id = this.getItemId(item);
-          if (isDeltaUpdateOnExistingBoard && (!id || !itemDelta.new.has(id) && !itemDelta.updated.has(id))) {
+          const baselineKey = this.exportBaselineKey(item);
+          if (isDeltaUpdateOnExistingBoard && !itemDelta.new.has(baselineKey) && !itemDelta.updated.has(baselineKey)) {
             return false;
           }
-          return !id || !placedItemIds.has(id);
+          return !placedItemKeys.has(baselineKey);
         });
         if (unplaced.length > 0) {
           console.log(`[Miro Export] Unplaced items in group "${group.name}": ${unplaced.length}`);
@@ -1076,7 +1122,11 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     // Calculate which items are new/updated only if in update mode
     const itemDelta = exportMode === 'update'
       ? this.calculateItemDelta(allItems)
-      : { new: new Set(allItems.map(i => this.getItemId(i))), updated: new Set<string>(), all: new Set(allItems.map(i => this.getItemId(i))) };
+      : {
+          new: new Set(allItems.map(i => this.exportBaselineKey(i))),
+          updated: new Set<string>(),
+          all: new Set(allItems.map(i => this.exportBaselineKey(i))),
+        };
 
     return groups.map((group) => {
       const groupItems = allItems.filter((item) => this.getWsGroupId(item) === group.id);
@@ -1103,12 +1153,13 @@ export class ShowcaseWsStrategicComponent implements OnInit {
           const items = itemsForParticipant.map((item, itemIdx) => {
             const imageUrl = this.getScreenshotUrl(item) || this.getThumbnailUrl(item) || '';
             const itemId = this.getItemId(item) || `${participantId}-${round}-${itemIdx}`;
+            const baselineKey = this.exportBaselineKey(item);
             const exportKey = this.itemSelectionKey(item);
             const changeStatus = exportMode === 'update'
-              ? itemDelta.new.has(itemId) ? 'new' : itemDelta.updated.has(itemId) ? 'updated' : 'unchanged'
+              ? itemDelta.new.has(baselineKey) ? 'new' : itemDelta.updated.has(baselineKey) ? 'updated' : 'unchanged'
               : 'new';
-            const itemState = storedExportState.get(itemId);
-            const hasBeenExported = storedExportState.has(itemId);
+            const itemState = storedExportState.get(baselineKey);
+            const hasBeenExported = storedExportState.has(baselineKey);
             const itemLastExportAt = itemState && itemState !== null
               ? itemState.exportedAt
               : lastWorkspaceExportAt;
@@ -1135,14 +1186,14 @@ export class ShowcaseWsStrategicComponent implements OnInit {
             participantName,
             items,
           };
-        });
+        }).filter((participantRow) => participantRow.items.length > 0);
 
         return {
           round,
           prompt,
           participants: participantRows,
         };
-      });
+      }).filter((roundRow) => roundRow.participants.length > 0);
 
       const unplaced = groupItems
         .filter((item) => {
@@ -1155,8 +1206,8 @@ export class ShowcaseWsStrategicComponent implements OnInit {
           reason: this.getItemSkipReason(item, totalRounds),
         }));
 
-      const groupNewCount = groupItems.filter(i => itemDelta.new.has(this.getItemId(i) || '')).length;
-      const groupUpdatedCount = groupItems.filter(i => itemDelta.updated.has(this.getItemId(i) || '')).length;
+      const groupNewCount = groupItems.filter(i => itemDelta.new.has(this.exportBaselineKey(i))).length;
+      const groupUpdatedCount = groupItems.filter(i => itemDelta.updated.has(this.exportBaselineKey(i))).length;
 
       return {
         id: group.id,
@@ -1195,21 +1246,21 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     const allIds = new Set<string>();
 
     for (const item of allItems) {
-      const id = this.getItemId(item);
-      if (!id) continue;
-      allIds.add(id);
-      if (!lastExportState.has(id)) {
+      const key = this.exportBaselineKey(item);
+      if (!key) continue;
+      allIds.add(key);
+      if (!lastExportState.has(key)) {
         // Item was not in the last export → genuinely new.
-        newItems.add(id);
+        newItems.add(key);
       } else {
         // Item was exported before. Only mark as updated if the screenshot URL changed.
         // storedUrl === null means we have no URL baseline (old storage format migration);
         // in that case treat the item as unchanged to avoid spurious re-renders.
-        const storedState = lastExportState.get(id);
+        const storedState = lastExportState.get(key);
         if (storedState && storedState !== null) {
           const currentUrl = this.getScreenshotUrl(item) || this.getThumbnailUrl(item) || '';
           if (currentUrl !== storedState.screenshotUrl) {
-            updatedItems.add(id);
+            updatedItems.add(key);
           }
         }
         // else (storedUrl === null): unchanged baseline — skip entirely, do not re-render.
