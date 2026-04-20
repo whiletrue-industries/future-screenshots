@@ -67,43 +67,44 @@
           </div>
         </div>
 
-        @if (wsUploadedPreviewStack().length > 0) {
-          <div class="ws-screenshot-stack" aria-label="Screenshots so far">
-            @for (shot of wsUploadedPreviewStack(); track $index; let i = $index) {
-              <img
-                class="ws-stack-card"
-                [src]="shot"
-                [alt]="'Screenshot ' + (i + 1)"
-                [style.z-index]="i + 1"
-                [style.transform]="wsStackCardTransform(i, wsUploadedPreviewStack().length)"
-              />
+        <div #wsRoundsPager class="ws-rounds-pager" aria-label="Screenshots by round">
+          @for (round of wsStackRounds(); track round) {
+            <section class="ws-round-page" [attr.data-round-page]="round" [attr.aria-label]="'Round ' + round">
+              <div class="ws-round-page-title">Round {{ round }}</div>
+
+              <div class="ws-round-gallery">
+                @for (shot of wsRoundStack(round); track $index; let i = $index) {
+                  <article class="ws-round-item ws-round-item-shot">
+                    <img [src]="shot" [alt]="'Round ' + round + ' screenshot ' + (i + 1)" />
+                  </article>
+                }
+
+                <button
+                  type="button"
+                  class="ws-round-item ws-round-item-placeholder"
+                  (click)="wsOnRoundPlaceholderClick(round)"
+                  [attr.aria-label]="wsPlaceholderLabel(round) + ' for round ' + round"
+                >
+                  {{ wsPlaceholderLabel(round) }}
+                </button>
+              </div>
+            </section>
+          }
+        </div>
+
+        <div class="ws-uploaded-actions" ltr>
+          <div class="ws-round-nav buttons" role="group" aria-label="Round navigation">
+            @for (slot of wsRoundNavSlots(); track $index) {
+              <button
+                class="button ws-round-nav-button"
+                [class.primary]="slot.variant === 'primary'"
+                [disabled]="!slot.enabled"
+                (click)="wsOnRoundNavClick(slot)"
+              >
+                {{ slot.label }}
+              </button>
             }
           </div>
-        }
-
-        <div class="buttons ws-uploaded-actions" ltr>
-          <!-- Primary: add another to same round -->
-          <button class="button primary" (click)="wsAddAnotherSameRound()" i18n>
-            + Add another to Round {{ wsCurrentRound() }}
-          </button>
-
-          <!-- Secondary: advance or finish -->
-          @if (wsCurrentRound() < wsTotalRounds()) {
-            <button class="button" (click)="wsAdvanceRound()" i18n>
-              Move to Round {{ wsCurrentRound() + 1 }}
-            </button>
-          } @else {
-            <button class="button" (click)="wsFinishAllRounds()" i18n>
-              I'm done with all rounds
-            </button>
-          }
-
-          <!-- Tertiary: go back to round 1 -->
-          @if (wsCurrentRound() > 1) {
-            <button class="button" (click)="wsGoToRound1()" i18n>
-              Go back to Round 1
-            </button>
-          }
         </div>
       </div>
     </div>

@@ -17,6 +17,14 @@ interface Template {
   preview: string;
 }
 
+interface WsRoundNavSlot {
+  label: string;
+  round: number | null;
+  enabled: boolean;
+  variant: 'primary' | 'secondary' | 'disabled';
+  action: 'current' | 'jump' | 'done';
+}
+
 const DEFAULT_ACTIVE_TEMPLATE_IDS = [
   'post', 'chat', 'notification', 'review', 'prompt',
   'photo', 'sign', 'holyland', 'world'
@@ -30,6 +38,8 @@ const DEFAULT_ACTIVE_TEMPLATE_IDS = [
 })
 export class CanvasCreatorComponent implements AfterViewInit {
   @ViewChild('canvasEl', { static: false}) canvasEl!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('wsRoundsPager', { static: false }) wsRoundsPager?: ElementRef<HTMLElement>;
+  @ViewChild('wsStacksRow', { static: false }) wsStacksRow?: ElementRef<HTMLElement>;
   
   // Color palette: vibrant markers with WCAG AA contrast (4.5:1) from white paper
   private readonly colorPalette = [
@@ -146,6 +156,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
   wsJustUploaded = signal<boolean>(false); // true right after an upload, show CTA screen
   wsRoundUploadCount = signal<number>(1);
   wsUploadedPreviewStack = signal<string[]>([]);
+  wsUploadedPreviewStacks = signal<Record<number, string[]>>({});
   wsEditorBannerDismissed = signal<boolean>(false);
   wsGalleryBannerDismissed = signal<boolean>(false);
 
@@ -199,6 +210,51 @@ export class CanvasCreatorComponent implements AfterViewInit {
   });
 
   wsRoundUploadOrdinal = computed<string>(() => this.toOrdinal(this.wsRoundUploadCount()));
+
+  wsStackRounds = computed<number[]>(() => {
+    const roundCount = Math.max(4, this.wsTotalRounds());
+    return Array.from({ length: roundCount }, (_, i) => i + 1);
+  });
+
+  wsRoundNavSlots = computed<WsRoundNavSlot[]>(() => {
+    const current = this.wsCurrentRound();
+    const total = this.wsTotalRounds();
+    const previous = current >= 3 ? 1 : (current > 1 ? current - 1 : null);
+    const next = current < total ? current + 1 : null;
+    const afterNext = current + 2 <= total ? current + 2 : null;
+    const isFinalRound = current >= total;
+
+    return [
+      {
+        label: previous ? `R${previous}` : '',
+        round: previous,
+        enabled: previous !== null,
+        variant: previous !== null ? 'secondary' : 'disabled',
+        action: 'jump',
+      },
+      {
+        label: isFinalRound ? 'DONE' : `R${current}: ADD ANOTHER`,
+        round: current,
+        enabled: true,
+        variant: 'primary',
+        action: isFinalRound ? 'done' : 'current',
+      },
+      {
+        label: next ? `R${next}` : '',
+        round: next,
+        enabled: next !== null,
+        variant: next !== null ? 'secondary' : 'disabled',
+        action: 'jump',
+      },
+      {
+        label: afterNext ? `R${afterNext}` : '',
+        round: afterNext,
+        enabled: false,
+        variant: 'disabled',
+        action: 'jump',
+      },
+    ];
+  });
 
   // Template presets: GeoJSON with textbox positions and properties
   templatePresets: { [key: string]: any } = {
@@ -719,7 +775,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     if (this.route.snapshot.queryParams['ws_just_uploaded'] === 'true') {
       this.wsJustUploaded.set(true);
       this.updateWsUploadCounterFromRoute();
-      this.loadWsUploadedPreviewStack();
+      this.loadWsUploadedPreviewStacks();
     }
 
     // Strategic onboarding: if ws_strategic but no ws_group in URL → show group picker
@@ -785,6 +841,14 @@ export class CanvasCreatorComponent implements AfterViewInit {
     if (!this.platform.browser()) {
       return;
     }
+
+    if (this.wsJustUploaded()) {
+      setTimeout(() => {
+        this.wsCenterCurrentRoundPage('auto');
+      }, 0);
+      return;
+    }
+
     // If a specific template was requested (re-edit flow), open it
     const requestedId = this.route.snapshot.queryParamMap.get('template_id');
     if (requestedId) {
@@ -975,26 +1039,42 @@ export class CanvasCreatorComponent implements AfterViewInit {
     this._wsResetCanvasForNewShot();
   }
 
-  /** Move to the next round */
-  wsAdvanceRound() {
-    const next = this.wsCurrentRound() + 1;
-    this.wsCurrentRound.set(next);
+  wsOnRoundNavClick(slot: WsRoundNavSlot) {
+    if (!slot.enabled) return;
+
+    if (slot.action === 'done') {
+      this.wsFinishAllRounds();
+      return;
+    }
+
+    if (slot.action === 'current') {
+      this.wsAddAnotherSameRound();
+      return;
+    }
+
+    if (slot.round !== null) {
+      this.wsJumpToRound(slot.round);
+    }
+  }
+
+  private wsJumpToRound(round: number) {
+    this.wsCurrentRound.set(round);
     this.wsJustUploaded.set(false);
-    // Update URL
-    const params: Record<string, any> = { ...this.route.snapshot.queryParams, ws_round: next };
+    const params: Record<string, any> = { ...this.route.snapshot.queryParams, ws_round: round };
     delete params['ws_just_uploaded'];
     this.router.navigate([], { queryParams: params, replaceUrl: true });
     this._wsResetCanvasForNewShot();
   }
 
+  /** Move to the next round */
+  wsAdvanceRound() {
+    const next = this.wsCurrentRound() + 1;
+    this.wsJumpToRound(next);
+  }
+
   /** Jump back to round 1 */
   wsGoToRound1() {
-    this.wsCurrentRound.set(1);
-    this.wsJustUploaded.set(false);
-    const params: Record<string, any> = { ...this.route.snapshot.queryParams, ws_round: 1 };
-    delete params['ws_just_uploaded'];
-    this.router.navigate([], { queryParams: params, replaceUrl: true });
-    this._wsResetCanvasForNewShot();
+    this.wsJumpToRound(1);
   }
 
   /** Finish all rounds and show the "All Done" screen */
@@ -1832,24 +1912,73 @@ export class CanvasCreatorComponent implements AfterViewInit {
     return `ws_upload_preview_stack_${workspaceId}_${groupId}_${round}`;
   }
 
-  private loadWsUploadedPreviewStack() {
+  private wsUploadPreviewStorageKeyForRound(round: number): string {
+    const workspaceId = this.api.workspaceId() || 'workspace';
+    const groupId = this.api.wsGroupId() || 'ungrouped';
+    return `ws_upload_preview_stack_${workspaceId}_${groupId}_${round}`;
+  }
+
+  private loadWsUploadedPreviewStacks() {
     if (!this.platform.browser()) {
       return;
     }
     try {
-      const raw = localStorage.getItem(this.wsUploadPreviewStorageKey());
-      if (!raw) {
-        this.wsUploadedPreviewStack.set([]);
-        return;
+      const allStacks: Record<number, string[]> = {};
+      for (const round of this.wsStackRounds()) {
+        const raw = localStorage.getItem(this.wsUploadPreviewStorageKeyForRound(round));
+        const parsed = raw ? JSON.parse(raw) : [];
+        allStacks[round] = Array.isArray(parsed)
+          ? parsed.filter((v: unknown) => typeof v === 'string')
+          : [];
       }
-      const parsed = JSON.parse(raw);
-      const list = Array.isArray(parsed)
-        ? parsed.filter((v: unknown) => typeof v === 'string')
-        : [];
-      this.wsUploadedPreviewStack.set(list);
+      this.wsUploadedPreviewStacks.set(allStacks);
+      this.wsUploadedPreviewStack.set(allStacks[this.wsCurrentRound()] || []);
+
+      setTimeout(() => {
+        this.wsCenterCurrentRoundPage('auto');
+      }, 0);
     } catch {
+      this.wsUploadedPreviewStacks.set({});
       this.wsUploadedPreviewStack.set([]);
     }
+  }
+
+  wsPlaceholderLabel(round: number): string {
+    const shots = this.wsRoundStack(round);
+    if (shots.length === 0 && round === this.wsCurrentRound() + 1) {
+      return 'skip to next round';
+    }
+    return 'add another';
+  }
+
+  wsOnRoundPlaceholderClick(round: number) {
+    const shots = this.wsRoundStack(round);
+    const isNextEmptyRound = shots.length === 0 && round === this.wsCurrentRound() + 1;
+
+    if (isNextEmptyRound) {
+      const nextRound = round + 1;
+      if (nextRound > this.wsTotalRounds()) {
+        this.wsFinishAllRounds();
+        return;
+      }
+      this.wsJumpToRound(nextRound);
+      return;
+    }
+
+    this.wsJumpToRound(round);
+  }
+
+  private wsCenterCurrentRoundPage(behavior: ScrollBehavior = 'smooth') {
+    if (!this.platform.browser()) return;
+    const pager = this.wsRoundsPager?.nativeElement;
+    if (!pager) return;
+
+    const current = this.wsCurrentRound();
+    const activePage = pager.querySelector(`[data-round-page="${current}"]`) as HTMLElement | null;
+    if (!activePage) return;
+
+    const targetLeft = activePage.offsetLeft;
+    pager.scrollTo({ left: Math.max(0, targetLeft), behavior });
   }
 
   private storeWsUploadedPreview(previewDataUrl: string) {
@@ -1866,10 +1995,136 @@ export class CanvasCreatorComponent implements AfterViewInit {
       list.push(previewDataUrl);
       const capped = list.slice(-14);
       localStorage.setItem(key, JSON.stringify(capped));
+
+      const round = this.wsCurrentRound();
+      const allStacks = { ...this.wsUploadedPreviewStacks(), [round]: capped };
+      this.wsUploadedPreviewStacks.set(allStacks);
       this.wsUploadedPreviewStack.set(capped);
     } catch {
       // Ignore storage failures.
     }
+  }
+
+  wsRoundStack(round: number): string[] {
+    return this.wsUploadedPreviewStacks()[round] || [];
+  }
+
+  wsRotateRoundStack(round: number) {
+    if (this.wsStacksWasDragging) {
+      this.wsStacksWasDragging = false;
+      return;
+    }
+
+    const current = this.wsUploadedPreviewStacks();
+    const stack = current[round] || [];
+    if (stack.length < 2) {
+      return;
+    }
+
+    // Top item is rendered last. Move it to the back.
+    const top = stack[stack.length - 1];
+    const rotated = [top, ...stack.slice(0, -1)];
+    const next = { ...current, [round]: rotated };
+    this.wsUploadedPreviewStacks.set(next);
+
+    if (round === this.wsCurrentRound()) {
+      this.wsUploadedPreviewStack.set(rotated);
+    }
+
+    if (this.platform.browser()) {
+      try {
+        localStorage.setItem(this.wsUploadPreviewStorageKeyForRound(round), JSON.stringify(rotated));
+      } catch {
+        // Ignore storage failures.
+      }
+    }
+  }
+
+  private wsStacksDragStartX: number | null = null;
+  private wsStacksStartScrollLeft = 0;
+  private wsStacksIsDragging = false;
+  private wsStacksDidMove = false;
+  private wsStacksWasDragging = false;
+
+  onWsStacksMouseDown(event: MouseEvent) {
+    if (event.button !== 0) return;
+    const row = this.wsStacksRow?.nativeElement;
+    if (!row) return;
+    this.wsStacksIsDragging = true;
+    this.wsStacksDidMove = false;
+    this.wsStacksDragStartX = event.clientX;
+    this.wsStacksStartScrollLeft = row.scrollLeft;
+  }
+
+  onWsStacksMouseMove(event: MouseEvent) {
+    if (!this.wsStacksIsDragging || this.wsStacksDragStartX === null) return;
+    const row = this.wsStacksRow?.nativeElement;
+    if (!row) return;
+
+    const delta = event.clientX - this.wsStacksDragStartX;
+    if (Math.abs(delta) > 4) {
+      this.wsStacksDidMove = true;
+    }
+    row.scrollLeft = this.wsStacksStartScrollLeft - delta;
+  }
+
+  onWsStacksMouseUp() {
+    this.wsEndStacksDrag();
+  }
+
+  onWsStacksMouseLeave() {
+    if (this.wsStacksIsDragging) {
+      this.wsEndStacksDrag();
+    }
+  }
+
+  onWsStacksTouchStart(event: TouchEvent) {
+    if (event.touches.length !== 1) return;
+    const row = this.wsStacksRow?.nativeElement;
+    if (!row) return;
+    this.wsStacksIsDragging = true;
+    this.wsStacksDidMove = false;
+    this.wsStacksDragStartX = event.touches[0].clientX;
+    this.wsStacksStartScrollLeft = row.scrollLeft;
+  }
+
+  onWsStacksTouchMove(event: TouchEvent) {
+    if (!this.wsStacksIsDragging || this.wsStacksDragStartX === null || event.touches.length !== 1) return;
+    const row = this.wsStacksRow?.nativeElement;
+    if (!row) return;
+
+    const delta = event.touches[0].clientX - this.wsStacksDragStartX;
+    if (Math.abs(delta) > 4) {
+      this.wsStacksDidMove = true;
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+    }
+    row.scrollLeft = this.wsStacksStartScrollLeft - delta;
+  }
+
+  onWsStacksTouchEnd() {
+    this.wsEndStacksDrag();
+  }
+
+  private wsEndStacksDrag() {
+    this.wsStacksIsDragging = false;
+    this.wsStacksDragStartX = null;
+    this.wsStacksWasDragging = this.wsStacksDidMove;
+    this.wsCenterCurrentRoundStack('smooth');
+  }
+
+  private wsCenterCurrentRoundStack(behavior: ScrollBehavior = 'smooth') {
+    if (!this.platform.browser()) return;
+    const row = this.wsStacksRow?.nativeElement;
+    if (!row) return;
+
+    const current = this.wsCurrentRound();
+    const activeStack = row.querySelector(`[data-round="${current}"]`) as HTMLElement | null;
+    if (!activeStack) return;
+
+    const targetLeft = activeStack.offsetLeft + (activeStack.offsetWidth / 2) - (row.clientWidth / 2);
+    row.scrollTo({ left: Math.max(0, targetLeft), behavior });
   }
 
   wsStackCardTransform(index: number, total: number): string {
@@ -1953,7 +2208,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     this.moveCarouselDrag(ev.touches[0].clientX);
 
     // Prevent native scrolling while performing a horizontal swipe
-    if (Math.abs(this.touchDeltaX) > 8) {
+    if (Math.abs(this.touchDeltaX) > 8 && ev.cancelable) {
       ev.preventDefault();
     }
   }

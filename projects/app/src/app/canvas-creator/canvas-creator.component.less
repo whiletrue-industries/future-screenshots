@@ -419,24 +419,97 @@
         }
       }
 
-      .ws-screenshot-stack {
-        position: relative;
-        width: min(320px, 100%);
-        height: 260px;
-        margin: 10px auto 24px;
+      .ws-rounds-pager {
+        width: 100vw;
+        margin-left: calc(50% - 50vw);
+        margin-right: calc(50% - 50vw);
+        margin-top: 10px;
+        margin-bottom: 24px;
+        padding: 0 0 8px;
+        box-sizing: border-box;
+        display: flex;
+        gap: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        touch-action: pan-x;
+        scroll-snap-type: x mandatory;
+        scroll-behavior: smooth;
+        scrollbar-width: thin;
 
-        .ws-stack-card {
-          position: absolute;
-          left: 50%;
-          top: 0;
-          width: 190px;
-          max-width: 62vw;
-          height: 248px;
-          object-fit: cover;
+        .ws-round-page {
+          width: 100vw;
+          flex: 0 0 100vw;
+          scroll-snap-align: start;
+          box-sizing: border-box;
+          padding: 0 22px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .ws-round-page-title {
+          .font-sans;
+          font-size: 14px;
+          line-height: 1.1;
+          font-weight: 700;
+          color: fade(@color-primary, 82%);
+          letter-spacing: 0.02em;
+          text-transform: uppercase;
+        }
+
+        .ws-round-gallery {
+          display: flex;
+          align-items: stretch;
+          gap: 12px;
+          overflow-x: auto;
+          overflow-y: hidden;
+          padding-bottom: 2px;
+          scrollbar-width: thin;
+        }
+
+        .ws-round-item {
+          flex: 0 0 auto;
+          width: 120px;
+          min-height: 170px;
           border-radius: 12px;
-          border: 1px solid rgba(78, 2, 178, 0.18);
-          box-shadow: 0 12px 24px rgba(26, 12, 46, 0.22);
-          transform-origin: top center;
+          overflow: hidden;
+        }
+
+        .ws-round-item-shot {
+          border: 1px solid rgba(78, 2, 178, 0.2);
+          box-shadow: 0 3px 8px rgba(26, 12, 46, 0.1);
+          background: #fff;
+
+          img {
+            display: block;
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+          }
+        }
+
+        .ws-round-item-placeholder {
+          border: 1px dashed rgba(78, 2, 178, 0.34);
+          background: rgba(255, 255, 255, 0.64);
+          color: fade(@color-primary, 85%);
+          padding: 10px 12px;
+          text-align: center;
+          .font-sans;
+          font-size: 13px;
+          line-height: 1.25;
+          font-weight: 600;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+
+          &:hover {
+            background: rgba(255, 255, 255, 0.82);
+            box-shadow: 0 4px 10px rgba(31, 16, 54, 0.14);
+          }
+
+          &:active {
+            transform: translateY(1px);
+          }
         }
       }
 
@@ -444,10 +517,39 @@
         position: fixed;
         left: 0;
         right: 0;
+        width: 100vw;
+        box-sizing: border-box;
         bottom: 0;
-        padding: 8px 24px calc(8px + env(safe-area-inset-bottom));
+        padding: 8px calc(8px + env(safe-area-inset-bottom));
         z-index: 12;
         background: linear-gradient(to top, rgba(245, 240, 231, 0.98) 65%, rgba(245, 240, 231, 0));
+
+        .ws-round-nav {
+          display: flex;
+          width: 100%;
+          flex-flow: row nowrap;
+          align-items: stretch;
+          gap: 8px;
+          overflow-x: auto;
+          overflow-y: hidden;
+          white-space: nowrap;
+          padding: 0 24px 2px;
+          scrollbar-width: thin;
+
+          .ws-round-nav-button {
+            min-width: 72px;
+            height: 52px;
+            padding: 0 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            flex: 0 0 auto;
+          }
+
+          .button:disabled {
+            opacity: 0.45;
+            cursor: default;
+          }
+        }
       }
     }
   }
