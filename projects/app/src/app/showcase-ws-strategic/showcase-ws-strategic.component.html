@@ -16,6 +16,18 @@
   }
 
   @if (!isLoading() && !errorMsg()) {
+    <nav class="ws-tabs" aria-label="Page sections">
+      <div class="ws-tab-wrap">
+        <button type="button" class="ws-tab" [class.active]="activeTab() === 'export'" (click)="setActiveTab('export')">Export</button>
+        <a class="ws-tab-permalink" [href]="getTabPermalink('export')" title="Permalink to export tab" aria-label="Permalink to export tab">#</a>
+      </div>
+      <div class="ws-tab-wrap">
+        <button type="button" class="ws-tab" [class.active]="activeTab() === 'settings'" (click)="setActiveTab('settings')">Settings</button>
+        <a class="ws-tab-permalink" [href]="getTabPermalink('settings')" title="Permalink to settings tab" aria-label="Permalink to settings tab">#</a>
+      </div>
+    </nav>
+
+    @if (activeTab() === 'settings') {
     <!-- Groups + Participant Links -->
     <section class="ws-section" aria-labelledby="groups-heading">
       <h2 id="groups-heading" i18n>Groups & Participant Links</h2>
@@ -31,6 +43,7 @@
             <span class="ws-group-dot" [style.background]="group.color || '#607D8B'" aria-hidden="true"></span>
             <span class="ws-group-name">{{ group.name }}</span>
             <button
+              type="button"
               class="ws-copy-btn"
               [class.copied]="copiedGroupId() === group.id"
               (click)="copyParticipantLink(group)"
@@ -61,9 +74,11 @@
         </ol>
       </section>
     }
+    }
 
+    @if (activeTab() === 'export') {
     <!-- Composition Preview -->
-    <section class="ws-section ws-preview-section" aria-labelledby="preview-heading">
+    <section class="ws-section ws-preview-section ws-preview-section-full" aria-labelledby="preview-heading">
       <h2 id="preview-heading" i18n>Composition Preview</h2>
       <p class="ws-hint" i18n>
         This preview mirrors the Miro export composition (group → round → participant → items) so you can validate what will be sent.
@@ -91,6 +106,14 @@
               <h3 [style.color]="groupPreview.color">{{ groupPreview.name }}</h3>
               <p>{{ groupPreview.totalItems }} items</p>
             </div>
+            <label class="ws-include-toggle">
+              <input
+                type="checkbox"
+                [checked]="isGroupIncluded(groupPreview.id)"
+                (change)="toggleGroupIncluded(groupPreview.id, $any($event.target).checked)"
+              />
+              <span>group</span>
+            </label>
             @if (boardMode() === 'add' && miroBoardId() && (groupPreview.newCount > 0 || groupPreview.updatedCount > 0)) {
               <div class="ws-preview-group-delta">
                 @if (groupPreview.newCount > 0) {
@@ -114,6 +137,14 @@
               <h4 [style.color]="groupPreview.color">
                 <span i18n>Round</span> {{ roundPreview.round }}: {{ roundPreview.prompt }}
               </h4>
+              <label class="ws-include-toggle ws-include-toggle-round">
+                <input
+                  type="checkbox"
+                  [checked]="isRoundIncluded(groupPreview.id, roundPreview.round)"
+                  (change)="toggleRoundIncluded(groupPreview.id, roundPreview.round, $any($event.target).checked)"
+                />
+                <span>round</span>
+              </label>
 
               @for (participant of roundPreview.participants; track participant.participantId) {
                 <div class="ws-preview-participant">
@@ -125,7 +156,21 @@
 
                   <div class="ws-preview-items-row">
                     @for (item of participant.items; track item.id) {
-                      <article class="ws-preview-item-block" [class.ws-item-new]="item.changeStatus === 'new'" [class.ws-item-updated]="item.changeStatus === 'updated'" [class.ws-item-unchanged]="item.changeStatus === 'unchanged'">
+                      <article
+                        class="ws-preview-item-block"
+                        [class.ws-item-new]="item.changeStatus === 'new'"
+                        [class.ws-item-updated]="item.changeStatus === 'updated'"
+                        [class.ws-item-unchanged]="item.changeStatus === 'unchanged'"
+                        [class.ws-item-excluded]="!isExportPathIncluded(groupPreview.id, roundPreview.round, item.exportKey)"
+                      >
+                        <label class="ws-include-toggle ws-include-toggle-item">
+                          <input
+                            type="checkbox"
+                            [checked]="isItemIncluded(item.exportKey)"
+                            (change)="toggleItemIncluded(item.exportKey, $any($event.target).checked)"
+                          />
+                          <span>item</span>
+                        </label>
                         @if (item.changeStatus && boardMode() === 'add' && miroBoardId()) {
                           <span 
                             class="ws-item-status-badge" 
@@ -189,9 +234,43 @@
         <span i18n>Export to Miro</span>
       </h2>
       <p class="ws-hint" i18n>
-        Paste a Miro personal access token to create a board with one frame per group,
-        a <strong>participant × round</strong> image grid, and sticky note space for facilitation.
+        Select what to include using the checkboxes above, then export.
       </p>
+      <fieldset class="ws-tag-type-controls" [disabled]="miroExporting()">
+        <legend>Tag types</legend>
+        <label class="ws-include-toggle">
+          <input
+            type="checkbox"
+            [checked]="includeTagGroup()"
+            (change)="setIncludeTagGroup($any($event.target).checked)"
+          />
+          <span>group</span>
+        </label>
+        <label class="ws-include-toggle">
+          <input
+            type="checkbox"
+            [checked]="includeTagRound()"
+            (change)="setIncludeTagRound($any($event.target).checked)"
+          />
+          <span>round</span>
+        </label>
+        <label class="ws-include-toggle">
+          <input
+            type="checkbox"
+            [checked]="includeTagContentTitle()"
+            (change)="setIncludeTagContentTitle($any($event.target).checked)"
+          />
+          <span>content_title</span>
+        </label>
+        <label class="ws-include-toggle">
+          <input
+            type="checkbox"
+            [checked]="includeTagItemId()"
+            (change)="setIncludeTagItemId($any($event.target).checked)"
+          />
+          <span>item_id</span>
+        </label>
+      </fieldset>
       <p class="ws-hint ws-hint--small" i18n>
         Generate your token at
         <a href="https://miro.com/app/settings/user-profile/apps" target="_blank" rel="noopener noreferrer">
@@ -225,36 +304,6 @@
           </p>
         }
       </fieldset>
-
-      <form class="ws-miro-form" (submit)="$event.preventDefault(); sendToMiro()">
-        <input
-          type="password"
-          class="ws-token-input"
-          [value]="miroToken()"
-          (input)="onMiroTokenInput($any($event.target).value)"
-          placeholder="Paste your Miro token here…"
-          i18n-placeholder
-          autocomplete="off"
-          [disabled]="miroExporting()"
-          aria-label="Miro personal access token"
-        />
-        <button
-          class="ws-miro-btn"
-          type="submit"
-          [disabled]="!miroToken().trim() || miroExporting()"
-          i18n
-        >
-          @if (miroExporting()) {
-            Exporting…
-          } @else {
-            Send to Miro
-          }
-        </button>
-      </form>
-
-      @if (miroProgress()) {
-        <p class="ws-miro-progress" role="status" aria-live="polite">{{ miroProgress() }}</p>
-      }
 
       @if (miroBoardLink()) {
         <div class="ws-miro-result">
@@ -291,5 +340,42 @@
         </div>
       }
     </section>
+
+    <div class="ws-export-bottom-bar">
+      <input
+        type="password"
+        class="ws-token-input ws-token-input-minimal"
+        [value]="miroToken()"
+        (input)="onMiroTokenInput($any($event.target).value)"
+        placeholder="Miro access token"
+        i18n-placeholder
+        autocomplete="off"
+        [disabled]="miroExporting()"
+        aria-label="Miro personal access token"
+      />
+      <button
+        class="ws-miro-btn"
+        type="button"
+        [disabled]="!miroToken().trim() || miroExporting()"
+        (click)="sendToMiro()"
+        i18n
+      >
+        @if (miroExporting()) {
+          Exporting…
+        } @else {
+          Send to Miro
+        }
+      </button>
+
+      <div class="ws-export-status" role="status" aria-live="polite">
+        @if (miroProgress()) {
+          <span class="ws-miro-progress">{{ miroProgress() }}</span>
+        }
+        @if (miroError()) {
+          <span class="ws-miro-error">{{ miroError() }}</span>
+        }
+      </div>
+    </div>
+    }
   }
 </div>

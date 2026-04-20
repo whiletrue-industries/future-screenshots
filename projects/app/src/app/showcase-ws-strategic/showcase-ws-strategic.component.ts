@@ -13,6 +13,8 @@ type ExistingMiroFrame = {
   height: number;
 };
 
+type WsTab = 'export' | 'settings';
+
 @Component({
   selector: 'app-showcase-ws-strategic',
   imports: [],
@@ -37,6 +39,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
   errorMsg = signal<string | null>(null);
 
   // Miro export state
+  activeTab = signal<WsTab>('export');
   miroToken = signal<string>('');
   miroExporting = signal(false);
   miroBoardLink = signal<{ boardUrl: string; boardName: string; boardMode: 'create' | 'add' } | null>(null);
@@ -47,6 +50,14 @@ export class ShowcaseWsStrategicComponent implements OnInit {
   boardMode = signal<'create' | 'add'>('add'); // 'add' updates existing board when available
   private readonly MIRO_REQUEST_TIMEOUT_MS = 30000;
   private readonly MIRO_TAG_TITLE_MAX_LENGTH = 120;
+  private readonly MIRO_TAG_RETRY_ATTEMPTS = 6;
+  excludedGroupIds = signal<Set<string>>(new Set());
+  excludedRoundKeys = signal<Set<string>>(new Set());
+  excludedItemKeys = signal<Set<string>>(new Set());
+  includeTagGroup = signal(true);
+  includeTagRound = signal(true);
+  includeTagContentTitle = signal(true);
+  includeTagItemId = signal(true);
 
   // Copied link feedback
   copiedGroupId = signal<string | null>(null);
@@ -111,6 +122,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     const storedBoardId = this.getStoredMiroBoardId();
     this.miroBoardId.set(storedBoardId);
     this.boardMode.set(this.getStoredBoardMode(storedBoardId));
+    this.initActiveTabFromUrl();
 
     if (this.workspace()) {
       this.loadWorkspace();
@@ -219,6 +231,146 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     this.storeBoardMode(mode);
   }
 
+  setActiveTab(tab: WsTab) {
+    this.activeTab.set(tab);
+    this.updateTabPermalink(tab);
+  }
+
+  getTabPermalink(tab: WsTab): string {
+    if (typeof window === 'undefined') {
+      return `#${tab}`;
+    }
+    return `${window.location.origin}${window.location.pathname}${window.location.search}#${tab}`;
+  }
+
+  private initActiveTabFromUrl(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const hash = (window.location.hash || '').replace('#', '').toLowerCase();
+    if (hash === 'export' || hash === 'settings') {
+      this.activeTab.set(hash as WsTab);
+      return;
+    }
+
+    this.updateTabPermalink(this.activeTab());
+  }
+
+  private updateTabPermalink(tab: WsTab): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const url = `${window.location.pathname}${window.location.search}#${tab}`;
+    window.history.replaceState(window.history.state, '', url);
+  }
+
+  isGroupIncluded(groupId: string): boolean {
+    return !this.excludedGroupIds().has(groupId);
+  }
+
+  toggleGroupIncluded(groupId: string, included: boolean): void {
+    this.excludedGroupIds.update((current) => {
+      const next = new Set(current);
+      if (included) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  }
+
+  isRoundIncluded(groupId: string, round: number): boolean {
+    return !this.excludedRoundKeys().has(this.roundSelectionKey(groupId, round));
+  }
+
+  toggleRoundIncluded(groupId: string, round: number, included: boolean): void {
+    const key = this.roundSelectionKey(groupId, round);
+    this.excludedRoundKeys.update((current) => {
+      const next = new Set(current);
+      if (included) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
+  isItemIncluded(itemKey: string): boolean {
+    return !this.excludedItemKeys().has(itemKey);
+  }
+
+  toggleItemIncluded(itemKey: string, included: boolean): void {
+    this.excludedItemKeys.update((current) => {
+      const next = new Set(current);
+      if (included) {
+        next.delete(itemKey);
+      } else {
+        next.add(itemKey);
+      }
+      return next;
+    });
+  }
+
+  setIncludeTagGroup(enabled: boolean): void {
+    this.includeTagGroup.set(enabled);
+  }
+
+  setIncludeTagRound(enabled: boolean): void {
+    this.includeTagRound.set(enabled);
+  }
+
+  setIncludeTagContentTitle(enabled: boolean): void {
+    this.includeTagContentTitle.set(enabled);
+  }
+
+  setIncludeTagItemId(enabled: boolean): void {
+    this.includeTagItemId.set(enabled);
+  }
+
+  isExportPathIncluded(groupId: string, round: number, itemKey: string): boolean {
+    return this.isGroupIncluded(groupId)
+      && this.isRoundIncluded(groupId, round)
+      && this.isItemIncluded(itemKey);
+  }
+
+  private roundSelectionKey(groupId: string, round: number): string {
+    return `${groupId}:${round}`;
+  }
+
+  private itemSelectionKey(item: any): string {
+    const id = this.getItemId(item);
+    if (id) {
+      return `id:${id}`;
+    }
+    const groupId = this.getWsGroupId(item) || 'nogroup';
+    const round = Number(this.getWsRound(item)) || 0;
+    const participant = this.getAuthorId(item) || this.getParticipantName(item) || 'unknown';
+    const title = this.getContentTitle(item) || 'untitled';
+    return `${groupId}|${round}|${participant}|${title}`;
+  }
+
+  private buildDatapointTags(groupName: string, round: number, contentTitle: string, itemId: string): Array<{ tagTitle: string }> {
+    const tags: Array<{ tagTitle: string }> = [];
+
+    if (this.includeTagGroup()) {
+      tags.push({ tagTitle: this.sanitizeMiroTagTitle(`group:${groupName}`) });
+    }
+    if (this.includeTagRound()) {
+      tags.push({ tagTitle: this.sanitizeMiroTagTitle(`round:${round}`) });
+    }
+    if (this.includeTagContentTitle()) {
+      tags.push({ tagTitle: this.sanitizeMiroTagTitle(`content_title:${contentTitle}`) });
+    }
+    if (this.includeTagItemId() && itemId) {
+      tags.push({ tagTitle: this.sanitizeMiroTagTitle(`item_id:${itemId}`) });
+    }
+
+    return tags.filter((tag) => tag.tagTitle.length > 0);
+  }
+
   // ---- Miro export (Option C2 – token paste) ----
 
   /** Push all groups to Miro as separate boards, each with a participant × round image grid */
@@ -238,6 +390,20 @@ export class ShowcaseWsStrategicComponent implements OnInit {
     const groups = this.wsGroups();
     const totalRounds = this.wsTotalRounds();
     const allItems = this.items().filter((item) => !this.isItemArchived(item));
+    const filteredItems = allItems.filter((item) => {
+      const groupId = this.getWsGroupId(item);
+      const round = Number(this.getWsRound(item));
+      const itemKey = this.itemSelectionKey(item);
+      if (!groupId || !Number.isFinite(round)) {
+        return false;
+      }
+      return this.isExportPathIncluded(groupId, round, itemKey);
+    });
+    if (filteredItems.length === 0) {
+      this.miroError.set('No items selected for export. Enable at least one group/round/item and try again.');
+      this.miroExporting.set(false);
+      return;
+    }
     const workshopName = this.workshopName();
 
     try {
@@ -322,6 +488,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
 
       let groupOffsetY = existingBoardStartY;
       const prompts = this.wsRoundPrompts();
+      let renderedItemCount = 0;
 
       // Calculate delta information if in update mode for existing board
       let itemDelta = { new: new Set<string>(), updated: new Set<string>(), all: new Set<string>() };
@@ -331,7 +498,11 @@ export class ShowcaseWsStrategicComponent implements OnInit {
       }
 
       for (const group of groups) {
-        const groupItemsAll = allItems.filter(item => this.getWsGroupId(item) === group.id);
+        if (!this.isGroupIncluded(group.id)) {
+          continue;
+        }
+
+        const groupItemsAll = filteredItems.filter(item => this.getWsGroupId(item) === group.id);
 
         let groupItems = groupItemsAll;
         
@@ -481,6 +652,9 @@ export class ShowcaseWsStrategicComponent implements OnInit {
         }
 
         for (let round = 1; round <= totalRounds; round++) {
+          if (!this.isRoundIncluded(group.id, round)) {
+            continue;
+          }
           this.miroProgress.set(`Placing round ${round} for group: ${group.name}…`);
           const roundIdx = round - 1;
           const roundStartY = contentTopY + roundIdx * (roundRowH + ROUND_GAP);
@@ -543,11 +717,13 @@ export class ShowcaseWsStrategicComponent implements OnInit {
             for (let itemIdx = 0; itemIdx < itemsForParticipant.length; itemIdx++) {
               const item = itemsForParticipant[itemIdx];
               const itemId = this.getItemId(item);
+              const itemKey = this.itemSelectionKey(item);
               const shouldRenderItem = !isDeltaUpdateOnExistingBoard
                 || (itemId && (itemDelta.new.has(itemId) || itemDelta.updated.has(itemId)));
-              if (!shouldRenderItem) {
+              if (!shouldRenderItem || !this.isItemIncluded(itemKey)) {
                 continue;
               }
+              renderedItemCount++;
 
               // In delta mode use an append slot (after all unchanged items) so that
               // new and updated items are always added rather than replacing existing ones.
@@ -591,12 +767,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
                 );
               }
 
-              const datapointTags = [
-                { tagTitle: this.sanitizeMiroTagTitle(`group:${group.name}`) },
-                { tagTitle: this.sanitizeMiroTagTitle(`round:${round}`) },
-                { tagTitle: this.sanitizeMiroTagTitle(`content_title:${contentTitle}`) },
-                ...(itemId ? [{ tagTitle: this.sanitizeMiroTagTitle(`item_id:${itemId}`) }] : []),
-              ].filter((tag) => tag.tagTitle.length > 0);
+              const datapointTags = this.buildDatapointTags(group.name, round, contentTitle, itemId || '');
 
               const stickyIdsToTag: string[] = [];
 
@@ -694,6 +865,15 @@ export class ShowcaseWsStrategicComponent implements OnInit {
         }
       }
 
+      if (renderedItemCount === 0) {
+        const noOpMessage = shouldAddToExisting
+          ? 'No changes were exported. In update mode, only newly added or updated items are sent.'
+          : 'No items were exported. Check your include toggles and try again.';
+        this.miroError.set(noOpMessage);
+        this.miroProgress.set('');
+        return;
+      }
+
       this.miroResult.set({
         boardUrl,
         boardName,
@@ -701,7 +881,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
       });
       
       // Store the current item state (id → screenshotUrl) for delta-based exports in future runs.
-      this.storeLastExportState(allItems);
+      this.storeLastExportState(filteredItems);
       
       this.miroProgress.set('');
     } catch (err: any) {
@@ -911,11 +1091,13 @@ export class ShowcaseWsStrategicComponent implements OnInit {
           const items = itemsForParticipant.map((item, itemIdx) => {
             const imageUrl = this.getScreenshotUrl(item) || this.getThumbnailUrl(item) || '';
             const itemId = this.getItemId(item) || `${participantId}-${round}-${itemIdx}`;
+            const exportKey = this.itemSelectionKey(item);
             const changeStatus = exportMode === 'update'
               ? itemDelta.new.has(itemId) ? 'new' : itemDelta.updated.has(itemId) ? 'updated' : 'unchanged'
               : 'new';
             return {
               id: itemId,
+              exportKey,
               title: this.getContentTitle(item) || `Item ${itemIdx + 1}`,
               imageUrl,
               hasImage: !!imageUrl,
@@ -1296,26 +1478,36 @@ export class ShowcaseWsStrategicComponent implements OnInit {
       return cachedId;
     }
 
-    try {
-      const tag = await this.miroPost(token, `https://api.miro.com/v2/boards/${boardId}/tags`, {
-        title,
-        fillColor,
-      });
+    for (let attempt = 0; attempt < this.MIRO_TAG_RETRY_ATTEMPTS; attempt++) {
+      try {
+        const tag = await this.miroPost(token, `https://api.miro.com/v2/boards/${boardId}/tags`, {
+          title,
+          fillColor,
+        });
 
-      const tagId = tag.id as string;
-      tagCache.set(cacheKey, tagId);
-      return tagId;
-    } catch (err) {
-      const message = (err instanceof Error ? err.message : String(err)).toLowerCase();
-      const isDuplicate = message.includes('already exists') || message.includes('already_exist') || message.includes('duplicate');
-      if (isDuplicate) {
-        const existingId = await this.findBoardTagIdByTitle(token, boardId, normalizedTitle, tagCache);
-        if (existingId) {
-          return existingId;
+        const tagId = tag.id as string;
+        tagCache.set(cacheKey, tagId);
+        return tagId;
+      } catch (err) {
+        const message = (err instanceof Error ? err.message : String(err)).toLowerCase();
+        const isDuplicate = message.includes('already exists') || message.includes('already_exist') || message.includes('duplicate');
+        if (isDuplicate) {
+          const existingId = await this.findBoardTagIdByTitle(token, boardId, normalizedTitle, tagCache);
+          if (existingId) {
+            return existingId;
+          }
         }
+
+        const shouldRetry = this.isRetriableMiroError(err);
+        if (!shouldRetry || attempt === this.MIRO_TAG_RETRY_ATTEMPTS - 1) {
+          throw err;
+        }
+
+        await this.delay(this.retryDelayMs(attempt));
       }
-      throw err;
     }
+
+    throw new Error('Failed to create or resolve Miro tag after retries.');
   }
 
   private async preloadBoardTags(token: string, boardId: string, tagCache: Map<string, string>): Promise<void> {
@@ -1401,19 +1593,49 @@ export class ShowcaseWsStrategicComponent implements OnInit {
   private async attachTagToItem(token: string, boardId: string, itemId: string, tagId: string): Promise<boolean> {
     const encodedItemId = encodeURIComponent(itemId);
     const url = `https://api.miro.com/v2/boards/${boardId}/items/${encodedItemId}?tag_id=${encodeURIComponent(tagId)}`;
-    try {
-      await this.miroPostNoContent(token, url);
-      return true;
-    } catch (error) {
-      const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
-      const isAlreadyAttached = message.includes('409')
-        && (message.includes('already') || message.includes('duplicate') || message.includes('exist'));
-      if (isAlreadyAttached) {
+    for (let attempt = 0; attempt < this.MIRO_TAG_RETRY_ATTEMPTS; attempt++) {
+      try {
+        await this.miroPostNoContent(token, url);
         return true;
+      } catch (error) {
+        const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+        const isAlreadyAttached = message.includes('409')
+          && (message.includes('already') || message.includes('duplicate') || message.includes('exist'));
+        if (isAlreadyAttached) {
+          return true;
+        }
+
+        const shouldRetry = this.isRetriableMiroError(error);
+        if (!shouldRetry || attempt === this.MIRO_TAG_RETRY_ATTEMPTS - 1) {
+          console.warn(`[Miro Export] Failed to attach tag ${tagId} to item ${itemId}. Continuing export.`, error);
+          return false;
+        }
+
+        await this.delay(this.retryDelayMs(attempt));
       }
-      console.warn(`[Miro Export] Failed to attach tag ${tagId} to item ${itemId}. Continuing export.`, error);
-      return false;
     }
+
+    return false;
+  }
+
+  private isRetriableMiroError(error: unknown): boolean {
+    const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+    return message.includes('429')
+      || message.includes(' 500')
+      || message.includes(' 502')
+      || message.includes(' 503')
+      || message.includes(' 504')
+      || message.includes('timed out')
+      || message.includes('networkerror')
+      || message.includes('failed to fetch');
+  }
+
+  private retryDelayMs(attempt: number): number {
+    return Math.min(5000, 450 * Math.pow(2, attempt));
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private async itemHasTag(token: string, boardId: string, itemId: string, tagId: string): Promise<boolean> {
