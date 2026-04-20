@@ -46,6 +46,7 @@ export class ShowcaseWsStrategicComponent implements OnInit {
   miroBoardId = signal<string | null>(null);
   boardMode = signal<'create' | 'add'>('add'); // 'add' updates existing board when available
   private readonly MIRO_REQUEST_TIMEOUT_MS = 30000;
+  private readonly MIRO_TAG_TITLE_MAX_LENGTH = 120;
 
   // Copied link feedback
   copiedGroupId = signal<string | null>(null);
@@ -591,11 +592,11 @@ export class ShowcaseWsStrategicComponent implements OnInit {
               }
 
               const datapointTags = [
-                { tagTitle: `group:${group.name}` },
-                { tagTitle: `round:${round}` },
-                { tagTitle: `content_title:${contentTitle}` },
-                ...(itemId ? [{ tagTitle: `item_id:${itemId}` }] : []),
-              ];
+                { tagTitle: this.sanitizeMiroTagTitle(`group:${group.name}`) },
+                { tagTitle: this.sanitizeMiroTagTitle(`round:${round}`) },
+                { tagTitle: this.sanitizeMiroTagTitle(`content_title:${contentTitle}`) },
+                ...(itemId ? [{ tagTitle: this.sanitizeMiroTagTitle(`item_id:${itemId}`) }] : []),
+              ].filter((tag) => tag.tagTitle.length > 0);
 
               const stickyIdsToTag: string[] = [];
 
@@ -643,14 +644,18 @@ export class ShowcaseWsStrategicComponent implements OnInit {
 
               for (const stickyId of stickyIdsToTag) {
                 for (const datapointTag of datapointTags) {
-                  const tagId = await this.getOrCreateBoardTag(
-                    token,
-                    finalBoardId,
-                    boardTagCache,
-                    datapointTag.tagTitle,
-                    this.toMiroTagColor(group.color),
-                  );
-                  await this.attachTagToItem(token, finalBoardId, stickyId, tagId);
+                  try {
+                    const tagId = await this.getOrCreateBoardTag(
+                      token,
+                      finalBoardId,
+                      boardTagCache,
+                      datapointTag.tagTitle,
+                      this.toMiroTagColor(group.color),
+                    );
+                    await this.attachTagToItem(token, finalBoardId, stickyId, tagId);
+                  } catch (error) {
+                    console.warn(`[Miro Export] Failed tag pipeline for sticky ${stickyId} and tag "${datapointTag.tagTitle}". Continuing export.`, error);
+                  }
                 }
               }
 
@@ -1366,6 +1371,14 @@ export class ShowcaseWsStrategicComponent implements OnInit {
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>');
+  }
+
+  private sanitizeMiroTagTitle(title: string): string {
+    return this.decodeHtmlEntities(String(title || ''))
+      .replace(/<[^>]+>/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, this.MIRO_TAG_TITLE_MAX_LENGTH);
   }
 
   private async getAllBoardTags(token: string, boardId: string): Promise<any[]> {
