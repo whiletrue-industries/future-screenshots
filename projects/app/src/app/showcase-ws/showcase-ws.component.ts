@@ -4,8 +4,8 @@ import { catchError, distinctUntilChanged, filter, forkJoin, from, fromEvent, in
 import { PlatformService } from '../../platform.service';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { QrcodeComponent } from "./qrcode/qrcode.component";
-import { EvaluationSidebarComponent } from "./evaluation-sidebar/evaluation-sidebar.component";
 import { FiltersBarComponent, FiltersBarState } from '../shared/filters-bar/filters-bar.component';
 import { TaxonomyService } from '../shared/taxonomy.service';
 import { FisheyeSettings } from './settings-panel.component';
@@ -19,6 +19,7 @@ import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
+import { ModerationSidebarComponent } from '../admin/moderation-sidebar/moderation-sidebar.component';
 import { TaxonomyClustersOverlayComponent } from './taxonomy-clusters-overlay/taxonomy-clusters-overlay.component';
 import { TaxonomyClusterLabel } from './taxonomy-clusters-overlay/taxonomy-label.interface';
 import { TaxonomyLabelHoverEvent } from './taxonomy-clusters-overlay/taxonomy-clusters-overlay.component';
@@ -31,7 +32,7 @@ const DRAG_ALL_ALLOWED_PROPERTIES = 'layout_x,layout_y,plausibility,favorable_fu
 
 @Component({
   selector: 'app-showcase-ws',
-  imports: [QrcodeComponent, EvaluationSidebarComponent, FiltersBarComponent, TaxonomyClustersOverlayComponent],
+  imports: [QrcodeComponent, FiltersBarComponent, TaxonomyClustersOverlayComponent, ModerationSidebarComponent],
   templateUrl: './showcase-ws.component.html',
   styleUrl: './showcase-ws.component.less'
 })
@@ -40,6 +41,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   @ViewChild('titleElement') titleElement?: ElementRef;
   private router = inject(Router);
   private destroyRef = inject(DestroyRef);
+  private sanitizer = inject(DomSanitizer);
   taxonomyService = inject(TaxonomyService);
   private photoRepository: PhotoDataRepository;
   private activatedRoute: ActivatedRoute;
@@ -71,6 +73,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   // Evaluation sidebar state
   sidebarOpen = signal(false);
   selectedItemId = signal<string | null>(null);
+  selectedAdminItem = signal<any | null>(null);
+  sidebarTab = signal<'moderation' | 'evaluation' | 'chat'>('moderation');
   
   // Permalink support - item to focus on after load
   focusItemId = signal<string | null>(null);
@@ -104,11 +108,41 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   private initialLayoutPreparedBeforeLoad = false;
   
   // Get the selected item's key (if available)
-  selectedItemKey = computed(() => {
+  selectedItemKey = computed(() => this.selectedAdminItem()?.['item_key'] || null);
+
+  selectedItemImageUrl = computed(() => {
+    const selectedItem = this.selectedAdminItem();
+    if (!selectedItem) return null;
+    return selectedItem['enhanced_url'] || selectedItem['screenshot_url'] || selectedItem['url'] || null;
+  });
+
+  selectedItemMissingEvaluation = computed(() => {
+    const selectedItem = this.selectedAdminItem();
+    if (!selectedItem) return false;
+    const plausibility = selectedItem['plausibility'];
+    const favorable = selectedItem['favorable_future'] ?? selectedItem['_svgZoneFavorableFuture'];
+    const hasPlausibility = typeof plausibility === 'number' && Number.isFinite(plausibility);
+    const hasFavorable = typeof favorable === 'string' && favorable.trim().length > 0;
+    return !(hasPlausibility && hasFavorable);
+  });
+
+  selectedAdminUserItemCount = computed(() => {
+    const authorId = this.selectedAdminItem()?.['author_id'];
+    if (!authorId) {
+      return 0;
+    }
+    return this.photoRepository.getAllPhotos().filter(photo => {
+      const photoAuthorId = photo.metadata['author_id'] || 'unknown';
+      return photoAuthorId === authorId;
+    }).length;
+  });
+
+  sidebarIframeUrl = computed<SafeResourceUrl | null>(() => {
     const itemId = this.selectedItemId();
-    if (!itemId) return null;
-    const photo = this.photoRepository.getPhoto(itemId);
-    return photo?.metadata?.['item_key'] || null;
+    if (!itemId || !this.sidebarOpen() || this.sidebarTab() === 'moderation') {
+      return null;
+    }
+    return this.buildSidebarIframeUrl(this.sidebarTab(), itemId);
   });
   
   // Check if user has admin access
@@ -1946,8 +1980,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.updateActiveItemZIndex();
     
     if (this.isAdmin()) {
-      // User has edit permissions - open sidebar for evaluation
+      // Admin flow: open item modal with moderation/evaluation/chat tabs.
       this.selectedItemId.set(photoId);
+      this.selectedAdminItem.set(this.buildSelectedAdminItem(photoId));
+      this.sidebarTab.set('moderation');
       this.sidebarOpen.set(true);
     } else {
       // User does not have edit permissions - trigger zoom animation instead
@@ -2053,6 +2089,11 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Handle background click - close evaluation sidebar
    */
   onBackgroundClick(): void {
+    if (this.sidebarOpen()) {
+      this.onSidebarClose();
+      return;
+    }
+
     this.sidebarOpen.set(false);
     this.selectedItemId.set(null);
     this.updateHashState({ itemId: null });
@@ -2065,10 +2106,59 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    */
   onSidebarClose(): void {
     this.sidebarOpen.set(false);
+    this.sidebarTab.set('moderation');
     this.selectedItemId.set(null);
+    this.selectedAdminItem.set(null);
     this.updateHashState({ itemId: null });
     // Reset z-index for all items
     this.resetAllItemsZIndex();
+  }
+
+  onSidebarTabSelect(tab: 'moderation' | 'evaluation' | 'chat'): void {
+    if (tab === 'evaluation' && !this.selectedItemMissingEvaluation()) {
+      return;
+    }
+    this.sidebarTab.set(tab);
+  }
+
+  private buildSidebarIframeUrl(tab: 'moderation' | 'evaluation' | 'chat', itemId: string): SafeResourceUrl | null {
+    const workspace = this.workspace();
+    if (!workspace || workspace === 'WORKSPACE_NOT_SET') {
+      return null;
+    }
+
+    const params = new URLSearchParams({
+      workspace,
+      'item-id': itemId,
+    });
+
+    const adminKey = this.admin_key();
+    if (adminKey && adminKey !== 'ADMIN_KEY_NOT_SET') {
+      params.set('api_key', adminKey);
+    } else {
+      const apiKey = this.api_key();
+      if (apiKey && apiKey !== 'API_KEY_NOT_SET') {
+        params.set('api_key', apiKey);
+      }
+    }
+
+    const itemKey = this.selectedItemKey();
+    if (itemKey) {
+      params.set('key', itemKey);
+    }
+
+    let routePath = 'props';
+    if (tab === 'moderation') {
+      params.set('sidebar', 'true');
+    } else if (tab === 'chat') {
+      routePath = 'discuss';
+    }
+
+    const langPath = this.lang() ? `${this.lang()}/` : '';
+    const host = this.platform.browser() ? window.location.host : '';
+    const base = host.startsWith('localhost') ? `http://${host}` : 'https://mapfutur.es';
+    const urlString = `${base}/${langPath}${routePath}?${params.toString()}`;
+    return this.sanitizer.bypassSecurityTrustResourceUrl(urlString);
   }
 
   private parseHashState(): {
@@ -2192,15 +2282,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Handle metadata updates from the sidebar
    */
   async onMetadataUpdated(event: { itemId: string; metadata: any }): Promise<void> {
-    
     const { itemId, metadata } = event;
     const photo = this.photoRepository.getPhoto(itemId);
-    
+
     if (photo) {
-      // Update photo metadata
       photo.updateMetadata(metadata);
-      
-      // If on SVG layout with auto-positioning, trigger layout recalculation
+
       if (this.currentLayout() === 'svg' && this.enableSvgAutoPositioning()) {
         const authorId = photo.metadata['author_id'] as string;
         if (authorId) {
@@ -2210,6 +2297,44 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  async onModerationItemUpdated(updatedItem: any): Promise<void> {
+    const itemId = typeof updatedItem?._id === 'string' ? updatedItem._id : this.selectedItemId();
+    if (!itemId) {
+      return;
+    }
+
+    this.selectedAdminItem.set(updatedItem);
+    await this.onMetadataUpdated({ itemId, metadata: updatedItem });
+
+    if (updatedItem._private_moderation === 0) {
+      if (this.loadedPhotoIds.has(itemId)) {
+        this.photoRepository.removePhoto(itemId);
+        this.loadedPhotoIds.delete(itemId);
+      }
+      this.onSidebarClose();
+      return;
+    }
+
+    this.applyFilters();
+  }
+
+  onModerationFilterByAuthor(authorId: string): void {
+    const normalizedAuthor = !authorId || authorId === 'unknown' ? 'unattributed' : authorId;
+    this.currentFilters.update(filters => ({ ...filters, author: normalizedAuthor }));
+  }
+
+  private buildSelectedAdminItem(photoId: string): any | null {
+    const photo = this.photoRepository.getPhoto(photoId);
+    if (!photo) {
+      return null;
+    }
+
+    return {
+      ...photo.metadata,
+      _id: photoId,
+      id: photoId,
+    };
+  }
 
   ngOnDestroy() {
     this.rendererService.dispose();

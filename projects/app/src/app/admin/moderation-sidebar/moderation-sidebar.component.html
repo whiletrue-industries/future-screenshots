@@ -1,0 +1,214 @@
+@if (item(); as currentItem) {
+  <aside class="moderation-sidebar" role="complementary">
+    <div class="sidebar-header">
+      <h2>{{ title() }}</h2>
+      @if (showCloseButton()) {
+        <button class="close-sidebar-btn" (click)="onClose()" aria-label="Close sidebar">×</button>
+      }
+    </div>
+
+    <div class="sidebar-content">
+      <article class="item-card" [attr.data-status]="LEVELS[currentItem._private_moderation]">
+        <div class="card-header">
+          <button class="user-info" (click)="onFilterByAuthor(currentItem.author_id)" [title]="getEmail(currentItem)">
+            @if (currentItem.author_id && currentItem.author_id !== 'unknown') {
+              <span class="user-count-link">{{ userItemCount() }} items</span>
+            } @else {
+              <span class="user-count-link">{{ userItemCount() }} unattributed</span>
+            }
+          </button>
+        </div>
+
+        <div class="status-row">
+          <label for="status-select">Status</label>
+          <select id="status-select" [ngModel]="currentItem._private_moderation" (ngModelChange)="setStatusFromSidebar($event)" aria-label="Set item status">
+            @for (option of STATUS_OPTIONS; track option.value) {
+              <option [ngValue]="option.value">{{ option.label }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="card-metadata">
+          <div class="metadata-row">
+            <span class="date">{{ formatDate(currentItem.created_at) }}</span>
+            <button
+              class="icon-btn star-btn"
+              [class.active]="currentItem._private_moderation === 5"
+              (click)="$event.stopPropagation(); highlight()"
+              aria-label="Highlight">
+              {{ currentItem._private_moderation === 5 ? '★' : '☆' }}
+            </button>
+            <span class="ai-confidence" [attr.data-confidence]="getConfidenceLevel(currentItem)">
+              AI: {{ getAIConfidence(currentItem) }}%
+            </span>
+            <button class="icon-btn trash-btn" (click)="$event.stopPropagation(); reject()" aria-label="Archive">
+              🗑️
+            </button>
+          </div>
+        </div>
+
+        <div class="card-content">
+          <div class="tagline-section">
+            @if (editTagline() === getItemId(currentItem)) {
+              <div class="tagline-edit">
+                <textarea
+                  [(ngModel)]="currentItem.future_scenario_tagline"
+                  placeholder="Enter tagline"
+                  rows="3"
+                  aria-label="Edit tagline"></textarea>
+                <div class="edit-actions">
+                  <button class="btn-icon btn-save" (click)="setTagline()" aria-label="Save">✓</button>
+                  <button class="btn-icon btn-cancel" (click)="editTagline.set(null)" aria-label="Cancel">✕</button>
+                </div>
+              </div>
+            } @else {
+              @if (currentItem.future_scenario_tagline) {
+                <div class="tagline" (click)="editTagline.set(getItemId(currentItem))" role="button" tabindex="0">
+                  {{ currentItem.future_scenario_tagline }}
+                </div>
+              } @else {
+                <div class="tagline tagline-empty" (click)="editTagline.set(getItemId(currentItem))" role="button" tabindex="0">
+                  + Add tagline
+                </div>
+              }
+            }
+          </div>
+
+          <div class="tags-section">
+            <div class="tags-container">
+              @if (currentItem.tags && currentItem.tags.length > 0) {
+                @for (tag of currentItem.tags; track $index) {
+                  <span class="tag">
+                    {{ tag }}
+                    <button class="tag-remove" (click)="removeTag($index)" aria-label="Remove tag">×</button>
+                  </span>
+                }
+              }
+              <div class="tag-input-wrapper">
+                <input
+                  #tagInput
+                  type="text"
+                  class="tag-input"
+                  placeholder="+ Add tag"
+                  (keydown.enter)="addTag(tagInput)"
+                  aria-label="Add new tag" />
+              </div>
+            </div>
+          </div>
+
+          @if (currentItem.topics?.length) {
+            <div class="topics-section">
+              <div class="topics-container">
+                @for (topic of currentItem.topics; track $index) {
+                  <span class="topic-chip" [class.primary]="$index === 0" [title]="topic">
+                    {{ resolveTopic(topic) }}
+                  </span>
+                }
+              </div>
+            </div>
+          }
+
+          <div class="properties-selectors">
+            <div class="property-selector">
+              <select
+                [(ngModel)]="currentItem.favorable_future"
+                (change)="setFavorable()"
+                [class]="'desirability-select ' + getDesirabilityClass(currentItem.favorable_future)"
+                aria-label="Set desirability">
+                <option [value]="null">Desirability?</option>
+                <option value="prefer">prefer</option>
+                <option value="mostly prefer">prefer-ish</option>
+                <option value="uncertain">uncertain</option>
+                <option value="mostly prevent">prevent-ish</option>
+                <option value="prevent">prevent</option>
+              </select>
+            </div>
+            <div class="property-selector">
+              <select
+                [(ngModel)]="currentItem.plausibility"
+                (change)="setPlausibility()"
+                [class]="'plausibility-select ' + getPlausibilityClass(currentItem.plausibility)"
+                aria-label="Set plausibility">
+                <option [value]="null">Plausibility?</option>
+                <option [value]="100">Projected</option>
+                <option [value]="75">Probable</option>
+                <option [value]="50">Plausible</option>
+                <option [value]="25">Possible</option>
+                <option [value]="0">Preposterous</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="metadata-editor">
+            <h3>Metadata</h3>
+            <div class="metadata-grid">
+              <label class="metadata-field">
+                <span class="field-name">content</span>
+                <textarea
+                  id="moderation-content"
+                  rows="4"
+                  [(ngModel)]="currentItem.content"
+                  (change)="saveContent()"
+                  aria-label="Edit content"></textarea>
+              </label>
+
+              <label class="metadata-field">
+                <span class="field-name">future_scenario_description</span>
+                <textarea
+                  id="moderation-future-description"
+                  rows="4"
+                  [(ngModel)]="currentItem.future_scenario_description"
+                  (change)="saveFutureScenarioDescription()"
+                  aria-label="Edit future scenario description"></textarea>
+              </label>
+
+              @for (entry of editableMetadata(); track entry[0]) {
+                <label class="metadata-field">
+                  <span class="field-name">{{ entry[0] }}</span>
+                  <input
+                    type="text"
+                    [ngModel]="entry[1]"
+                    (ngModelChange)="updateMetadataField(entry[0], $event)"
+                    [attr.aria-label]="'Edit metadata field ' + entry[0]" />
+                </label>
+              }
+            </div>
+          </div>
+
+          <div class="ai-regenerate">
+            <p class="ai-regenerate-help">Regenerate AI fields with different methods.</p>
+            <div class="regenerate-actions">
+              <button class="regenerate-btn" (click)="regenerateFromScratch()" aria-label="Analyze from scratch">
+                Analyze from scratch
+              </button>
+              <button class="regenerate-btn" (click)="regenerateMetaFields()" aria-label="Generate meta fields">
+                Generate meta fields
+              </button>
+              <button class="regenerate-btn" (click)="estimateEvaluation()" aria-label="Estimate evaluation">
+                Estimate evaluation
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-footer pinned-footer">
+          <button
+            class="publish-btn"
+            [class.published]="currentItem._private_moderation >= 4"
+            [class.archived]="currentItem._private_moderation === 0"
+            (click)="currentItem._private_moderation === 0 ? unarchive() : approve()"
+            [attr.aria-label]="currentItem._private_moderation === 0 ? 'Unarchive' : (currentItem._private_moderation >= 4 ? 'Published' : 'Publish')">
+            @if (currentItem._private_moderation === 0) {
+              <span class="btn-default">ARCHIVED 🗑️</span>
+              <span class="btn-hover">UNARCHIVE</span>
+            } @else if (currentItem._private_moderation >= 4) {
+              PUBLISHED ✓
+            } @else {
+              PUBLISH
+            }
+          </button>
+        </div>
+      </article>
+    </div>
+  </aside>
+}
