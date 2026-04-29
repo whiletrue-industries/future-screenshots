@@ -13,7 +13,7 @@ import {
   getDesirabilityClass, getPlausibilityClass, getEmail,
   getWorkspaceNameWithEmojis, formatDate
 } from '../moderation-helpers';
-import { firstValueFrom, catchError, of, forkJoin, take, filter, timeout } from 'rxjs';
+import { firstValueFrom, catchError, of, forkJoin, take, filter, timeout, finalize, retry, timer, throwError } from 'rxjs';
 import { ImageReplacementModalComponent } from '../image-replacement-modal/image-replacement-modal.component';
 import { QrCodeModalComponent } from '../qr-code-modal/qr-code-modal.component';
 import { CommonModule } from '@angular/common';
@@ -33,7 +33,9 @@ export type Filter = {
 @Component({
   selector: 'app-moderate',
   host: {
-    ngSkipHydration: 'true'
+    ngSkipHydration: 'true',
+    '(scroll)': 'onHostScroll($event)',
+    '(window:scroll)': 'onWindowScroll()'
   },
   imports: [
     RouterLink,
@@ -87,11 +89,17 @@ export class ModerateComponent implements OnInit, OnDestroy {
   // Lazy loading state
   itemsLoading = signal<boolean>(false);
   hasMoreItems = signal<boolean>(true);
+  paginationLoadError = signal<string | null>(null);
   private isLoadingMore = false;
+  private lastHostScrollCheck = 0;
+  private lastWindowScrollCheck = 0;
   
-  // Image lazy loading - track which images have loaded
+  // Image lazy loading - track which images have loaded and failed
   imageLoadedMap = signal<Map<string, boolean>>(new Map());
+  imageFailedMap = signal<Map<string, boolean>>(new Map());
   imageObserver: IntersectionObserver | null = null;
+  private imageRetryCount = new Map<string, number>();
+  private readonly MAX_IMAGE_RETRY = 3;
   
   // Individual filters
   filterStatus = signal<string[]>(FilterHelpers.DEFAULT_STATUSES);
@@ -197,6 +205,27 @@ export class ModerateComponent implements OnInit, OnDestroy {
       this.orderBy(),
       this.userItemCounts()
     );
+  });
+
+  paginationStatusMessage = computed(() => {
+    const total = this.allFetchedItems().length;
+    if (this.multiWorkspaceMode()) {
+      return '';
+    }
+    const loadError = this.paginationLoadError();
+    if (loadError) {
+      return loadError;
+    }
+    if (this.itemsLoading()) {
+      return `Loading more items... (${total} loaded)`;
+    }
+    if (!this.hasMoreItems() && total > 0) {
+      return `All items loaded (${total})`;
+    }
+    if (total > 0) {
+      return `${total} items loaded`;
+    }
+    return 'Loading items...';
   });
   
   indexLink = signal<string | null>(null);
@@ -387,10 +416,12 @@ export class ModerateComponent implements OnInit, OnDestroy {
       const apiKey = this.apiKey();
       const page = this.page();
       if (workspaceId && apiKey && page === 0) {
-        // Initial load: reset items and load first page
-        this.allFetchedItems.set([]);
-        this.hasMoreItems.set(true);
-        untracked(() => this.loadMoreItems());
+        // Only reset on initial load (when no items exist yet), not on re-entry to page 0
+        if (this.allFetchedItems().length === 0) {
+          console.log('🔄 Initial load: workspace=' + workspaceId + ', starting pagination');
+          this.hasMoreItems.set(true);
+          untracked(() => this.loadMoreItems());
+        }
       }
     });
     effect(() => {
@@ -409,8 +440,17 @@ export class ModerateComponent implements OnInit, OnDestroy {
     });
     effect(() => {
       // Watch filter changes and update URL hash
-      // Note: items are now automatically computed via computed signals!
-      this.filterState(); // Track all filter dependencies
+      // Track only actual filter signals to avoid resetting on pagination changes
+      this.filterStatus();
+      this.filterAuthor();
+      this.filterPreference();
+      this.filterPotential();
+      this.filterType();
+      this.filterTopic();
+      this.searchText();
+      this.orderBy();
+      this.viewMode();
+      // Don't track page - pagination is transient and shouldn't affect URL
       this.updateHashParams();
     });
   }
@@ -540,9 +580,15 @@ export class ModerateComponent implements OnInit, OnDestroy {
     if (this.orderBy() !== 'date') params.set('order', this.orderBy());
     params.set('view', this.viewMode());
     
-    const fragment = params.toString();
-    if (typeof window !== 'undefined') {
-      window.location.hash = fragment;
+    const newFragment = params.toString();
+    const currentHash = typeof window !== 'undefined' ? window.location.hash.substring(1) : '';
+    
+    // Only update hash if it actually changed to avoid unnecessary navigation events
+    if (currentHash !== newFragment) {
+      console.log('🔗 Updating hash from:', currentHash || '(empty)', 'to:', newFragment || '(empty)');
+      if (typeof window !== 'undefined') {
+        window.location.hash = newFragment;
+      }
     }
   }
   
@@ -1374,7 +1420,11 @@ export class ModerateComponent implements OnInit, OnDestroy {
   }
 
   loadMoreItems(): void {
-    if (this.isLoadingMore || !this.hasMoreItems() || this.multiWorkspaceMode()) {
+    const hasMore = this.hasMoreItems();
+    const isLoading = this.isLoadingMore;
+    const isMulti = this.multiWorkspaceMode();
+
+    if (isLoading || !hasMore || isMulti) {
       return;
     }
     
@@ -1386,17 +1436,36 @@ export class ModerateComponent implements OnInit, OnDestroy {
 
     this.isLoadingMore = true;
     this.itemsLoading.set(true);
-    
+    this.paginationLoadError.set(null);
+
     const currentPage = this.page();
+
     this.api.getItems(workspaceId, apiKey, currentPage, '').pipe(
+      timeout(45000),
+      retry({
+        count: 2,
+        delay: (error, retryCount) => {
+          if (error?.name === 'TimeoutError') {
+            return timer(1500 * retryCount);
+          }
+          return throwError(() => error);
+        }
+      }),
       catchError(error => {
-        console.error('Failed to load more items:', error);
-        return of({ 'index-required': null });
+        const isTimeout = error?.name === 'TimeoutError';
+        this.paginationLoadError.set(
+          isTimeout
+            ? 'Loading is taking longer than expected. Scroll again to retry.'
+            : 'Failed to load more items. Scroll again to retry.'
+        );
+        console.warn('Failed to load more items after retries:', error?.name || error);
+        return of([]);
+      }),
+      finalize(() => {
+        this.isLoadingMore = false;
+        this.itemsLoading.set(false);
       })
     ).subscribe((data: any) => {
-      this.isLoadingMore = false;
-      this.itemsLoading.set(false);
-      
       if (data['index-required']) {
         this.indexLink.set(data['index-required'] || null);
         this.hasMoreItems.set(false);
@@ -1424,26 +1493,28 @@ export class ModerateComponent implements OnInit, OnDestroy {
           item.future_scenario_topics = futureScenarioTopics;
         });
         
-        // Check if we got fewer items than expected (indicating end of data)
-        if (filtered.length < 500) {
+        // Check if we got fewer raw items than page_size (indicating end of data)
+        // Use raw items.length, not filtered.length, to avoid stopping prematurely
+        // when a page happens to have items without screenshot_url
+        if (items.length < 500) {
           this.hasMoreItems.set(false);
         }
         
         // Store all fetched items
         const existing = this.allFetchedItems();
-        console.log('📥 Fetched', filtered.length, 'items from API (page', currentPage, ')');
-        console.log('📊 Existing items count:', existing.length);
         const newItems = filtered.filter((item: any) => !existing.find((i: any) => i._id === item._id));
-        console.log('🆕 New items to add:', newItems.length);
-        if (newItems.length > 0) {
-          console.log('🆕 First few new item IDs:', newItems.slice(0, 5).map((i: any) => i._id));
-          this.allFetchedItems.set([...existing, ...newItems]);
-          console.log('📊 Total items after loading:', this.allFetchedItems().length);
-          // Increment page for next load
+        
+        // Always increment page if we got a full page of raw items, even if this page had no new visible items
+        // (prevents infinite loop if a page has all items without screenshot_url)
+        if (items.length >= 500) {
           this.page.set(currentPage + 1);
-        } else {
-          // No new items, we've reached the end
-          console.log('⚠️ No new items found, reached end of data');
+        }
+        
+        // Update visible items if we found any new ones
+        if (newItems.length > 0) {
+          this.allFetchedItems.set([...existing, ...newItems]);
+        } else if (items.length < 500) {
+          // No new items AND got fewer than page_size, we've definitely reached the end
           this.hasMoreItems.set(false);
         }
       }
@@ -1455,9 +1526,63 @@ export class ModerateComponent implements OnInit, OnDestroy {
     const scrollTop = target.scrollTop;
     const scrollHeight = target.scrollHeight;
     const clientHeight = target.clientHeight;
-    
+
+    if (this.isLoadingMore || !this.hasMoreItems()) {
+      return;
+    }
+
     // Load more when scrolled to 80% of the way down
     if (scrollTop + clientHeight >= scrollHeight * 0.8) {
+      this.loadMoreItems();
+    }
+  }
+
+  onHostScroll(event: Event): void {
+    const now = Date.now();
+    if (now - this.lastHostScrollCheck < 150) {
+      return;
+    }
+    this.lastHostScrollCheck = now;
+
+    if (this.isLoadingMore || !this.hasMoreItems()) {
+      return;
+    }
+
+    const target = event.target as HTMLElement;
+    const scrollTop = target.scrollTop;
+    const scrollHeight = target.scrollHeight;
+    const clientHeight = target.clientHeight;
+
+    // In this component, :host is often the real scroll container.
+    if (scrollTop + clientHeight >= scrollHeight * 0.8) {
+      this.loadMoreItems();
+    }
+  }
+
+  onWindowScroll(): void {
+    // Fallback for layouts where the page scrolls instead of the grid container.
+    // Throttle checks to avoid excessive work on rapid scroll events.
+    const now = Date.now();
+    if (now - this.lastWindowScrollCheck < 150) {
+      return;
+    }
+    this.lastWindowScrollCheck = now;
+
+    if (typeof window === 'undefined' || this.viewMode() !== 'grid' || this.selectedItem()) {
+      return;
+    }
+
+    const scrollBottom = window.scrollY + window.innerHeight;
+    const docHeight = Math.max(
+      document.body.scrollHeight,
+      document.documentElement.scrollHeight
+    );
+
+    if ((this.isLoadingMore || !this.hasMoreItems())) {
+      return;
+    }
+
+    if (scrollBottom >= docHeight * 0.85) {
       this.loadMoreItems();
     }
   }
@@ -1470,15 +1595,66 @@ export class ModerateComponent implements OnInit, OnDestroy {
           const itemId = img.getAttribute('data-item-id');
           const dataSrc = img.getAttribute('data-src');
           
-          if (entry.isIntersecting && itemId && dataSrc && !img.src) {
-            // Image is in viewport and hasn't loaded yet, start loading
-            img.src = dataSrc;
+          // Skip if not intersecting or missing required data
+          if (!entry.isIntersecting || !itemId || !dataSrc) {
+            return;
           }
+          
+          // Now itemId is guaranteed to be non-null
+          const isLoaded = this.imageLoadedMap().has(itemId) && this.imageLoadedMap().get(itemId);
+          const isFailed = this.imageFailedMap().has(itemId);
+          
+          // Skip if already loaded or failed too many times
+          if (isLoaded || isFailed) {
+            return;
+          }
+          
+          // Skip if already loading (src is set but not yet loaded)
+          if (img.src && !isLoaded) {
+            return;
+          }
+          
+          // Load the image
+          this.loadImage(img, itemId, dataSrc);
         });
       }, {
-        rootMargin: '100px' // Start loading 100px before the image enters viewport
+        rootMargin: '150px' // Start loading 150px before the image enters viewport
       });
     }
+  }
+  
+  private loadImage(img: HTMLImageElement, itemId: string, dataSrc: string): void {
+    // Set up load handler
+    const loadHandler = () => {
+      this.imageLoadedMap.update(map => new Map(map).set(itemId, true));
+      img.removeEventListener('load', loadHandler);
+      img.removeEventListener('error', errorHandler);
+      // Clear data-src to save memory
+      img.removeAttribute('data-src');
+    };
+    
+    // Set up error handler with retry logic
+    const errorHandler = () => {
+      const retryCount = this.imageRetryCount.get(itemId) || 0;
+      if (retryCount < this.MAX_IMAGE_RETRY) {
+        // Retry with exponential backoff
+        this.imageRetryCount.set(itemId, retryCount + 1);
+        const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        setTimeout(() => {
+          img.src = dataSrc;
+        }, delay);
+      } else {
+        // Give up after max retries
+        this.imageFailedMap.update(map => new Map(map).set(itemId, true));
+        console.warn(`Failed to load image for item ${itemId} after ${this.MAX_IMAGE_RETRY} retries`);
+        img.removeEventListener('load', loadHandler);
+        img.removeEventListener('error', errorHandler);
+      }
+    };
+    
+    img.addEventListener('load', loadHandler, { once: true });
+    img.addEventListener('error', errorHandler, { once: false });
+    img.src = dataSrc;
   }
 
   onImageLoaded(itemId: string): void {
@@ -1523,6 +1699,7 @@ export class ModerateComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.imageObserver?.disconnect();
+    this.imageRetryCount.clear();
   }
 
   private loadAllWorkspaces(): void {

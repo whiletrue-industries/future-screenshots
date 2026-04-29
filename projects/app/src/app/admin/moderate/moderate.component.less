@@ -21,6 +21,28 @@
     flex: 1;
 }
 
+.pagination-status {
+    position: sticky;
+    bottom: 8px;
+    z-index: 5;
+    margin: 8px auto 0;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: fade(@color-white, 92%);
+    border: 1px solid fade(@color-purple, 28%);
+    color: @color-dark-gray;
+    font-size: 12px;
+    font-weight: 600;
+    width: fit-content;
+    backdrop-filter: blur(4px);
+}
+
+.pagination-status.loading {
+    background: fade(@color-light-purple, 16%);
+    border-color: fade(@color-purple, 50%);
+    color: @color-purple;
+}
+
 // Topbar matching admin page
 .topbar {
     display: flex;
