@@ -570,6 +570,12 @@
                   />
                 }
               }
+
+              @if (!multiWorkspaceMode()) {
+                <div class="pagination-status" [class.loading]="itemsLoading()" aria-live="polite">
+                  {{ paginationStatusMessage() }}
+                </div>
+              }
             } @else if (workspaceId() && apiKey()) {
               <app-qr-code-modal
                 [workspaceId]="workspaceId()!"

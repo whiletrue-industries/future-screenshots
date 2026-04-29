@@ -38,11 +38,10 @@ export class AdminApiService {
     let params: any = {
       page: page,
       page_size: 500,
+      order_by: '-created_at',
     };
     if (filters) {
       params.filters = filters;
-    } else {
-      params.order_by = '';
     }
     return this.http.get<any[]>(`${this.CHRONOMAPS_API_URL}/${workspace}/items`, {
       params,
