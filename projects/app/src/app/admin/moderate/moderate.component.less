@@ -2051,6 +2051,43 @@
     app-filters-bar {
         flex: 1;
     }
+
+    .refresh-stats-btn {
+        flex-shrink: 0;
+        align-self: center;
+        background: none;
+        border: 1px solid @color-primary-100;
+        border-radius: 50%;
+        width: 28px;
+        height: 28px;
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 1;
+        color: @color-dark-purple;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 0.2s, transform 0.4s;
+
+        &:hover:not(:disabled) {
+            background: @color-primary-50;
+        }
+
+        &.loading {
+            opacity: 0.5;
+            cursor: default;
+            animation: spin 1s linear infinite;
+        }
+
+        &:disabled {
+            cursor: not-allowed;
+        }
+    }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
 }
 
 .multi-select-toggle {

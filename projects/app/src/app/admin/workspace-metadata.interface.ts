@@ -56,3 +56,19 @@ export interface CreateOrUpdateWorkspaceRequest {
   public?: boolean;
   collaborate?: boolean;
 }
+
+/**
+ * Workspace-wide aggregate counts fetched from the server aggregate endpoint.
+ * Each count map covers all items in the workspace regardless of pagination.
+ * Topic counts are intentionally omitted here — the server aggregate endpoint
+ * cannot expand array fields, so topic counts fall back to loaded-item counts.
+ */
+export interface WorkspaceStats {
+  totalCount: number;
+  statusCounts: Map<string, number>;     // keys: pending, flagged, not-flagged, approved, highlighted, banned
+  authorCounts: Map<string, number>;     // keys: author_id UUIDs + 'unknown'
+  preferenceCounts: Map<string, number>; // keys: prefer, prevent, mostly prefer, mostly prevent, uncertain
+  potentialCounts: Map<string, number>;  // keys: '0', '25', '50', '75', '100'
+  typeCounts: Map<string, number>;       // keys: screenshot_type strings
+  fetchedAt: Date;
+}

@@ -19,10 +19,11 @@ import { QrCodeModalComponent } from '../qr-code-modal/qr-code-modal.component';
 import { CommonModule } from '@angular/common';
 import { AdminLightboxComponent } from '../admin-lightbox/admin-lightbox.component';
 import { AuthService } from '../../auth.service';
+import { PlatformService } from '../../../platform.service';
 import { SkeletonLoaderComponent } from '../skeleton-loader/skeleton-loader.component';
 import { LazyLoadImageDirective } from '../lazy-load-image.directive';
 
-import { EnrichedItem } from '../workspace-metadata.interface';
+import { EnrichedItem, WorkspaceStats } from '../workspace-metadata.interface';
 import { TaxonomyService } from '../../shared/taxonomy.service';
 
 export type Filter = {
@@ -76,6 +77,7 @@ export class ModerateComponent implements OnInit, OnDestroy {
   workspacesLoadingProgress = signal<string>('');
 
   private auth = inject(AuthService);
+  private platform = inject(PlatformService);
   private router = inject(Router);
   private destroyRef = inject(DestroyRef);
   private authToken$ = toObservable(this.auth.token);
@@ -86,6 +88,10 @@ export class ModerateComponent implements OnInit, OnDestroy {
   apiKey = signal<string | null>(null);
   page = signal<number>(0);
   
+  // Workspace-wide aggregate stats (server-side, covers all items regardless of pagination)
+  workspaceStats = signal<WorkspaceStats | null>(null);
+  statsLoading = signal<boolean>(false);
+
   // Lazy loading state
   itemsLoading = signal<boolean>(false);
   hasMoreItems = signal<boolean>(true);
@@ -207,8 +213,12 @@ export class ModerateComponent implements OnInit, OnDestroy {
     );
   });
 
+  // Workspace-wide total: use server aggregate when available, fall back to loaded count
+  workspaceTotalCount = computed(() => this.workspaceStats()?.totalCount ?? this.allFetchedItems().length);
+
   paginationStatusMessage = computed(() => {
-    const total = this.allFetchedItems().length;
+    const loaded = this.allFetchedItems().length;
+    const total = this.workspaceTotalCount();
     if (this.multiWorkspaceMode()) {
       return '';
     }
@@ -216,14 +226,20 @@ export class ModerateComponent implements OnInit, OnDestroy {
     if (loadError) {
       return loadError;
     }
+    if (this.statsLoading()) {
+      return 'Refreshing stats...';
+    }
     if (this.itemsLoading()) {
-      return `Loading more items... (${total} loaded)`;
+      const suffix = total > loaded ? ` of ${total}` : '';
+      return `Loading more items... (${loaded}${suffix} loaded)`;
     }
-    if (!this.hasMoreItems() && total > 0) {
-      return `All items loaded (${total})`;
+    if (!this.hasMoreItems() && loaded > 0) {
+      const suffix = total > loaded ? ` of ${total} in workspace` : '';
+      return `All items loaded (${loaded}${suffix})`;
     }
-    if (total > 0) {
-      return `${total} items loaded`;
+    if (loaded > 0) {
+      const suffix = total > loaded ? ` of ${total} in workspace` : '';
+      return `${loaded}${suffix} items loaded`;
     }
     return 'Loading items...';
   });
@@ -418,16 +434,20 @@ export class ModerateComponent implements OnInit, OnDestroy {
       if (workspaceId && apiKey && page === 0) {
         // Only reset on initial load (when no items exist yet), not on re-entry to page 0
         if (this.allFetchedItems().length === 0) {
-          console.log('🔄 Initial load: workspace=' + workspaceId + ', starting pagination');
           this.hasMoreItems.set(true);
-          untracked(() => this.loadMoreItems());
+          // Skip on SSR — items are loaded in the browser only
+          if (this.platform.browser()) {
+            untracked(() => this.loadMoreItems());
+          }
         }
       }
     });
     effect(() => {
       const workspaceId = this.workspaceId();
       const apiKey = this.apiKey();
-      if (workspaceId && apiKey) {
+      // Skip all remote calls on SSR — the admin page is authenticated and
+      // cannot pre-render meaningful content server-side anyway.
+      if (workspaceId && apiKey && this.platform.browser()) {
         this.api.getWorkspace(workspaceId, apiKey).pipe(
           catchError(error => {
             console.error('Failed to load workspace:', error);
@@ -436,6 +456,11 @@ export class ModerateComponent implements OnInit, OnDestroy {
         ).subscribe((data: any) => {
           this.workspace.set(data);
         });
+        // Defer aggregate stats so items load gets priority — Cloud Run
+        // struggles with 8 simultaneous requests on startup.
+        timer(3000).pipe(
+          takeUntilDestroyed(this.destroyRef)
+        ).subscribe(() => untracked(() => this.refreshStats()));
       }
     });
     effect(() => {
@@ -485,6 +510,9 @@ export class ModerateComponent implements OnInit, OnDestroy {
         if (currentSelected && currentSelected._id === itemId) {
           this.selectedItem.set({ ...currentSelected, _private_moderation: level });
         }
+
+        // Refresh workspace-wide stats so the filter bar totals stay accurate
+        this.refreshStats();
       });
     } else {
       console.error('workspaceId or apiKey is null');
@@ -585,7 +613,7 @@ export class ModerateComponent implements OnInit, OnDestroy {
     
     // Only update hash if it actually changed to avoid unnecessary navigation events
     if (currentHash !== newFragment) {
-      console.log('🔗 Updating hash from:', currentHash || '(empty)', 'to:', newFragment || '(empty)');
+
       if (typeof window !== 'undefined') {
         window.location.hash = newFragment;
       }
@@ -1264,6 +1292,21 @@ export class ModerateComponent implements OnInit, OnDestroy {
 
     this.bulkSaving.set(false);
     this.clearBulkSelection();
+    // Bulk mutations may change status/preference/potential for many items — refresh stats
+    this.refreshStats();
+  }
+
+  refreshStats(): void {
+    const workspaceId = this.workspaceId();
+    const apiKey = this.apiKey();
+    if (!workspaceId || !apiKey || this.multiWorkspaceMode()) return;
+    this.statsLoading.set(true);
+    this.api.getWorkspaceStats(workspaceId, apiKey).subscribe(stats => {
+      this.statsLoading.set(false);
+      if (stats) {
+        this.workspaceStats.set(stats);
+      }
+    });
   }
 
   private statusToModeration(status: number): number | null {
@@ -1290,14 +1333,21 @@ export class ModerateComponent implements OnInit, OnDestroy {
     view: this.viewMode()
   }));
 
-  filterCounts = computed<FilterCounts>(() => ({
-    status: this.statusCounts(),
-    author: this.authorCounts(),
-    preference: this.preferenceCounts(),
-    potential: this.potentialCounts(),
-    type: this.typeCounts(),
-    topic: this.topicCounts()
-  }));
+  filterCounts = computed<FilterCounts>(() => {
+    const stats = this.workspaceStats();
+    const local = this.filterCountsData();
+    return {
+      // Prefer workspace-wide aggregate counts from the server;
+      // fall back to loaded-item counts when stats haven't arrived yet.
+      status:     stats?.statusCounts     ?? local.status,
+      author:     stats?.authorCounts     ?? local.author,
+      preference: stats?.preferenceCounts ?? local.preference,
+      potential:  stats?.potentialCounts  ?? local.potential,
+      type:       stats?.typeCounts       ?? local.type,
+      // Topics: server aggregate can't expand array fields, so always use local counts.
+      topic:      local.topic,
+    };
+  });
 
   onFiltersChange(newState: FiltersBarState): void {
     this.filterStatus.set(newState.status);
@@ -1459,7 +1509,7 @@ export class ModerateComponent implements OnInit, OnDestroy {
             : 'Failed to load more items. Scroll again to retry.'
         );
         console.warn('Failed to load more items after retries:', error?.name || error);
-        return of([]);
+        return of({ items: [] });
       }),
       finalize(() => {
         this.isLoadingMore = false;
@@ -1578,7 +1628,7 @@ export class ModerateComponent implements OnInit, OnDestroy {
       document.documentElement.scrollHeight
     );
 
-    if ((this.isLoadingMore || !this.hasMoreItems())) {
+    if (this.isLoadingMore || !this.hasMoreItems()) {
       return;
     }
 
@@ -1670,7 +1720,10 @@ export class ModerateComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.taxonomyService.fetch();
+    // Taxonomy fetch makes an HTTP call — skip on SSR
+    if (this.platform.browser()) {
+      this.taxonomyService.fetch();
+    }
     this.initImageLazyLoading();
 
     // Detect if we're in multi-workspace mode

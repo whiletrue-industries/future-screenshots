@@ -1,8 +1,8 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { catchError, map, Observable, of, switchMap } from 'rxjs';
+import { catchError, forkJoin, map, Observable, of, switchMap } from 'rxjs';
 import { AuthService } from './app/auth.service';
-import { CreateOrUpdateWorkspaceRequest, Workspace } from './app/admin/workspace-metadata.interface';
+import { CreateOrUpdateWorkspaceRequest, Workspace, WorkspaceStats } from './app/admin/workspace-metadata.interface';
 
 @Injectable({
   providedIn: 'root'
@@ -147,6 +147,76 @@ export class AdminApiService {
       .set('item_id', itemId)
       .set('item_key', itemKey);
     return this.http.post<any>(this.REANALYZE_ITEM_URL, null, { params });
+  }
+
+  private aggregateField(workspace: string, api_key: string, field: string): Observable<{ value: any; count: number }[]> {
+    return this.http.get<{ value: any; count: number }[]>(
+      `${this.CHRONOMAPS_API_URL}/${workspace}/items/aggregate`,
+      { params: { field }, headers: { Authorization: api_key } }
+    ).pipe(catchError(() => of([])));
+  }
+
+  getWorkspaceStats(workspace: string, api_key: string): Observable<WorkspaceStats> {
+    return forkJoin({
+      moderation: this.aggregateField(workspace, api_key, '_private_moderation'),
+      author:     this.aggregateField(workspace, api_key, 'author_id'),
+      preference: this.aggregateField(workspace, api_key, 'favorable_future'),
+      potential:  this.aggregateField(workspace, api_key, 'plausibility'),
+      type:       this.aggregateField(workspace, api_key, 'screenshot_type'),
+    }).pipe(
+      map(({ moderation, author, preference, potential, type }) => {
+        // Map numeric _private_moderation to status keys used by the UI
+        const MODERATION_TO_KEY: Record<number, string> = {
+          [-1]: '__deleted__', // excluded from totals
+          [0]:  'banned',
+          [1]:  'flagged',
+          [2]:  'pending',
+          [3]:  'not-flagged',
+          [4]:  'approved',
+          [5]:  'highlighted',
+        };
+        const statusCounts = new Map<string, number>();
+        let totalCount = 0;
+        for (const entry of moderation) {
+          const mod = entry.value as number | null;
+          if (mod === -1) continue; // deleted items not shown in UI
+          const key = mod === null ? 'pending' : (MODERATION_TO_KEY[mod] ?? 'pending');
+          statusCounts.set(key, (statusCounts.get(key) ?? 0) + entry.count);
+          totalCount += entry.count;
+        }
+
+        const authorCounts = new Map<string, number>();
+        for (const entry of author) {
+          authorCounts.set(entry.value ?? 'unknown', entry.count);
+        }
+
+        // API stores "mostly_prefer" / "mostly_prevent" with underscores; UI uses spaces
+        const preferenceCounts = new Map<string, number>();
+        for (const entry of preference) {
+          if (entry.value != null) {
+            const key = String(entry.value).replace(/_/g, ' ');
+            preferenceCounts.set(key, entry.count);
+          }
+        }
+
+        const potentialCounts = new Map<string, number>();
+        for (const entry of potential) {
+          if (entry.value != null) {
+            potentialCounts.set(String(entry.value), entry.count);
+          }
+        }
+
+        const typeCounts = new Map<string, number>();
+        for (const entry of type) {
+          if (entry.value != null) {
+            typeCounts.set(String(entry.value), entry.count);
+          }
+        }
+
+        return { totalCount, statusCounts, authorCounts, preferenceCounts, potentialCounts, typeCounts, fetchedAt: new Date() } as WorkspaceStats;
+      }),
+      catchError(() => of(null as unknown as WorkspaceStats))
+    );
   }
 
 }

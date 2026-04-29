@@ -102,7 +102,7 @@
   <div class="filters-bar-row" (click)="$event.stopPropagation()">
     <app-filters-bar
       [counts]="filterCounts()"
-      [totalCount]="allFetchedItems().length"
+      [totalCount]="workspaceTotalCount()"
       [filteredCount]="items().length"
       [showViewToggle]="true"
       [initialState]="filterState()"
@@ -110,6 +110,21 @@
       (filtersChange)="onFiltersChange($event)"
       (filtersCommit)="onFiltersCommit($event)"
     ></app-filters-bar>
+    @if (!multiWorkspaceMode()) {
+      <button
+        class="refresh-stats-btn"
+        [class.loading]="statsLoading()"
+        [disabled]="statsLoading()"
+        (click)="refreshStats()"
+        title="Refresh workspace stats"
+        aria-label="Refresh workspace-wide filter stats">
+        @if (statsLoading()) {
+          <span aria-hidden="true">⏳</span>
+        } @else {
+          <span aria-hidden="true">↻</span>
+        }
+      </button>
+    }
   </div>
 
   @if (indexLink()) {
