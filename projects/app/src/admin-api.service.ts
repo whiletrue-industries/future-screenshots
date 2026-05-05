@@ -12,6 +12,7 @@ export class AdminApiService {
   CHRONOMAPS_API_URL = 'https://chronomaps-api-qjzuw7ypfq-ez.a.run.app';
   private REPLACE_IMAGE_URL = 'https://replace-image-qjzuw7ypfq-ez.a.run.app';
   private REANALYZE_ITEM_URL = 'https://reanalyze-item-qjzuw7ypfq-ez.a.run.app';
+  public ADMIN_PAGE_SIZE = 5000;
 
   constructor(private http: HttpClient, private auth: AuthService) { }
 
@@ -37,7 +38,7 @@ export class AdminApiService {
   getItems(workspace: string, api_key: string, page: number, filters: string | null): Observable<any> {
     let params: any = {
       page: page,
-      page_size: 500,
+      page_size: this.ADMIN_PAGE_SIZE,
     };
     if (filters) {
       params.filters = filters;

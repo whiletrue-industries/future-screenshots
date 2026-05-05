@@ -1425,7 +1425,7 @@ export class ModerateComponent implements OnInit, OnDestroy {
         });
         
         // Check if we got fewer items than expected (indicating end of data)
-        if (filtered.length < 500) {
+        if (filtered.length < this.api.ADMIN_PAGE_SIZE) {
           this.hasMoreItems.set(false);
         }
         
