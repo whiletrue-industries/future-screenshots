@@ -606,9 +606,15 @@
             <div class="screenshot-container">
               @if (!isShowingDescription(item._id)) {
               <div class="screenshot-image-wrapper">
+                @if (!isImageLoaded(item._id)) {
+                  <app-skeleton-loader></app-skeleton-loader>
+                }
                 <img
-                  [src]="item.screenshot_thumbnail_url"
-                  loading="lazy"
+                  appLazyLoad
+                  [dataSrc]="item.screenshot_thumbnail_url"
+                  [itemId]="item._id"
+                  [observer]="imageObserver"
+                  [onLoaded]="onImageLoaded.bind(this)"
                   decoding="async"
                   fetchpriority="low"
                   [title]="(item.future_scenario_tagline || 'No tagline') + ' • ' + (LEVELS[item._private_moderation] || 'unknown')"

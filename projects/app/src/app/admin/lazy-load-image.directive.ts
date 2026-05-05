@@ -26,18 +26,15 @@ export class LazyLoadImageDirective implements OnInit, OnDestroy {
     img.setAttribute('data-src', dataSrcValue);
     img.setAttribute('data-item-id', itemIdValue);
 
-    // Set up load handler
+    // Persistent load handler — images may cycle through load → unload → reload.
     this.loadHandler = () => {
       const onLoadedFn = this.onLoaded();
       if (onLoadedFn) {
         onLoadedFn(itemIdValue);
       }
-      img.removeEventListener('load', this.loadHandler!);
-      this.loadHandler = null;
     };
     img.addEventListener('load', this.loadHandler);
 
-    // Start observing
     observer.observe(img);
     this.observedImg = img;
     this.activeObserver = observer;

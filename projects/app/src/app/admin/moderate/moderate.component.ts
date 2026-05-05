@@ -1469,20 +1469,37 @@ export class ModerateComponent implements OnInit, OnDestroy {
           const img = entry.target as HTMLImageElement;
           const itemId = img.getAttribute('data-item-id');
           const dataSrc = img.getAttribute('data-src');
-          
-          if (entry.isIntersecting && itemId && dataSrc && !img.src) {
-            // Image is in viewport and hasn't loaded yet, start loading
-            img.src = dataSrc;
+
+          if (!itemId) return;
+
+          if (entry.isIntersecting) {
+            if (dataSrc && !img.src) {
+              img.src = dataSrc;
+            }
+          } else if (img.src) {
+            // Out of the buffered viewport — release the decoded image.
+            img.removeAttribute('src');
+            this.onImageUnloaded(itemId);
           }
         });
       }, {
-        rootMargin: '100px' // Start loading 100px before the image enters viewport
+        // Buffer beyond the viewport so quick scroll-back doesn't thrash load/unload.
+        rootMargin: '400px'
       });
     }
   }
 
   onImageLoaded(itemId: string): void {
     this.imageLoadedMap.update(map => new Map(map).set(itemId, true));
+  }
+
+  onImageUnloaded(itemId: string): void {
+    this.imageLoadedMap.update(map => {
+      if (!map.has(itemId)) return map;
+      const next = new Map(map);
+      next.delete(itemId);
+      return next;
+    });
   }
 
   isImageLoaded(itemId: string): boolean {
