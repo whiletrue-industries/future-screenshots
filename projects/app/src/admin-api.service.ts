@@ -39,6 +39,7 @@ export class AdminApiService {
     let params: any = {
       page: page,
       page_size: this.ADMIN_PAGE_SIZE,
+      include_embedding: 'false'
     };
     if (filters) {
       params.filters = filters;
