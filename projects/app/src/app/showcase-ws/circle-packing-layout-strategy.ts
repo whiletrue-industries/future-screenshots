@@ -1,3 +1,4 @@
+import { packSiblings } from 'd3-hierarchy';
 import { LayoutStrategy, LayoutPosition, LayoutConfiguration } from './layout-strategy.interface';
 import { PhotoData } from './photo-data';
 import { PHOTO_CONSTANTS } from './photo-constants';
@@ -14,11 +15,11 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
   private readonly photoRadius: number;
   private readonly groupBuffer: number;
   private readonly photoBuffer: number;
-  private readonly useFanLayout: boolean;
-  
+  private readonly groupByFn: (photo: PhotoData) => string;
   private photoGroups = new Map<string, PhotoData[]>();
   private groupPositions = new Map<string, { x: number; y: number; radius: number }>();
-  
+  private readonly hexPositionCache = new Map<number, Array<{x: number; y: number}>>();
+
   constructor(options: {
     photoWidth?: number;
     photoHeight?: number;
@@ -26,19 +27,19 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
     spacingY?: number;
     groupBuffer?: number;
     photoBuffer?: number;
-    useFanLayout?: boolean; // When false (mobile), use simple circle packing within groups
+    useFanLayout?: boolean; // accepted but unused — hexbin is used for all layouts
+    /** Override the group key function. Defaults to author_id from metadata. */
+    groupBy?: (photo: PhotoData) => string;
   } = {}) {
     super();
-    
+
     this.photoWidth = options.photoWidth ?? PHOTO_CONSTANTS.PHOTO_WIDTH;
     this.photoHeight = options.photoHeight ?? PHOTO_CONSTANTS.PHOTO_HEIGHT;
     this.spacingX = options.spacingX ?? PHOTO_CONSTANTS.SPACING_X;
     this.spacingY = options.spacingY ?? PHOTO_CONSTANTS.SPACING_Y;
-    this.groupBuffer = options.groupBuffer ?? 2000; // Buffer between group circles
-    this.photoBuffer = options.photoBuffer ?? 50;  // Buffer between photos within groups
-    this.useFanLayout = options.useFanLayout ?? true;
-    
-    // Calculate photo radius (use the larger dimension for circle packing)
+    this.groupBuffer = options.groupBuffer ?? 2000;
+    this.photoBuffer = options.photoBuffer ?? 50;
+    this.groupByFn = options.groupBy ?? this.defaultGroupBy.bind(this);
     this.photoRadius = Math.sqrt(this.photoWidth ** 2 + this.photoHeight ** 2) / 2 + this.photoBuffer;
     
 
@@ -46,8 +47,8 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
 
   /**
    * Calculate evaluation score for sorting within clusters
-   * Higher score = more left in fan (+rotation)
-   * Lower score = more right in fan (-rotation)
+   * Higher score = closer to centre of hexbin
+   * Lower score = further from centre of hexbin
    */
   private calculateEvaluationScore(photo: PhotoData): number {
     const plausibility = photo.metadata['plausibility'] as number | undefined | null;
@@ -104,10 +105,8 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
     }
     
     this.photoGroups.get(groupId)!.push(photo);
-    
-    // Always recalculate when adding individual photos
-    // (bulk operations use calculateAllPositions instead)
-    this.recalculateLayout();
+    // No recalculation here: the repository always calls calculateAllPositions
+    // immediately after addPhoto when requiresFullRecalculationOnAdd() is true.
   }
 
   /**
@@ -150,117 +149,32 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
   private async getPositionForPhotoOptimized(photo: PhotoData): Promise<LayoutPosition | null> {
     const groupId = this.getGroupId(photo);
     const groupPosition = this.groupPositions.get(groupId);
-    
+
     if (!groupPosition) {
       console.warn(`No group position found for photo ${photo.id} in group ${groupId}`);
       return null;
     }
-    
-    // Find photo's position within its group
+
     const groupPhotos = this.photoGroups.get(groupId) || [];
     const photoIndex = groupPhotos.findIndex(p => p.id === photo.id);
-    
+
     if (photoIndex === -1) {
       console.warn(`Photo ${photo.id} not found in group ${groupId}`);
       return null;
     }
-    
-    // On mobile (when useFanLayout is false), place photos using simple circle packing inside the group
-    if (!this.useFanLayout) {
-      const positions = this.packPhotosInGroup(groupPhotos);
-      const p = positions[photoIndex] || { x: 0, y: 0 };
-      return {
-        x: groupPosition.x + p.x,
-        y: groupPosition.y + p.y,
-        metadata: {
-          groupId,
-          groupSize: groupPhotos.length,
-          photoIndex,
-          groupPosition: { x: groupPosition.x, y: groupPosition.y, radius: groupPosition.radius },
-          circlePackKey: `circle-pack-${groupId}-${photoIndex}`,
-          renderOrder: photoIndex // simple ordering; overlapping is minimal in packed layout
-        }
-      };
-    }
 
-    // Arrange photos in fan/bow layout like playing cards held in hand
-    const groupSize = groupPhotos.length;
-    
-    // Calculate fan parameters
-    const minRotation = 8; // degrees for small clusters
-    const maxRotation = 32; // degrees for large clusters
-    const sizeForMaxRotation = 10;
-    const sizeFactor = Math.min(groupSize / sizeForMaxRotation, 1.0);
-    const rotationRange = minRotation + (maxRotation - minRotation) * sizeFactor;
-    
-    // Evaluate rotation purely from plausibility + favorable_future
-    const plausibility = photo.metadata['plausibility'] as number | undefined | null;
-    const favorableFuture = photo.metadata['_svgZoneFavorableFuture'] as string | undefined | null
-      || photo.metadata['favorable_future'] as string | undefined | null;
-
-    let evaluationRotationDeg = 0;
-    // Check that both values are valid (not null, not undefined, and plausibility is a finite number)
-    if (typeof plausibility === 'number' && isFinite(plausibility) && favorableFuture && typeof favorableFuture === 'string') {
-      const normalizedPlaus = plausibility / 100;
-      const magnitude = (1 - normalizedPlaus) * 32; // degrees
-      const favorableLower = favorableFuture.toLowerCase().trim();
-      const isFavor = favorableLower === 'favor' || favorableLower === 'favorable' ||
-                      favorableLower === 'prefer' || favorableLower === 'preferred';
-      evaluationRotationDeg = isFavor ? magnitude : -magnitude;
-    }
-
-    // Validate evaluationRotationDeg to prevent NaN propagation
-    if (!isFinite(evaluationRotationDeg)) {
-      evaluationRotationDeg = 0;
-    }
-    
-    // Fan spread uses sorted index: left = positive, right = negative
-    const cardWidth = this.photoWidth;
-    const overlapSpacing = cardWidth * 0.75; // 50% overlap
-    const totalWidth = (groupSize - 1) * overlapSpacing;
-    const startX = -totalWidth / 2;
-    const worldX = groupPosition.x + startX + (photoIndex * overlapSpacing);
-    
-    // Arc based on evaluation rotation magnitude - fan curve composition
-    // Items at extremes (high |rotation|) curve down, center items (low |rotation|) stay higher
-    const evaluationRotationRad = evaluationRotationDeg * Math.PI / 180;
-    const normalizedRotation = Math.abs(evaluationRotationDeg) / 32; // 0 at center, 1 at edges
-    const arcHeight = -normalizedRotation * normalizedRotation * 200; // quadratic curve: edges dip more
-    const worldY = groupPosition.y + arcHeight;
-    
-    // Render order: rightmost on top (like hand of cards), accumulate right→left
-    // Rightmost cards overlap leftmost cards
-    const baseRenderOrder = (32 - evaluationRotationDeg) * 1.5625; // map -32..32 -> 100..0 (reversed)
-    const tiebreaker = photoIndex * 0.01; // rightmost (high index) gets highest tiebreaker
-    const renderOrder = Math.round((baseRenderOrder + tiebreaker) * 10) / 10; // preserve 1 decimal
-    
-    // Validate positions to prevent NaN
-    if (!isFinite(worldX) || !isFinite(worldY)) {
-      // Use a fallback position at the origin
-      return {
-        x: 0,
-        y: 0,
-        metadata: {
-          groupId,
-          groupSize: groupPhotos.length,
-          photoIndex,
-          groupPosition: { x: groupPosition.x, y: groupPosition.y, radius: groupPosition.radius },
-          circlePackKey: `circle-pack-${groupId}-${photoIndex}`,
-          renderOrder: renderOrder
-        }
-      };
-    }
+    const pos = this.computeHexPositions(groupPhotos.length)[photoIndex] ?? { x: 0, y: 0 };
 
     return {
-      x: worldX,
-      y: worldY,
+      x: groupPosition.x + pos.x,
+      y: groupPosition.y + pos.y,
       metadata: {
         groupId,
         groupSize: groupPhotos.length,
         photoIndex,
         groupPosition: { x: groupPosition.x, y: groupPosition.y, radius: groupPosition.radius },
-        circlePackKey: `circle-pack-${groupId}-${photoIndex}`, // Use our own key instead of gridKey
-        renderOrder: renderOrder // Preferred on top of prevent
+        circlePackKey: `circle-pack-${groupId}-${photoIndex}`,
+        renderOrder: photoIndex
       }
     };
   }
@@ -287,7 +201,7 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
       groupPhotos.sort((a, b) => {
         const scoreA = this.calculateEvaluationScore(a);
         const scoreB = this.calculateEvaluationScore(b);
-        return scoreB - scoreA; // Descending: highest score (most positive rotation) = leftmost
+        return scoreB - scoreA; // Descending: highest score = centre of hexbin
       });
     }
     
@@ -305,23 +219,20 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
     return positions;
   }
 
-  /**
-   * Gets the group ID for a photo based on priority: author_id > random
-   */
   private getGroupId(photo: PhotoData): string {
-    // Priority 1: author_id from metadata
+    return this.groupByFn(photo);
+  }
+
+  /** Default grouping: by author_id, falling back to a stable random id per photo. */
+  private defaultGroupBy(photo: PhotoData): string {
     const authorId = photo.metadata['author_id'];
-    if (authorId) {
-      return `author:${authorId}`;
-    }
-        
-    // Priority 3: Generate random group ID and store it as a property
+    if (authorId) return `author:${authorId}`;
+
     let randomId = photo.getProperty<string>('_circle_pack_group_id');
     if (!randomId) {
       randomId = Math.random().toString(36).substring(2, 15);
       photo.setProperty('_circle_pack_group_id', randomId);
     }
-    
     return `random:${randomId}`;
   }
 
@@ -342,13 +253,12 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
     }
     
     // Sort photos within each group by evaluation score
-    // Left (+rotation): preferred + preposterous (high score)
-    // Right (-rotation): prevent + preposterous (low score)
+    // Highest score (favorable + low plausibility) → centre of hexbin
     for (const [groupId, groupPhotos] of this.photoGroups.entries()) {
       groupPhotos.sort((a, b) => {
         const scoreA = this.calculateEvaluationScore(a);
         const scoreB = this.calculateEvaluationScore(b);
-        return scoreB - scoreA; // Descending order (highest score = leftmost)
+        return scoreB - scoreA; // Descending: highest score = centre
       });
     }
     
@@ -381,7 +291,6 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
       };
     });
 
-    // Pack the group circles
     const packedGroups = this.packCircles(groupCircles, this.groupBuffer);
 
     // Store group positions
@@ -409,145 +318,55 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
   }
 
   /**
-   * Calculate the radius needed for a group to contain N photos
+   * Hexagonal grid positions for `count` photos, sorted centre-outward.
+   * Odd rows are offset by half a cell width to form the hex brick pattern.
+   * Results are memoised by count since dimensions never change after construction.
    */
+  private computeHexPositions(count: number): Array<{x: number; y: number}> {
+    if (count <= 0) return [];
+    const cached = this.hexPositionCache.get(count);
+    if (cached) return cached;
+
+    const cellW = this.photoWidth + this.photoBuffer;
+    const cellH = this.photoHeight + this.photoBuffer;
+    const rings = Math.ceil(Math.sqrt(count / 3)) + 2;
+
+    const candidates: Array<{x: number; y: number; distSq: number}> = [];
+    for (let row = -rings; row <= rings; row++) {
+      for (let col = -rings; col <= rings; col++) {
+        const x = col * cellW + (Math.abs(row) % 2) * (cellW / 2);
+        const y = row * cellH;
+        candidates.push({ x, y, distSq: x * x + y * y });
+      }
+    }
+    candidates.sort((a, b) => a.distSq - b.distSq || a.x - b.x || a.y - b.y);
+
+    const positions = candidates.slice(0, count).map(({ x, y }) => ({ x, y }));
+    this.hexPositionCache.set(count, positions);
+    return positions;
+  }
+
+  /** Radius of the smallest circle enclosing the hexbin layout for `photoCount` photos. */
   private calculateGroupRadius(photoCount: number): number {
-    if (photoCount === 1) {
-      return this.photoRadius + this.photoBuffer;
-    }
-    
-    // For multiple photos, estimate radius based on circle packing efficiency
-    // This is a heuristic that works reasonably well for small to medium groups
-    const area = photoCount * Math.PI * this.photoRadius * this.photoRadius;
-    const estimatedRadius = Math.sqrt(area / Math.PI) + this.photoRadius + this.photoBuffer;
-    
-    return Math.max(estimatedRadius, this.photoRadius * 2);
+    if (photoCount <= 0) return this.photoRadius;
+    const positions = this.computeHexPositions(photoCount);
+    const maxDistSq = positions.reduce((max, p) => Math.max(max, p.x * p.x + p.y * p.y), 0);
+    return Math.sqrt(maxDistSq) + this.photoRadius;
   }
 
   /**
-   * Pack photos within a single group using circle packing
-   */
-  private packPhotosInGroup(photos: PhotoData[]): Array<{ x: number; y: number }> {
-    if (photos.length === 0) return [];
-    
-    if (photos.length === 1) {
-      return [{ x: 0, y: 0 }]; // Single photo at center
-    }
-    
-    // Create circles for each photo
-    const photoCircles: Circle[] = photos.map((photo, index) => ({
-      id: photo.id,
-      radius: this.photoRadius,
-      x: 0,
-      y: 0
-    }));
-    
-    // Pack the photo circles
-    const packedPhotos = this.packCircles(photoCircles, this.photoBuffer);
-    
-    return packedPhotos.map(circle => ({ x: circle.x, y: circle.y }));
-  }
-
-  /**
-   * Generic circle packing algorithm using a simple iterative approach
+   * Pack circles using d3-hierarchy's packSiblings (Wang front-chain algorithm, O(n log n)).
+   * Each circle's radius is inflated by buffer/2 before packing so adjacent circles
+   * end up separated by `buffer` in the final layout.
    */
   private packCircles(circles: Circle[], buffer: number = 0): Circle[] {
     if (circles.length === 0) return [];
-    
-    const packed: Circle[] = [];
-    
-    // Place first circle at origin
-    packed.push({
-      ...circles[0],
-      x: 0,
-      y: 0
-    });
-    
-    // Place remaining circles
-    for (let i = 1; i < circles.length; i++) {
-      const circle = circles[i];
-      let bestPosition = this.findBestPosition(circle, packed, buffer);
-      
-      packed.push({
-        ...circle,
-        x: bestPosition.x,
-        y: bestPosition.y
-      });
-    }
-    
-    return packed;
-  }
 
-  /**
-   * Find the best position for a new circle among existing circles
-   */
-  private findBestPosition(newCircle: Circle, existingCircles: Circle[], buffer: number): { x: number; y: number } {
-    // Validate inputs
-    if (!isFinite(newCircle.radius) || !isFinite(buffer)) {
-      return { x: 0, y: 0 };
-    }
+    // packSiblings expects { r } objects and mutates them in-place adding { x, y }
+    const nodes = circles.map(c => ({ ...c, r: c.radius + buffer / 2 }));
+    packSiblings(nodes);
 
-    if (existingCircles.length === 0) {
-      return { x: 0, y: 0 };
-    }
-
-    let bestPosition: { x: number; y: number } | null = null;
-    let minDistanceFromOrigin = Infinity;
-    
-    // Try positions around each existing circle
-    for (const existing of existingCircles) {
-    //   const angles = [0, Math.PI / 3, Math.PI * 2 / 3, Math.PI, Math.PI * 4 / 3, Math.PI * 5 / 3];
-      const angles = [0, 
-        Math.PI * 5 / 7,
-        Math.PI * 10 / 7,
-        Math.PI * 1 / 7,
-        Math.PI * 6 / 7,
-        Math.PI * 11 / 7,
-        Math.PI * 2 / 7,
-        Math.PI * 7 / 7,
-        Math.PI * 12 / 7,
-        Math.PI * 3 / 7,
-        Math.PI * 8 / 7,
-        Math.PI * 13 / 7,
-        Math.PI * 4 / 7,
-        Math.PI * 9 / 7,
-      ];
-
-      for (const angle of angles) {
-        const distance = existing.radius + newCircle.radius + buffer;
-        const x = existing.x + Math.cos(angle) * distance;
-        const y = existing.y + Math.sin(angle) * distance;
-        
-        // Check if this position conflicts with any existing circle
-        const conflicts = existingCircles.some(other => {
-          const dx = x - other.x;
-          const dy = y - other.y;
-          const minDistance = newCircle.radius + other.radius + buffer;// * (0.5 + 0.5 * Math.random());
-          return Math.sqrt(dx * dx + dy * dy) < minDistance;
-        });
-        
-        if (!conflicts) {
-          const distanceFromOrigin = Math.sqrt(x * x + y * y);
-          if (distanceFromOrigin < minDistanceFromOrigin) {
-            minDistanceFromOrigin = distanceFromOrigin;
-            bestPosition = { x, y };
-          }
-        }
-      }
-    }
-
-    // If no valid position found, try a fallback strategy - place it far from origin
-    if (bestPosition === null) {
-      // Place the circle at a distance from the origin based on the number of existing circles
-      const fallbackAngle = (existingCircles.length * 2.39996322972865332) % (2 * Math.PI); // Golden angle
-      const fallbackDistance = (existingCircles.length + 1) * (newCircle.radius + buffer) * 1.5;
-      bestPosition = {
-        x: Math.cos(fallbackAngle) * fallbackDistance,
-        y: Math.sin(fallbackAngle) * fallbackDistance
-      };
-    }
-
-    return bestPosition;
+    return circles.map((c, i) => ({ ...c, x: nodes[i].x ?? 0, y: nodes[i].y ?? 0 }));
   }
 
   /**
@@ -594,6 +413,7 @@ export class CirclePackingLayoutStrategy extends LayoutStrategy {
     // Clear internal data structures
     this.photoGroups.clear();
     this.groupPositions.clear();
+    this.hexPositionCache.clear();
     
 
     await super.dispose();
