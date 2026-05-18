@@ -595,6 +595,13 @@ export class ThreeRendererService {
     if (this.computedMinCamZ > this.computedMaxCamZ) {
       this.computedMinCamZ = this.computedMaxCamZ;
     }
+
+    // Keep camera far plane beyond the max zoom-out distance so geometry is never clipped
+    const requiredFar = this.computedMaxCamZ * 2;
+    if (this.camera.far < requiredFar) {
+      this.camera.far = requiredFar;
+      this.camera.updateProjectionMatrix();
+    }
   }
 
   /**
@@ -693,10 +700,10 @@ export class ThreeRendererService {
     const favorableFutureLower = favorableFuture.toLowerCase().trim();
     const isFavor = favorableFutureLower === 'favor' || favorableFutureLower === 'favorable' || 
             favorableFutureLower === 'prefer' || favorableFutureLower === 'preferred' ||
-            favorableFutureLower === 'mostly prefer' || favorableFutureLower === 'prefer-ish';
+            favorableFutureLower === 'mostly prefer' || favorableFutureLower === 'prefer-ish' || favorableFutureLower === 'yes';
     const isPrevent = favorableFutureLower === 'prevent' || favorableFutureLower === 'prevented' || 
               favorableFutureLower === 'unfavorable' || favorableFutureLower === 'mostly prevent' ||
-              favorableFutureLower === 'prevent-ish';
+              favorableFutureLower === 'prevent-ish' || favorableFutureLower === 'no';
     const isUncertain = favorableFutureLower === 'uncertain' || favorableFutureLower === 'unsure';
     
     if (isUncertain) {

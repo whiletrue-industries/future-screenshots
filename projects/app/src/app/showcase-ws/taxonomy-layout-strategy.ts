@@ -1,3 +1,4 @@
+import { CirclePackingLayoutStrategy } from './circle-packing-layout-strategy';
 import { LayoutStrategy, LayoutPosition, LayoutConfiguration } from './layout-strategy.interface';
 import { PhotoData } from './photo-data';
 import { PHOTO_CONSTANTS } from './photo-constants';
@@ -26,12 +27,20 @@ export class TaxonomyLayoutStrategy extends LayoutStrategy {
   private themeLabelCache = new Map<string, TaxonomyLabelNodePosition>();
   private subThemeLabelCache = new Map<string, TaxonomyLabelNodePosition>();
 
+  private readonly useCirclePacking: boolean;
+  private readonly innerCirclePacking: CirclePackingLayoutStrategy | null;
+
   constructor(
     options: {
       photoWidth?: number;
       photoHeight?: number;
       spacingX?: number;
       spacingY?: number;
+      /**
+       * When true (default), use circle+hexbin layout grouped by primary topic.
+       * Set to false to use the original force-directed thematic layout.
+       */
+      useCirclePacking?: boolean;
     } = {}
   ) {
     super();
@@ -41,6 +50,19 @@ export class TaxonomyLayoutStrategy extends LayoutStrategy {
     this.spacingY = options.spacingY ?? PHOTO_CONSTANTS.SPACING_Y;
     this.cellW = this.photoWidth + this.spacingX;
     this.cellH = this.photoHeight + this.spacingY;
+    this.useCirclePacking = options.useCirclePacking ?? true;
+
+    if (this.useCirclePacking) {
+      this.innerCirclePacking = new CirclePackingLayoutStrategy({
+        photoWidth: this.photoWidth,
+        photoHeight: this.photoHeight,
+        photoBuffer: Math.round(Math.min(this.spacingX, this.spacingY) / 2),
+        groupBuffer: Math.max(this.cellW, this.cellH) * 2,
+        groupBy: photo => this.primaryTopicFor(photo),
+      });
+    } else {
+      this.innerCirclePacking = null;
+    }
   }
 
   getConfiguration(): LayoutConfiguration {
@@ -68,10 +90,64 @@ export class TaxonomyLayoutStrategy extends LayoutStrategy {
   }
 
   /**
-   * Primary entry point. Groups all photos by taxonomy and assigns deterministic
-   * non-overlapping grid positions so items cluster by theme then by sub-topic.
+   * Primary entry point. Delegates to circle+hexbin or force-directed layout
+   * depending on the `useCirclePacking` constructor option.
    */
   async calculateAllPositions(photos: PhotoData[]): Promise<(LayoutPosition | null)[]> {
+    if (this.useCirclePacking && this.innerCirclePacking) {
+      return this.calculateCirclePackingPositions(photos);
+    }
+    return this.calculateForceDirectedPositions(photos);
+  }
+
+  private async calculateCirclePackingPositions(photos: PhotoData[]): Promise<(LayoutPosition | null)[]> {
+    const inner = this.innerCirclePacking!;
+    const positions = await inner.calculateAllPositions(photos);
+
+    // Populate label caches from the packed group positions
+    const { groups } = inner.getPackingInfo();
+
+    this.subThemeLabelCache.clear();
+    const themeAccum = new Map<string, { sumX: number; sumY: number; n: number; total: number }>();
+
+    for (const g of groups) {
+      this.subThemeLabelCache.set(g.groupId, {
+        id: g.groupId,
+        worldX: g.position.x,
+        worldY: g.position.y,
+        itemCount: g.photoCount,
+      });
+
+      const themeId = g.groupId.split('/')[0] || '__unthemed';
+      const acc = themeAccum.get(themeId) ?? { sumX: 0, sumY: 0, n: 0, total: 0 };
+      acc.sumX += g.position.x;
+      acc.sumY += g.position.y;
+      acc.n++;
+      acc.total += g.photoCount;
+      themeAccum.set(themeId, acc);
+    }
+
+    this.themeLabelCache.clear();
+    for (const [themeId, acc] of themeAccum) {
+      this.themeLabelCache.set(themeId, {
+        id: themeId,
+        worldX: acc.sumX / acc.n,
+        worldY: acc.sumY / acc.n,
+        itemCount: acc.total,
+      });
+    }
+
+    this.positionCache.clear();
+    for (let i = 0; i < photos.length; i++) {
+      const pos = positions[i];
+      if (pos) this.positionCache.set(photos[i].id, { x: pos.x, y: pos.y });
+    }
+
+    return positions;
+  }
+
+  /** Original force-directed layout. */
+  private async calculateForceDirectedPositions(photos: PhotoData[]): Promise<(LayoutPosition | null)[]> {
     const nodes = photos.map(photo => this.createNode(photo));
     const { themeNodes, subThemeNodes, themeGroups, subThemeGroups } = this.createLabelNodes(nodes);
     this.linkPhotosToLabelNodes(nodes, themeNodes, subThemeNodes);
@@ -168,6 +244,12 @@ export class TaxonomyLayoutStrategy extends LayoutStrategy {
       vx: 0,
       vy: 0,
     };
+  }
+
+  /** Returns the primary topic string used as the circle-packing group key. */
+  private primaryTopicFor(photo: PhotoData): string {
+    const [first] = this.extractTopics(photo);
+    return first ?? '__untopiced';
   }
 
   private extractTopics(photo: PhotoData): Set<string> {
