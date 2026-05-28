@@ -67,7 +67,12 @@ export class ItemFilterService {
     }
 
     // Topic filter (filterTopic stores full sub-theme paths like "theme-id/sub-theme-id")
-    if (filters.topic && filters.topic.length > 0) {
+    // Skip when all available topics are selected (totalTopicCount matches) to avoid
+    // filtering out items whose topic values pre-date or fall outside the current taxonomy.
+    const totalTopics = filters.totalTopicCount ?? 0;
+    const isTopicSubset = filters.topic && filters.topic.length > 0 &&
+      (totalTopics === 0 || filters.topic.length < totalTopics);
+    if (isTopicSubset) {
       filtered = filtered.filter(item => {
         const topics: string[] = item.topics || [];
         // Items with no topics are always shown (taxonomy may not have tagged them yet)

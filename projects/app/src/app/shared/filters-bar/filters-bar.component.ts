@@ -11,6 +11,7 @@ export interface FiltersBarState {
   potential: string[];
   type: string;
   topic: string[];
+  totalTopicCount?: number;
   search: string;
   orderBy: string;
   view?: string;
