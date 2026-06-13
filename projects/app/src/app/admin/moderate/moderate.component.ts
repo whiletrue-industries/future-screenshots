@@ -1239,6 +1239,7 @@ export class ModerateComponent implements OnInit, OnDestroy {
     potential: this.filterPotential(),
     type: this.filterType(),
     topic: this.filterTopic(),
+    totalTopicCount: this.taxonomyService.allSubThemeIds().length,
     search: this.searchText(),
     orderBy: this.orderBy(),
     view: this.viewMode()
