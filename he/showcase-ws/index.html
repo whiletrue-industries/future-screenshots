@@ -1,0 +1,996 @@
+<!DOCTYPE html><html lang="he" dir="rtl"><head>
+  <meta charset="utf-8">
+
+  <title>The Futures Map</title>
+  <meta name="title" content="The Futures Map">
+  <meta name="description" content="Navigating political imagination through screenshots from the futures we may shape together.">
+  
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="site.webmanifest" crossorigin="anonymous">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://mapfutur.es/">
+  <meta property="twitter:title" content="The Futures Map">
+  <meta property="twitter:description" content="Navigating political imagination through screenshots from the futures we may shape together.">
+  <meta property="twitter:image" content="https://mapfutur.es/og_image.jpg">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="fb:app_id" content="966242223397117">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://mapfutur.es/">
+  <meta property="og:title" content="The Futures Map">
+  <meta property="og:description" content="Navigating political imagination through screenshots from the futures we may shape together.">
+  <meta property="og:image" itemprop="image" content="https://mapfutur.es/og_image.jpg">
+  <meta property="og:image:secure_url" itemprop="image" content="https://mapfutur.es/og_image.jpg">
+
+  <base href="/he/">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no, user-scalable=no">
+  <meta http-equiv="ScreenOrientation" content="autoRotate:disabled">
+  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(self), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()">
+  
+  <script src="https://docs.opencv.org/4.7.0/opencv.js" async=""></script>
+  <!-- warning: loading OpenCV can take some time. Load asynchronously -->
+  <script src="https://cdn.jsdelivr.net/gh/ColonelParrot/jscanify@master/src/jscanify.min.js"></script>
+<link rel="stylesheet" href="styles-7M4R3UQD.css"><link rel="preload" href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&amp;family=Permanent+Marker&amp;family=Shadows+Into+Light&amp;family=Indie+Flower&amp;display=swap" as="style"><style ng-app-id="ng">
+
+.font-sans[_ngcontent-ng-c3983274567] {
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+}
+.background-image[_ngcontent-ng-c3983274567] {
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+}
+.message[_ngcontent-ng-c3983274567] {
+  font-size: 18px;
+  padding: 16px 24px;
+  max-width: calc(100% - 32px);
+  transition: border-radius 0.3s ease-in-out;
+  z-index: 1;
+}
+.message[_ngcontent-ng-c3983274567]     * {
+  margin: 0;
+}
+.message[_ngcontent-ng-c3983274567]     * a {
+  color: inherit;
+}
+.message.ai[_ngcontent-ng-c3983274567] {
+  background-color: #E7CBFF;
+  color: #4E02B2;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  border-radius: 32px 32px 32px 2px;
+  align-self: flex-start;
+  animation: _ngcontent-ng-c3983274567_fadeInLeft 0.08s ease-out;
+}
+.message.human[_ngcontent-ng-c3983274567] {
+  background-color: #4E02B2;
+  color: #FFFFFF;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  border-radius: 32px 32px 2px 32px;
+  align-self: flex-end;
+  animation: _ngcontent-ng-c3983274567_fadeInRight 0.08s ease-out;
+  margin-bottom: 4px;
+}
+.message.part[_ngcontent-ng-c3983274567] {
+  border-radius: 32px;
+}
+.buttons[_ngcontent-ng-c3983274567] {
+  width: 100%;
+  display: flex;
+  flex-flow: column;
+  padding: 8px 0;
+  gap: 4px;
+}
+.buttons[_ngcontent-ng-c3983274567]   .button-row[_ngcontent-ng-c3983274567] {
+  width: 100%;
+  display: flex;
+  flex-flow: row;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+.buttons[_ngcontent-ng-c3983274567]   .button-row[_ngcontent-ng-c3983274567]    > .button[_ngcontent-ng-c3983274567] {
+  flex: 1 1 auto;
+}
+.buttons[_ngcontent-ng-c3983274567]   .button[_ngcontent-ng-c3983274567] {
+  height: 52px;
+  padding: 0px 8px;
+  display: flex;
+  flex-flow: row;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  font-size: 16px;
+  line-height: normal;
+  font-weight: 400;
+  border: 1px solid #E7CBFF;
+  background: #FBF5F6;
+  color: #4E02B2;
+  cursor: pointer;
+}
+.buttons[_ngcontent-ng-c3983274567]   .button.primary[_ngcontent-ng-c3983274567] {
+  border: 1px solid #4E02B2;
+  background: #4E02B2;
+  color: #FFFFFF;
+  font-weight: 700;
+}
+.buttons[_ngcontent-ng-c3983274567]   a[_ngcontent-ng-c3983274567] {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+@keyframes _ngcontent-ng-c3983274567_fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes _ngcontent-ng-c3983274567_fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes _ngcontent-ng-c3983274567_slideInUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes _ngcontent-ng-c3983274567_slideInUp2 {
+  from {
+    transform: translateY(200%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes _ngcontent-ng-c3983274567_slideInDown {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+[_nghost-ng-c3983274567] {
+  --showcase-font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  position: relative;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
+}
+[_nghost-ng-c3983274567]   .container[_ngcontent-ng-c3983274567] {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  height: 100%;
+  background: #FFFDF6;
+  cursor: default;
+  touch-action: none;
+  pointer-events: auto;
+}
+[_nghost-ng-c3983274567]   .container.hovering[_ngcontent-ng-c3983274567] {
+  cursor: grab;
+}
+[_nghost-ng-c3983274567]   .container.hovering.dragging[_ngcontent-ng-c3983274567] {
+  cursor: grabbing;
+}
+[_nghost-ng-c3983274567]   .container.fisheye-above-labels[_ngcontent-ng-c3983274567] {
+  z-index: 60;
+}
+[_nghost-ng-c3983274567]   .fisheye-taxonomy-focus-label[_ngcontent-ng-c3983274567] {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  max-width: min(52vw, 540px);
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 253, 246, 0.88);
+  border: 1px solid rgba(78, 2, 178, 0.22);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.16);
+  color: #4E02B2;
+  font-family: var(--showcase-font-family);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  z-index: 120;
+  pointer-events: none;
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+}
+[_nghost-ng-c3983274567]   .preloader[_ngcontent-ng-c3983274567] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.3);
+  z-index: 2000;
+  pointer-events: none;
+}
+[_nghost-ng-c3983274567]   .preloader[_ngcontent-ng-c3983274567]   .spinner[_ngcontent-ng-c3983274567] {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(78, 2, 178, 0.2);
+  border-top: 4px solid #4E02B2;
+  border-right: 4px solid #4E02B2;
+  border-radius: 50%;
+  animation: _ngcontent-ng-c3983274567_spin 1s linear infinite;
+}
+@keyframes _ngcontent-ng-c3983274567_spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+[_nghost-ng-c3983274567]   .logo-link[_ngcontent-ng-c3983274567] {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 176px;
+  height: 176px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+[_nghost-ng-c3983274567]   .logo-link[_ngcontent-ng-c3983274567]   .logo-icon[_ngcontent-ng-c3983274567] {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+[_nghost-ng-c3983274567]   .home-button[_ngcontent-ng-c3983274567] {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  transition: all 0.2s ease;
+  box-shadow: none;
+}
+[_nghost-ng-c3983274567]   .home-button[_ngcontent-ng-c3983274567]   .button-icon[_ngcontent-ng-c3983274567] {
+  width: 24px;
+  height: 24px;
+  color: #4E02B2;
+}
+[_nghost-ng-c3983274567]   .home-button[_ngcontent-ng-c3983274567]:hover {
+  transform: scale(1.05);
+}
+[_nghost-ng-c3983274567]   .home-button[_ngcontent-ng-c3983274567]:active {
+  transform: scale(0.95);
+}
+@media (max-width: 768px) {
+  [_nghost-ng-c3983274567]   .home-button[_ngcontent-ng-c3983274567] {
+    top: 8px;
+    left: 8px;
+    width: 40px;
+    height: 40px;
+  }
+  [_nghost-ng-c3983274567]   .home-button[_ngcontent-ng-c3983274567]   .button-icon[_ngcontent-ng-c3983274567] {
+    width: 20px;
+    height: 20px;
+  }
+}
+[_nghost-ng-c3983274567]   .logo[_ngcontent-ng-c3983274567] {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: 165px;
+  height: 137px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  background-image: url("./media/futures-map-logo-UYVZA7QU.svg");
+  background-size: contain;
+}
+@media (max-width: 768px) {
+  [_nghost-ng-c3983274567]   .logo[_ngcontent-ng-c3983274567] {
+    display: none;
+  }
+}
+[_nghost-ng-c3983274567]   .workspace-title[_ngcontent-ng-c3983274567] {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--showcase-font-family);
+  color: #9B90AA;
+  font-size: 16px;
+  font-weight: 400;
+  z-index: 99;
+  max-width: calc(100% - 40px);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 20px;
+}
+[_nghost-ng-c3983274567]   .workspace-title.needs-animation[_ngcontent-ng-c3983274567] {
+  white-space: pre;
+  overflow: visible;
+  text-overflow: clip;
+  animation: _ngcontent-ng-c3983274567_scrollTitle 20s linear infinite;
+  animation-delay: 2s;
+}
+@media (max-width: 768px) {
+  [_nghost-ng-c3983274567]   .workspace-title[_ngcontent-ng-c3983274567] {
+    max-width: calc(100% - 40px);
+    font-size: 14px;
+    top: 10px;
+  }
+  [_nghost-ng-c3983274567]   .workspace-title[_ngcontent-ng-c3983274567]:active {
+    overflow-x: auto;
+    overflow-y: hidden;
+    text-overflow: clip;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+  [_nghost-ng-c3983274567]   .workspace-title[_ngcontent-ng-c3983274567]:active::-webkit-scrollbar {
+    height: 2px;
+  }
+  [_nghost-ng-c3983274567]   .workspace-title[_ngcontent-ng-c3983274567]:active::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 1px;
+  }
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567] {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+@media (max-width: 768px) {
+  [_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567] {
+    bottom: 8px;
+    gap: 8px;
+  }
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567] {
+  position: relative;
+  background: rgba(185, 105, 255, 0.05);
+  border: 1px solid #F1E5F3;
+  border-radius: 28px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  padding: 4px;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  display: flex;
+  gap: 0;
+}
+@media (max-width: 768px) {
+  [_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567] {
+    border-radius: 20px;
+    padding: 3px;
+  }
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567]   .toggle-buttons[_ngcontent-ng-c3983274567] {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  gap: 0;
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567]   .toggle-button[_ngcontent-ng-c3983274567] {
+  flex: 1;
+  min-width: 141px;
+  height: 47px;
+  padding: 0 24px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 23.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #4E02B2;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.5;
+  position: relative;
+}
+@media (max-width: 768px) {
+  [_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567]   .toggle-button[_ngcontent-ng-c3983274567] {
+    min-width: 90px;
+    height: 40px;
+    padding: 0 12px;
+    font-size: 12px;
+    border-radius: 18px;
+  }
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567]   .toggle-button[_ngcontent-ng-c3983274567]   .button-content[_ngcontent-ng-c3983274567] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+  white-space: nowrap;
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567]   .toggle-button[_ngcontent-ng-c3983274567]   .map-drag-counter[_ngcontent-ng-c3983274567] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(78, 2, 178, 0.12);
+  color: #4E02B2;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  box-shadow: inset 0 0 0 1px rgba(78, 2, 178, 0.15);
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567]   .toggle-button[_ngcontent-ng-c3983274567]   .map-drag-counter.admin[_ngcontent-ng-c3983274567] {
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567]   .toggle-button[_ngcontent-ng-c3983274567]   .map-drag-counter[_ngcontent-ng-c3983274567]   .counter-caret[_ngcontent-ng-c3983274567] {
+  margin-left: 6px;
+  font-size: 9px;
+  line-height: 1;
+  opacity: 0.7;
+  transform: rotate(0deg);
+  transition: transform 0.18s ease;
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567]   .toggle-button[_ngcontent-ng-c3983274567]   .map-drag-counter[_ngcontent-ng-c3983274567]   .counter-caret.open[_ngcontent-ng-c3983274567] {
+  transform: rotate(180deg);
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567]   .toggle-button[_ngcontent-ng-c3983274567]   .map-drag-counter.breathing[_ngcontent-ng-c3983274567] {
+  animation: _ngcontent-ng-c3983274567_dragCounterBreathing 1.8s ease-in-out infinite;
+}
+@media (max-width: 768px) {
+  [_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567]   .toggle-button[_ngcontent-ng-c3983274567]   .map-drag-counter[_ngcontent-ng-c3983274567] {
+    min-width: 44px;
+    padding: 3px 8px;
+    font-size: 11px;
+  }
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567]   .toggle-button[_ngcontent-ng-c3983274567]   .button-icon[_ngcontent-ng-c3983274567] {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+@media (max-width: 768px) {
+  [_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567]   .toggle-button[_ngcontent-ng-c3983274567]   .button-icon[_ngcontent-ng-c3983274567] {
+    width: 16px;
+    height: 16px;
+  }
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567]   .toggle-button.active[_ngcontent-ng-c3983274567]   .button-icon[_ngcontent-ng-c3983274567] {
+  opacity: 1;
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567]   .toggle-button[_ngcontent-ng-c3983274567]   .button-label[_ngcontent-ng-c3983274567] {
+  pointer-events: none;
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567]   .toggle-button[_ngcontent-ng-c3983274567]:hover {
+  opacity: 0.7;
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567]   .toggle-button.active[_ngcontent-ng-c3983274567] {
+  background: #FFFDF6;
+  border: 1px solid #F1E5F3;
+  opacity: 1;
+  color: #4E02B2;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567]   .toggle-button.active[_ngcontent-ng-c3983274567]   .map-drag-counter[_ngcontent-ng-c3983274567] {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(78, 2, 178, 0.16),
+      rgba(250, 181, 83, 0.18));
+  box-shadow: inset 0 0 0 1px rgba(78, 2, 178, 0.18), 0 2px 6px rgba(78, 2, 178, 0.14);
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567]   .toggle-button.map-button[_ngcontent-ng-c3983274567] {
+  border-radius: 23.5px;
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567]   .toggle-button.thematic-button[_ngcontent-ng-c3983274567] {
+  border-radius: 23.5px;
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .layout-toggle[_ngcontent-ng-c3983274567]   .toggle-button.clusters-button[_ngcontent-ng-c3983274567] {
+  border-radius: 23.5px;
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .drag-all-controls-popup[_ngcontent-ng-c3983274567] {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  position: absolute;
+  left: 25%;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%);
+  background: rgba(255, 253, 246, 0.92);
+  border: 1px solid #F1E5F3;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(78, 2, 178, 0.12);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  z-index: 1001;
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .drag-all-controls-popup[_ngcontent-ng-c3983274567]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 12px;
+  height: 12px;
+  transform: translateX(-50%) rotate(45deg);
+  background: rgba(255, 253, 246, 0.92);
+  border-right: 1px solid #F1E5F3;
+  border-bottom: 1px solid #F1E5F3;
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .drag-all-controls-popup[_ngcontent-ng-c3983274567]   .drag-time-btn[_ngcontent-ng-c3983274567] {
+  background: rgba(78, 2, 178, 0.08);
+  border: 1px solid rgba(78, 2, 178, 0.14);
+  color: #4E02B2;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .drag-all-controls-popup[_ngcontent-ng-c3983274567]   .drag-time-btn[_ngcontent-ng-c3983274567]:hover {
+  background: rgba(78, 2, 178, 0.14);
+  box-shadow: 0 4px 10px rgba(78, 2, 178, 0.14);
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .drag-all-controls-popup[_ngcontent-ng-c3983274567]   .drag-time-btn[_ngcontent-ng-c3983274567]:active {
+  transform: scale(0.96);
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .drag-all-controls-popup[_ngcontent-ng-c3983274567]   .drag-stop-btn[_ngcontent-ng-c3983274567] {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #4E02B2;
+  border: 1px solid #4E02B2;
+  color: #fff;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .drag-all-controls-popup[_ngcontent-ng-c3983274567]   .drag-stop-btn[_ngcontent-ng-c3983274567]   .button-icon[_ngcontent-ng-c3983274567] {
+  width: 14px;
+  height: 14px;
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .drag-all-controls-popup[_ngcontent-ng-c3983274567]   .drag-stop-btn[_ngcontent-ng-c3983274567]:hover {
+  background: #5d15c8;
+  box-shadow: 0 6px 14px rgba(78, 2, 178, 0.24);
+}
+[_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .drag-all-controls-popup[_ngcontent-ng-c3983274567]   .drag-stop-btn[_ngcontent-ng-c3983274567]:active {
+  transform: scale(0.96);
+}
+@media (max-width: 768px) {
+  [_nghost-ng-c3983274567]   .layout-toggle-centered[_ngcontent-ng-c3983274567]   .drag-all-controls-popup[_ngcontent-ng-c3983274567] {
+    gap: 6px;
+    padding: 6px 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    left: 50%;
+  }
+}
+[_nghost-ng-c3983274567]   .zoom-controls[_ngcontent-ng-c3983274567] {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1000;
+  transition: right 0.3s ease-out;
+  pointer-events: auto;
+}
+[_nghost-ng-c3983274567]   .zoom-controls.sidebar-open[_ngcontent-ng-c3983274567] {
+  right: 520px;
+}
+@media (max-width: 768px) {
+  [_nghost-ng-c3983274567]   .zoom-controls[_ngcontent-ng-c3983274567] {
+    top: 8px;
+    right: 8px;
+  }
+}
+[_nghost-ng-c3983274567]   .zoom-controls[_ngcontent-ng-c3983274567]   .zoom-buttons[_ngcontent-ng-c3983274567] {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+[_nghost-ng-c3983274567]   .zoom-controls[_ngcontent-ng-c3983274567]   .zoom-button[_ngcontent-ng-c3983274567] {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: white;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  color: #666;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+[_nghost-ng-c3983274567]   .zoom-controls[_ngcontent-ng-c3983274567]   .zoom-button[_ngcontent-ng-c3983274567]:hover {
+  color: #333;
+  background: rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+[_nghost-ng-c3983274567]   .zoom-controls[_ngcontent-ng-c3983274567]   .zoom-button[_ngcontent-ng-c3983274567]   .button-icon[_ngcontent-ng-c3983274567] {
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+}
+[_nghost-ng-c3983274567]   .zoom-controls[_ngcontent-ng-c3983274567]   .showcase-toggle[_ngcontent-ng-c3983274567] {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: white;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  color: #666;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+[_nghost-ng-c3983274567]   .zoom-controls[_ngcontent-ng-c3983274567]   .showcase-toggle[_ngcontent-ng-c3983274567]   .button-icon[_ngcontent-ng-c3983274567] {
+  width: 24px;
+  height: 24px;
+}
+[_nghost-ng-c3983274567]   .zoom-controls[_ngcontent-ng-c3983274567]   .showcase-toggle[_ngcontent-ng-c3983274567]:hover {
+  color: #333;
+  transform: scale(1.05);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+}
+[_nghost-ng-c3983274567]   .zoom-controls[_ngcontent-ng-c3983274567]   .showcase-toggle.active[_ngcontent-ng-c3983274567] {
+  background: #4CAF50;
+  color: white;
+  box-shadow: 0 3px 12px rgba(76, 175, 80, 0.4);
+}
+[_nghost-ng-c3983274567]   .zoom-controls[_ngcontent-ng-c3983274567]   .search-section[_ngcontent-ng-c3983274567] {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+}
+[_nghost-ng-c3983274567]   .zoom-controls[_ngcontent-ng-c3983274567]   .search-section[_ngcontent-ng-c3983274567]   .zoom-button.active[_ngcontent-ng-c3983274567] {
+  background: #698CFF;
+  color: white;
+  box-shadow: 0 3px 12px rgba(105, 140, 255, 0.4);
+}
+[_nghost-ng-c3983274567]   .zoom-controls[_ngcontent-ng-c3983274567]   .search-section[_ngcontent-ng-c3983274567]   .search-input-container[_ngcontent-ng-c3983274567] {
+  display: flex;
+  align-items: center;
+  background: white;
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  animation: _ngcontent-ng-c3983274567_slideIn 0.2s ease;
+  gap: 4px;
+  width: 200px;
+  position: absolute;
+  right: 100%;
+  top: 0;
+  margin-right: 8px;
+}
+[_nghost-ng-c3983274567]   .zoom-controls[_ngcontent-ng-c3983274567]   .search-section[_ngcontent-ng-c3983274567]   .search-input-container[_ngcontent-ng-c3983274567]   .search-input[_ngcontent-ng-c3983274567] {
+  border: none;
+  outline: none;
+  padding: 4px;
+  font-size: 14px;
+  flex: 1;
+  background: transparent;
+}
+[_nghost-ng-c3983274567]   .zoom-controls[_ngcontent-ng-c3983274567]   .search-section[_ngcontent-ng-c3983274567]   .search-input-container[_ngcontent-ng-c3983274567]   .search-clear[_ngcontent-ng-c3983274567] {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  padding: 0 4px;
+  color: #666;
+  transition: color 0.2s ease;
+}
+[_nghost-ng-c3983274567]   .zoom-controls[_ngcontent-ng-c3983274567]   .search-section[_ngcontent-ng-c3983274567]   .search-input-container[_ngcontent-ng-c3983274567]   .search-clear[_ngcontent-ng-c3983274567]:hover {
+  color: #333;
+}
+@keyframes _ngcontent-ng-c3983274567_slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+[_nghost-ng-c3983274567]   .zoom-controls[_ngcontent-ng-c3983274567]   .filter-toggle[_ngcontent-ng-c3983274567] {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: white;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  color: #666;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+[_nghost-ng-c3983274567]   .zoom-controls[_ngcontent-ng-c3983274567]   .filter-toggle[_ngcontent-ng-c3983274567]   .button-icon[_ngcontent-ng-c3983274567] {
+  width: 24px;
+  height: 24px;
+}
+[_nghost-ng-c3983274567]   .zoom-controls[_ngcontent-ng-c3983274567]   .filter-toggle[_ngcontent-ng-c3983274567]:hover {
+  color: #333;
+  transform: scale(1.05);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+}
+[_nghost-ng-c3983274567]   .zoom-controls[_ngcontent-ng-c3983274567]   .filter-toggle.active[_ngcontent-ng-c3983274567] {
+  background: #FF9800;
+  color: white;
+  box-shadow: 0 3px 12px rgba(255, 152, 0, 0.4);
+}
+[_nghost-ng-c3983274567]   .drag-all-toggle[_ngcontent-ng-c3983274567] {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: white;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  color: #666;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+[_nghost-ng-c3983274567]   .drag-all-toggle[_ngcontent-ng-c3983274567]   .button-icon[_ngcontent-ng-c3983274567] {
+  width: 24px;
+  height: 24px;
+}
+[_nghost-ng-c3983274567]   .drag-all-toggle[_ngcontent-ng-c3983274567]:hover {
+  color: #4E02B2;
+  background: rgba(78, 2, 178, 0.06);
+  transform: scale(1.05);
+  box-shadow: 0 3px 12px rgba(78, 2, 178, 0.2);
+}
+[_nghost-ng-c3983274567]   .drag-all-toggle[_ngcontent-ng-c3983274567]:active {
+  transform: scale(0.95);
+}
+[_nghost-ng-c3983274567]   .filters-bar-container[_ngcontent-ng-c3983274567] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 999;
+  transform: translateY(-100%);
+  transition: transform 0.3s ease-out;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  pointer-events: auto;
+}
+[_nghost-ng-c3983274567]   .filters-bar-container.open[_ngcontent-ng-c3983274567] {
+  transform: translateY(0);
+}
+@keyframes _ngcontent-ng-c3983274567_dragCounterBreathing {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: inset 0 0 0 1px rgba(78, 2, 178, 0.15), 0 0 0 0 rgba(78, 2, 178, 0.12);
+  }
+  50% {
+    transform: scale(1.06);
+    box-shadow: inset 0 0 0 1px rgba(78, 2, 178, 0.22), 0 0 0 10px rgba(78, 2, 178, 0.04);
+  }
+}
+@keyframes _ngcontent-ng-c3983274567_scrollTitle {
+  0% {
+    transform: translateX(-50%);
+  }
+  100% {
+    transform: translateX(calc(-50% - 100%));
+  }
+}
+@media (max-width: 768px) {
+  .hide-on-mobile[_ngcontent-ng-c3983274567] {
+    display: none !important;
+  }
+}</style><style ng-app-id="ng">
+
+.sidebar-overlay[_ngcontent-ng-c3985087883] {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+}
+.sidebar-container[_ngcontent-ng-c3985087883] {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  height: 100%;
+  background: white;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  animation: _ngcontent-ng-c3985087883_slideIn 0.3s ease-out;
+}
+@keyframes _ngcontent-ng-c3985087883_slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.close-button[_ngcontent-ng-c3985087883] {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+}
+.close-button[_ngcontent-ng-c3985087883]:hover {
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+.close-button[_ngcontent-ng-c3985087883]:active {
+  transform: scale(0.95);
+}
+.close-icon[_ngcontent-ng-c3985087883] {
+  width: 24px;
+  height: 24px;
+  color: #333;
+}
+.evaluation-iframe[_ngcontent-ng-c3985087883] {
+  width: 100%;
+  height: 100%;
+  border: none;
+  flex: 1;
+}
+@media (max-width: 768px) {
+  .sidebar-container[_ngcontent-ng-c3985087883] {
+    max-width: 100%;
+  }
+}</style><style ng-app-id="ng">
+
+[_nghost-ng-c3655434874] {
+  position: absolute;
+  z-index: 2001;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+[_nghost-ng-c3655434874]   .qr-container[_ngcontent-ng-c3655434874] {
+  display: flex;
+  position: relative;
+  pointer-events: none;
+  transition: all 0.5s ease-in-out;
+}
+[_nghost-ng-c3655434874]   .qr-container[_ngcontent-ng-c3655434874]   .qrcode[_ngcontent-ng-c3655434874] {
+  transition: all 0.5s ease-in-out;
+  transform-origin: center center;
+  pointer-events: auto;
+  cursor: pointer;
+}
+[_nghost-ng-c3655434874]   .qr-container.small[_ngcontent-ng-c3655434874] {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  pointer-events: none;
+}
+[_nghost-ng-c3655434874]   .qr-container.small[_ngcontent-ng-c3655434874]   .qrcode[_ngcontent-ng-c3655434874] {
+  transform-origin: bottom left;
+  pointer-events: auto;
+  cursor: pointer;
+}</style></head>
+<body><!--nghm--><script type="text/javascript" id="ng-event-dispatch-contract">(()=>{function p(t,n,r,o,e,i,f,m){return{eventType:t,event:n,targetElement:r,eic:o,timeStamp:e,eia:i,eirp:f,eiack:m}}function u(t){let n=[],r=e=>{n.push(e)};return{c:t,q:n,et:[],etc:[],d:r,h:e=>{r(p(e.type,e,e.target,t,Date.now()))}}}function s(t,n,r){for(let o=0;o<n.length;o++){let e=n[o];(r?t.etc:t.et).push(e),t.c.addEventListener(e,t.h,r)}}function c(t,n,r,o,e=window){let i=u(t);e._ejsas||(e._ejsas={}),e._ejsas[n]=i,s(i,r),s(i,o,!0)}window.__jsaction_bootstrap=c;})();
+</script><script>window.__jsaction_bootstrap(document.body,"ng",["click"],[]);</script>
+  <app-root ng-version="19.2.17" ngh="3" ng-server-context="ssg"><router-outlet></router-outlet><app-showcase-ws _nghost-ng-c3983274567="" ngh="2"><div _ngcontent-ng-c3983274567="" class="container"></div><div _ngcontent-ng-c3983274567="" class="preloader"><div _ngcontent-ng-c3983274567="" class="spinner"></div></div><!----><app-qrcode _ngcontent-ng-c3983274567="" class="hide-on-mobile qr-clickable" _nghost-ng-c3655434874="" ngh="0" jsaction="click:;"><div _ngcontent-ng-c3655434874="" class="qr-container"><canvas _ngcontent-ng-c3655434874="" class="qrcode" style="transform: scale(1);"></canvas></div></app-qrcode><!----><app-evaluation-sidebar _ngcontent-ng-c3983274567="" _nghost-ng-c3985087883="" ngh="1"><!----></app-evaluation-sidebar><!----><a _ngcontent-ng-c3983274567="" href="/" title="Back to Home" class="logo-link hide-on-mobile"><img _ngcontent-ng-c3983274567="" src="/futures-map-logo.svg" alt="Futures Map" class="logo-icon"></a><button _ngcontent-ng-c3983274567="" title="Back to Home" class="home-button show-on-mobile" jsaction="click:;"><svg _ngcontent-ng-c3983274567="" viewBox="0 0 24 24" class="button-icon"><path _ngcontent-ng-c3983274567="" d="M11 20V7.83L5.41 13 4 11.59 12 3l8 8-1.41 1.41L13 7.83V20z" fill="currentColor"></path></svg></button><!----><div _ngcontent-ng-c3983274567="" class="zoom-controls"><div _ngcontent-ng-c3983274567="" class="zoom-buttons"><div _ngcontent-ng-c3983274567="" class="search-section"><button _ngcontent-ng-c3983274567="" title="Search" class="zoom-button" jsaction="click:;"><svg _ngcontent-ng-c3983274567="" viewBox="0 0 24 24" class="button-icon"><circle _ngcontent-ng-c3983274567="" cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2" fill="none"></circle><path _ngcontent-ng-c3983274567="" d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg></button><!----></div><button _ngcontent-ng-c3983274567="" title="Zoom In (+)" class="zoom-button hide-on-mobile" jsaction="click:;"><svg _ngcontent-ng-c3983274567="" viewBox="0 0 24 24" class="button-icon"><path _ngcontent-ng-c3983274567="" d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg></button><button _ngcontent-ng-c3983274567="" title="Zoom Out (-)" class="zoom-button hide-on-mobile" jsaction="click:;"><svg _ngcontent-ng-c3983274567="" viewBox="0 0 24 24" class="button-icon"><path _ngcontent-ng-c3983274567="" d="M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg></button><button _ngcontent-ng-c3983274567="" title="Reset View (R)" class="zoom-button" jsaction="click:;"><svg _ngcontent-ng-c3983274567="" viewBox="0 0 24 24" class="button-icon"><path _ngcontent-ng-c3983274567="" d="M2 2l4 0 0 2 -2 0 0 2 -2 0 0 -4" fill="currentColor"></path><path _ngcontent-ng-c3983274567="" d="M22 2l-4 0 0 2 2 0 0 2 2 0 0 -4" fill="currentColor"></path><path _ngcontent-ng-c3983274567="" d="M2 22l4 0 0 -2 -2 0 0 -2 -2 0 0 4" fill="currentColor"></path><path _ngcontent-ng-c3983274567="" d="M22 22l-4 0 0 -2 2 0 0 -2 2 0 0 4" fill="currentColor"></path></svg></button></div><!----></div><div _ngcontent-ng-c3983274567="" class="layout-toggle-centered"><div _ngcontent-ng-c3983274567="" class="layout-toggle"><div _ngcontent-ng-c3983274567="" class="toggle-background"></div><div _ngcontent-ng-c3983274567="" class="toggle-buttons"><button _ngcontent-ng-c3983274567="" title="Map Layout" class="toggle-button map-button" jsaction="click:;"><div _ngcontent-ng-c3983274567="" class="button-content"><img _ngcontent-ng-c3983274567="" src="/icon-cone.svg" alt="Map" class="button-icon"><span _ngcontent-ng-c3983274567="" class="button-label">Map</span><!----></div></button><button _ngcontent-ng-c3983274567="" title="Thematic Layout" class="toggle-button thematic-button" jsaction="click:;"><div _ngcontent-ng-c3983274567="" class="button-content"><svg _ngcontent-ng-c3983274567="" viewBox="0 0 24 24" aria-hidden="true" class="button-icon"><polygon _ngcontent-ng-c3983274567="" points="12,3 21,8 21,16 12,21 3,16 3,8" stroke="currentColor" stroke-width="2" fill="none"></polygon><polygon _ngcontent-ng-c3983274567="" points="12,8 16,10.5 16,15.5 12,18 8,15.5 8,10.5" fill="currentColor" opacity="0.6"></polygon></svg><span _ngcontent-ng-c3983274567="" class="button-label">Thematic</span></div></button><button _ngcontent-ng-c3983274567="" title="Clusters Layout" class="toggle-button clusters-button active" jsaction="click:;"><div _ngcontent-ng-c3983274567="" class="button-content"><img _ngcontent-ng-c3983274567="" src="/icon-clusters.svg" alt="Clusters" class="button-icon"><span _ngcontent-ng-c3983274567="" class="button-label">Clusters</span></div></button></div><!----></div></div><!----><!----></app-showcase-ws><!----></app-root>
+<link rel="modulepreload" href="chunk-JAQRBAZC.js"><link rel="modulepreload" href="chunk-IL7K2TLE.js"><script src="polyfills-J42HH2UI.js" type="module"></script><script src="main-ADXQO75P.js" type="module"></script>
+
+<script id="ng-state" type="application/json">{"2068105690":{"b":{"item_count":4994,"themes":[{"definition":"Scenarios centered on who governs, how political authority is structured and contested, how democratic institutions function or fail, and how states or post-state systems are organized.","id":"political-systems-governance","item_count":583,"name":{"arabic":"الأنظمة السياسية والحكم","dutch":"Politieke Systemen & Bestuur","english":"Political Systems & Governance","hebrew":"מערכות שלטון וממשל"},"sub_themes":[{"definition":"Scenarios about elections, party victories or collapses, landmark officeholders, coalition shifts, mayoral or national leadership transitions, and disputes over who rules.","id":"leadership-elections","item_count":87,"name":{"arabic":"القيادة والانتخابات","dutch":"Leiderschap & Verkiezingen","english":"Leadership & Elections","hebrew":"מנהיגות ובחירות"}},{"definition":"Scenarios focused on constitutions, basic laws, equality acts, judicial change, rights being entrenched in foundational law, or formal restructuring of state authority.","id":"constitutional-legal-reform","item_count":58,"name":{"arabic":"الإصلاح الدستوري والقانوني","dutch":"Grondwettelijke & Juridische Hervorming","english":"Constitutional & Legal Reform","hebrew":"רפורמה חוקתית ומשפטית"}},{"definition":"Scenarios imagining new political forms such as federalism, post-national systems, fragmented sovereignties, merged states, autonomous regions, or institutional redesign.","id":"governance-models","item_count":123,"name":{"arabic":"نماذج الحكم","dutch":"Bestuursmodellen","english":"Governance Models","hebrew":"מודלים של ממשל"}},{"definition":"Scenarios about leaders or institutions being blamed, investigated, prosecuted, exposed, or held responsible for abuse, neglect, or political wrongdoing.","id":"accountability-corruption","item_count":28,"name":{"arabic":"المساءلة والفساد","dutch":"Verantwoording & Corruptie","english":"Accountability & Corruption","hebrew":"אחריות ושחיתות"}},{"definition":"Scenarios where citizens are called to build the state, shape institutions, join civic processes, or take direct responsibility for public life beyond ordinary voting.","id":"participatory-democracy-civic-engagement","item_count":170,"name":{"arabic":"الديمقراطية التشاركية والمشاركة المدنية","dutch":"Participatieve Democratie & Burgerbetrokkenheid","english":"Participatory Democracy & Civic Engagement","hebrew":"דמוקרטיה השתתפותית ומעורבות אזרחית"}},{"definition":"Scenarios about democratic breakdown, fascist or repressive rule, toppling authoritarian regimes, or transitions from coercive government to more open political orders.","id":"authoritarianism-regime-change","item_count":117,"name":{"arabic":"السلطوية وتغيير النظام","dutch":"Autoritarisme & Regimeverandering","english":"Authoritarianism & Regime Change","hebrew":"סמכותנות והחלפת משטר"}}]},{"definition":"Scenarios about war, occupation, armed escalation, military operations, civilian danger, siege, defense systems, and the lived reality of insecurity or coercive force.","id":"conflict-occupation-security","item_count":901,"name":{"arabic":"الصراع والاحتلال والأمن","dutch":"Conflict, Bezetting & Veiligheid","english":"Conflict, Occupation & Security","hebrew":"סכסוך, כיבוש וביטחון"},"sub_themes":[{"definition":"Scenarios depicting active warfare, bombardment, invasions, multi-front war, military offensives, surrender, or collapse into widespread violence.","id":"war-armed-conflict","item_count":321,"name":{"arabic":"الحرب والنزاع المسلح","dutch":"Oorlog & Gewapend Conflict","english":"War & Armed Conflict","hebrew":"מלחמה ועימות מזוין"}},{"definition":"Scenarios focused on prolonged military control over civilian life, the end of occupation, reoccupation, or demands for withdrawal from occupied areas.","id":"occupation-military-rule","item_count":210,"name":{"arabic":"الاحتلال والحكم العسكري","dutch":"Bezetting & Militair Bestuur","english":"Occupation & Military Rule","hebrew":"כיבוש ושלטון צבאי"}},{"definition":"Scenarios about ceasefires, fragile truces, hostage and captive return, exchange deals, and the uncertain aftermath of such agreements.","id":"ceasefires-deals-hostages","item_count":88,"name":{"arabic":"وقف إطلاق النار والصفقات والرهائن","dutch":"Staakt-het-vuren, Deals & Gijzelaars","english":"Ceasefires, Deals & Hostages","hebrew":"הפסקות אש, עסקאות וחטופים"}},{"definition":"Scenarios involving sirens, missile defense, fears of attacks, radical threats after peace, unsafe daily routines, and civilians living with persistent danger.","id":"security-threats-civilian-fear","item_count":207,"name":{"arabic":"التهديدات الأمنية وخوف المدنيين","dutch":"Veiligheidsdreigingen & Burgerlijke Angst","english":"Security Threats & Civilian Fear","hebrew":"איומי ביטחון ופחד אזרחי"}},{"definition":"Scenarios about detention, imprisonment, captivity, state confinement, deportation-like holding systems, or coercive incarceration as a tool of control.","id":"carceral-repression","item_count":48,"name":{"arabic":"القمع والسجن","dutch":"Carcerale Repressie","english":"Carceral Repression","hebrew":"דיכוי וכליאה"}},{"definition":"Scenarios about conscription, draft burdens, mobilization, extending service, or conscientious refusal to serve across ideological or communal lines.","id":"military-service-refusal","item_count":27,"name":{"arabic":"الخدمة العسكرية والرفض","dutch":"Militaire Dienst & Weigering","english":"Military Service & Refusal","hebrew":"שירות צבאי וסירוב"}}]},{"definition":"Scenarios imagining the formal political arrangement between Israelis and Palestinians, including peace agreements, sovereignty, statehood, annexation, confederation, and regional diplomatic normalization flowing from that settlement.","id":"israeli-palestinian-political-resolution","item_count":1713,"name":{"arabic":"التسوية السياسية الإسرائيلية الفلسطينية","dutch":"Israëlisch-Palestijnse Politieke Regeling","english":"Israeli-Palestinian Political Resolution","hebrew":"הסדרה פוליטית ישראלית-פלסטינית"},"sub_themes":[{"definition":"Scenarios that imagine a specific constitutional future between Israelis and Palestinians, including partition, one shared state, confederal arrangements, or binational structures.","id":"two-state-one-state-confederation","item_count":109,"name":{"arabic":"دولتان / دولة واحدة / كونفدرالية","dutch":"Twee staten / Eén staat / Confederatie","english":"Two-state / One-state / Confederation","hebrew":"שתי מדינות / מדינה אחת / קונפדרציה"}},{"definition":"Scenarios centered on Palestinian independence, long-term sovereignty, state institutions, state anniversaries, international recognition, and the practical functioning of a Palestinian state.","id":"palestinian-statehood","item_count":92,"name":{"arabic":"الدولة الفلسطينية","dutch":"Palestijnse Staat","english":"Palestinian Statehood","hebrew":"מדינה פלסטינית"}},{"definition":"Scenarios in which one side claims sole sovereignty over territory and alternative national claims are denied, erased, or subordinated.","id":"annexation-exclusive-sovereignty","item_count":35,"name":{"arabic":"الضم والسيادة الحصرية","dutch":"Annexatie & Exclusieve Soevereiniteit","english":"Annexation & Exclusive Sovereignty","hebrew":"סיפוח וריבונות בלעדית"}},{"definition":"Scenarios about abolishing, shifting, or redesigning borders and maps in Israel/Palestine as part of a new political order.","id":"borders-removed-or-redrawn","item_count":474,"name":{"arabic":"حدود أزيلت أو أُعيد ترسيمها","dutch":"Grenzen Verwijderd of Hertekend","english":"Borders Removed or Redrawn","hebrew":"גבולות שהוסרו או שורטטו מחדש"}},{"definition":"Scenarios focused on settlements being expanded, legalized, dismantled, evacuated, or incorporated into a territorial and political future.","id":"settlements-territorial-expansion","item_count":399,"name":{"arabic":"المستوطنات والتوسع الإقليمي","dutch":"Nederzettingen & Territoriale Uitbreiding","english":"Settlements & Territorial Expansion","hebrew":"התנחלויות והתרחבות טריטוריאלית"}},{"definition":"Scenarios where Israeli-Palestinian peace produces wider regional diplomacy, travel, trade, or normalization with neighbors such as Lebanon, Iraq, or the broader Middle East.","id":"regional-integration-normalization","item_count":604,"name":{"arabic":"الاندماج الإقليمي والتطبيع","dutch":"Regionale Integratie & Normalisering","english":"Regional Integration & Normalization","hebrew":"אינטגרציה אזורית ונורמליזציה"}}]},{"definition":"Scenarios focused on checkpoints, walls, crossings, passports, permits, refugee return, deportation, displacement, and the practical ability to move, stay, or come home.","id":"borders-mobility-return","item_count":829,"name":{"arabic":"الحدود والتنقل والعودة","dutch":"Grenzen, Mobiliteit & Terugkeer","english":"Borders, Mobility & Return","hebrew":"גבולות, ניידות ושיבה"},"sub_themes":[{"definition":"Scenarios about routine cross-border travel, open movement across formerly closed lines, and ordinary mobility becoming possible after political change.","id":"freedom-of-movement","item_count":357,"name":{"arabic":"حرية التنقل","dutch":"Vrijheid van Beweging","english":"Freedom of Movement","hebrew":"חופש תנועה"}},{"definition":"Scenarios where checkpoints, walls, border closures, permits, or demolished barriers are themselves the central lived reality of restriction or liberation.","id":"checkpoints-walls","item_count":101,"name":{"arabic":"الحواجز والجدران","dutch":"Checkpoints & Muren","english":"Checkpoints & Walls","hebrew":"מחסומים וחומות"}},{"definition":"Scenarios about refugees, exiles, or diasporic communities returning to former homes, villages, cities, or national homelands after political transformation.","id":"refugee-return","item_count":80,"name":{"arabic":"عودة اللاجئين","dutch":"Terugkeer van Vluchtelingen","english":"Refugee Return","hebrew":"שיבת פליטים"}},{"definition":"Scenarios about forced migration, evacuations, environmental displacement, resettlement, mass deportation, or uprooting caused by conflict, policy, or ecological crisis.","id":"migration-displacement","item_count":276,"name":{"arabic":"الهجرة والنزوح","dutch":"Migratie & Ontheemding","english":"Migration & Displacement","hebrew":"הגירה ועקירה"}},{"definition":"Scenarios addressing passports, citizenship, right of return, residency status, ID systems, border documents, or official belonging in a political community.","id":"residency-citizenship","item_count":15,"name":{"arabic":"الإقامة والمواطنة","dutch":"Verblijf & Burgerschap","english":"Residency & Citizenship","hebrew":"תושבות ואזרחות"}}]},{"definition":"Scenarios centered on equality, human dignity, anti-discrimination, legal protection, and organized struggles around gender, minority status, bodily autonomy, and social justice.","id":"rights-equality-social-struggles","item_count":1578,"name":{"arabic":"الحقوق والمساواة والنضالات الاجتماعية","dutch":"Rechten, Gelijkheid & Sociale Strijd","english":"Rights, Equality & Social Struggles","hebrew":"זכויות, שוויון ומאבקים חברתיים"},"sub_themes":[{"definition":"Scenarios about broad civil liberties, human dignity, equal legal status, freedom from abuse, and rights claims against discriminatory or coercive rule.","id":"human-civil-rights","item_count":90,"name":{"arabic":"حقوق الإنسان والمواطنة","dutch":"Mensen- & Burgerrechten","english":"Human & Civil Rights","hebrew":"זכויות אדם ואזרח"}},{"definition":"Scenarios focusing on recognition, safety, and equal treatment of minorities, including Jews facing antisemitism, Palestinians, migrants, religious communities, or other stigmatized groups.","id":"minority-identity-rights","item_count":95,"name":{"arabic":"حقوق الأقليات والهوية","dutch":"Minderheden- & Identiteitsrechten","english":"Minority & Identity Rights","hebrew":"זכויות מיעוט וזהות"}},{"definition":"Scenarios centered on constitutional protection, legal recognition, and civic campaigns to secure children's rights and welfare.","id":"children-s-rights","item_count":63,"name":{"arabic":"حقوق الأطفال","dutch":"Kinderrechten","english":"Children's Rights","hebrew":"זכויות ילדים"}},{"definition":"Scenarios about bodily autonomy, reproductive rights, patriarchy falling, queer visibility, family diversity, or unexpected alliances and backlash around gender and sexuality.","id":"gender-lgbtq-equality","item_count":273,"name":{"arabic":"المساواة الجندرية وحقوق الميم","dutch":"Gender- & LGBTQ+-Gelijkheid","english":"Gender & LGBTQ+ Equality","hebrew":"שוויון מגדרי ולהט״ב"}},{"definition":"Scenarios where femicide, harassment, street safety, and collective responsibility for preventing gendered violence are the main focus.","id":"violence-against-women","item_count":36,"name":{"arabic":"العنف ضد النساء","dutch":"Geweld Tegen Vrouwen","english":"Violence Against Women","hebrew":"אלימות נגד נשים"}},{"definition":"Scenarios where demonstrations, solidarity campaigns, boycott debates, symbolic resistance, or protest as a normalized civic form are the main substance of the future.","id":"activism-protest","item_count":1021,"name":{"arabic":"النشاط والاحتجاج","dutch":"Activisme & Protest","english":"Activism & Protest","hebrew":"אקטיביזם ומחאה"}}]},{"definition":"Scenarios grappling with Jewish, Palestinian, Israeli, diasporic, or shared belonging, and with how collective identity, legitimacy, memory of origin, and common civic life are transformed.","id":"jewish-palestinian-shared-identities","item_count":809,"name":{"arabic":"الهويات اليهودية والفلسطينية والمشتركة","dutch":"Joodse, Palestijnse & Gedeelde Identiteiten","english":"Jewish, Palestinian & Shared Identities","hebrew":"זהויות יהודיות, פלסטיניות ומשותפות"},"sub_themes":[{"definition":"Scenarios about Jewish continuity, communal safety, public Jewish visibility, antisemitism, and the future of Jewish life in Israel and the diaspora.","id":"jewish-collective-identity","item_count":164,"name":{"arabic":"الهوية اليهودية الجماعية","dutch":"Joodse Collectieve Identiteit","english":"Jewish Collective Identity","hebrew":"זהות יהודית קולקטיבית"}},{"definition":"Scenarios about Palestinian presence, endurance, liberation, cultural visibility, rootedness in place, or refusal of erasure.","id":"palestinian-belonging-presence","item_count":94,"name":{"arabic":"الانتماء والحضور الفلسطيني","dutch":"Palestijnse Verbondenheid & Aanwezigheid","english":"Palestinian Belonging & Presence","hebrew":"שייכות ונוכחות פלסטינית"}},{"definition":"Scenarios imagining a common civic 'we' across previous divides, including Arab-Jewish partnership, coexistence slogans, and a shared political future.","id":"shared-civic-identity","item_count":442,"name":{"arabic":"هوية مدنية مشتركة","dutch":"Gedeelde Burgerlijke Identiteit","english":"Shared Civic Identity","hebrew":"זהות אזרחית משותפת"}},{"definition":"Scenarios centered on whether a people, narrative, identity, or national presence is acknowledged as valid, visible, and politically legitimate.","id":"recognition-legitimacy","item_count":36,"name":{"arabic":"الاعتراف والشرعية","dutch":"Erkenning & Legitimiteit","english":"Recognition & Legitimacy","hebrew":"הכרה ולגיטימיות"}},{"definition":"Scenarios about ties between homeland and diaspora, return from abroad, transnational communal attachment, and the political meaning of belonging from afar.","id":"diaspora-homeland-relations","item_count":43,"name":{"arabic":"علاقات الشتات والوطن","dutch":"Diaspora–Thuislandrelaties","english":"Diaspora–Homeland Relations","hebrew":"יחסי תפוצה־מולדת"}},{"definition":"Scenarios about disrupted family histories, migration-shaped identity, searching for ancestry, and the personal struggle to know where one comes from.","id":"family-roots-belonging","item_count":30,"name":{"arabic":"الجذور العائلية والانتماء","dutch":"Familiewortels & Erbij Horen","english":"Family Roots & Belonging","hebrew":"שורשים משפחתיים ושייכות"}}]},{"definition":"Scenarios about worship, holy sites, religious celebrations, spiritual renewal, Shabbat practice, messianic expectation, and the public role of faith.","id":"religion-holy-places-spiritual-life","item_count":310,"name":{"arabic":"الدين والأماكن المقدسة والحياة الروحية","dutch":"Religie, Heilige Plaatsen & Spiritueel Leven","english":"Religion, Holy Places & Spiritual Life","hebrew":"דת, מקומות קדושים וחיים רוחניים"},"sub_themes":[{"definition":"Scenarios where people gain or lose the ability to pray, practice religion, and worship without interference or exclusion.","id":"freedom-of-worship","item_count":12,"name":{"arabic":"حرية العبادة","dutch":"Vrijheid van Godsdienst","english":"Freedom of Worship","hebrew":"חופש פולחן"}},{"definition":"Scenarios focused on visiting or being barred from major sacred places, including control over access to religiously charged sites.","id":"holy-sites-access","item_count":16,"name":{"arabic":"الأماكن المقدسة والوصول إليها","dutch":"Heilige Plaatsen & Toegang","english":"Holy Sites & Access","hebrew":"מקומות קדושים וגישה"}},{"definition":"Scenarios about synagogues, mosques, churches, or organized religious institutions as community anchors, contested authorities, or revived public actors.","id":"synagogues-religious-institutions","item_count":43,"name":{"arabic":"الكنس والمؤسسات الدينية","dutch":"Synagogen & Religieuze Instellingen","english":"Synagogues & Religious Institutions","hebrew":"בתי כנסת ומוסדות דת"}},{"definition":"Scenarios in which compassion, prayer, love, peace-oriented ritual, or spiritual ethics become central to healing and public culture.","id":"spiritual-renewal","item_count":58,"name":{"arabic":"التجدد الروحي","dutch":"Spirituele Vernieuwing","english":"Spiritual Renewal","hebrew":"התחדשות רוחנית"}},{"definition":"Scenarios shaped by redemption, prophecy, messianic arrival, or explicitly religious visions of historical transformation centered on Israel or the wider world.","id":"messianic-redemptive-futures","item_count":164,"name":{"arabic":"مستقبلات مهدوية وخلاصية","dutch":"Messiaanse & Verlossende Toekomsten","english":"Messianic & Redemptive Futures","hebrew":"עתידים משיחיים וגאוליים"}},{"definition":"Scenarios about expanded Shabbat observance, distributed Shabbat dinners, and the adaptation of Jewish ritual practice to changing social and geographic realities.","id":"shabbat-jewish-practice","item_count":17,"name":{"arabic":"السبت والممارسة اليهودية","dutch":"Shabbat & Joodse Praktijk","english":"Shabbat & Jewish Practice","hebrew":"שבת ופרקטיקה יהודית"}}]},{"definition":"Scenarios about remembering violence, carrying grief after war, teaching painful history, seeking justice for atrocities, healing trauma, and rebuilding trust after deep conflict.","id":"memory-trauma-reconciliation","item_count":674,"name":{"arabic":"الذاكرة والصدمة والمصالحة","dutch":"Herinnering, Trauma & Verzoening","english":"Memory, Trauma & Reconciliation","hebrew":"זיכרון, טראומה ופיוס"},"sub_themes":[{"definition":"Scenarios about museums, archives, memorial sites, commemorative projects, and institutions that officially frame difficult pasts.","id":"shared-memory-institutions","item_count":72,"name":{"arabic":"مؤسسات الذاكرة المشتركة","dutch":"Gedeelde Herinneringsinstellingen","english":"Shared Memory Institutions","hebrew":"מוסדות זיכרון משותפים"}},{"definition":"Scenarios where individuals or communities process grief, meet across lines of suffering, and attempt emotional repair after war or catastrophe.","id":"trauma-healing-encounters","item_count":58,"name":{"arabic":"لقاءات شفاء من الصدمة","dutch":"Traumaverwerkende Ontmoetingen","english":"Trauma Healing Encounters","hebrew":"מפגשי ריפוי מטראומה"}},{"definition":"Scenarios focused on how painful history is taught, revised, queried, or understood by later generations, often through schools or AI-mediated historical explanation.","id":"history-education","item_count":163,"name":{"arabic":"تعليم التاريخ","dutch":"Geschiedenisonderwijs","english":"History Education","hebrew":"חינוך היסטורי"}},{"definition":"Scenarios about war-crimes trials, international judgments, reparations, restitution, or public acknowledgment of severe historic harm.","id":"justice-reparations","item_count":56,"name":{"arabic":"العدالة والتعويضات","dutch":"Rechtvaardigheid & Herstelbetalingen","english":"Justice & Reparations","hebrew":"צדק ופיצויים"}},{"definition":"Scenarios about difficult conversations, empathy, nonjudgmental listening, and the interpersonal work required to move beyond enemy images.","id":"dialogue-across-fear","item_count":87,"name":{"arabic":"حوار يتجاوز الخوف","dutch":"Dialoog Over Angst Heen","english":"Dialogue Across Fear","hebrew":"דיאלוג מעבר לפחד"}},{"definition":"Scenarios in which past conflict has faded from everyday consciousness and must be rediscovered, explained, or reinterpreted from the standpoint of peace.","id":"forgetting-conflict","item_count":238,"name":{"arabic":"نسيان الصراع","dutch":"Conflict Vergeten","english":"Forgetting Conflict","hebrew":"שכחת הסכסוך"}}]},{"definition":"Scenarios where language, symbols, festivals, food, museums, public celebrations, and everyday cultural expression are the main arena of social or political change.","id":"culture-language-public-space","item_count":909,"name":{"arabic":"الثقافة واللغة والفضاء العام","dutch":"Cultuur, Taal & Publieke Ruimte","english":"Culture, Language & Public Space","hebrew":"תרבות, שפה ומרחב ציבורי"},"sub_themes":[{"definition":"Scenarios about joint celebrations, international tournaments, parades, shared holidays, and festive public events as expressions of coexistence or peace.","id":"cultural-exchange-festivals","item_count":201,"name":{"arabic":"التبادل الثقافي والمهرجانات","dutch":"Culturele Uitwisseling & Festivals","english":"Cultural Exchange & Festivals","hebrew":"חילופי תרבות ופסטיבלים"}},{"definition":"Scenarios focused on museums and cultural institutions as sites of curation, polarization, bridge-building, or contests over heritage.","id":"museums-cultural-institutions","item_count":161,"name":{"arabic":"المتاحف والمؤسسات الثقافية","dutch":"Musea & Culturele Instellingen","english":"Museums & Cultural Institutions","hebrew":"מוזיאונים ומוסדות תרבות"}},{"definition":"Scenarios where multilingualism, Hebrew-Arabic coexistence, translation, naming, or language accessibility shape public life and inclusion.","id":"language-accessibility","item_count":40,"name":{"arabic":"اللغة وإمكانية الوصول","dutch":"Taal & Toegankelijkheid","english":"Language & Accessibility","hebrew":"שפה ונגישות"}},{"definition":"Scenarios where restaurants, cafés, holiday tables, hospitality, culinary collaboration, or daily consumption habits symbolize a transformed society.","id":"food-shared-daily-culture","item_count":147,"name":{"arabic":"الطعام والثقافة اليومية المشتركة","dutch":"Voedsel & Gedeelde Dagelijkse Cultuur","english":"Food & Shared Daily Culture","hebrew":"אוכל ותרבות יומיומית משותפת"}},{"definition":"Scenarios about flags, hearts, watermelons, peace signs, maps, coded visuals, and symbolic artifacts that reshape the meaning of streets and public discourse.","id":"symbols-in-public-space","item_count":238,"name":{"arabic":"الرموز في الفضاء العام","dutch":"Symbolen in de Publieke Ruimte","english":"Symbols in Public Space","hebrew":"סמלים במרחב הציבורי"}},{"definition":"Scenarios where travel, heritage routes, resumed tourism, border-crossing leisure, or place-based visitation are the main focus of change.","id":"tourism-heritage-travel","item_count":122,"name":{"arabic":"السياحة والسفر التراثي","dutch":"Toerisme & Erfgoedreizen","english":"Tourism & Heritage Travel","hebrew":"תיירות ומסעות מורשת"}}]},{"definition":"Scenarios about livelihoods, economic systems, labor, wealth concentration, basic income, housing, and the material organization of everyday survival and prosperity.","id":"economy-work-material-life","item_count":396,"name":{"arabic":"الاقتصاد والعمل والحياة المادية","dutch":"Economie, Werk & Materieel Leven","english":"Economy, Work & Material Life","hebrew":"כלכלה, עבודה וחיים חומריים"},"sub_themes":[{"definition":"Scenarios about post-capitalist futures, redistribution, economic collapse, solidarity economies, or broad restructuring of how resources are allocated.","id":"economic-systems-redistribution","item_count":87,"name":{"arabic":"الأنظمة الاقتصادية وإعادة التوزيع","dutch":"Economische Systemen & Herverdeling","english":"Economic Systems & Redistribution","hebrew":"מערכות כלכליות וחלוקה מחדש"}},{"definition":"Scenarios focusing on layoffs, human jobs versus profit, workplace culture, remote work environments, automation pressures, or shifting meaning of work.","id":"labor-workplace","item_count":67,"name":{"arabic":"العمل ومكان العمل","dutch":"Arbeid & Werkplek","english":"Labor & Workplace","hebrew":"עבודה ומקום עבודה"}},{"definition":"Scenarios about basic income, public support, grants, and state or community systems that stabilize households and everyday security.","id":"welfare-family-support","item_count":42,"name":{"arabic":"الرفاه ودعم الأسرة","dutch":"Welzijn & Gezinsondersteuning","english":"Welfare & Family Support","hebrew":"רווחה ותמיכה במשפחה"}},{"definition":"Scenarios about currencies, digital money, debt, banking systems, payment mechanisms, or financial shocks driving political and social change.","id":"financial-systems-transfers","item_count":99,"name":{"arabic":"الأنظمة المالية والتحويلات","dutch":"Financiële Systemen & Overboekingen","english":"Financial Systems & Transfers","hebrew":"מערכות פיננסיות והעברות"}},{"definition":"Scenarios about exploitative landlords, housing reform, affordability, and the struggle to secure fair and livable homes.","id":"housing-cost-of-living","item_count":28,"name":{"arabic":"السكن وغلاء المعيشة","dutch":"Wonen & Levensonderhoud","english":"Housing & Cost of Living","hebrew":"דיור ויוקר המחיה"}},{"definition":"Scenarios about industrial complexes, platformized economies, corporate influence, or the political role of large technological and business actors.","id":"tech-economy-corporate-power","item_count":73,"name":{"arabic":"اقتصاد التكنولوجيا وقوة الشركات","dutch":"Tech-Economie & BedrijfsMacht","english":"Tech Economy & Corporate Power","hebrew":"כלכלת טכנולוגיה וכוח תאגידי"}}]},{"definition":"Scenarios where AI, digital platforms, surveillance, alerts, online communication, media systems, or human-machine boundaries are themselves the substantive topic.","id":"technology-media-information-power","item_count":3225,"name":{"arabic":"التكنولوجيا والإعلام وقوة المعلومات","dutch":"Technologie, Media & Informatiemacht","english":"Technology, Media & Information Power","hebrew":"טכנולוגיה, מדיה וכוח המידע"},"sub_themes":[{"definition":"Scenarios about AI assistants, automated advice, AGI, routine AI queries, or machine systems becoming central to decision-making and daily life.","id":"artificial-intelligence-automation","item_count":557,"name":{"arabic":"الذكاء الاصطناعي والأتمتة","dutch":"Kunstmatige Intelligentie & Automatisering","english":"Artificial Intelligence & Automation","hebrew":"בינה מלאכותית ואוטומציה"}},{"definition":"Scenarios focused on social media, messaging cultures, viral discourse, cryptic posting, visual communication, and the emotional or political power of online expression.","id":"digital-communication-media","item_count":494,"name":{"arabic":"الاتصالات الرقمية والإعلام","dutch":"Digitale Communicatie & Media","english":"Digital Communication & Media","hebrew":"תקשורת דיגיטלית ומדיה"}},{"definition":"Scenarios about tracked lives, privacy zones, mind-reading AI, location-based monitoring, or struggles to preserve autonomy under pervasive surveillance.","id":"surveillance-privacy","item_count":603,"name":{"arabic":"المراقبة والخصوصية","dutch":"Toezicht & Privacy","english":"Surveillance & Privacy","hebrew":"מעקב ופרטיות"}},{"definition":"Scenarios where speech is restricted, messages are coded to evade suppression, or digital systems regulate what can be said, seen, or circulated.","id":"censorship-information-control","item_count":124,"name":{"arabic":"الرقابة والسيطرة على المعلومات","dutch":"Censuur & Informatiecontrole","english":"Censorship & Information Control","hebrew":"צנזורה ושליטה במידע"}},{"definition":"Scenarios about AI shaping thought, authenticity crises in human interaction, behavioral manipulation, or fears that digital systems erode human agency and identity.","id":"algorithmic-influence-mind-control","item_count":719,"name":{"arabic":"التأثير الخوارزمي والسيطرة على الوعي","dutch":"Algoritmische Invloed & Gedachtencontrole","english":"Algorithmic Influence & Mind Control","hebrew":"השפעה אלגוריתמית ושליטה תודעתית"}},{"definition":"Scenarios where push alerts, status updates, and condensed signals structure how people experience war, peace, danger, bureaucracy, and public life in real time.","id":"notification-society","item_count":728,"name":{"arabic":"مجتمع الإشعارات","dutch":"Meldingsmaatschappij","english":"Notification Society","hebrew":"חברת ההתראות"}}]},{"definition":"Scenarios centered on schools, educational reform, curriculum, mixed education, children's routines, and how younger generations are formed in conflict and post-conflict societies.","id":"education-children-socialization","item_count":319,"name":{"arabic":"التعليم والأطفال والتنشئة الاجتماعية","dutch":"Onderwijs, Kinderen & Socialisatie","english":"Education, Children & Socialization","hebrew":"חינוך, ילדים וסוציאליזציה"},"sub_themes":[{"definition":"Scenarios about rebuilding schooling, educational access, teacher status, and broader reform of how education is organized and supported.","id":"educational-reform-access","item_count":83,"name":{"arabic":"إصلاح التعليم والوصول","dutch":"Onderwijshervorming & Toegang","english":"Educational Reform & Access","hebrew":"רפורמה וגישה בחינוך"}},{"definition":"Scenarios about what schools and learning systems teach concerning conflict, peace, captivity, memory, and historical understanding.","id":"curriculum-historical-learning","item_count":53,"name":{"arabic":"المنهاج والتعلم التاريخي","dutch":"Curriculum & Historisch Leren","english":"Curriculum & Historical Learning","hebrew":"תכנית לימודים ולמידה היסטורית"}},{"definition":"Scenarios where children's routines, safety, emotional worlds, and daily disruptions reflect war, displacement, or transition out of conflict.","id":"children-in-post-conflict-life","item_count":50,"name":{"arabic":"الأطفال في حياة ما بعد الصراع","dutch":"Kinderen in het Postconflictleven","english":"Children in Post-Conflict Life","hebrew":"ילדים בחיים שלאחר סכסוך"}},{"definition":"Scenarios about mixed schooling, coexistence in educational settings, and schools as spaces of inclusion or exclusion across social groups.","id":"belonging-integration-in-education","item_count":21,"name":{"arabic":"الانتماء والاندماج في التعليم","dutch":"Erbij Horen & Integratie in Onderwijs","english":"Belonging & Integration in Education","hebrew":"שייכות והשתלבות בחינוך"}},{"definition":"Scenarios where AI systems, automated advising, or digital learning platforms shape educational guidance, evaluation, and socialization.","id":"algorithmic-education","item_count":112,"name":{"arabic":"التعليم الخوارزمي","dutch":"Algoritmisch Onderwijs","english":"Algorithmic Education","hebrew":"חינוך אלגוריתמי"}}]},{"definition":"Scenarios about mental health, emotional resilience, supportive relationships, loneliness, intimate life, caregiving, and everyday social wellbeing.","id":"health-emotion-human-relationships","item_count":902,"name":{"arabic":"الصحة والعاطفة والعلاقات الإنسانية","dutch":"Gezondheid, Emotie & Menselijke Relaties","english":"Health, Emotion & Human Relationships","hebrew":"בריאות, רגש ויחסים אנושיים"},"sub_themes":[{"definition":"Scenarios about trauma-saturated culture, depression, the absence of antidepressants in a better future, emotional support, and societies oriented toward psychological wellbeing.","id":"wellbeing-mental-health","item_count":255,"name":{"arabic":"الرفاهية والصحة النفسية","dutch":"Welzijn & Geestelijke Gezondheid","english":"Wellbeing & Mental Health","hebrew":"רווחה ובריאות הנפש"}},{"definition":"Scenarios emphasizing ordinary peace, hope, calm routines, relief after war, and the normalization of positive feeling in daily life.","id":"everyday-happiness-calm","item_count":312,"name":{"arabic":"السعادة اليومية والسكينة","dutch":"Alledaags Geluk & Rust","english":"Everyday Happiness & Calm","hebrew":"אושר יומיומי ושלווה"}},{"definition":"Scenarios about dialogue, friendship, solidarity, Ubuntu-like mutuality, intimate messaging during crisis, and social rituals that strengthen human connection.","id":"connection-practices","item_count":207,"name":{"arabic":"ممارسات التواصل","dutch":"Verbindingspraktijken","english":"Connection Practices","hebrew":"פרקטיקות של חיבור"}},{"definition":"Scenarios about parenting, caregiving, family logistics under strain, reproductive autonomy, and the reshaping of home life in changing societies.","id":"care-reproduction-family-life","item_count":50,"name":{"arabic":"الرعاية والإنجاب والحياة الأسرية","dutch":"Zorg, Voortplanting & Gezinsleven","english":"Care, Reproduction & Family Life","hebrew":"טיפול, רבייה וחיי משפחה"}},{"definition":"Scenarios where aggression, hostility, or violent rhetoric in homes, streets, or digital interaction shapes everyday social expectations.","id":"violence-in-social-life","item_count":41,"name":{"arabic":"العنف في الحياة الاجتماعية","dutch":"Geweld in het Sociale Leven","english":"Violence in Social Life","hebrew":"אלימות בחיים החברתיים"}},{"definition":"Scenarios about access to care, mental-health support infrastructure, and the reliability or ethical role of systems that provide treatment and assistance.","id":"health-systems-medical-access","item_count":37,"name":{"arabic":"الأنظمة الصحية والوصول للعلاج","dutch":"Gezondheidssystemen & Medische Toegang","english":"Health Systems & Medical Access","hebrew":"מערכות בריאות וגישה לטיפול"}}]},{"definition":"Scenarios about climate breakdown, drought, fire, pollution, ecological disruption, resource scarcity, species protection, and environmental adaptation becoming central to life and politics.","id":"climate-ecology-environmental-survival","item_count":618,"name":{"arabic":"المناخ والبيئة والبقاء البيئي","dutch":"Klimaat, Ecologie & Ecologisch Overleven","english":"Climate, Ecology & Environmental Survival","hebrew":"אקלים, אקולוגיה והישרדות סביבתית"},"sub_themes":[{"definition":"Scenarios about sea-level rise, floods, fires, heat, catastrophic weather, and climate-driven disasters reshaping landscapes and settlement.","id":"climate-change-disasters","item_count":135,"name":{"arabic":"تغير المناخ والكوارث","dutch":"Klimaatverandering & Rampen","english":"Climate Change & Disasters","hebrew":"שינויי אקלים ואסונות"}},{"definition":"Scenarios about dry rivers, rationed water, survival under severe shortage, and water becoming the key axis of regional environmental crisis.","id":"water-scarcity-survival","item_count":89,"name":{"arabic":"ندرة المياه والبقاء","dutch":"Waterschaarste & Overleven","english":"Water Scarcity & Survival","hebrew":"מחסור במים והישרדות"}},{"definition":"Scenarios about ecological repair, replanting, restoration of damaged land, interdisciplinary solutions, and societies intentionally healing their environments.","id":"sustainability-restoration","item_count":124,"name":{"arabic":"الاستدامة والترميم","dutch":"Duurzaamheid & Herstel","english":"Sustainability & Restoration","hebrew":"קיימות ושיקום"}},{"definition":"Scenarios about famine, food scarcity, agricultural recovery, plant-based diets, and the organization of resources under ecological stress.","id":"food-security-resource-systems","item_count":114,"name":{"arabic":"الأمن الغذائي وأنظمة الموارد","dutch":"Voedselzekerheid & Grondstofsystemen","english":"Food Security & Resource Systems","hebrew":"ביטחון מזון ומערכות משאבים"}},{"definition":"Scenarios about pollution-driven migration, invasive species, endangered local wildlife, and public efforts to protect or document fragile ecosystems.","id":"pollution-wildlife-ecosystems","item_count":156,"name":{"arabic":"التلوث والحياة البرية والأنظمة البيئية","dutch":"Vervuiling, Wilde Dieren & Ecosystemen","english":"Pollution, Wildlife & Ecosystems","hebrew":"זיהום, חיות בר ומערכות אקולוגיות"}}]},{"definition":"Scenarios focused on cities, transport, utilities, reconstruction, public venues, beaches, mega-cities, and the built environment as a site of social and political transformation.","id":"urban-life-infrastructure-shared-space","item_count":853,"name":{"arabic":"الحياة الحضرية والبنية التحتية والحيز المشترك","dutch":"Stedelijk Leven, Infrastructuur & Gedeelde Ruimte","english":"Urban Life, Infrastructure & Shared Space","hebrew":"חיים עירוניים, תשתיות ומרחב משותף"},"sub_themes":[{"definition":"Scenarios about smart routing, integrated transit, regional corridors, crowd management, roads, and transport systems that shape daily movement.","id":"urban-mobility-transport","item_count":101,"name":{"arabic":"التنقل الحضري والنقل","dutch":"Stedelijke Mobiliteit & Vervoer","english":"Urban Mobility & Transport","hebrew":"תחבורה ותנועה עירונית"}},{"definition":"Scenarios about reconstruction, industrial or residential megaprojects, neighborhood transformation, and major changes in urban form after conflict or crisis.","id":"housing-urban-development","item_count":101,"name":{"arabic":"الإسكان والتطوير الحضري","dutch":"Huisvesting & Stedelijke Ontwikkeling","english":"Housing & Urban Development","hebrew":"דיור ופיתוח עירוני"}},{"definition":"Scenarios about water delivery, municipal systems, public infrastructure reliability, and essential services under stress or renewal.","id":"public-services-utilities","item_count":107,"name":{"arabic":"الخدمات العامة والمرافق","dutch":"Openbare Diensten & Nutsvoorzieningen","english":"Public Services & Utilities","hebrew":"שירותים ציבוריים ותשתיות"}},{"definition":"Scenarios emphasizing beaches, parks, markets, marathons, reclaimed streets, and everyday shared spaces as the texture of collective life.","id":"public-spaces-community-life","item_count":150,"name":{"arabic":"المساحات العامة والحياة المجتمعية","dutch":"Publieke Ruimtes & Gemeenschapsleven","english":"Public Spaces & Community Life","hebrew":"מרחבים ציבוריים וחיי קהילה"}},{"definition":"Scenarios where access to urban places is regulated, overcrowded, unequal, or exclusionary, reproducing social hierarchy and restricted autonomy.","id":"urban-segregation-exclusion","item_count":81,"name":{"arabic":"الفصل والإقصاء الحضري","dutch":"Stedelijke Segregatie & Uitsluiting","english":"Urban Segregation & Exclusion","hebrew":"הפרדה והדרה עירונית"}},{"definition":"Scenarios about uninhabitable zones, radiation, mega-cities, ruined terrain, and radically transformed built environments after disaster or war.","id":"post-apocalyptic-landscapes","item_count":313,"name":{"arabic":"مناظر ما بعد الكارثة","dutch":"Post-apocalyptische Landschappen","english":"Post-Apocalyptic Landscapes","hebrew":"נופים פוסט-אפוקליפטיים"}}]}],"version":"2026-05-22T08:09:32.471949+00:00"},"h":{},"s":200,"st":"OK","u":"https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/taxonomy","rt":"json"},"__nghData__":[{},{"t":{"0":"t2"},"c":{"0":[]}},{"t":{"2":"t0","3":"t1","5":"t3","11":"t4","19":"t5","32":"t6","42":"t7","55":"t8","56":"t9","57":"t10"},"c":{"2":[{"i":"t0","r":1}],"3":[{"i":"t1","r":1}],"5":[],"11":[],"19":[],"32":[],"42":[],"55":[],"56":[],"57":[]}},{"c":{"0":[{"i":"c3983274567","r":1}]}}]}</script></body></html>

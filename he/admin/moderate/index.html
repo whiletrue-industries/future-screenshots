@@ -1,0 +1,3179 @@
+<!DOCTYPE html><html lang="he" dir="rtl"><head>
+  <meta charset="utf-8">
+
+  <title>The Futures Map</title>
+  <meta name="title" content="The Futures Map">
+  <meta name="description" content="Navigating political imagination through screenshots from the futures we may shape together.">
+  
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="site.webmanifest" crossorigin="anonymous">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://mapfutur.es/">
+  <meta property="twitter:title" content="The Futures Map">
+  <meta property="twitter:description" content="Navigating political imagination through screenshots from the futures we may shape together.">
+  <meta property="twitter:image" content="https://mapfutur.es/og_image.jpg">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="fb:app_id" content="966242223397117">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://mapfutur.es/">
+  <meta property="og:title" content="The Futures Map">
+  <meta property="og:description" content="Navigating political imagination through screenshots from the futures we may shape together.">
+  <meta property="og:image" itemprop="image" content="https://mapfutur.es/og_image.jpg">
+  <meta property="og:image:secure_url" itemprop="image" content="https://mapfutur.es/og_image.jpg">
+
+  <base href="/he/">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no, user-scalable=no">
+  <meta http-equiv="ScreenOrientation" content="autoRotate:disabled">
+  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(self), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()">
+  
+  <script src="https://docs.opencv.org/4.7.0/opencv.js" async=""></script>
+  <!-- warning: loading OpenCV can take some time. Load asynchronously -->
+  <script src="https://cdn.jsdelivr.net/gh/ColonelParrot/jscanify@master/src/jscanify.min.js"></script>
+<link rel="stylesheet" href="styles-7M4R3UQD.css"><link rel="preload" href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&amp;family=Permanent+Marker&amp;family=Shadows+Into+Light&amp;family=Indie+Flower&amp;display=swap" as="style"><style ng-app-id="ng">
+
+.font-sans[_ngcontent-ng-c1329615251] {
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+}
+.buttons[_ngcontent-ng-c1329615251] {
+  width: 100%;
+  display: flex;
+  flex-flow: column;
+  padding: 8px 0;
+  gap: 4px;
+}
+.buttons[_ngcontent-ng-c1329615251]   .button-row[_ngcontent-ng-c1329615251] {
+  width: 100%;
+  display: flex;
+  flex-flow: row;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+.buttons[_ngcontent-ng-c1329615251]   .button-row[_ngcontent-ng-c1329615251]    > .button[_ngcontent-ng-c1329615251] {
+  flex: 1 1 auto;
+}
+.buttons[_ngcontent-ng-c1329615251]   .button[_ngcontent-ng-c1329615251] {
+  height: 52px;
+  padding: 0px 8px;
+  display: flex;
+  flex-flow: row;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  font-size: 16px;
+  line-height: normal;
+  font-weight: 400;
+  border: 1px solid #E7CBFF;
+  background: #FBF5F6;
+  color: #4E02B2;
+  cursor: pointer;
+}
+.buttons[_ngcontent-ng-c1329615251]   .button.primary[_ngcontent-ng-c1329615251] {
+  border: 1px solid #4E02B2;
+  background: #4E02B2;
+  color: #FFFFFF;
+  font-weight: 700;
+}
+.buttons[_ngcontent-ng-c1329615251]   a[_ngcontent-ng-c1329615251] {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+[_nghost-ng-c1329615251] {
+  display: flex;
+  flex-flow: column;
+  align-items: stretch;
+  width: 100%;
+  overflow-y: auto;
+  height: 100%;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+}
+.moderate-container[_ngcontent-ng-c1329615251] {
+  display: flex;
+  flex-flow: column;
+  gap: 12px;
+  padding: 12px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  flex: 1;
+}
+.topbar[_ngcontent-ng-c1329615251] {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(78, 2, 178, 0.2);
+  gap: 12px;
+}
+.topbar[_ngcontent-ng-c1329615251]   .actions-left[_ngcontent-ng-c1329615251] {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.topbar[_ngcontent-ng-c1329615251]   .actions-left[_ngcontent-ng-c1329615251]   .back-link[_ngcontent-ng-c1329615251] {
+  color: #4E02B2;
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.topbar[_ngcontent-ng-c1329615251]   .actions-left[_ngcontent-ng-c1329615251]   .back-link[_ngcontent-ng-c1329615251]:hover {
+  color: #B969FF;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251] {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .logo[_ngcontent-ng-c1329615251] {
+  background: #E7CBFF;
+  color: #4E02B2;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .title-stack[_ngcontent-ng-c1329615251] {
+  position: relative;
+  min-width: 0;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .breadcrumbs[_ngcontent-ng-c1329615251] {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  color: #9B90AA;
+  font-size: 12px;
+  font-weight: 500;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .breadcrumbs[_ngcontent-ng-c1329615251]   a[_ngcontent-ng-c1329615251] {
+  color: #4E02B2;
+  text-decoration: none;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .breadcrumbs[_ngcontent-ng-c1329615251]   a[_ngcontent-ng-c1329615251]:hover {
+  color: #B969FF;
+  text-decoration: underline;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .breadcrumbs[_ngcontent-ng-c1329615251]   .sep[_ngcontent-ng-c1329615251] {
+  color: #9B90AA;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .title-row[_ngcontent-ng-c1329615251] {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   h1[_ngcontent-ng-c1329615251] {
+  color: #4E02B2;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .title-dropdown-icon[_ngcontent-ng-c1329615251] {
+  padding: 2px 6px;
+  min-width: 28px;
+  height: 28px;
+  border: 1px solid #F1E5F3;
+  border-radius: 6px;
+  background: #FFFFFF;
+  color: #6C707B;
+  font-size: 12px;
+  cursor: pointer;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .title-dropdown-icon[_ngcontent-ng-c1329615251]:hover {
+  border-color: #B969FF;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .title-dropdown-icon[_ngcontent-ng-c1329615251]:focus {
+  outline: none;
+  border-color: #4E02B2;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .workspace-name[_ngcontent-ng-c1329615251] {
+  color: #9B90AA;
+  font-size: 16px;
+  font-weight: 400;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .workspace-selector-in-title[_ngcontent-ng-c1329615251] {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  width: 100%;
+  pointer-events: none;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .workspace-selector-in-title[_ngcontent-ng-c1329615251]   .workspace-dropdown[_ngcontent-ng-c1329615251] {
+  position: relative;
+  left: 0;
+  background: #FFFFFF;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 4px;
+  width: min(740px, calc(100vw - 72px));
+  max-width: 100%;
+  min-width: min(420px, calc(100vw - 72px));
+  pointer-events: auto;
+  margin: 0 auto;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .workspace-selector-in-title[_ngcontent-ng-c1329615251]   .workspace-dropdown[_ngcontent-ng-c1329615251]   .multiselect-search[_ngcontent-ng-c1329615251] {
+  padding: 6px;
+  border-bottom: 1px solid #F1E5F3;
+  margin-bottom: 4px;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .workspace-selector-in-title[_ngcontent-ng-c1329615251]   .workspace-dropdown[_ngcontent-ng-c1329615251]   .multiselect-search[_ngcontent-ng-c1329615251]   .search-input[_ngcontent-ng-c1329615251] {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 6px;
+  background: #FBF5F6;
+  color: #6C707B;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .workspace-selector-in-title[_ngcontent-ng-c1329615251]   .workspace-dropdown[_ngcontent-ng-c1329615251]   .multiselect-search[_ngcontent-ng-c1329615251]   .search-input[_ngcontent-ng-c1329615251]:focus {
+  outline: none;
+  border-color: #4E02B2;
+  background: #FFFFFF;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .workspace-selector-in-title[_ngcontent-ng-c1329615251]   .workspace-dropdown[_ngcontent-ng-c1329615251]   .multiselect-search[_ngcontent-ng-c1329615251]   .search-input[_ngcontent-ng-c1329615251]::placeholder {
+  color: #9B90AA;
+  font-weight: 400;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .workspace-selector-in-title[_ngcontent-ng-c1329615251]   .workspace-dropdown[_ngcontent-ng-c1329615251]   .multiselect-controls[_ngcontent-ng-c1329615251] {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-bottom: 1px solid #F1E5F3;
+  margin-bottom: 4px;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .workspace-selector-in-title[_ngcontent-ng-c1329615251]   .workspace-dropdown[_ngcontent-ng-c1329615251]   .multiselect-controls[_ngcontent-ng-c1329615251]   .control-btn[_ngcontent-ng-c1329615251] {
+  flex: 1;
+  padding: 6px 8px;
+  background: #FBF5F6;
+  border: 1px solid #F1E5F3;
+  border-radius: 4px;
+  color: #4E02B2;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .workspace-selector-in-title[_ngcontent-ng-c1329615251]   .workspace-dropdown[_ngcontent-ng-c1329615251]   .multiselect-controls[_ngcontent-ng-c1329615251]   .control-btn[_ngcontent-ng-c1329615251]:hover {
+  background: #F1E5F3;
+  border-color: #4E02B2;
+  color: #301A4E;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .workspace-selector-in-title[_ngcontent-ng-c1329615251]   .workspace-dropdown[_ngcontent-ng-c1329615251]   .multiselect-controls[_ngcontent-ng-c1329615251]   .control-btn[_ngcontent-ng-c1329615251]:active {
+  transform: scale(0.98);
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .workspace-selector-in-title[_ngcontent-ng-c1329615251]   .workspace-dropdown[_ngcontent-ng-c1329615251]   .workspace-option[_ngcontent-ng-c1329615251] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 13px;
+  color: #6C707B;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .workspace-selector-in-title[_ngcontent-ng-c1329615251]   .workspace-dropdown[_ngcontent-ng-c1329615251]   .workspace-option[_ngcontent-ng-c1329615251]:hover {
+  background: #FBF5F6;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .workspace-selector-in-title[_ngcontent-ng-c1329615251]   .workspace-dropdown[_ngcontent-ng-c1329615251]   .workspace-option[_ngcontent-ng-c1329615251]   input[type=checkbox][_ngcontent-ng-c1329615251] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+  accent-color: #4E02B2;
+}
+.topbar[_ngcontent-ng-c1329615251]   .brand[_ngcontent-ng-c1329615251]   .workspace-selector-in-title[_ngcontent-ng-c1329615251]   .workspace-dropdown[_ngcontent-ng-c1329615251]   .workspace-option[_ngcontent-ng-c1329615251]   .option-label[_ngcontent-ng-c1329615251] {
+  flex: 1;
+  font-weight: 500;
+}
+.topbar[_ngcontent-ng-c1329615251]   .actions[_ngcontent-ng-c1329615251] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.topbar[_ngcontent-ng-c1329615251]   .actions[_ngcontent-ng-c1329615251]   .multi-select-toggle[_ngcontent-ng-c1329615251] {
+  padding: 8px 12px;
+  border: 1px solid #F1E5F3;
+  background: #FBF5F6;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  color: #301A4E;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+.topbar[_ngcontent-ng-c1329615251]   .actions[_ngcontent-ng-c1329615251]   .multi-select-toggle[_ngcontent-ng-c1329615251]:hover {
+  background: rgba(241, 229, 243, 0.6);
+  box-shadow: 0 2px 6px rgba(155, 144, 170, 0.2);
+}
+.topbar[_ngcontent-ng-c1329615251]   .actions[_ngcontent-ng-c1329615251]   .multi-select-toggle[_ngcontent-ng-c1329615251]   .icon[_ngcontent-ng-c1329615251] {
+  font-size: 14px;
+}
+.topbar[_ngcontent-ng-c1329615251]   .actions[_ngcontent-ng-c1329615251]   .multi-select-toggle[_ngcontent-ng-c1329615251]   .multi-select-count[_ngcontent-ng-c1329615251] {
+  color: #301A4E;
+  font-weight: 700;
+  background: #fff;
+  border: 1px solid #F1E5F3;
+  border-radius: 6px;
+  padding: 2px 6px;
+  line-height: 1;
+  font-size: 11px;
+}
+.topbar[_ngcontent-ng-c1329615251]   .actions[_ngcontent-ng-c1329615251]   .cred-inline[_ngcontent-ng-c1329615251] {
+  display: flex;
+  gap: 8px;
+}
+.topbar[_ngcontent-ng-c1329615251]   .actions[_ngcontent-ng-c1329615251]   .cred-inline[_ngcontent-ng-c1329615251]   input[_ngcontent-ng-c1329615251] {
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  font-size: 13px;
+  min-width: 140px;
+}
+.topbar[_ngcontent-ng-c1329615251]   .actions[_ngcontent-ng-c1329615251]   .cred-inline[_ngcontent-ng-c1329615251]   input[_ngcontent-ng-c1329615251]:focus {
+  outline: 2px solid #B969FF;
+  outline-offset: 1px;
+}
+.filters-bar[_ngcontent-ng-c1329615251] {
+  margin-bottom: 8px;
+  background: #FFFFFF;
+  border: 1px solid #F1E5F3;
+  border-radius: 10px;
+  padding: 12px;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group[_ngcontent-ng-c1329615251] {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 110px;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group[_ngcontent-ng-c1329615251]   label[_ngcontent-ng-c1329615251] {
+  font-size: 10px;
+  font-weight: 700;
+  color: #4E02B2;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group[_ngcontent-ng-c1329615251]   select[_ngcontent-ng-c1329615251] {
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #6C707B;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238A3FFC' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 32px;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group[_ngcontent-ng-c1329615251]   select[_ngcontent-ng-c1329615251]:focus {
+  outline: none;
+  border-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group[_ngcontent-ng-c1329615251]   select[_ngcontent-ng-c1329615251]:hover {
+  border-color: #B969FF;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group.custom-multiselect[_ngcontent-ng-c1329615251] {
+  position: relative;
+  min-width: 180px;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group.custom-multiselect[_ngcontent-ng-c1329615251]   .multiselect-container[_ngcontent-ng-c1329615251] {
+  position: relative;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group.custom-multiselect[_ngcontent-ng-c1329615251]   .multiselect-trigger[_ngcontent-ng-c1329615251] {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #6C707B;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group.custom-multiselect[_ngcontent-ng-c1329615251]   .multiselect-trigger[_ngcontent-ng-c1329615251]:hover {
+  border-color: #B969FF;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group.custom-multiselect[_ngcontent-ng-c1329615251]   .multiselect-trigger[_ngcontent-ng-c1329615251]:focus {
+  outline: none;
+  border-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group.custom-multiselect[_ngcontent-ng-c1329615251]   .multiselect-trigger[_ngcontent-ng-c1329615251]   .multiselect-label[_ngcontent-ng-c1329615251] {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group.custom-multiselect[_ngcontent-ng-c1329615251]   .multiselect-trigger[_ngcontent-ng-c1329615251]   .multiselect-arrow[_ngcontent-ng-c1329615251] {
+  font-size: 10px;
+  color: #9B90AA;
+  flex-shrink: 0;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group.custom-multiselect[_ngcontent-ng-c1329615251]   .multiselect-dropdown[_ngcontent-ng-c1329615251] {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #FFFFFF;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 4px;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group.custom-multiselect[_ngcontent-ng-c1329615251]   .multiselect-dropdown[_ngcontent-ng-c1329615251]   .multiselect-option[_ngcontent-ng-c1329615251] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 13px;
+  color: #6C707B;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group.custom-multiselect[_ngcontent-ng-c1329615251]   .multiselect-dropdown[_ngcontent-ng-c1329615251]   .multiselect-option[_ngcontent-ng-c1329615251]:hover {
+  background: #FBF5F6;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group.custom-multiselect[_ngcontent-ng-c1329615251]   .multiselect-dropdown[_ngcontent-ng-c1329615251]   .multiselect-option[_ngcontent-ng-c1329615251]   input[type=checkbox][_ngcontent-ng-c1329615251] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+  accent-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group.custom-multiselect[_ngcontent-ng-c1329615251]   .multiselect-dropdown[_ngcontent-ng-c1329615251]   .multiselect-option[_ngcontent-ng-c1329615251]   .option-label[_ngcontent-ng-c1329615251] {
+  flex: 1;
+  font-weight: 500;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group.custom-multiselect[_ngcontent-ng-c1329615251]   .multiselect-dropdown[_ngcontent-ng-c1329615251]   .multiselect-option[_ngcontent-ng-c1329615251]   .option-count[_ngcontent-ng-c1329615251] {
+  font-size: 12px;
+  color: #9B90AA;
+  font-weight: 600;
+  background: #FBF5F6;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group.search-group[_ngcontent-ng-c1329615251] {
+  flex: 1;
+  min-width: 160px;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group.search-group[_ngcontent-ng-c1329615251]   input[_ngcontent-ng-c1329615251] {
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #6C707B;
+  font-size: 13px;
+  font-weight: 500;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group.search-group[_ngcontent-ng-c1329615251]   input[_ngcontent-ng-c1329615251]:focus {
+  outline: none;
+  border-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-group.search-group[_ngcontent-ng-c1329615251]   input[_ngcontent-ng-c1329615251]::placeholder {
+  color: #9B90AA;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-info[_ngcontent-ng-c1329615251] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-info[_ngcontent-ng-c1329615251]   .count-display[_ngcontent-ng-c1329615251] {
+  color: #6C707B;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-info[_ngcontent-ng-c1329615251]   .view-toggle-btn[_ngcontent-ng-c1329615251] {
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #4E02B2;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 44px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-info[_ngcontent-ng-c1329615251]   .view-toggle-btn[_ngcontent-ng-c1329615251]:hover {
+  background: #4E02B2;
+  color: #FFFFFF;
+  border-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c1329615251]   .filters-row[_ngcontent-ng-c1329615251]   .filter-info[_ngcontent-ng-c1329615251]   .view-toggle-btn[_ngcontent-ng-c1329615251]:focus {
+  outline: 2px solid #B969FF;
+  outline-offset: 2px;
+}
+.pagination-section[_ngcontent-ng-c1329615251] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.pagination-section[_ngcontent-ng-c1329615251]   .pagination-btn[_ngcontent-ng-c1329615251] {
+  padding: 8px 16px;
+  border-radius: 16px;
+  border: 2px solid #F1E5F3;
+  background: #FFFFFF;
+  color: #4E02B2;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.pagination-section[_ngcontent-ng-c1329615251]   .pagination-btn[_ngcontent-ng-c1329615251]:hover:not(:disabled) {
+  background: #E7CBFF;
+  border-color: #B969FF;
+}
+.pagination-section[_ngcontent-ng-c1329615251]   .pagination-btn[_ngcontent-ng-c1329615251]:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.pagination-section[_ngcontent-ng-c1329615251]   .page-info[_ngcontent-ng-c1329615251] {
+  color: #4E02B2;
+  font-size: 16px;
+  font-weight: 700;
+  min-width: 80px;
+  text-align: center;
+}
+.index-notice[_ngcontent-ng-c1329615251] {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 16px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.index-notice[_ngcontent-ng-c1329615251]   span[_ngcontent-ng-c1329615251] {
+  color: #856404;
+  font-weight: 600;
+}
+.index-notice[_ngcontent-ng-c1329615251]   .index-link[_ngcontent-ng-c1329615251] {
+  color: #0056b3;
+  font-weight: 600;
+  text-decoration: underline;
+}
+.index-notice[_ngcontent-ng-c1329615251]   .index-link[_ngcontent-ng-c1329615251]:hover {
+  color: #003d82;
+}
+.items-grid[_ngcontent-ng-c1329615251] {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  width: 100%;
+}
+.item-card[_ngcontent-ng-c1329615251] {
+  background: #FFFFFF;
+  border: 2px solid #F1E5F3;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s;
+  max-width: 420px;
+  margin: 0 auto;
+}
+.item-card[_ngcontent-ng-c1329615251]:hover {
+  box-shadow: 0 6px 20px rgba(78, 2, 178, 0.15);
+  transform: translateY(-2px);
+}
+.item-card[data-status=highlighted][_ngcontent-ng-c1329615251] {
+  border: 3px solid #ffc107;
+}
+.item-card[data-status=approved][_ngcontent-ng-c1329615251] {
+  border-color: #698CFF;
+}
+.item-card[data-status=flagged][_ngcontent-ng-c1329615251] {
+  border-color: #F73C3C;
+}
+.item-card[data-status=banned][_ngcontent-ng-c1329615251] {
+  border: 1px dashed #301A4E;
+  opacity: 0.5;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-header[_ngcontent-ng-c1329615251] {
+  padding: 12px 16px;
+  background: #FBF5F6;
+  border-bottom: 1px solid #F1E5F3;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-header[_ngcontent-ng-c1329615251]   .screenshot-type[_ngcontent-ng-c1329615251] {
+  font-size: 18px;
+  cursor: help;
+  margin-left: auto;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-header[_ngcontent-ng-c1329615251]   .user-info[_ngcontent-ng-c1329615251] {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.2s;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-header[_ngcontent-ng-c1329615251]   .user-info[_ngcontent-ng-c1329615251]:hover {
+  color: #4E02B2;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-header[_ngcontent-ng-c1329615251]   .user-info[_ngcontent-ng-c1329615251]   .user-count-link[_ngcontent-ng-c1329615251] {
+  font-size: 14px;
+  color: #4E02B2;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-header[_ngcontent-ng-c1329615251]   .user-info[_ngcontent-ng-c1329615251]   .user-count-link[_ngcontent-ng-c1329615251]:hover {
+  text-decoration-style: solid;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251] {
+  width: 100%;
+  min-height: 300px;
+  max-height: 600px;
+  overflow: hidden;
+  background: #F5F0E7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   img[_ngcontent-ng-c1329615251] {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .screenshot-image-wrapper[_ngcontent-ng-c1329615251] {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .screenshot-image-wrapper[_ngcontent-ng-c1329615251]   app-skeleton-loader[_ngcontent-ng-c1329615251] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .screenshot-image-wrapper[_ngcontent-ng-c1329615251]   img[_ngcontent-ng-c1329615251] {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  position: relative;
+  z-index: 2;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .screenshot-image-wrapper[_ngcontent-ng-c1329615251]   img[_ngcontent-ng-c1329615251]:not([src]) {
+  opacity: 0;
+  visibility: hidden;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .screenshot-image-wrapper[_ngcontent-ng-c1329615251]   .screenshot-actions[_ngcontent-ng-c1329615251] {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 8px;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .screenshot-image-wrapper[_ngcontent-ng-c1329615251]   .screenshot-actions[_ngcontent-ng-c1329615251]   .image-action-btn[_ngcontent-ng-c1329615251] {
+  padding: 8px 12px;
+  border-radius: 20px;
+  border: 1px solid #F1E5F3;
+  background: rgba(255, 255, 255, 0.92);
+  color: #301A4E;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(155, 144, 170, 0.25);
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .screenshot-image-wrapper[_ngcontent-ng-c1329615251]   .screenshot-actions[_ngcontent-ng-c1329615251]   .image-action-btn.ghost[_ngcontent-ng-c1329615251] {
+  background: rgba(78, 2, 178, 0.1);
+  color: #4E02B2;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .screenshot-image-wrapper[_ngcontent-ng-c1329615251]   .screenshot-actions[_ngcontent-ng-c1329615251]   .image-action-btn[_ngcontent-ng-c1329615251]:hover {
+  background: #4E02B2;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(78, 2, 178, 0.3);
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .screenshot-image-wrapper[_ngcontent-ng-c1329615251]   .plausibility-scale[_ngcontent-ng-c1329615251] {
+  position: absolute;
+  top: 12px;
+  right: 6px;
+  bottom: 12px;
+  width: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+  gap: 8px;
+  z-index: 1;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .screenshot-image-wrapper[_ngcontent-ng-c1329615251]   .plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot[_ngcontent-ng-c1329615251] {
+  width: 7px;
+  height: 7px;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .screenshot-image-wrapper[_ngcontent-ng-c1329615251]   .plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot.active[_ngcontent-ng-c1329615251] {
+  width: 16px;
+  height: 16px;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .toggle-view-btn[_ngcontent-ng-c1329615251] {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #F1E5F3;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .toggle-view-btn[_ngcontent-ng-c1329615251]:hover {
+  background: #FFFFFF;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .description-view[_ngcontent-ng-c1329615251] {
+  width: 100%;
+  padding: 20px;
+  cursor: pointer;
+  overflow-y: auto;
+  max-height: 600px;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .description-view[_ngcontent-ng-c1329615251]   .field-display[_ngcontent-ng-c1329615251] {
+  margin-bottom: 16px;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .description-view[_ngcontent-ng-c1329615251]   .field-display[_ngcontent-ng-c1329615251]:last-child {
+  margin-bottom: 0;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .description-view[_ngcontent-ng-c1329615251]   .field-display[_ngcontent-ng-c1329615251]   strong[_ngcontent-ng-c1329615251] {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6C707B;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .description-view[_ngcontent-ng-c1329615251]   .field-display[_ngcontent-ng-c1329615251]   p[_ngcontent-ng-c1329615251] {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #6C707B;
+  white-space: pre-wrap;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .description-view[_ngcontent-ng-c1329615251]   p[_ngcontent-ng-c1329615251] {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #6C707B;
+  white-space: pre-wrap;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .description-view[_ngcontent-ng-c1329615251]   .description-empty[_ngcontent-ng-c1329615251] {
+  color: #9B90AA;
+  font-style: italic;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .description-view[_ngcontent-ng-c1329615251]:hover {
+  background: rgba(251, 245, 246, 0.5);
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .description-edit[_ngcontent-ng-c1329615251] {
+  width: 100%;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .description-edit[_ngcontent-ng-c1329615251]   .field-group[_ngcontent-ng-c1329615251] {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .description-edit[_ngcontent-ng-c1329615251]   .field-group[_ngcontent-ng-c1329615251]   label[_ngcontent-ng-c1329615251] {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6C707B;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .description-edit[_ngcontent-ng-c1329615251]   .field-group[_ngcontent-ng-c1329615251]   textarea[_ngcontent-ng-c1329615251] {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.6;
+  resize: vertical;
+  min-height: 80px;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .description-edit[_ngcontent-ng-c1329615251]   .field-group[_ngcontent-ng-c1329615251]   textarea[_ngcontent-ng-c1329615251]:focus {
+  outline: none;
+  border-color: #4E02B2;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .description-edit[_ngcontent-ng-c1329615251]   .edit-actions[_ngcontent-ng-c1329615251] {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .description-edit[_ngcontent-ng-c1329615251]   .edit-actions[_ngcontent-ng-c1329615251]   .btn-icon[_ngcontent-ng-c1329615251] {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .description-edit[_ngcontent-ng-c1329615251]   .edit-actions[_ngcontent-ng-c1329615251]   .btn-icon.btn-save[_ngcontent-ng-c1329615251] {
+  background: #698CFF;
+  color: #FFFFFF;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .description-edit[_ngcontent-ng-c1329615251]   .edit-actions[_ngcontent-ng-c1329615251]   .btn-icon.btn-save[_ngcontent-ng-c1329615251]:hover {
+  background: #3665ff;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .description-edit[_ngcontent-ng-c1329615251]   .edit-actions[_ngcontent-ng-c1329615251]   .btn-icon.btn-cancel[_ngcontent-ng-c1329615251] {
+  background: #9B90AA;
+  color: #FFFFFF;
+}
+.item-card[_ngcontent-ng-c1329615251]   .screenshot-container[_ngcontent-ng-c1329615251]   .description-edit[_ngcontent-ng-c1329615251]   .edit-actions[_ngcontent-ng-c1329615251]   .btn-icon.btn-cancel[_ngcontent-ng-c1329615251]:hover {
+  background: #6C707B;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-metadata[_ngcontent-ng-c1329615251] {
+  padding: 12px 16px;
+  border-bottom: 1px solid #F1E5F3;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-metadata[_ngcontent-ng-c1329615251]   .metadata-row[_ngcontent-ng-c1329615251] {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-metadata[_ngcontent-ng-c1329615251]   .metadata-row[_ngcontent-ng-c1329615251]   .date[_ngcontent-ng-c1329615251] {
+  font-size: 14px;
+  color: #6C707B;
+  font-weight: 600;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-metadata[_ngcontent-ng-c1329615251]   .metadata-row[_ngcontent-ng-c1329615251]   .icon-btn[_ngcontent-ng-c1329615251] {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+  transition: transform 0.2s;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-metadata[_ngcontent-ng-c1329615251]   .metadata-row[_ngcontent-ng-c1329615251]   .icon-btn[_ngcontent-ng-c1329615251]:hover {
+  transform: scale(1.1);
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-metadata[_ngcontent-ng-c1329615251]   .metadata-row[_ngcontent-ng-c1329615251]   .icon-btn.star-btn[_ngcontent-ng-c1329615251] {
+  color: #9B90AA;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-metadata[_ngcontent-ng-c1329615251]   .metadata-row[_ngcontent-ng-c1329615251]   .icon-btn.star-btn.active[_ngcontent-ng-c1329615251] {
+  color: gold;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-metadata[_ngcontent-ng-c1329615251]   .metadata-row[_ngcontent-ng-c1329615251]   .icon-btn.trash-btn[_ngcontent-ng-c1329615251] {
+  font-size: 18px;
+  opacity: 0.6;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-metadata[_ngcontent-ng-c1329615251]   .metadata-row[_ngcontent-ng-c1329615251]   .icon-btn.trash-btn[_ngcontent-ng-c1329615251]:hover {
+  opacity: 1;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-metadata[_ngcontent-ng-c1329615251]   .metadata-row[_ngcontent-ng-c1329615251]   .ai-confidence[_ngcontent-ng-c1329615251] {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-left: auto;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-metadata[_ngcontent-ng-c1329615251]   .metadata-row[_ngcontent-ng-c1329615251]   .ai-confidence[data-confidence=high][_ngcontent-ng-c1329615251] {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-metadata[_ngcontent-ng-c1329615251]   .metadata-row[_ngcontent-ng-c1329615251]   .ai-confidence[data-confidence=medium][_ngcontent-ng-c1329615251] {
+  background: #fff3cd;
+  color: #856404;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-metadata[_ngcontent-ng-c1329615251]   .metadata-row[_ngcontent-ng-c1329615251]   .ai-confidence[data-confidence=low][_ngcontent-ng-c1329615251] {
+  background: #f8d7da;
+  color: #842029;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-content[_ngcontent-ng-c1329615251] {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+}
+.item-card[_ngcontent-ng-c1329615251]   .tagline-section[_ngcontent-ng-c1329615251]   .tagline[_ngcontent-ng-c1329615251] {
+  width: 100%;
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.4;
+  color: #4E02B2;
+  cursor: pointer;
+  border-radius: 8px;
+  background: #FBF5F6;
+  transition: all 0.2s;
+  min-height: 60px;
+  white-space: pre-wrap;
+}
+.item-card[_ngcontent-ng-c1329615251]   .tagline-section[_ngcontent-ng-c1329615251]   .tagline[_ngcontent-ng-c1329615251]:hover {
+  background: #E7CBFF;
+}
+.item-card[_ngcontent-ng-c1329615251]   .tagline-section[_ngcontent-ng-c1329615251]   .tagline.tagline-empty[_ngcontent-ng-c1329615251] {
+  color: #9B90AA;
+  font-weight: 500;
+  border: 2px dashed #F1E5F3;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.item-card[_ngcontent-ng-c1329615251]   .tagline-section[_ngcontent-ng-c1329615251]   .tagline.tagline-empty[_ngcontent-ng-c1329615251]:hover {
+  border-color: #B969FF;
+  color: #4E02B2;
+}
+.item-card[_ngcontent-ng-c1329615251]   .tagline-section[_ngcontent-ng-c1329615251]   .tagline-edit[_ngcontent-ng-c1329615251] {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.item-card[_ngcontent-ng-c1329615251]   .tagline-section[_ngcontent-ng-c1329615251]   .tagline-edit[_ngcontent-ng-c1329615251]   textarea[_ngcontent-ng-c1329615251] {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #F1E5F3;
+  border-radius: 8px;
+  font-size: 15px;
+  color: #4E02B2;
+  font-weight: 600;
+  font-family: inherit;
+  line-height: 1.4;
+  resize: vertical;
+  min-height: 80px;
+}
+.item-card[_ngcontent-ng-c1329615251]   .tagline-section[_ngcontent-ng-c1329615251]   .tagline-edit[_ngcontent-ng-c1329615251]   textarea[_ngcontent-ng-c1329615251]:focus {
+  outline: none;
+  border-color: #B969FF;
+}
+.item-card[_ngcontent-ng-c1329615251]   .tagline-section[_ngcontent-ng-c1329615251]   .tagline-edit[_ngcontent-ng-c1329615251]   .edit-actions[_ngcontent-ng-c1329615251] {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.item-card[_ngcontent-ng-c1329615251]   .tagline-section[_ngcontent-ng-c1329615251]   .tagline-edit[_ngcontent-ng-c1329615251]   .edit-actions[_ngcontent-ng-c1329615251]   .btn-icon[_ngcontent-ng-c1329615251] {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+.item-card[_ngcontent-ng-c1329615251]   .tagline-section[_ngcontent-ng-c1329615251]   .tagline-edit[_ngcontent-ng-c1329615251]   .edit-actions[_ngcontent-ng-c1329615251]   .btn-icon.btn-save[_ngcontent-ng-c1329615251] {
+  background: #698CFF;
+  color: white;
+}
+.item-card[_ngcontent-ng-c1329615251]   .tagline-section[_ngcontent-ng-c1329615251]   .tagline-edit[_ngcontent-ng-c1329615251]   .edit-actions[_ngcontent-ng-c1329615251]   .btn-icon.btn-save[_ngcontent-ng-c1329615251]:hover {
+  background: #0030CC;
+  transform: scale(1.05);
+}
+.item-card[_ngcontent-ng-c1329615251]   .tagline-section[_ngcontent-ng-c1329615251]   .tagline-edit[_ngcontent-ng-c1329615251]   .edit-actions[_ngcontent-ng-c1329615251]   .btn-icon.btn-cancel[_ngcontent-ng-c1329615251] {
+  background: #EDECEC;
+  color: #6C707B;
+}
+.item-card[_ngcontent-ng-c1329615251]   .tagline-section[_ngcontent-ng-c1329615251]   .tagline-edit[_ngcontent-ng-c1329615251]   .edit-actions[_ngcontent-ng-c1329615251]   .btn-icon.btn-cancel[_ngcontent-ng-c1329615251]:hover {
+  background: #F73C3C;
+  color: white;
+}
+.item-card[_ngcontent-ng-c1329615251]   .tags-section[_ngcontent-ng-c1329615251]   .tags-container[_ngcontent-ng-c1329615251] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.item-card[_ngcontent-ng-c1329615251]   .tags-section[_ngcontent-ng-c1329615251]   .tag[_ngcontent-ng-c1329615251] {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #FFFFFF;
+  border: 1px solid #F1E5F3;
+  border-radius: 16px;
+  font-size: 13px;
+  color: #4E02B2;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+.item-card[_ngcontent-ng-c1329615251]   .tags-section[_ngcontent-ng-c1329615251]   .tag[_ngcontent-ng-c1329615251]:hover {
+  border-color: #4E02B2;
+  background: #FBF5F6;
+}
+.item-card[_ngcontent-ng-c1329615251]   .tags-section[_ngcontent-ng-c1329615251]   .tag[_ngcontent-ng-c1329615251]   .tag-remove[_ngcontent-ng-c1329615251] {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  color: #9B90AA;
+  padding: 0;
+  margin-left: 2px;
+  transition: color 0.2s;
+}
+.item-card[_ngcontent-ng-c1329615251]   .tags-section[_ngcontent-ng-c1329615251]   .tag[_ngcontent-ng-c1329615251]   .tag-remove[_ngcontent-ng-c1329615251]:hover {
+  color: #F73C3C;
+}
+.item-card[_ngcontent-ng-c1329615251]   .tags-section[_ngcontent-ng-c1329615251]   .tag-input-wrapper[_ngcontent-ng-c1329615251] {
+  display: inline-flex;
+}
+.item-card[_ngcontent-ng-c1329615251]   .tags-section[_ngcontent-ng-c1329615251]   .tag-input-wrapper[_ngcontent-ng-c1329615251]   .tag-input[_ngcontent-ng-c1329615251] {
+  padding: 6px 12px;
+  border: 1px dashed #F1E5F3;
+  border-radius: 16px;
+  font-size: 13px;
+  background: transparent;
+  color: #4E02B2;
+  min-width: 100px;
+  transition: all 0.2s;
+}
+.item-card[_ngcontent-ng-c1329615251]   .tags-section[_ngcontent-ng-c1329615251]   .tag-input-wrapper[_ngcontent-ng-c1329615251]   .tag-input[_ngcontent-ng-c1329615251]:focus {
+  outline: none;
+  border-color: #4E02B2;
+  border-style: solid;
+  background: #FFFFFF;
+}
+.item-card[_ngcontent-ng-c1329615251]   .tags-section[_ngcontent-ng-c1329615251]   .tag-input-wrapper[_ngcontent-ng-c1329615251]   .tag-input[_ngcontent-ng-c1329615251]::placeholder {
+  color: #9B90AA;
+}
+.item-card[_ngcontent-ng-c1329615251]   .topics-section[_ngcontent-ng-c1329615251] {
+  margin-top: 4px;
+}
+.item-card[_ngcontent-ng-c1329615251]   .topics-section[_ngcontent-ng-c1329615251]   .topics-container[_ngcontent-ng-c1329615251] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.item-card[_ngcontent-ng-c1329615251]   .topics-section[_ngcontent-ng-c1329615251]   .topic-chip[_ngcontent-ng-c1329615251] {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  background: #E8F5E9;
+  border: 1px solid #C8E6C9;
+  border-radius: 12px;
+  font-size: 11px;
+  color: #2E7D32;
+  cursor: default;
+  white-space: nowrap;
+}
+.item-card[_ngcontent-ng-c1329615251]   .topics-section[_ngcontent-ng-c1329615251]   .topic-chip.primary[_ngcontent-ng-c1329615251] {
+  background: #C8E6C9;
+  font-weight: 600;
+}
+.item-card[_ngcontent-ng-c1329615251]   .topics-section[_ngcontent-ng-c1329615251]   .topic-chip.primary[_ngcontent-ng-c1329615251]::before {
+  content: "\25cf";
+  font-size: 6px;
+  margin-right: 2px;
+}
+.item-card[_ngcontent-ng-c1329615251]   .properties-selectors[_ngcontent-ng-c1329615251] {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.item-card[_ngcontent-ng-c1329615251]   .properties-selectors[_ngcontent-ng-c1329615251]   .property-selector[_ngcontent-ng-c1329615251] {
+  width: 100%;
+}
+.item-card[_ngcontent-ng-c1329615251]   .properties-selectors[_ngcontent-ng-c1329615251]   .property-selector[_ngcontent-ng-c1329615251]   select[_ngcontent-ng-c1329615251] {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 2px solid #F1E5F3;
+  background: #FFFFFF;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234E02B2' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+.item-card[_ngcontent-ng-c1329615251]   .properties-selectors[_ngcontent-ng-c1329615251]   .property-selector[_ngcontent-ng-c1329615251]   select[_ngcontent-ng-c1329615251]:focus {
+  outline: none;
+  border-color: #B969FF;
+}
+.item-card[_ngcontent-ng-c1329615251]   .properties-selectors[_ngcontent-ng-c1329615251]   .property-selector[_ngcontent-ng-c1329615251]   select.desirability-select.prefer[_ngcontent-ng-c1329615251] {
+  color: #0030CC;
+  border-color: #698CFF;
+}
+.item-card[_ngcontent-ng-c1329615251]   .properties-selectors[_ngcontent-ng-c1329615251]   .property-selector[_ngcontent-ng-c1329615251]   select.desirability-select.prevent[_ngcontent-ng-c1329615251] {
+  color: #B50F0F;
+  border-color: #F73C3C;
+}
+.item-card[_ngcontent-ng-c1329615251]   .properties-selectors[_ngcontent-ng-c1329615251]   .property-selector[_ngcontent-ng-c1329615251]   select.desirability-select.uncertain[_ngcontent-ng-c1329615251] {
+  color: #9B90AA;
+}
+.item-card[_ngcontent-ng-c1329615251]   .properties-selectors[_ngcontent-ng-c1329615251]   .property-selector[_ngcontent-ng-c1329615251]   select.plausibility-select.high[_ngcontent-ng-c1329615251] {
+  color: #0030CC;
+  border-color: #698CFF;
+}
+.item-card[_ngcontent-ng-c1329615251]   .properties-selectors[_ngcontent-ng-c1329615251]   .property-selector[_ngcontent-ng-c1329615251]   select.plausibility-select.medium[_ngcontent-ng-c1329615251] {
+  color: #856404;
+  border-color: #ffc107;
+}
+.item-card[_ngcontent-ng-c1329615251]   .properties-selectors[_ngcontent-ng-c1329615251]   .property-selector[_ngcontent-ng-c1329615251]   select.plausibility-select.low[_ngcontent-ng-c1329615251] {
+  color: #B50F0F;
+  border-color: #F73C3C;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-footer[_ngcontent-ng-c1329615251] {
+  padding: 16px;
+  background: #FBF5F6;
+  border-top: 1px solid #F1E5F3;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-footer[_ngcontent-ng-c1329615251]   .publish-btn[_ngcontent-ng-c1329615251] {
+  width: 100%;
+  padding: 16px;
+  border-radius: 12px;
+  border: none;
+  background: #4E02B2;
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-footer[_ngcontent-ng-c1329615251]   .publish-btn[_ngcontent-ng-c1329615251]:hover {
+  background: #B969FF;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(78, 2, 178, 0.3);
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-footer[_ngcontent-ng-c1329615251]   .publish-btn.published[_ngcontent-ng-c1329615251] {
+  background: #698CFF;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-footer[_ngcontent-ng-c1329615251]   .publish-btn.published[_ngcontent-ng-c1329615251]:hover {
+  background: #0030CC;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-footer[_ngcontent-ng-c1329615251]   .publish-btn.archived[_ngcontent-ng-c1329615251] {
+  background: #9B90AA;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-footer[_ngcontent-ng-c1329615251]   .publish-btn.archived[_ngcontent-ng-c1329615251]   .btn-default[_ngcontent-ng-c1329615251] {
+  display: block;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-footer[_ngcontent-ng-c1329615251]   .publish-btn.archived[_ngcontent-ng-c1329615251]   .btn-hover[_ngcontent-ng-c1329615251] {
+  display: none;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-footer[_ngcontent-ng-c1329615251]   .publish-btn.archived[_ngcontent-ng-c1329615251]:hover {
+  background: #F73C3C;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-footer[_ngcontent-ng-c1329615251]   .publish-btn.archived[_ngcontent-ng-c1329615251]:hover   .btn-default[_ngcontent-ng-c1329615251] {
+  display: none;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-footer[_ngcontent-ng-c1329615251]   .publish-btn.archived[_ngcontent-ng-c1329615251]:hover   .btn-hover[_ngcontent-ng-c1329615251] {
+  display: block;
+}
+.item-card[_ngcontent-ng-c1329615251]   .card-footer[_ngcontent-ng-c1329615251]   .publish-btn[_ngcontent-ng-c1329615251]   .btn-default[_ngcontent-ng-c1329615251], 
+.item-card[_ngcontent-ng-c1329615251]   .card-footer[_ngcontent-ng-c1329615251]   .publish-btn[_ngcontent-ng-c1329615251]   .btn-hover[_ngcontent-ng-c1329615251] {
+  display: block;
+}
+.grid-layout[_ngcontent-ng-c1329615251] {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  flex: 1;
+  width: 100%;
+  flex-flow: column;
+}
+.loading-indicator[_ngcontent-ng-c1329615251] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  gap: 12px;
+}
+.loading-indicator.workspace-loading[_ngcontent-ng-c1329615251] {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(155, 144, 170, 0.2);
+  z-index: 10;
+}
+.loading-indicator.items-loading[_ngcontent-ng-c1329615251] {
+  margin: 16px auto;
+}
+.loading-indicator[_ngcontent-ng-c1329615251]   .spinner[_ngcontent-ng-c1329615251] {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #F1E5F3;
+  border-top-color: #4E02B2;
+  border-radius: 50%;
+  animation: _ngcontent-ng-c1329615251_spin 0.8s linear infinite;
+}
+.loading-indicator[_ngcontent-ng-c1329615251]   p[_ngcontent-ng-c1329615251] {
+  color: #6C707B;
+  font-size: 14px;
+  margin: 0;
+}
+@keyframes _ngcontent-ng-c1329615251_spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.lightbox-overlay[_ngcontent-ng-c1329615251] {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(51, 50, 49, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: _ngcontent-ng-c1329615251_fadeIn 0.2s ease-in-out;
+}
+@keyframes _ngcontent-ng-c1329615251_fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.lightbox-container[_ngcontent-ng-c1329615251] {
+  display: flex;
+  gap: 20px;
+  max-width: 95vw;
+  max-height: 95vh;
+  width: 100%;
+  transition: transform 0.3s ease-in-out;
+}
+.lightbox-content[_ngcontent-ng-c1329615251] {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  flex: 1;
+}
+.lightbox-close-btn[_ngcontent-ng-c1329615251] {
+  position: fixed;
+  top: 32px;
+  left: 32px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: #FFFFFF;
+  color: #6C707B;
+  font-size: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  line-height: 1;
+  padding: 0;
+  font-weight: 300;
+  z-index: 1001;
+}
+.lightbox-close-btn[_ngcontent-ng-c1329615251]:hover {
+  background: #F73C3C;
+  color: #FFFFFF;
+  transform: scale(1.1);
+}
+.lightbox-close-btn[_ngcontent-ng-c1329615251]:focus {
+  outline: 2px solid #B969FF;
+  outline-offset: 2px;
+}
+.lightbox-sidebar-toggle-btn[_ngcontent-ng-c1329615251] {
+  position: fixed;
+  top: 32px;
+  right: 32px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: #FFFFFF;
+  color: #4E02B2;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  padding: 0;
+  z-index: 1001;
+}
+.lightbox-sidebar-toggle-btn[_ngcontent-ng-c1329615251]:hover {
+  background: #4E02B2;
+  color: #FFFFFF;
+  transform: scale(1.1);
+}
+.lightbox-sidebar-toggle-btn[_ngcontent-ng-c1329615251]:focus {
+  outline: 2px solid #B969FF;
+  outline-offset: 2px;
+}
+.lightbox-main[_ngcontent-ng-c1329615251] {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  justify-content: center;
+  flex: 1;
+  max-height: 75vh;
+}
+.lightbox-actions[_ngcontent-ng-c1329615251] {
+  position: fixed;
+  top: 32px;
+  right: 88px;
+  display: flex;
+  gap: 10px;
+  z-index: 1001;
+}
+.lightbox-actions[_ngcontent-ng-c1329615251]   .image-action-btn[_ngcontent-ng-c1329615251] {
+  padding: 10px 14px;
+  border-radius: 24px;
+  border: 1px solid #F1E5F3;
+  background: rgba(255, 255, 255, 0.92);
+  color: #301A4E;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(155, 144, 170, 0.25);
+  transition: all 0.2s;
+}
+.lightbox-actions[_ngcontent-ng-c1329615251]   .image-action-btn.ghost[_ngcontent-ng-c1329615251] {
+  background: rgba(78, 2, 178, 0.1);
+  color: #4E02B2;
+}
+.lightbox-actions[_ngcontent-ng-c1329615251]   .image-action-btn[_ngcontent-ng-c1329615251]:hover {
+  background: #4E02B2;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(78, 2, 178, 0.3);
+}
+.lightbox-image-section[_ngcontent-ng-c1329615251] {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  flex: 1;
+}
+.lightbox-image-container[_ngcontent-ng-c1329615251] {
+  max-width: 50vw;
+  max-height: 75vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.lightbox-image-container[_ngcontent-ng-c1329615251]   img[_ngcontent-ng-c1329615251] {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+.lightbox-image-container[_ngcontent-ng-c1329615251]   .plausibility-scale[_ngcontent-ng-c1329615251] {
+  top: 16px;
+  right: 12px;
+  bottom: 16px;
+  width: 22px;
+  gap: 10px;
+}
+.lightbox-image-container[_ngcontent-ng-c1329615251]   .plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot[_ngcontent-ng-c1329615251] {
+  width: 8px;
+  height: 8px;
+}
+.lightbox-image-container[_ngcontent-ng-c1329615251]   .plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot.active[_ngcontent-ng-c1329615251] {
+  width: 18px;
+  height: 18px;
+}
+.lightbox-info-boxes[_ngcontent-ng-c1329615251] {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  width: 370px;
+  max-width: 370px;
+  height: 600px;
+  flex-shrink: 0;
+}
+.lightbox-info-boxes[_ngcontent-ng-c1329615251]   .info-box[_ngcontent-ng-c1329615251] {
+  flex-shrink: 0;
+}
+.lightbox-info-boxes[_ngcontent-ng-c1329615251]   .info-box.info-box-content[_ngcontent-ng-c1329615251] {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.lightbox-info-boxes[_ngcontent-ng-c1329615251]   .info-box.info-box-content[_ngcontent-ng-c1329615251]   label[_ngcontent-ng-c1329615251] {
+  flex-shrink: 0;
+  margin-bottom: 4px;
+}
+.lightbox-info-boxes[_ngcontent-ng-c1329615251]   .info-box.info-box-content[_ngcontent-ng-c1329615251]   textarea[_ngcontent-ng-c1329615251] {
+  flex: 1;
+  resize: none;
+}
+.lightbox-info-boxes[_ngcontent-ng-c1329615251]   .info-box.info-box-screenshot-type[_ngcontent-ng-c1329615251], 
+.lightbox-info-boxes[_ngcontent-ng-c1329615251]   .info-box.info-box-transition[_ngcontent-ng-c1329615251] {
+  height: 58px;
+  justify-content: center;
+  gap: 0;
+}
+.info-box[_ngcontent-ng-c1329615251] {
+  background: transparent;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: none;
+  border: 1px solid #F1E5F3;
+  box-sizing: border-box;
+}
+.info-box[_ngcontent-ng-c1329615251]   label[_ngcontent-ng-c1329615251] {
+  font-size: 11px;
+  font-weight: 700;
+  color: #F1E5F3;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.info-box[_ngcontent-ng-c1329615251]   select[_ngcontent-ng-c1329615251], 
+.info-box[_ngcontent-ng-c1329615251]   input[_ngcontent-ng-c1329615251], 
+.info-box[_ngcontent-ng-c1329615251]   textarea[_ngcontent-ng-c1329615251] {
+  font-family: "Source Sans Pro", sans-serif;
+  font-size: 16px;
+  line-height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #FFFFFF;
+}
+.info-box[_ngcontent-ng-c1329615251]   select[_ngcontent-ng-c1329615251]:focus, 
+.info-box[_ngcontent-ng-c1329615251]   input[_ngcontent-ng-c1329615251]:focus, 
+.info-box[_ngcontent-ng-c1329615251]   textarea[_ngcontent-ng-c1329615251]:focus {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+.info-box[_ngcontent-ng-c1329615251]   select[_ngcontent-ng-c1329615251]::placeholder, 
+.info-box[_ngcontent-ng-c1329615251]   input[_ngcontent-ng-c1329615251]::placeholder, 
+.info-box[_ngcontent-ng-c1329615251]   textarea[_ngcontent-ng-c1329615251]::placeholder {
+  color: #9B90AA;
+  opacity: 0.5;
+}
+.info-box[_ngcontent-ng-c1329615251]   select[_ngcontent-ng-c1329615251] {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='white' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0 center;
+  padding-right: 24px;
+}
+.info-box[_ngcontent-ng-c1329615251]   textarea[_ngcontent-ng-c1329615251] {
+  resize: none;
+  min-height: auto;
+}
+.radio-group[_ngcontent-ng-c1329615251] {
+  display: flex;
+  flex-direction: row;
+  gap: 48px;
+  justify-content: center;
+  margin-top: 8px;
+}
+.radio-group-inline[_ngcontent-ng-c1329615251] {
+  display: flex;
+  flex-direction: row;
+  gap: 32px;
+  align-items: center;
+  position: absolute;
+  bottom: -50px;
+}
+.radio-label[_ngcontent-ng-c1329615251] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-family: "Source Sans Pro", sans-serif;
+  font-size: 14px;
+  line-height: 18px;
+  color: #6C707B;
+}
+.radio-label[_ngcontent-ng-c1329615251]   input[type=radio][_ngcontent-ng-c1329615251] {
+  appearance: none;
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  background: #0D001F;
+  border: 1px solid #6C707B;
+  border-radius: 8px;
+  position: relative;
+  margin: 0;
+}
+.radio-label[_ngcontent-ng-c1329615251]   input[type=radio][_ngcontent-ng-c1329615251]:checked {
+  border-color: #F1E5F3;
+}
+.radio-label[_ngcontent-ng-c1329615251]   input[type=radio][_ngcontent-ng-c1329615251]:checked::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #F1E5F3;
+  border-radius: 8px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.radio-label[_ngcontent-ng-c1329615251]   span[_ngcontent-ng-c1329615251] {
+  flex: none;
+}
+.radio-label[_ngcontent-ng-c1329615251]:has(input:checked) {
+  color: #F1E5F3;
+}
+.transition-content[_ngcontent-ng-c1329615251] {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  position: relative;
+}
+.transition-content[_ngcontent-ng-c1329615251]   .transition-event-input[_ngcontent-ng-c1329615251] {
+  flex: 0 0 auto;
+  width: 100%;
+}
+.transition-content[_ngcontent-ng-c1329615251]   .transition-event-input[_ngcontent-ng-c1329615251]   input[_ngcontent-ng-c1329615251] {
+  width: 100%;
+  min-width: 120px;
+}
+.transition-content[_ngcontent-ng-c1329615251]   .transition-arrows[_ngcontent-ng-c1329615251] {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+.transition-content[_ngcontent-ng-c1329615251]   .radio-group-inline[_ngcontent-ng-c1329615251] {
+  flex: 1;
+  justify-content: flex-end;
+}
+.radio-disabled[_ngcontent-ng-c1329615251] {
+  font-family: "Source Sans Pro", sans-serif;
+  font-size: 14px;
+  line-height: 18px;
+  color: #6C707B;
+  font-style: italic;
+  text-align: center;
+}
+.nav-btn[_ngcontent-ng-c1329615251] {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  border: 2px solid #FFFFFF;
+  background: rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  font-weight: 300;
+  flex-shrink: 0;
+  z-index: 1001;
+}
+.nav-btn.nav-prev[_ngcontent-ng-c1329615251] {
+  left: 32px;
+}
+.nav-btn.nav-next[_ngcontent-ng-c1329615251] {
+  right: 32px;
+}
+.nav-btn[_ngcontent-ng-c1329615251]:hover:not(:disabled) {
+  background: #FFFFFF;
+  color: #6C707B;
+  transform: translateY(-50%) scale(1.1);
+}
+.nav-btn[_ngcontent-ng-c1329615251]:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.nav-btn[_ngcontent-ng-c1329615251]:focus {
+  outline: 2px solid #B969FF;
+  outline-offset: 2px;
+}
+.lightbox-counter[_ngcontent-ng-c1329615251] {
+  position: fixed;
+  bottom: 32px;
+  left: 32px;
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  z-index: 1001;
+}
+.lightbox-sidebar[_ngcontent-ng-c1329615251] {
+  width: 420px;
+  height: 90vh;
+  background: #FFFFFF;
+  border-radius: 12px;
+  border: 1px solid #F1E5F3;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  animation: _ngcontent-ng-c1329615251_slideIn 0.3s ease-in-out;
+}
+@keyframes _ngcontent-ng-c1329615251_slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+.lightbox-sidebar[_ngcontent-ng-c1329615251]   .sidebar-header[_ngcontent-ng-c1329615251] {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #F1E5F3;
+  background: #FBF5F6;
+}
+.lightbox-sidebar[_ngcontent-ng-c1329615251]   .sidebar-header[_ngcontent-ng-c1329615251]   h2[_ngcontent-ng-c1329615251] {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #4E02B2;
+}
+.lightbox-sidebar[_ngcontent-ng-c1329615251]   .sidebar-header[_ngcontent-ng-c1329615251]   .close-sidebar-btn[_ngcontent-ng-c1329615251] {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #6C707B;
+  cursor: pointer;
+  padding: 4px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+  line-height: 1;
+  font-weight: 300;
+}
+.lightbox-sidebar[_ngcontent-ng-c1329615251]   .sidebar-header[_ngcontent-ng-c1329615251]   .close-sidebar-btn[_ngcontent-ng-c1329615251]:hover {
+  background: #F73C3C;
+  color: #FFFFFF;
+}
+.lightbox-sidebar[_ngcontent-ng-c1329615251]   .sidebar-header[_ngcontent-ng-c1329615251]   .close-sidebar-btn[_ngcontent-ng-c1329615251]:focus {
+  outline: 2px solid #B969FF;
+  outline-offset: 2px;
+}
+.lightbox-sidebar[_ngcontent-ng-c1329615251]   .sidebar-content[_ngcontent-ng-c1329615251] {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+.lightbox-sidebar[_ngcontent-ng-c1329615251]   .sidebar-content[_ngcontent-ng-c1329615251]   .item-card[_ngcontent-ng-c1329615251] {
+  margin: 0;
+  max-width: none;
+  border: none;
+  box-shadow: none;
+}
+.lightbox-sidebar[_ngcontent-ng-c1329615251]   .sidebar-content[_ngcontent-ng-c1329615251]   .item-card[_ngcontent-ng-c1329615251]:hover {
+  box-shadow: none;
+  transform: none;
+}
+.thumbnails-grid[_ngcontent-ng-c1329615251] {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(106px, 106px));
+  gap: 4px;
+  padding: 8px;
+  background: #FBF5F6;
+  border-radius: 16px;
+  border: 1px solid #F1E5F3;
+  align-content: start;
+  justify-content: start;
+  width: 100%;
+}
+.thumbnails-grid[_ngcontent-ng-c1329615251]   .thumbnail-item.select-mode[_ngcontent-ng-c1329615251] {
+  position: relative;
+  cursor: pointer;
+  outline: 2px solid transparent;
+  transition: outline-color 120ms ease, box-shadow 120ms ease;
+}
+.thumbnails-grid[_ngcontent-ng-c1329615251]   .thumbnail-item.bulk-selected[_ngcontent-ng-c1329615251] {
+  outline-color: #4E02B2;
+  box-shadow: 0 0 0 3px rgba(78, 2, 178, 0.25);
+}
+.thumbnails-grid[_ngcontent-ng-c1329615251]   .thumbnail-item[_ngcontent-ng-c1329615251]   .select-checkbox[_ngcontent-ng-c1329615251], 
+.thumbnails-grid[_ngcontent-ng-c1329615251]   .item-card[_ngcontent-ng-c1329615251]   .select-checkbox[_ngcontent-ng-c1329615251] {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #F1E5F3;
+  border-radius: 6px;
+  padding: 0;
+  z-index: 8;
+  box-shadow: 0 2px 6px rgba(155, 144, 170, 0.25);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.thumbnails-grid[_ngcontent-ng-c1329615251]   .thumbnail-item[_ngcontent-ng-c1329615251]:hover   .select-checkbox[_ngcontent-ng-c1329615251], 
+.thumbnails-grid[_ngcontent-ng-c1329615251]   .thumbnail-item.bulk-selected[_ngcontent-ng-c1329615251]   .select-checkbox[_ngcontent-ng-c1329615251] {
+  opacity: 1;
+  visibility: visible;
+}
+.thumbnails-grid[_ngcontent-ng-c1329615251]   .thumbnail-item[_ngcontent-ng-c1329615251]   .select-checkbox[_ngcontent-ng-c1329615251]   input[type=checkbox][_ngcontent-ng-c1329615251] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #4E02B2;
+}
+.thumbnails-grid[_ngcontent-ng-c1329615251]   .item-card.select-mode[_ngcontent-ng-c1329615251] {
+  position: relative;
+}
+.thumbnails-grid[_ngcontent-ng-c1329615251]   .item-card.bulk-selected[_ngcontent-ng-c1329615251] {
+  border-color: #4E02B2;
+  box-shadow: 0 0 0 3px rgba(78, 2, 178, 0.25);
+}
+.filters-bar-row[_ngcontent-ng-c1329615251] {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #FFFFFF;
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  margin-bottom: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #F1E5F3;
+  margin-left: -12px;
+  margin-right: -12px;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+.filters-bar-row[_ngcontent-ng-c1329615251]   app-filters-bar[_ngcontent-ng-c1329615251] {
+  flex: 1;
+}
+.multi-select-toggle[_ngcontent-ng-c1329615251] {
+  padding: 10px 14px;
+  border: 1px solid #F1E5F3;
+  background: #FBF5F6;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
+  color: #301A4E;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 150px;
+  justify-content: center;
+  transition:
+    background 120ms ease,
+    box-shadow 120ms ease,
+    transform 80ms ease;
+}
+.multi-select-toggle[_ngcontent-ng-c1329615251]   .icon[_ngcontent-ng-c1329615251] {
+  font-size: 16px;
+}
+.multi-select-toggle[_ngcontent-ng-c1329615251]:hover {
+  background: rgba(241, 229, 243, 0.6);
+  box-shadow: 0 2px 6px rgba(155, 144, 170, 0.2);
+}
+.multi-select-toggle[_ngcontent-ng-c1329615251]:active {
+  transform: translateY(1px);
+}
+.multi-select-count[_ngcontent-ng-c1329615251] {
+  color: #301A4E;
+  font-weight: 700;
+  background: #fff;
+  border: 1px solid #F1E5F3;
+  border-radius: 10px;
+  padding: 2px 8px;
+  line-height: 1;
+}
+.bulk-bar[_ngcontent-ng-c1329615251] {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #fff;
+  border-top: 1px solid #F1E5F3;
+  box-shadow: 0 -6px 18px rgba(155, 144, 170, 0.18);
+  padding: 10px 12px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bulk-header[_ngcontent-ng-c1329615251] {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 0;
+}
+.bulk-summary[_ngcontent-ng-c1329615251] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.bulk-right[_ngcontent-ng-c1329615251] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.count[_ngcontent-ng-c1329615251] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #301A4E;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: #fff;
+}
+.bulk-controls[_ngcontent-ng-c1329615251] {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+.bulk-controls[_ngcontent-ng-c1329615251]   label[_ngcontent-ng-c1329615251] {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: stretch;
+}
+.bulk-controls[_ngcontent-ng-c1329615251]   label.tags-field[_ngcontent-ng-c1329615251] {
+  flex: 1 1 auto;
+  min-width: 150px;
+}
+.bulk-controls[_ngcontent-ng-c1329615251]   label[_ngcontent-ng-c1329615251]   .label-text[_ngcontent-ng-c1329615251] {
+  font-size: 12px;
+  color: #9B90AA;
+  font-weight: 600;
+}
+.bulk-controls[_ngcontent-ng-c1329615251]   label[_ngcontent-ng-c1329615251]   select[_ngcontent-ng-c1329615251], 
+.bulk-controls[_ngcontent-ng-c1329615251]   label[_ngcontent-ng-c1329615251]   input[_ngcontent-ng-c1329615251] {
+  padding: 8px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 6px;
+  background: #fff;
+  color: #301A4E;
+  font-size: 13px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
+.tags-input-wrapper[_ngcontent-ng-c1329615251] {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  border: 1px solid #F1E5F3;
+  border-radius: 6px;
+  background: #fff;
+  min-height: 32px;
+  flex: 1 1 auto;
+}
+.tags-input-wrapper[_ngcontent-ng-c1329615251]   .tag-chip[_ngcontent-ng-c1329615251] {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: #FBF5F6;
+  border: 1px solid #F1E5F3;
+  border-radius: 12px;
+  font-size: 12px;
+  color: #4E02B2;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tags-input-wrapper[_ngcontent-ng-c1329615251]   .tag-chip[_ngcontent-ng-c1329615251]:hover:not(:disabled) {
+  background: rgba(247, 60, 60, 0.15);
+  border-color: #F73C3C;
+  color: #F73C3C;
+}
+.tags-input-wrapper[_ngcontent-ng-c1329615251]   .tag-chip[_ngcontent-ng-c1329615251]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.tags-input-wrapper[_ngcontent-ng-c1329615251]   .tag-chip[_ngcontent-ng-c1329615251]   .tag-remove[_ngcontent-ng-c1329615251] {
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 600;
+}
+.tags-input-wrapper[_ngcontent-ng-c1329615251]   input[_ngcontent-ng-c1329615251] {
+  flex: 1 1 auto;
+  min-width: 120px;
+  border: none !important;
+  padding: 4px 6px;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  color: #301A4E;
+}
+.tags-input-wrapper[_ngcontent-ng-c1329615251]   input[_ngcontent-ng-c1329615251]::placeholder {
+  color: #9B90AA;
+}
+.bulk-actions[_ngcontent-ng-c1329615251] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bulk-btn[_ngcontent-ng-c1329615251] {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+  border-radius: 8px;
+  border: 1px solid #F1E5F3;
+  background: #4E02B2;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  transition:
+    transform 100ms ease,
+    box-shadow 120ms ease,
+    background 120ms ease;
+}
+.bulk-btn[_ngcontent-ng-c1329615251]:hover:not(:disabled) {
+  box-shadow: 0 2px 8px rgba(155, 144, 170, 0.25);
+  transform: translateY(-1px);
+}
+.bulk-btn[_ngcontent-ng-c1329615251]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.bulk-btn.ghost[_ngcontent-ng-c1329615251] {
+  background: #fff;
+  color: #301A4E;
+}
+.bulk-btn.close[_ngcontent-ng-c1329615251] {
+  background: #fff;
+  border: none;
+  color: #9B90AA;
+  font-size: 20px;
+  line-height: 1;
+  min-height: 32px;
+  min-width: 32px;
+  padding: 0;
+  min-width: auto;
+}
+.bulk-btn.close[_ngcontent-ng-c1329615251]:hover:not(:disabled) {
+  color: #F73C3C;
+}
+.bulk-error[_ngcontent-ng-c1329615251] {
+  color: #c62828;
+  font-weight: 600;
+  font-size: 13px;
+  margin-top: 8px;
+}
+.bulk-progress[_ngcontent-ng-c1329615251] {
+  color: #301A4E;
+  font-size: 13px;
+  margin-top: 8px;
+}
+.plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot[_ngcontent-ng-c1329615251] {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+  transition: all 120ms ease;
+}
+.plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot.prefer[_ngcontent-ng-c1329615251] {
+  background: rgba(105, 140, 255, 0.35);
+  border-color: rgba(105, 140, 255, 0.55);
+}
+.plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot.prevent[_ngcontent-ng-c1329615251] {
+  background: rgba(247, 60, 60, 0.35);
+  border-color: rgba(247, 60, 60, 0.55);
+}
+.plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot.neutral[_ngcontent-ng-c1329615251] {
+  background: rgba(155, 144, 170, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+.plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot.active[_ngcontent-ng-c1329615251] {
+  width: 14px;
+  height: 14px;
+  background: #FFFFFF;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+}
+.plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot.active.prefer[_ngcontent-ng-c1329615251] {
+  background: #698CFF;
+  border-color: rgba(105, 140, 255, 0.75);
+  box-shadow: 0 0 0 2px rgba(105, 140, 255, 0.3), 0 0 0 4px rgba(255, 255, 255, 0.35);
+}
+.plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot.active.prevent[_ngcontent-ng-c1329615251] {
+  background: #F73C3C;
+  border-color: rgba(247, 60, 60, 0.75);
+  box-shadow: 0 0 0 2px rgba(247, 60, 60, 0.3), 0 0 0 4px rgba(255, 255, 255, 0.35);
+}
+.plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot.active.mostly-prefer[_ngcontent-ng-c1329615251] {
+  box-shadow: 0 0 0 2px rgba(105, 140, 255, 0.3), 0 0 0 4px rgba(247, 60, 60, 0.45);
+}
+.plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot.active.mostly-prevent[_ngcontent-ng-c1329615251] {
+  box-shadow: 0 0 0 2px rgba(247, 60, 60, 0.3), 0 0 0 4px rgba(105, 140, 255, 0.45);
+}
+.thumbnail-item[_ngcontent-ng-c1329615251] {
+  position: relative;
+  width: 106px;
+  height: 200px;
+  border-radius: 2px;
+  overflow: visible;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 2px solid #F1E5F3;
+  background: #F1E5F3;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]:hover {
+  border: 2px solid #4E02B2;
+  transform: scale(1.02);
+  z-index: 10;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]:hover   .thumbnail-hover-info[_ngcontent-ng-c1329615251] {
+  opacity: 1 !important;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]:focus-within   .thumbnail-hover-info[_ngcontent-ng-c1329615251] {
+  opacity: 1 !important;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]:focus {
+  outline: 2px solid #B969FF;
+  outline-offset: 2px;
+}
+.thumbnail-item.selected[_ngcontent-ng-c1329615251] {
+  border-color: #4E02B2;
+  box-shadow: 0 0 0 2px rgba(78, 1, 178, 0.5) inset;
+}
+.thumbnail-item.same-workspace-related[_ngcontent-ng-c1329615251] {
+  border-color: #4E02B2;
+}
+.thumbnail-item.same-workspace-related[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251] {
+  background: #4E02B2;
+}
+.thumbnail-item.same-workspace-related[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   img[_ngcontent-ng-c1329615251] {
+  opacity: 0.9;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251] {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #F1E5F3;
+  overflow: hidden;
+  border-radius: 2px;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   app-skeleton-loader[_ngcontent-ng-c1329615251] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   img[_ngcontent-ng-c1329615251] {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   img[_ngcontent-ng-c1329615251]:not([src]) {
+  opacity: 0;
+  visibility: hidden;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   .thumbnail-hover-info[_ngcontent-ng-c1329615251] {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.4),
+      rgba(0, 0, 0, 0.85));
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 8px;
+  z-index: 5;
+  pointer-events: none;
+  border-radius: 2px;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   .thumbnail-hover-info[_ngcontent-ng-c1329615251]   .hover-bottom-section[_ngcontent-ng-c1329615251] {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   .thumbnail-hover-info[_ngcontent-ng-c1329615251]   .hover-bottom-section[_ngcontent-ng-c1329615251]   .hover-title[_ngcontent-ng-c1329615251] {
+  color: #FFFFFF;
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 600;
+  margin: 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   .thumbnail-hover-info[_ngcontent-ng-c1329615251]   .hover-bottom-section[_ngcontent-ng-c1329615251]   .hover-title.no-title[_ngcontent-ng-c1329615251] {
+  opacity: 0.6;
+  font-style: italic;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   .thumbnail-hover-info[_ngcontent-ng-c1329615251]   .hover-bottom-section[_ngcontent-ng-c1329615251]   .hover-topic-chip[_ngcontent-ng-c1329615251] {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(200, 230, 201, 0.85);
+  border-radius: 8px;
+  font-size: 9px;
+  color: #1B5E20;
+  font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   .thumbnail-hover-info[_ngcontent-ng-c1329615251]   .hover-bottom-section[_ngcontent-ng-c1329615251]   .hover-button-group[_ngcontent-ng-c1329615251] {
+  display: flex;
+  gap: 4px;
+  pointer-events: auto;
+  justify-content: center;
+  width: 100%;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   .thumbnail-hover-info[_ngcontent-ng-c1329615251]   .hover-bottom-section[_ngcontent-ng-c1329615251]   .hover-button-group[_ngcontent-ng-c1329615251]   .hover-btn[_ngcontent-ng-c1329615251] {
+  flex: 1;
+  height: 32px;
+  border-radius: 4px;
+  border: none;
+  background: rgba(255, 255, 255, 0.85);
+  color: #301A4E;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  transition:
+    transform 120ms ease,
+    background 120ms ease,
+    flex 120ms ease;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   .thumbnail-hover-info[_ngcontent-ng-c1329615251]   .hover-bottom-section[_ngcontent-ng-c1329615251]   .hover-button-group[_ngcontent-ng-c1329615251]   .hover-btn[_ngcontent-ng-c1329615251]:hover {
+  transform: scale(1.05);
+  background: #FFFFFF;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   .thumbnail-hover-info[_ngcontent-ng-c1329615251]   .hover-bottom-section[_ngcontent-ng-c1329615251]   .hover-button-group[_ngcontent-ng-c1329615251]   .hover-btn.star-btn.active[_ngcontent-ng-c1329615251] {
+  background: #B969FF;
+  color: #FFFFFF;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   .thumbnail-hover-info[_ngcontent-ng-c1329615251]   .hover-bottom-section[_ngcontent-ng-c1329615251]   .hover-button-group[_ngcontent-ng-c1329615251]   .hover-btn.edit-btn[_ngcontent-ng-c1329615251]:hover {
+  background: #B969FF;
+  color: #FFFFFF;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   .thumbnail-hover-info[_ngcontent-ng-c1329615251]   .hover-bottom-section[_ngcontent-ng-c1329615251]   .hover-button-group[_ngcontent-ng-c1329615251]   .hover-btn.trash-btn[_ngcontent-ng-c1329615251]:hover {
+  background: #F73C3C;
+  color: #FFFFFF;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   .plausibility-scale[_ngcontent-ng-c1329615251] {
+  position: absolute;
+  top: 6px;
+  right: 4px;
+  bottom: 6px;
+  width: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+  gap: 6px;
+  z-index: 3;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   .plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot[_ngcontent-ng-c1329615251] {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+  transition: all 120ms ease;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   .plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot.prefer[_ngcontent-ng-c1329615251] {
+  background: rgba(105, 140, 255, 0.35);
+  border-color: rgba(105, 140, 255, 0.55);
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   .plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot.prevent[_ngcontent-ng-c1329615251] {
+  background: rgba(247, 60, 60, 0.35);
+  border-color: rgba(247, 60, 60, 0.55);
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   .plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot.neutral[_ngcontent-ng-c1329615251] {
+  background: rgba(155, 144, 170, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   .plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot.active[_ngcontent-ng-c1329615251] {
+  width: 14px;
+  height: 14px;
+  background: #FFFFFF;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   .plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot.active.prefer[_ngcontent-ng-c1329615251] {
+  background: #698CFF;
+  border-color: rgba(105, 140, 255, 0.75);
+  box-shadow: 0 0 0 2px rgba(105, 140, 255, 0.3), 0 0 0 4px rgba(255, 255, 255, 0.35);
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   .plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot.active.prevent[_ngcontent-ng-c1329615251] {
+  background: #F73C3C;
+  border-color: rgba(247, 60, 60, 0.75);
+  box-shadow: 0 0 0 2px rgba(247, 60, 60, 0.3), 0 0 0 4px rgba(255, 255, 255, 0.35);
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   .plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot.active.mostly-prefer[_ngcontent-ng-c1329615251] {
+  box-shadow: 0 0 0 2px rgba(105, 140, 255, 0.3), 0 0 0 4px rgba(247, 60, 60, 0.45);
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .thumbnail-image[_ngcontent-ng-c1329615251]   .plausibility-scale[_ngcontent-ng-c1329615251]   .scale-dot.active.mostly-prevent[_ngcontent-ng-c1329615251] {
+  box-shadow: 0 0 0 2px rgba(247, 60, 60, 0.3), 0 0 0 4px rgba(105, 140, 255, 0.45);
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .workspace-tooltip-wrapper[_ngcontent-ng-c1329615251] {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]   .workspace-tooltip-wrapper[_ngcontent-ng-c1329615251]   .workspace-tooltip[_ngcontent-ng-c1329615251] {
+  background: #E7CBFF;
+  color: #4E02B2;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  display: inline-block;
+  text-align: center;
+  white-space: nowrap;
+}
+.thumbnail-item[_ngcontent-ng-c1329615251]:hover   .workspace-tooltip-wrapper[_ngcontent-ng-c1329615251]   .workspace-tooltip[_ngcontent-ng-c1329615251] {
+  opacity: 1;
+  visibility: visible;
+}
+.thumbnail-item[data-status=highlighted][_ngcontent-ng-c1329615251] {
+  border: 3px solid #ffc107;
+}
+.thumbnail-item[data-status=banned][_ngcontent-ng-c1329615251] {
+  border: 1px dashed #301A4E;
+  opacity: 0.5;
+}
+.item-sidebar[_ngcontent-ng-c1329615251] {
+  width: 420px;
+  max-width: 35vw;
+  max-height: 90vh;
+  background: #FFFFFF;
+  border-radius: 12px;
+  border: 1px solid #F1E5F3;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.item-sidebar[_ngcontent-ng-c1329615251]   .sidebar-header[_ngcontent-ng-c1329615251] {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #F1E5F3;
+  background: #FBF5F6;
+}
+.item-sidebar[_ngcontent-ng-c1329615251]   .sidebar-header[_ngcontent-ng-c1329615251]   h2[_ngcontent-ng-c1329615251] {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #4E02B2;
+}
+.item-sidebar[_ngcontent-ng-c1329615251]   .sidebar-header[_ngcontent-ng-c1329615251]   .close-sidebar-btn[_ngcontent-ng-c1329615251] {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #6C707B;
+  cursor: pointer;
+  padding: 4px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+  line-height: 1;
+  font-weight: 300;
+}
+.item-sidebar[_ngcontent-ng-c1329615251]   .sidebar-header[_ngcontent-ng-c1329615251]   .close-sidebar-btn[_ngcontent-ng-c1329615251]:hover {
+  background: #F73C3C;
+  color: #FFFFFF;
+}
+.item-sidebar[_ngcontent-ng-c1329615251]   .sidebar-header[_ngcontent-ng-c1329615251]   .close-sidebar-btn[_ngcontent-ng-c1329615251]:focus {
+  outline: 2px solid #B969FF;
+  outline-offset: 2px;
+}
+.item-sidebar[_ngcontent-ng-c1329615251]   .sidebar-content[_ngcontent-ng-c1329615251] {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 12px calc(12px + 70px);
+}
+.item-sidebar[_ngcontent-ng-c1329615251]   .sidebar-content[_ngcontent-ng-c1329615251]   .item-card[_ngcontent-ng-c1329615251] {
+  margin: 0;
+  max-width: none;
+  border: none;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+}
+.item-sidebar[_ngcontent-ng-c1329615251]   .sidebar-content[_ngcontent-ng-c1329615251]   .item-card[_ngcontent-ng-c1329615251]:hover {
+  box-shadow: none;
+  transform: none;
+}
+.item-sidebar[_ngcontent-ng-c1329615251]   .card-footer[_ngcontent-ng-c1329615251] {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 420px;
+  max-width: 35vw;
+  padding: 16px;
+  background: #FFFFFF;
+  border-top: 1px solid #F1E5F3;
+  z-index: 100;
+}
+.pinned-footer[_ngcontent-ng-c1329615251] {
+  margin-top: auto;
+  background: #FFFFFF;
+}
+.status-row[_ngcontent-ng-c1329615251] {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+}
+.status-row[_ngcontent-ng-c1329615251]   label[_ngcontent-ng-c1329615251] {
+  font-size: 12px;
+  font-weight: 700;
+  color: #4E02B2;
+}
+.status-row[_ngcontent-ng-c1329615251]   select[_ngcontent-ng-c1329615251] {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #F1E5F3;
+  background: #fff;
+  font-weight: 600;
+}
+.metadata-editor[_ngcontent-ng-c1329615251] {
+  margin-top: 16px;
+}
+.metadata-editor[_ngcontent-ng-c1329615251]   h3[_ngcontent-ng-c1329615251] {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #4E02B2;
+}
+.metadata-editor[_ngcontent-ng-c1329615251]   .metadata-grid[_ngcontent-ng-c1329615251] {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px 12px;
+}
+.metadata-editor[_ngcontent-ng-c1329615251]   .metadata-field[_ngcontent-ng-c1329615251] {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.metadata-editor[_ngcontent-ng-c1329615251]   .metadata-field[_ngcontent-ng-c1329615251]   .field-name[_ngcontent-ng-c1329615251] {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6C707B;
+  text-transform: uppercase;
+}
+.metadata-editor[_ngcontent-ng-c1329615251]   .metadata-field[_ngcontent-ng-c1329615251]   input[_ngcontent-ng-c1329615251] {
+  padding: 8px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.ai-regenerate[_ngcontent-ng-c1329615251] {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px dashed #F1E5F3;
+  border-radius: 10px;
+  background: #FBF5F6;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.ai-regenerate[_ngcontent-ng-c1329615251]   .ai-regenerate-help[_ngcontent-ng-c1329615251] {
+  margin: 0;
+  color: #6C707B;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.ai-regenerate[_ngcontent-ng-c1329615251]   .regenerate-actions[_ngcontent-ng-c1329615251] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ai-regenerate[_ngcontent-ng-c1329615251]   .regenerate-btn[_ngcontent-ng-c1329615251] {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #4E02B2;
+  background: #4E02B2;
+  color: #FFFFFF;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 13px;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.1s ease;
+}
+.ai-regenerate[_ngcontent-ng-c1329615251]   .regenerate-btn[_ngcontent-ng-c1329615251]:hover {
+  background: #B969FF;
+  box-shadow: 0 4px 12px rgba(78, 2, 178, 0.35);
+}
+.ai-regenerate[_ngcontent-ng-c1329615251]   .regenerate-btn[_ngcontent-ng-c1329615251]:focus {
+  outline: 2px solid #4E02B2;
+  outline-offset: 2px;
+}
+.ai-regenerate[_ngcontent-ng-c1329615251]   .regenerate-btn[_ngcontent-ng-c1329615251]:active {
+  transform: translateY(1px);
+}
+@media (max-width: 768px) {
+  .grid-layout[_ngcontent-ng-c1329615251] {
+    min-height: calc(100vh - 160px);
+  }
+  .item-sidebar[_ngcontent-ng-c1329615251] {
+    width: 100%;
+    max-height: 70vh;
+  }
+  .thumbnails-grid[_ngcontent-ng-c1329615251] {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    min-height: calc(100vh - 260px);
+  }
+  .thumbnail-item[_ngcontent-ng-c1329615251] {
+    height: 150px;
+  }
+  .items-grid[_ngcontent-ng-c1329615251] {
+    grid-template-columns: 1fr;
+  }
+  .credentials[_ngcontent-ng-c1329615251]   .creds-row[_ngcontent-ng-c1329615251] {
+    flex-direction: column;
+  }
+  .credentials[_ngcontent-ng-c1329615251]   .creds-row[_ngcontent-ng-c1329615251]   .input-group[_ngcontent-ng-c1329615251] {
+    min-width: 100%;
+  }
+  .filters-section[_ngcontent-ng-c1329615251]   .filter-chips[_ngcontent-ng-c1329615251] {
+    justify-content: center;
+  }
+  .filters-section[_ngcontent-ng-c1329615251]   .filter-chips[_ngcontent-ng-c1329615251]   .filter-chip[_ngcontent-ng-c1329615251] {
+    flex: 1 1 auto;
+    min-width: 120px;
+    justify-content: center;
+  }
+  .pagination-section[_ngcontent-ng-c1329615251] {
+    flex-wrap: wrap;
+  }
+  .item-card[_ngcontent-ng-c1329615251]   .card-actions[_ngcontent-ng-c1329615251] {
+    grid-template-columns: 1fr;
+  }
+  .item-card[_ngcontent-ng-c1329615251]   .card-actions[_ngcontent-ng-c1329615251]   .action-btn[_ngcontent-ng-c1329615251] {
+    flex-direction: row;
+    justify-content: center;
+  }
+  .item-card[_ngcontent-ng-c1329615251]   .properties-grid[_ngcontent-ng-c1329615251] {
+    grid-template-columns: 1fr;
+  }
+}</style><style ng-app-id="ng">
+
+.font-sans[_ngcontent-ng-c752339609] {
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+}
+.buttons[_ngcontent-ng-c752339609] {
+  width: 100%;
+  display: flex;
+  flex-flow: column;
+  padding: 8px 0;
+  gap: 4px;
+}
+.buttons[_ngcontent-ng-c752339609]   .button-row[_ngcontent-ng-c752339609] {
+  width: 100%;
+  display: flex;
+  flex-flow: row;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+.buttons[_ngcontent-ng-c752339609]   .button-row[_ngcontent-ng-c752339609]    > .button[_ngcontent-ng-c752339609] {
+  flex: 1 1 auto;
+}
+.buttons[_ngcontent-ng-c752339609]   .button[_ngcontent-ng-c752339609] {
+  height: 52px;
+  padding: 0px 8px;
+  display: flex;
+  flex-flow: row;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  font-family:
+    "Readex Pro",
+    "Miriam Libre",
+    "Source Sans 3",
+    sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+  leading-trim: both;
+  text-edge: cap;
+  font-size: 16px;
+  line-height: normal;
+  font-weight: 400;
+  border: 1px solid #E7CBFF;
+  background: #FBF5F6;
+  color: #4E02B2;
+  cursor: pointer;
+}
+.buttons[_ngcontent-ng-c752339609]   .button.primary[_ngcontent-ng-c752339609] {
+  border: 1px solid #4E02B2;
+  background: #4E02B2;
+  color: #FFFFFF;
+  font-weight: 700;
+}
+.buttons[_ngcontent-ng-c752339609]   a[_ngcontent-ng-c752339609] {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+.filters-bar[_ngcontent-ng-c752339609] {
+  background: #FFFFFF;
+  border: 1px solid #F1E5F3;
+  border-radius: 10px;
+  padding: 12px;
+  font-family: var(--showcase-font-family, "Readex Pro", "Miriam Libre", "Source Sans 3", sans-serif);
+}
+.filters-bar[_ngcontent-ng-c752339609]   button[_ngcontent-ng-c752339609], 
+.filters-bar[_ngcontent-ng-c752339609]   input[_ngcontent-ng-c752339609], 
+.filters-bar[_ngcontent-ng-c752339609]   select[_ngcontent-ng-c752339609], 
+.filters-bar[_ngcontent-ng-c752339609]   label[_ngcontent-ng-c752339609] {
+  font-family: inherit;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group[_ngcontent-ng-c752339609] {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 110px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group[_ngcontent-ng-c752339609]   label[_ngcontent-ng-c752339609] {
+  font-size: 10px;
+  font-weight: 700;
+  color: #4E02B2;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group[_ngcontent-ng-c752339609]   select[_ngcontent-ng-c752339609] {
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #6C707B;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238A3FFC' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 32px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group[_ngcontent-ng-c752339609]   select[_ngcontent-ng-c752339609]:focus {
+  outline: none;
+  border-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group[_ngcontent-ng-c752339609]   select[_ngcontent-ng-c752339609]:hover {
+  border-color: #B969FF;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609] {
+  position: relative;
+  min-width: 180px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-container[_ngcontent-ng-c752339609] {
+  position: relative;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609] {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #6C707B;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  min-height: 34px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]:hover {
+  border-color: #B969FF;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]:focus {
+  outline: none;
+  border-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609] {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-placeholder[_ngcontent-ng-c752339609], 
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-text[_ngcontent-ng-c752339609] {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-chips[_ngcontent-ng-c752339609] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-chips[_ngcontent-ng-c752339609]   .chip[_ngcontent-ng-c752339609] {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: #F1E5F3;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #4E02B2;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-chips[_ngcontent-ng-c752339609]   .chip[_ngcontent-ng-c752339609]   .chip-label[_ngcontent-ng-c752339609] {
+  display: inline;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-chips[_ngcontent-ng-c752339609]   .chip[_ngcontent-ng-c752339609]   .chip-remove[_ngcontent-ng-c752339609] {
+  background: none;
+  border: none;
+  color: #4E02B2;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.15s;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-chips[_ngcontent-ng-c752339609]   .chip[_ngcontent-ng-c752339609]   .chip-remove[_ngcontent-ng-c752339609]:hover {
+  background: #4E02B2;
+  color: #FFFFFF;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-chips[_ngcontent-ng-c752339609]   .chip.chip-deselected[_ngcontent-ng-c752339609] {
+  background: #EDECEC;
+  color: #9B90AA;
+  opacity: 0.65;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-chips[_ngcontent-ng-c752339609]   .chip.chip-deselected[_ngcontent-ng-c752339609]   .chip-label[_ngcontent-ng-c752339609] {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-chips[_ngcontent-ng-c752339609]   .chip.chip-deselected[_ngcontent-ng-c752339609]   .chip-remove[_ngcontent-ng-c752339609] {
+  color: #9B90AA;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-content[_ngcontent-ng-c752339609]   .multiselect-chips[_ngcontent-ng-c752339609]   .chip.chip-deselected[_ngcontent-ng-c752339609]   .chip-remove[_ngcontent-ng-c752339609]:hover {
+  background: #9B90AA;
+  color: #FFFFFF;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-label[_ngcontent-ng-c752339609] {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-trigger[_ngcontent-ng-c752339609]   .multiselect-arrow[_ngcontent-ng-c752339609] {
+  font-size: 10px;
+  color: #9B90AA;
+  flex-shrink: 0;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609] {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #FFFFFF;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-search[_ngcontent-ng-c752339609] {
+  padding: 6px;
+  border-bottom: 1px solid #F1E5F3;
+  margin-bottom: 4px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-search[_ngcontent-ng-c752339609]   .search-input[_ngcontent-ng-c752339609] {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 6px;
+  background: #FBF5F6;
+  color: #6C707B;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-search[_ngcontent-ng-c752339609]   .search-input[_ngcontent-ng-c752339609]:focus {
+  outline: none;
+  border-color: #4E02B2;
+  background: #FFFFFF;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-search[_ngcontent-ng-c752339609]   .search-input[_ngcontent-ng-c752339609]::placeholder {
+  color: #9B90AA;
+  font-weight: 400;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-controls[_ngcontent-ng-c752339609] {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-bottom: 1px solid #F1E5F3;
+  margin-bottom: 4px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-controls[_ngcontent-ng-c752339609]   .control-btn[_ngcontent-ng-c752339609] {
+  flex: 1;
+  padding: 6px 8px;
+  background: #FBF5F6;
+  border: 1px solid #F1E5F3;
+  border-radius: 4px;
+  color: #4E02B2;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-controls[_ngcontent-ng-c752339609]   .control-btn[_ngcontent-ng-c752339609]:hover {
+  background: #F1E5F3;
+  border-color: #4E02B2;
+  color: #301A4E;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-controls[_ngcontent-ng-c752339609]   .control-btn[_ngcontent-ng-c752339609]:active {
+  transform: scale(0.98);
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-option[_ngcontent-ng-c752339609] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 13px;
+  color: #6C707B;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-option[_ngcontent-ng-c752339609]:hover {
+  background: #FBF5F6;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-option[_ngcontent-ng-c752339609]   input[type=checkbox][_ngcontent-ng-c752339609] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+  accent-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-option[_ngcontent-ng-c752339609]   .option-label[_ngcontent-ng-c752339609] {
+  flex: 1;
+  font-weight: 500;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .multiselect-dropdown[_ngcontent-ng-c752339609]   .multiselect-option[_ngcontent-ng-c752339609]   .option-count[_ngcontent-ng-c752339609] {
+  font-size: 12px;
+  color: #9B90AA;
+  font-weight: 600;
+  background: #FBF5F6;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609] {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: #FFFFFF;
+  border: 1px solid #F1E5F3;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+  z-index: 1000;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-toolbar[_ngcontent-ng-c752339609] {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #F1E5F3;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-toolbar[_ngcontent-ng-c752339609]   .topic-search[_ngcontent-ng-c752339609] {
+  flex: 1;
+  padding: 5px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 6px;
+  background: #FBF5F6;
+  color: #6C707B;
+  font-size: 12px;
+  font-weight: 500;
+  transition: border-color 0.15s, background 0.15s;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-toolbar[_ngcontent-ng-c752339609]   .topic-search[_ngcontent-ng-c752339609]:focus {
+  outline: none;
+  border-color: #4E02B2;
+  background: #FFFFFF;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-toolbar[_ngcontent-ng-c752339609]   .topic-search[_ngcontent-ng-c752339609]::placeholder {
+  color: #9B90AA;
+  font-weight: 400;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-toolbar[_ngcontent-ng-c752339609]   .topic-toggle-all[_ngcontent-ng-c752339609] {
+  padding: 5px 10px;
+  background: none;
+  border: 1px solid #F1E5F3;
+  border-radius: 6px;
+  color: #4E02B2;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-toolbar[_ngcontent-ng-c752339609]   .topic-toggle-all[_ngcontent-ng-c752339609]:hover {
+  background: #FBF5F6;
+  border-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609] {
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]:not(:last-child) {
+  border-bottom: 1px solid rgba(241, 229, 243, 0.6);
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .theme-row[_ngcontent-ng-c752339609] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: background 0.1s;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .theme-row[_ngcontent-ng-c752339609]:hover {
+  background: #FBF5F6;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .theme-row[_ngcontent-ng-c752339609]   input[type=checkbox][_ngcontent-ng-c752339609] {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  flex-shrink: 0;
+  accent-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .theme-row[_ngcontent-ng-c752339609]   .theme-name[_ngcontent-ng-c752339609] {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: #301A4E;
+  line-height: 1.2;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .theme-row[_ngcontent-ng-c752339609]   .theme-count[_ngcontent-ng-c752339609] {
+  font-size: 11px;
+  color: #9B90AA;
+  font-weight: 600;
+  min-width: 18px;
+  text-align: right;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .theme-row[_ngcontent-ng-c752339609]   .theme-chevron[_ngcontent-ng-c752339609] {
+  display: flex;
+  align-items: center;
+  color: #9B90AA;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group.expanded[_ngcontent-ng-c752339609]   .theme-row[_ngcontent-ng-c752339609]   .theme-chevron[_ngcontent-ng-c752339609] {
+  transform: rotate(180deg);
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .sub-theme-list[_ngcontent-ng-c752339609] {
+  background: #FBF5F6;
+  padding: 2px 0;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .sub-theme-list[_ngcontent-ng-c752339609]   .sub-theme-row[_ngcontent-ng-c752339609] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px 5px 36px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: background 0.1s;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .sub-theme-list[_ngcontent-ng-c752339609]   .sub-theme-row[_ngcontent-ng-c752339609]:hover {
+  background: rgba(241, 229, 243, 0.5);
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .sub-theme-list[_ngcontent-ng-c752339609]   .sub-theme-row[_ngcontent-ng-c752339609]   input[type=checkbox][_ngcontent-ng-c752339609] {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+  accent-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .sub-theme-list[_ngcontent-ng-c752339609]   .sub-theme-row[_ngcontent-ng-c752339609]   .sub-theme-name[_ngcontent-ng-c752339609] {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 400;
+  color: #6C707B;
+  line-height: 1.2;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.custom-multiselect[_ngcontent-ng-c752339609]   .topic-dropdown[_ngcontent-ng-c752339609]   .topic-tree[_ngcontent-ng-c752339609]   .theme-group[_ngcontent-ng-c752339609]   .sub-theme-list[_ngcontent-ng-c752339609]   .sub-theme-row[_ngcontent-ng-c752339609]   .sub-theme-count[_ngcontent-ng-c752339609] {
+  font-size: 10px;
+  color: #9B90AA;
+  font-weight: 600;
+  min-width: 18px;
+  text-align: right;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.search-group[_ngcontent-ng-c752339609] {
+  flex: 1;
+  min-width: 160px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.search-group[_ngcontent-ng-c752339609]   input[_ngcontent-ng-c752339609] {
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #6C707B;
+  font-size: 13px;
+  font-weight: 500;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.search-group[_ngcontent-ng-c752339609]   input[_ngcontent-ng-c752339609]:focus {
+  outline: none;
+  border-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-group.search-group[_ngcontent-ng-c752339609]   input[_ngcontent-ng-c752339609]::placeholder {
+  color: #9B90AA;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-info[_ngcontent-ng-c752339609] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-info[_ngcontent-ng-c752339609]   .count-display[_ngcontent-ng-c752339609] {
+  color: #6C707B;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-info[_ngcontent-ng-c752339609]   .view-toggle-btn[_ngcontent-ng-c752339609] {
+  padding: 6px 10px;
+  border: 1px solid #F1E5F3;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #4E02B2;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 44px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-info[_ngcontent-ng-c752339609]   .view-toggle-btn[_ngcontent-ng-c752339609]:hover {
+  background: #4E02B2;
+  color: #FFFFFF;
+  border-color: #4E02B2;
+}
+.filters-bar[_ngcontent-ng-c752339609]   .filters-row[_ngcontent-ng-c752339609]   .filter-info[_ngcontent-ng-c752339609]   .view-toggle-btn[_ngcontent-ng-c752339609]:focus {
+  outline: 2px solid #B969FF;
+  outline-offset: 2px;
+}</style></head>
+<body><!--nghm-->
+  <app-root ng-version="19.2.17" ngh="0" ng-server-context="ssg"><router-outlet></router-outlet><app-moderate ngskiphydration="true" _nghost-ng-c1329615251=""><div _ngcontent-ng-c1329615251="" class="moderate-container"><header _ngcontent-ng-c1329615251="" role="banner" class="topbar"><div _ngcontent-ng-c1329615251="" class="brand"><span _ngcontent-ng-c1329615251="" aria-hidden="true" class="logo">✦</span><div _ngcontent-ng-c1329615251="" class="title-stack"><nav _ngcontent-ng-c1329615251="" aria-label="Breadcrumb" class="breadcrumbs"><a _ngcontent-ng-c1329615251="" href="/he/admin">admin</a><span _ngcontent-ng-c1329615251="" class="sep">/</span><span _ngcontent-ng-c1329615251="">workspace</span></nav><div _ngcontent-ng-c1329615251="" class="title-row"><!----><h1 _ngcontent-ng-c1329615251="">Content Moderation</h1><!----><!----></div><!----></div></div><div _ngcontent-ng-c1329615251="" class="actions"><button _ngcontent-ng-c1329615251="" aria-label="Toggle multi-edit mode" class="multi-select-toggle"><span _ngcontent-ng-c1329615251="" class="icon">🗂</span><span _ngcontent-ng-c1329615251="">Multi-edit</span><!----></button><div _ngcontent-ng-c1329615251="" class="cred-inline"><input _ngcontent-ng-c1329615251="" type="text" placeholder="workspace" aria-label="Workspace ID" value="" class="ng-untouched ng-pristine ng-valid"><input _ngcontent-ng-c1329615251="" type="text" placeholder="api key" aria-label="API key" value="" class="ng-untouched ng-pristine ng-valid"></div><!----></div></header><div _ngcontent-ng-c1329615251="" class="filters-bar-row"><app-filters-bar _ngcontent-ng-c1329615251="" _nghost-ng-c752339609=""><section _ngcontent-ng-c752339609="" aria-label="Filters" class="filters-bar"><div _ngcontent-ng-c752339609="" class="filters-row"><div _ngcontent-ng-c752339609="" class="filter-group custom-multiselect"><label _ngcontent-ng-c752339609="">Status:</label><div _ngcontent-ng-c752339609="" class="multiselect-container"><button _ngcontent-ng-c752339609="" type="button" class="multiselect-trigger"><div _ngcontent-ng-c752339609="" class="multiselect-content"><!----><!----><div _ngcontent-ng-c752339609="" class="multiselect-chips"><span _ngcontent-ng-c752339609="" class="chip chip-deselected"><span _ngcontent-ng-c752339609="" class="chip-label">Rejected</span><button _ngcontent-ng-c752339609="" type="button" title="Add back" class="chip-remove">×</button></span><span _ngcontent-ng-c752339609="" class="chip chip-deselected"><span _ngcontent-ng-c752339609="" class="chip-label">pending</span><button _ngcontent-ng-c752339609="" type="button" title="Add back" class="chip-remove">×</button></span><!----><!----><!----></div><!----></div><span _ngcontent-ng-c752339609="" class="multiselect-arrow">▼</span></button><!----></div></div><div _ngcontent-ng-c752339609="" class="filter-group"><label _ngcontent-ng-c752339609="" for="filter-author">Author:</label><select _ngcontent-ng-c752339609="" id="filter-author" class="ng-untouched ng-pristine ng-valid"><option _ngcontent-ng-c752339609="" value="all">all</option><!----></select></div><div _ngcontent-ng-c752339609="" class="filter-group custom-multiselect"><label _ngcontent-ng-c752339609="">Preference:</label><div _ngcontent-ng-c752339609="" class="multiselect-container"><button _ngcontent-ng-c752339609="" type="button" class="multiselect-trigger"><div _ngcontent-ng-c752339609="" class="multiselect-content"><!----><span _ngcontent-ng-c752339609="" class="multiselect-text">All preferences</span><!----><!----></div><span _ngcontent-ng-c752339609="" class="multiselect-arrow">▼</span></button><!----></div></div><div _ngcontent-ng-c752339609="" class="filter-group custom-multiselect"><label _ngcontent-ng-c752339609="">Potential:</label><div _ngcontent-ng-c752339609="" class="multiselect-container"><button _ngcontent-ng-c752339609="" type="button" class="multiselect-trigger"><div _ngcontent-ng-c752339609="" class="multiselect-content"><!----><span _ngcontent-ng-c752339609="" class="multiselect-text">All potentials</span><!----><!----></div><span _ngcontent-ng-c752339609="" class="multiselect-arrow">▼</span></button><!----></div></div><div _ngcontent-ng-c752339609="" class="filter-group"><label _ngcontent-ng-c752339609="" for="filter-type">Type:</label><select _ngcontent-ng-c752339609="" id="filter-type" class="ng-untouched ng-pristine ng-valid"><option _ngcontent-ng-c752339609="" value="all">all</option><option _ngcontent-ng-c752339609="" value="sign_in_a_demonstration">🪧 Sign (0)</option><option _ngcontent-ng-c752339609="" value="social_media_post">📣 Social (0)</option><option _ngcontent-ng-c752339609="" value="chat_conversation">💬 Chat (0)</option><option _ngcontent-ng-c752339609="" value="notification_alert">🔔 Alert (0)</option><option _ngcontent-ng-c752339609="" value="ai_agent_query">🤖 AI (0)</option><option _ngcontent-ng-c752339609="" value="review">⭐ Review (0)</option><option _ngcontent-ng-c752339609="" value="map_visualization">🗺️ Map (0)</option><option _ngcontent-ng-c752339609="" value="photograph">📸 Photo (0)</option></select></div><div _ngcontent-ng-c752339609="" class="filter-group custom-multiselect topic-multiselect"><label _ngcontent-ng-c752339609="">Topic:</label><div _ngcontent-ng-c752339609="" class="multiselect-container"><button _ngcontent-ng-c752339609="" type="button" class="multiselect-trigger"><div _ngcontent-ng-c752339609="" class="multiselect-content"><!----><span _ngcontent-ng-c752339609="" class="multiselect-text">All topics</span><!----><!----></div><span _ngcontent-ng-c752339609="" class="multiselect-arrow">▼</span></button><!----></div></div><!----><div _ngcontent-ng-c752339609="" class="filter-group search-group"><label _ngcontent-ng-c752339609="" for="filter-search">Search:</label><input _ngcontent-ng-c752339609="" id="filter-search" type="text" placeholder="any text" value="" class="ng-untouched ng-pristine ng-valid"></div><div _ngcontent-ng-c752339609="" class="filter-group"><label _ngcontent-ng-c752339609="" for="order-by">Order by:</label><select _ngcontent-ng-c752339609="" id="order-by" class="ng-untouched ng-pristine ng-valid"><option _ngcontent-ng-c752339609="" value="date">Date</option><option _ngcontent-ng-c752339609="" value="status">Status</option><option _ngcontent-ng-c752339609="" value="author">Author</option><option _ngcontent-ng-c752339609="" value="confidence">AI Confidence</option><option _ngcontent-ng-c752339609="" value="type">Type</option><option _ngcontent-ng-c752339609="" value="preference">Preference</option><option _ngcontent-ng-c752339609="" value="topic">Topic</option></select></div><!----><div _ngcontent-ng-c752339609="" class="filter-info"><span _ngcontent-ng-c752339609="" class="count-display">0 / 0</span><button _ngcontent-ng-c752339609="" class="view-toggle-btn" title="List view" aria-label="Switch to list view"> ☰ </button><!----></div></div></section></app-filters-bar></div><!----><div _ngcontent-ng-c1329615251="" class="grid-layout"><!----><!----><!----><div _ngcontent-ng-c1329615251="" role="list" class="thumbnails-grid"><!----><!----><!----></div></div><!----><!----><!----><!----></div></app-moderate><!----></app-root>
+<link rel="modulepreload" href="chunk-JAQRBAZC.js"><link rel="modulepreload" href="chunk-IL7K2TLE.js"><script src="polyfills-J42HH2UI.js" type="module"></script><script src="main-ADXQO75P.js" type="module"></script>
+
+<script id="ng-state" type="application/json">{"2068105690":{"b":{"item_count":4994,"themes":[{"definition":"Scenarios centered on who governs, how political authority is structured and contested, how democratic institutions function or fail, and how states or post-state systems are organized.","id":"political-systems-governance","item_count":583,"name":{"arabic":"الأنظمة السياسية والحكم","dutch":"Politieke Systemen & Bestuur","english":"Political Systems & Governance","hebrew":"מערכות שלטון וממשל"},"sub_themes":[{"definition":"Scenarios about elections, party victories or collapses, landmark officeholders, coalition shifts, mayoral or national leadership transitions, and disputes over who rules.","id":"leadership-elections","item_count":87,"name":{"arabic":"القيادة والانتخابات","dutch":"Leiderschap & Verkiezingen","english":"Leadership & Elections","hebrew":"מנהיגות ובחירות"}},{"definition":"Scenarios focused on constitutions, basic laws, equality acts, judicial change, rights being entrenched in foundational law, or formal restructuring of state authority.","id":"constitutional-legal-reform","item_count":58,"name":{"arabic":"الإصلاح الدستوري والقانوني","dutch":"Grondwettelijke & Juridische Hervorming","english":"Constitutional & Legal Reform","hebrew":"רפורמה חוקתית ומשפטית"}},{"definition":"Scenarios imagining new political forms such as federalism, post-national systems, fragmented sovereignties, merged states, autonomous regions, or institutional redesign.","id":"governance-models","item_count":123,"name":{"arabic":"نماذج الحكم","dutch":"Bestuursmodellen","english":"Governance Models","hebrew":"מודלים של ממשל"}},{"definition":"Scenarios about leaders or institutions being blamed, investigated, prosecuted, exposed, or held responsible for abuse, neglect, or political wrongdoing.","id":"accountability-corruption","item_count":28,"name":{"arabic":"المساءلة والفساد","dutch":"Verantwoording & Corruptie","english":"Accountability & Corruption","hebrew":"אחריות ושחיתות"}},{"definition":"Scenarios where citizens are called to build the state, shape institutions, join civic processes, or take direct responsibility for public life beyond ordinary voting.","id":"participatory-democracy-civic-engagement","item_count":170,"name":{"arabic":"الديمقراطية التشاركية والمشاركة المدنية","dutch":"Participatieve Democratie & Burgerbetrokkenheid","english":"Participatory Democracy & Civic Engagement","hebrew":"דמוקרטיה השתתפותית ומעורבות אזרחית"}},{"definition":"Scenarios about democratic breakdown, fascist or repressive rule, toppling authoritarian regimes, or transitions from coercive government to more open political orders.","id":"authoritarianism-regime-change","item_count":117,"name":{"arabic":"السلطوية وتغيير النظام","dutch":"Autoritarisme & Regimeverandering","english":"Authoritarianism & Regime Change","hebrew":"סמכותנות והחלפת משטר"}}]},{"definition":"Scenarios about war, occupation, armed escalation, military operations, civilian danger, siege, defense systems, and the lived reality of insecurity or coercive force.","id":"conflict-occupation-security","item_count":901,"name":{"arabic":"الصراع والاحتلال والأمن","dutch":"Conflict, Bezetting & Veiligheid","english":"Conflict, Occupation & Security","hebrew":"סכסוך, כיבוש וביטחון"},"sub_themes":[{"definition":"Scenarios depicting active warfare, bombardment, invasions, multi-front war, military offensives, surrender, or collapse into widespread violence.","id":"war-armed-conflict","item_count":321,"name":{"arabic":"الحرب والنزاع المسلح","dutch":"Oorlog & Gewapend Conflict","english":"War & Armed Conflict","hebrew":"מלחמה ועימות מזוין"}},{"definition":"Scenarios focused on prolonged military control over civilian life, the end of occupation, reoccupation, or demands for withdrawal from occupied areas.","id":"occupation-military-rule","item_count":210,"name":{"arabic":"الاحتلال والحكم العسكري","dutch":"Bezetting & Militair Bestuur","english":"Occupation & Military Rule","hebrew":"כיבוש ושלטון צבאי"}},{"definition":"Scenarios about ceasefires, fragile truces, hostage and captive return, exchange deals, and the uncertain aftermath of such agreements.","id":"ceasefires-deals-hostages","item_count":88,"name":{"arabic":"وقف إطلاق النار والصفقات والرهائن","dutch":"Staakt-het-vuren, Deals & Gijzelaars","english":"Ceasefires, Deals & Hostages","hebrew":"הפסקות אש, עסקאות וחטופים"}},{"definition":"Scenarios involving sirens, missile defense, fears of attacks, radical threats after peace, unsafe daily routines, and civilians living with persistent danger.","id":"security-threats-civilian-fear","item_count":207,"name":{"arabic":"التهديدات الأمنية وخوف المدنيين","dutch":"Veiligheidsdreigingen & Burgerlijke Angst","english":"Security Threats & Civilian Fear","hebrew":"איומי ביטחון ופחד אזרחי"}},{"definition":"Scenarios about detention, imprisonment, captivity, state confinement, deportation-like holding systems, or coercive incarceration as a tool of control.","id":"carceral-repression","item_count":48,"name":{"arabic":"القمع والسجن","dutch":"Carcerale Repressie","english":"Carceral Repression","hebrew":"דיכוי וכליאה"}},{"definition":"Scenarios about conscription, draft burdens, mobilization, extending service, or conscientious refusal to serve across ideological or communal lines.","id":"military-service-refusal","item_count":27,"name":{"arabic":"الخدمة العسكرية والرفض","dutch":"Militaire Dienst & Weigering","english":"Military Service & Refusal","hebrew":"שירות צבאי וסירוב"}}]},{"definition":"Scenarios imagining the formal political arrangement between Israelis and Palestinians, including peace agreements, sovereignty, statehood, annexation, confederation, and regional diplomatic normalization flowing from that settlement.","id":"israeli-palestinian-political-resolution","item_count":1713,"name":{"arabic":"التسوية السياسية الإسرائيلية الفلسطينية","dutch":"Israëlisch-Palestijnse Politieke Regeling","english":"Israeli-Palestinian Political Resolution","hebrew":"הסדרה פוליטית ישראלית-פלסטינית"},"sub_themes":[{"definition":"Scenarios that imagine a specific constitutional future between Israelis and Palestinians, including partition, one shared state, confederal arrangements, or binational structures.","id":"two-state-one-state-confederation","item_count":109,"name":{"arabic":"دولتان / دولة واحدة / كونفدرالية","dutch":"Twee staten / Eén staat / Confederatie","english":"Two-state / One-state / Confederation","hebrew":"שתי מדינות / מדינה אחת / קונפדרציה"}},{"definition":"Scenarios centered on Palestinian independence, long-term sovereignty, state institutions, state anniversaries, international recognition, and the practical functioning of a Palestinian state.","id":"palestinian-statehood","item_count":92,"name":{"arabic":"الدولة الفلسطينية","dutch":"Palestijnse Staat","english":"Palestinian Statehood","hebrew":"מדינה פלסטינית"}},{"definition":"Scenarios in which one side claims sole sovereignty over territory and alternative national claims are denied, erased, or subordinated.","id":"annexation-exclusive-sovereignty","item_count":35,"name":{"arabic":"الضم والسيادة الحصرية","dutch":"Annexatie & Exclusieve Soevereiniteit","english":"Annexation & Exclusive Sovereignty","hebrew":"סיפוח וריבונות בלעדית"}},{"definition":"Scenarios about abolishing, shifting, or redesigning borders and maps in Israel/Palestine as part of a new political order.","id":"borders-removed-or-redrawn","item_count":474,"name":{"arabic":"حدود أزيلت أو أُعيد ترسيمها","dutch":"Grenzen Verwijderd of Hertekend","english":"Borders Removed or Redrawn","hebrew":"גבולות שהוסרו או שורטטו מחדש"}},{"definition":"Scenarios focused on settlements being expanded, legalized, dismantled, evacuated, or incorporated into a territorial and political future.","id":"settlements-territorial-expansion","item_count":399,"name":{"arabic":"المستوطنات والتوسع الإقليمي","dutch":"Nederzettingen & Territoriale Uitbreiding","english":"Settlements & Territorial Expansion","hebrew":"התנחלויות והתרחבות טריטוריאלית"}},{"definition":"Scenarios where Israeli-Palestinian peace produces wider regional diplomacy, travel, trade, or normalization with neighbors such as Lebanon, Iraq, or the broader Middle East.","id":"regional-integration-normalization","item_count":604,"name":{"arabic":"الاندماج الإقليمي والتطبيع","dutch":"Regionale Integratie & Normalisering","english":"Regional Integration & Normalization","hebrew":"אינטגרציה אזורית ונורמליזציה"}}]},{"definition":"Scenarios focused on checkpoints, walls, crossings, passports, permits, refugee return, deportation, displacement, and the practical ability to move, stay, or come home.","id":"borders-mobility-return","item_count":829,"name":{"arabic":"الحدود والتنقل والعودة","dutch":"Grenzen, Mobiliteit & Terugkeer","english":"Borders, Mobility & Return","hebrew":"גבולות, ניידות ושיבה"},"sub_themes":[{"definition":"Scenarios about routine cross-border travel, open movement across formerly closed lines, and ordinary mobility becoming possible after political change.","id":"freedom-of-movement","item_count":357,"name":{"arabic":"حرية التنقل","dutch":"Vrijheid van Beweging","english":"Freedom of Movement","hebrew":"חופש תנועה"}},{"definition":"Scenarios where checkpoints, walls, border closures, permits, or demolished barriers are themselves the central lived reality of restriction or liberation.","id":"checkpoints-walls","item_count":101,"name":{"arabic":"الحواجز والجدران","dutch":"Checkpoints & Muren","english":"Checkpoints & Walls","hebrew":"מחסומים וחומות"}},{"definition":"Scenarios about refugees, exiles, or diasporic communities returning to former homes, villages, cities, or national homelands after political transformation.","id":"refugee-return","item_count":80,"name":{"arabic":"عودة اللاجئين","dutch":"Terugkeer van Vluchtelingen","english":"Refugee Return","hebrew":"שיבת פליטים"}},{"definition":"Scenarios about forced migration, evacuations, environmental displacement, resettlement, mass deportation, or uprooting caused by conflict, policy, or ecological crisis.","id":"migration-displacement","item_count":276,"name":{"arabic":"الهجرة والنزوح","dutch":"Migratie & Ontheemding","english":"Migration & Displacement","hebrew":"הגירה ועקירה"}},{"definition":"Scenarios addressing passports, citizenship, right of return, residency status, ID systems, border documents, or official belonging in a political community.","id":"residency-citizenship","item_count":15,"name":{"arabic":"الإقامة والمواطنة","dutch":"Verblijf & Burgerschap","english":"Residency & Citizenship","hebrew":"תושבות ואזרחות"}}]},{"definition":"Scenarios centered on equality, human dignity, anti-discrimination, legal protection, and organized struggles around gender, minority status, bodily autonomy, and social justice.","id":"rights-equality-social-struggles","item_count":1578,"name":{"arabic":"الحقوق والمساواة والنضالات الاجتماعية","dutch":"Rechten, Gelijkheid & Sociale Strijd","english":"Rights, Equality & Social Struggles","hebrew":"זכויות, שוויון ומאבקים חברתיים"},"sub_themes":[{"definition":"Scenarios about broad civil liberties, human dignity, equal legal status, freedom from abuse, and rights claims against discriminatory or coercive rule.","id":"human-civil-rights","item_count":90,"name":{"arabic":"حقوق الإنسان والمواطنة","dutch":"Mensen- & Burgerrechten","english":"Human & Civil Rights","hebrew":"זכויות אדם ואזרח"}},{"definition":"Scenarios focusing on recognition, safety, and equal treatment of minorities, including Jews facing antisemitism, Palestinians, migrants, religious communities, or other stigmatized groups.","id":"minority-identity-rights","item_count":95,"name":{"arabic":"حقوق الأقليات والهوية","dutch":"Minderheden- & Identiteitsrechten","english":"Minority & Identity Rights","hebrew":"זכויות מיעוט וזהות"}},{"definition":"Scenarios centered on constitutional protection, legal recognition, and civic campaigns to secure children's rights and welfare.","id":"children-s-rights","item_count":63,"name":{"arabic":"حقوق الأطفال","dutch":"Kinderrechten","english":"Children's Rights","hebrew":"זכויות ילדים"}},{"definition":"Scenarios about bodily autonomy, reproductive rights, patriarchy falling, queer visibility, family diversity, or unexpected alliances and backlash around gender and sexuality.","id":"gender-lgbtq-equality","item_count":273,"name":{"arabic":"المساواة الجندرية وحقوق الميم","dutch":"Gender- & LGBTQ+-Gelijkheid","english":"Gender & LGBTQ+ Equality","hebrew":"שוויון מגדרי ולהט״ב"}},{"definition":"Scenarios where femicide, harassment, street safety, and collective responsibility for preventing gendered violence are the main focus.","id":"violence-against-women","item_count":36,"name":{"arabic":"العنف ضد النساء","dutch":"Geweld Tegen Vrouwen","english":"Violence Against Women","hebrew":"אלימות נגד נשים"}},{"definition":"Scenarios where demonstrations, solidarity campaigns, boycott debates, symbolic resistance, or protest as a normalized civic form are the main substance of the future.","id":"activism-protest","item_count":1021,"name":{"arabic":"النشاط والاحتجاج","dutch":"Activisme & Protest","english":"Activism & Protest","hebrew":"אקטיביזם ומחאה"}}]},{"definition":"Scenarios grappling with Jewish, Palestinian, Israeli, diasporic, or shared belonging, and with how collective identity, legitimacy, memory of origin, and common civic life are transformed.","id":"jewish-palestinian-shared-identities","item_count":809,"name":{"arabic":"الهويات اليهودية والفلسطينية والمشتركة","dutch":"Joodse, Palestijnse & Gedeelde Identiteiten","english":"Jewish, Palestinian & Shared Identities","hebrew":"זהויות יהודיות, פלסטיניות ומשותפות"},"sub_themes":[{"definition":"Scenarios about Jewish continuity, communal safety, public Jewish visibility, antisemitism, and the future of Jewish life in Israel and the diaspora.","id":"jewish-collective-identity","item_count":164,"name":{"arabic":"الهوية اليهودية الجماعية","dutch":"Joodse Collectieve Identiteit","english":"Jewish Collective Identity","hebrew":"זהות יהודית קולקטיבית"}},{"definition":"Scenarios about Palestinian presence, endurance, liberation, cultural visibility, rootedness in place, or refusal of erasure.","id":"palestinian-belonging-presence","item_count":94,"name":{"arabic":"الانتماء والحضور الفلسطيني","dutch":"Palestijnse Verbondenheid & Aanwezigheid","english":"Palestinian Belonging & Presence","hebrew":"שייכות ונוכחות פלסטינית"}},{"definition":"Scenarios imagining a common civic 'we' across previous divides, including Arab-Jewish partnership, coexistence slogans, and a shared political future.","id":"shared-civic-identity","item_count":442,"name":{"arabic":"هوية مدنية مشتركة","dutch":"Gedeelde Burgerlijke Identiteit","english":"Shared Civic Identity","hebrew":"זהות אזרחית משותפת"}},{"definition":"Scenarios centered on whether a people, narrative, identity, or national presence is acknowledged as valid, visible, and politically legitimate.","id":"recognition-legitimacy","item_count":36,"name":{"arabic":"الاعتراف والشرعية","dutch":"Erkenning & Legitimiteit","english":"Recognition & Legitimacy","hebrew":"הכרה ולגיטימיות"}},{"definition":"Scenarios about ties between homeland and diaspora, return from abroad, transnational communal attachment, and the political meaning of belonging from afar.","id":"diaspora-homeland-relations","item_count":43,"name":{"arabic":"علاقات الشتات والوطن","dutch":"Diaspora–Thuislandrelaties","english":"Diaspora–Homeland Relations","hebrew":"יחסי תפוצה־מולדת"}},{"definition":"Scenarios about disrupted family histories, migration-shaped identity, searching for ancestry, and the personal struggle to know where one comes from.","id":"family-roots-belonging","item_count":30,"name":{"arabic":"الجذور العائلية والانتماء","dutch":"Familiewortels & Erbij Horen","english":"Family Roots & Belonging","hebrew":"שורשים משפחתיים ושייכות"}}]},{"definition":"Scenarios about worship, holy sites, religious celebrations, spiritual renewal, Shabbat practice, messianic expectation, and the public role of faith.","id":"religion-holy-places-spiritual-life","item_count":310,"name":{"arabic":"الدين والأماكن المقدسة والحياة الروحية","dutch":"Religie, Heilige Plaatsen & Spiritueel Leven","english":"Religion, Holy Places & Spiritual Life","hebrew":"דת, מקומות קדושים וחיים רוחניים"},"sub_themes":[{"definition":"Scenarios where people gain or lose the ability to pray, practice religion, and worship without interference or exclusion.","id":"freedom-of-worship","item_count":12,"name":{"arabic":"حرية العبادة","dutch":"Vrijheid van Godsdienst","english":"Freedom of Worship","hebrew":"חופש פולחן"}},{"definition":"Scenarios focused on visiting or being barred from major sacred places, including control over access to religiously charged sites.","id":"holy-sites-access","item_count":16,"name":{"arabic":"الأماكن المقدسة والوصول إليها","dutch":"Heilige Plaatsen & Toegang","english":"Holy Sites & Access","hebrew":"מקומות קדושים וגישה"}},{"definition":"Scenarios about synagogues, mosques, churches, or organized religious institutions as community anchors, contested authorities, or revived public actors.","id":"synagogues-religious-institutions","item_count":43,"name":{"arabic":"الكنس والمؤسسات الدينية","dutch":"Synagogen & Religieuze Instellingen","english":"Synagogues & Religious Institutions","hebrew":"בתי כנסת ומוסדות דת"}},{"definition":"Scenarios in which compassion, prayer, love, peace-oriented ritual, or spiritual ethics become central to healing and public culture.","id":"spiritual-renewal","item_count":58,"name":{"arabic":"التجدد الروحي","dutch":"Spirituele Vernieuwing","english":"Spiritual Renewal","hebrew":"התחדשות רוחנית"}},{"definition":"Scenarios shaped by redemption, prophecy, messianic arrival, or explicitly religious visions of historical transformation centered on Israel or the wider world.","id":"messianic-redemptive-futures","item_count":164,"name":{"arabic":"مستقبلات مهدوية وخلاصية","dutch":"Messiaanse & Verlossende Toekomsten","english":"Messianic & Redemptive Futures","hebrew":"עתידים משיחיים וגאוליים"}},{"definition":"Scenarios about expanded Shabbat observance, distributed Shabbat dinners, and the adaptation of Jewish ritual practice to changing social and geographic realities.","id":"shabbat-jewish-practice","item_count":17,"name":{"arabic":"السبت والممارسة اليهودية","dutch":"Shabbat & Joodse Praktijk","english":"Shabbat & Jewish Practice","hebrew":"שבת ופרקטיקה יהודית"}}]},{"definition":"Scenarios about remembering violence, carrying grief after war, teaching painful history, seeking justice for atrocities, healing trauma, and rebuilding trust after deep conflict.","id":"memory-trauma-reconciliation","item_count":674,"name":{"arabic":"الذاكرة والصدمة والمصالحة","dutch":"Herinnering, Trauma & Verzoening","english":"Memory, Trauma & Reconciliation","hebrew":"זיכרון, טראומה ופיוס"},"sub_themes":[{"definition":"Scenarios about museums, archives, memorial sites, commemorative projects, and institutions that officially frame difficult pasts.","id":"shared-memory-institutions","item_count":72,"name":{"arabic":"مؤسسات الذاكرة المشتركة","dutch":"Gedeelde Herinneringsinstellingen","english":"Shared Memory Institutions","hebrew":"מוסדות זיכרון משותפים"}},{"definition":"Scenarios where individuals or communities process grief, meet across lines of suffering, and attempt emotional repair after war or catastrophe.","id":"trauma-healing-encounters","item_count":58,"name":{"arabic":"لقاءات شفاء من الصدمة","dutch":"Traumaverwerkende Ontmoetingen","english":"Trauma Healing Encounters","hebrew":"מפגשי ריפוי מטראומה"}},{"definition":"Scenarios focused on how painful history is taught, revised, queried, or understood by later generations, often through schools or AI-mediated historical explanation.","id":"history-education","item_count":163,"name":{"arabic":"تعليم التاريخ","dutch":"Geschiedenisonderwijs","english":"History Education","hebrew":"חינוך היסטורי"}},{"definition":"Scenarios about war-crimes trials, international judgments, reparations, restitution, or public acknowledgment of severe historic harm.","id":"justice-reparations","item_count":56,"name":{"arabic":"العدالة والتعويضات","dutch":"Rechtvaardigheid & Herstelbetalingen","english":"Justice & Reparations","hebrew":"צדק ופיצויים"}},{"definition":"Scenarios about difficult conversations, empathy, nonjudgmental listening, and the interpersonal work required to move beyond enemy images.","id":"dialogue-across-fear","item_count":87,"name":{"arabic":"حوار يتجاوز الخوف","dutch":"Dialoog Over Angst Heen","english":"Dialogue Across Fear","hebrew":"דיאלוג מעבר לפחד"}},{"definition":"Scenarios in which past conflict has faded from everyday consciousness and must be rediscovered, explained, or reinterpreted from the standpoint of peace.","id":"forgetting-conflict","item_count":238,"name":{"arabic":"نسيان الصراع","dutch":"Conflict Vergeten","english":"Forgetting Conflict","hebrew":"שכחת הסכסוך"}}]},{"definition":"Scenarios where language, symbols, festivals, food, museums, public celebrations, and everyday cultural expression are the main arena of social or political change.","id":"culture-language-public-space","item_count":909,"name":{"arabic":"الثقافة واللغة والفضاء العام","dutch":"Cultuur, Taal & Publieke Ruimte","english":"Culture, Language & Public Space","hebrew":"תרבות, שפה ומרחב ציבורי"},"sub_themes":[{"definition":"Scenarios about joint celebrations, international tournaments, parades, shared holidays, and festive public events as expressions of coexistence or peace.","id":"cultural-exchange-festivals","item_count":201,"name":{"arabic":"التبادل الثقافي والمهرجانات","dutch":"Culturele Uitwisseling & Festivals","english":"Cultural Exchange & Festivals","hebrew":"חילופי תרבות ופסטיבלים"}},{"definition":"Scenarios focused on museums and cultural institutions as sites of curation, polarization, bridge-building, or contests over heritage.","id":"museums-cultural-institutions","item_count":161,"name":{"arabic":"المتاحف والمؤسسات الثقافية","dutch":"Musea & Culturele Instellingen","english":"Museums & Cultural Institutions","hebrew":"מוזיאונים ומוסדות תרבות"}},{"definition":"Scenarios where multilingualism, Hebrew-Arabic coexistence, translation, naming, or language accessibility shape public life and inclusion.","id":"language-accessibility","item_count":40,"name":{"arabic":"اللغة وإمكانية الوصول","dutch":"Taal & Toegankelijkheid","english":"Language & Accessibility","hebrew":"שפה ונגישות"}},{"definition":"Scenarios where restaurants, cafés, holiday tables, hospitality, culinary collaboration, or daily consumption habits symbolize a transformed society.","id":"food-shared-daily-culture","item_count":147,"name":{"arabic":"الطعام والثقافة اليومية المشتركة","dutch":"Voedsel & Gedeelde Dagelijkse Cultuur","english":"Food & Shared Daily Culture","hebrew":"אוכל ותרבות יומיומית משותפת"}},{"definition":"Scenarios about flags, hearts, watermelons, peace signs, maps, coded visuals, and symbolic artifacts that reshape the meaning of streets and public discourse.","id":"symbols-in-public-space","item_count":238,"name":{"arabic":"الرموز في الفضاء العام","dutch":"Symbolen in de Publieke Ruimte","english":"Symbols in Public Space","hebrew":"סמלים במרחב הציבורי"}},{"definition":"Scenarios where travel, heritage routes, resumed tourism, border-crossing leisure, or place-based visitation are the main focus of change.","id":"tourism-heritage-travel","item_count":122,"name":{"arabic":"السياحة والسفر التراثي","dutch":"Toerisme & Erfgoedreizen","english":"Tourism & Heritage Travel","hebrew":"תיירות ומסעות מורשת"}}]},{"definition":"Scenarios about livelihoods, economic systems, labor, wealth concentration, basic income, housing, and the material organization of everyday survival and prosperity.","id":"economy-work-material-life","item_count":396,"name":{"arabic":"الاقتصاد والعمل والحياة المادية","dutch":"Economie, Werk & Materieel Leven","english":"Economy, Work & Material Life","hebrew":"כלכלה, עבודה וחיים חומריים"},"sub_themes":[{"definition":"Scenarios about post-capitalist futures, redistribution, economic collapse, solidarity economies, or broad restructuring of how resources are allocated.","id":"economic-systems-redistribution","item_count":87,"name":{"arabic":"الأنظمة الاقتصادية وإعادة التوزيع","dutch":"Economische Systemen & Herverdeling","english":"Economic Systems & Redistribution","hebrew":"מערכות כלכליות וחלוקה מחדש"}},{"definition":"Scenarios focusing on layoffs, human jobs versus profit, workplace culture, remote work environments, automation pressures, or shifting meaning of work.","id":"labor-workplace","item_count":67,"name":{"arabic":"العمل ومكان العمل","dutch":"Arbeid & Werkplek","english":"Labor & Workplace","hebrew":"עבודה ומקום עבודה"}},{"definition":"Scenarios about basic income, public support, grants, and state or community systems that stabilize households and everyday security.","id":"welfare-family-support","item_count":42,"name":{"arabic":"الرفاه ودعم الأسرة","dutch":"Welzijn & Gezinsondersteuning","english":"Welfare & Family Support","hebrew":"רווחה ותמיכה במשפחה"}},{"definition":"Scenarios about currencies, digital money, debt, banking systems, payment mechanisms, or financial shocks driving political and social change.","id":"financial-systems-transfers","item_count":99,"name":{"arabic":"الأنظمة المالية والتحويلات","dutch":"Financiële Systemen & Overboekingen","english":"Financial Systems & Transfers","hebrew":"מערכות פיננסיות והעברות"}},{"definition":"Scenarios about exploitative landlords, housing reform, affordability, and the struggle to secure fair and livable homes.","id":"housing-cost-of-living","item_count":28,"name":{"arabic":"السكن وغلاء المعيشة","dutch":"Wonen & Levensonderhoud","english":"Housing & Cost of Living","hebrew":"דיור ויוקר המחיה"}},{"definition":"Scenarios about industrial complexes, platformized economies, corporate influence, or the political role of large technological and business actors.","id":"tech-economy-corporate-power","item_count":73,"name":{"arabic":"اقتصاد التكنولوجيا وقوة الشركات","dutch":"Tech-Economie & BedrijfsMacht","english":"Tech Economy & Corporate Power","hebrew":"כלכלת טכנולוגיה וכוח תאגידי"}}]},{"definition":"Scenarios where AI, digital platforms, surveillance, alerts, online communication, media systems, or human-machine boundaries are themselves the substantive topic.","id":"technology-media-information-power","item_count":3225,"name":{"arabic":"التكنولوجيا والإعلام وقوة المعلومات","dutch":"Technologie, Media & Informatiemacht","english":"Technology, Media & Information Power","hebrew":"טכנולוגיה, מדיה וכוח המידע"},"sub_themes":[{"definition":"Scenarios about AI assistants, automated advice, AGI, routine AI queries, or machine systems becoming central to decision-making and daily life.","id":"artificial-intelligence-automation","item_count":557,"name":{"arabic":"الذكاء الاصطناعي والأتمتة","dutch":"Kunstmatige Intelligentie & Automatisering","english":"Artificial Intelligence & Automation","hebrew":"בינה מלאכותית ואוטומציה"}},{"definition":"Scenarios focused on social media, messaging cultures, viral discourse, cryptic posting, visual communication, and the emotional or political power of online expression.","id":"digital-communication-media","item_count":494,"name":{"arabic":"الاتصالات الرقمية والإعلام","dutch":"Digitale Communicatie & Media","english":"Digital Communication & Media","hebrew":"תקשורת דיגיטלית ומדיה"}},{"definition":"Scenarios about tracked lives, privacy zones, mind-reading AI, location-based monitoring, or struggles to preserve autonomy under pervasive surveillance.","id":"surveillance-privacy","item_count":603,"name":{"arabic":"المراقبة والخصوصية","dutch":"Toezicht & Privacy","english":"Surveillance & Privacy","hebrew":"מעקב ופרטיות"}},{"definition":"Scenarios where speech is restricted, messages are coded to evade suppression, or digital systems regulate what can be said, seen, or circulated.","id":"censorship-information-control","item_count":124,"name":{"arabic":"الرقابة والسيطرة على المعلومات","dutch":"Censuur & Informatiecontrole","english":"Censorship & Information Control","hebrew":"צנזורה ושליטה במידע"}},{"definition":"Scenarios about AI shaping thought, authenticity crises in human interaction, behavioral manipulation, or fears that digital systems erode human agency and identity.","id":"algorithmic-influence-mind-control","item_count":719,"name":{"arabic":"التأثير الخوارزمي والسيطرة على الوعي","dutch":"Algoritmische Invloed & Gedachtencontrole","english":"Algorithmic Influence & Mind Control","hebrew":"השפעה אלגוריתמית ושליטה תודעתית"}},{"definition":"Scenarios where push alerts, status updates, and condensed signals structure how people experience war, peace, danger, bureaucracy, and public life in real time.","id":"notification-society","item_count":728,"name":{"arabic":"مجتمع الإشعارات","dutch":"Meldingsmaatschappij","english":"Notification Society","hebrew":"חברת ההתראות"}}]},{"definition":"Scenarios centered on schools, educational reform, curriculum, mixed education, children's routines, and how younger generations are formed in conflict and post-conflict societies.","id":"education-children-socialization","item_count":319,"name":{"arabic":"التعليم والأطفال والتنشئة الاجتماعية","dutch":"Onderwijs, Kinderen & Socialisatie","english":"Education, Children & Socialization","hebrew":"חינוך, ילדים וסוציאליזציה"},"sub_themes":[{"definition":"Scenarios about rebuilding schooling, educational access, teacher status, and broader reform of how education is organized and supported.","id":"educational-reform-access","item_count":83,"name":{"arabic":"إصلاح التعليم والوصول","dutch":"Onderwijshervorming & Toegang","english":"Educational Reform & Access","hebrew":"רפורמה וגישה בחינוך"}},{"definition":"Scenarios about what schools and learning systems teach concerning conflict, peace, captivity, memory, and historical understanding.","id":"curriculum-historical-learning","item_count":53,"name":{"arabic":"المنهاج والتعلم التاريخي","dutch":"Curriculum & Historisch Leren","english":"Curriculum & Historical Learning","hebrew":"תכנית לימודים ולמידה היסטורית"}},{"definition":"Scenarios where children's routines, safety, emotional worlds, and daily disruptions reflect war, displacement, or transition out of conflict.","id":"children-in-post-conflict-life","item_count":50,"name":{"arabic":"الأطفال في حياة ما بعد الصراع","dutch":"Kinderen in het Postconflictleven","english":"Children in Post-Conflict Life","hebrew":"ילדים בחיים שלאחר סכסוך"}},{"definition":"Scenarios about mixed schooling, coexistence in educational settings, and schools as spaces of inclusion or exclusion across social groups.","id":"belonging-integration-in-education","item_count":21,"name":{"arabic":"الانتماء والاندماج في التعليم","dutch":"Erbij Horen & Integratie in Onderwijs","english":"Belonging & Integration in Education","hebrew":"שייכות והשתלבות בחינוך"}},{"definition":"Scenarios where AI systems, automated advising, or digital learning platforms shape educational guidance, evaluation, and socialization.","id":"algorithmic-education","item_count":112,"name":{"arabic":"التعليم الخوارزمي","dutch":"Algoritmisch Onderwijs","english":"Algorithmic Education","hebrew":"חינוך אלגוריתמי"}}]},{"definition":"Scenarios about mental health, emotional resilience, supportive relationships, loneliness, intimate life, caregiving, and everyday social wellbeing.","id":"health-emotion-human-relationships","item_count":902,"name":{"arabic":"الصحة والعاطفة والعلاقات الإنسانية","dutch":"Gezondheid, Emotie & Menselijke Relaties","english":"Health, Emotion & Human Relationships","hebrew":"בריאות, רגש ויחסים אנושיים"},"sub_themes":[{"definition":"Scenarios about trauma-saturated culture, depression, the absence of antidepressants in a better future, emotional support, and societies oriented toward psychological wellbeing.","id":"wellbeing-mental-health","item_count":255,"name":{"arabic":"الرفاهية والصحة النفسية","dutch":"Welzijn & Geestelijke Gezondheid","english":"Wellbeing & Mental Health","hebrew":"רווחה ובריאות הנפש"}},{"definition":"Scenarios emphasizing ordinary peace, hope, calm routines, relief after war, and the normalization of positive feeling in daily life.","id":"everyday-happiness-calm","item_count":312,"name":{"arabic":"السعادة اليومية والسكينة","dutch":"Alledaags Geluk & Rust","english":"Everyday Happiness & Calm","hebrew":"אושר יומיומי ושלווה"}},{"definition":"Scenarios about dialogue, friendship, solidarity, Ubuntu-like mutuality, intimate messaging during crisis, and social rituals that strengthen human connection.","id":"connection-practices","item_count":207,"name":{"arabic":"ممارسات التواصل","dutch":"Verbindingspraktijken","english":"Connection Practices","hebrew":"פרקטיקות של חיבור"}},{"definition":"Scenarios about parenting, caregiving, family logistics under strain, reproductive autonomy, and the reshaping of home life in changing societies.","id":"care-reproduction-family-life","item_count":50,"name":{"arabic":"الرعاية والإنجاب والحياة الأسرية","dutch":"Zorg, Voortplanting & Gezinsleven","english":"Care, Reproduction & Family Life","hebrew":"טיפול, רבייה וחיי משפחה"}},{"definition":"Scenarios where aggression, hostility, or violent rhetoric in homes, streets, or digital interaction shapes everyday social expectations.","id":"violence-in-social-life","item_count":41,"name":{"arabic":"العنف في الحياة الاجتماعية","dutch":"Geweld in het Sociale Leven","english":"Violence in Social Life","hebrew":"אלימות בחיים החברתיים"}},{"definition":"Scenarios about access to care, mental-health support infrastructure, and the reliability or ethical role of systems that provide treatment and assistance.","id":"health-systems-medical-access","item_count":37,"name":{"arabic":"الأنظمة الصحية والوصول للعلاج","dutch":"Gezondheidssystemen & Medische Toegang","english":"Health Systems & Medical Access","hebrew":"מערכות בריאות וגישה לטיפול"}}]},{"definition":"Scenarios about climate breakdown, drought, fire, pollution, ecological disruption, resource scarcity, species protection, and environmental adaptation becoming central to life and politics.","id":"climate-ecology-environmental-survival","item_count":618,"name":{"arabic":"المناخ والبيئة والبقاء البيئي","dutch":"Klimaat, Ecologie & Ecologisch Overleven","english":"Climate, Ecology & Environmental Survival","hebrew":"אקלים, אקולוגיה והישרדות סביבתית"},"sub_themes":[{"definition":"Scenarios about sea-level rise, floods, fires, heat, catastrophic weather, and climate-driven disasters reshaping landscapes and settlement.","id":"climate-change-disasters","item_count":135,"name":{"arabic":"تغير المناخ والكوارث","dutch":"Klimaatverandering & Rampen","english":"Climate Change & Disasters","hebrew":"שינויי אקלים ואסונות"}},{"definition":"Scenarios about dry rivers, rationed water, survival under severe shortage, and water becoming the key axis of regional environmental crisis.","id":"water-scarcity-survival","item_count":89,"name":{"arabic":"ندرة المياه والبقاء","dutch":"Waterschaarste & Overleven","english":"Water Scarcity & Survival","hebrew":"מחסור במים והישרדות"}},{"definition":"Scenarios about ecological repair, replanting, restoration of damaged land, interdisciplinary solutions, and societies intentionally healing their environments.","id":"sustainability-restoration","item_count":124,"name":{"arabic":"الاستدامة والترميم","dutch":"Duurzaamheid & Herstel","english":"Sustainability & Restoration","hebrew":"קיימות ושיקום"}},{"definition":"Scenarios about famine, food scarcity, agricultural recovery, plant-based diets, and the organization of resources under ecological stress.","id":"food-security-resource-systems","item_count":114,"name":{"arabic":"الأمن الغذائي وأنظمة الموارد","dutch":"Voedselzekerheid & Grondstofsystemen","english":"Food Security & Resource Systems","hebrew":"ביטחון מזון ומערכות משאבים"}},{"definition":"Scenarios about pollution-driven migration, invasive species, endangered local wildlife, and public efforts to protect or document fragile ecosystems.","id":"pollution-wildlife-ecosystems","item_count":156,"name":{"arabic":"التلوث والحياة البرية والأنظمة البيئية","dutch":"Vervuiling, Wilde Dieren & Ecosystemen","english":"Pollution, Wildlife & Ecosystems","hebrew":"זיהום, חיות בר ומערכות אקולוגיות"}}]},{"definition":"Scenarios focused on cities, transport, utilities, reconstruction, public venues, beaches, mega-cities, and the built environment as a site of social and political transformation.","id":"urban-life-infrastructure-shared-space","item_count":853,"name":{"arabic":"الحياة الحضرية والبنية التحتية والحيز المشترك","dutch":"Stedelijk Leven, Infrastructuur & Gedeelde Ruimte","english":"Urban Life, Infrastructure & Shared Space","hebrew":"חיים עירוניים, תשתיות ומרחב משותף"},"sub_themes":[{"definition":"Scenarios about smart routing, integrated transit, regional corridors, crowd management, roads, and transport systems that shape daily movement.","id":"urban-mobility-transport","item_count":101,"name":{"arabic":"التنقل الحضري والنقل","dutch":"Stedelijke Mobiliteit & Vervoer","english":"Urban Mobility & Transport","hebrew":"תחבורה ותנועה עירונית"}},{"definition":"Scenarios about reconstruction, industrial or residential megaprojects, neighborhood transformation, and major changes in urban form after conflict or crisis.","id":"housing-urban-development","item_count":101,"name":{"arabic":"الإسكان والتطوير الحضري","dutch":"Huisvesting & Stedelijke Ontwikkeling","english":"Housing & Urban Development","hebrew":"דיור ופיתוח עירוני"}},{"definition":"Scenarios about water delivery, municipal systems, public infrastructure reliability, and essential services under stress or renewal.","id":"public-services-utilities","item_count":107,"name":{"arabic":"الخدمات العامة والمرافق","dutch":"Openbare Diensten & Nutsvoorzieningen","english":"Public Services & Utilities","hebrew":"שירותים ציבוריים ותשתיות"}},{"definition":"Scenarios emphasizing beaches, parks, markets, marathons, reclaimed streets, and everyday shared spaces as the texture of collective life.","id":"public-spaces-community-life","item_count":150,"name":{"arabic":"المساحات العامة والحياة المجتمعية","dutch":"Publieke Ruimtes & Gemeenschapsleven","english":"Public Spaces & Community Life","hebrew":"מרחבים ציבוריים וחיי קהילה"}},{"definition":"Scenarios where access to urban places is regulated, overcrowded, unequal, or exclusionary, reproducing social hierarchy and restricted autonomy.","id":"urban-segregation-exclusion","item_count":81,"name":{"arabic":"الفصل والإقصاء الحضري","dutch":"Stedelijke Segregatie & Uitsluiting","english":"Urban Segregation & Exclusion","hebrew":"הפרדה והדרה עירונית"}},{"definition":"Scenarios about uninhabitable zones, radiation, mega-cities, ruined terrain, and radically transformed built environments after disaster or war.","id":"post-apocalyptic-landscapes","item_count":313,"name":{"arabic":"مناظر ما بعد الكارثة","dutch":"Post-apocalyptische Landschappen","english":"Post-Apocalyptic Landscapes","hebrew":"נופים פוסט-אפוקליפטיים"}}]}],"version":"2026-05-22T08:09:32.471949+00:00"},"h":{},"s":200,"st":"OK","u":"https://chronomaps-api-qjzuw7ypfq-ez.a.run.app/taxonomy","rt":"json"},"__nghData__":[{"c":{"0":[{"i":"c1329615251","r":1}]}}]}</script></body></html>
