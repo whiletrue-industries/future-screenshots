@@ -456,11 +456,6 @@ export class ModerateComponent implements OnInit, OnDestroy {
         ).subscribe((data: any) => {
           this.workspace.set(data);
         });
-        // Defer aggregate stats so items load gets priority — Cloud Run
-        // struggles with 8 simultaneous requests on startup.
-        timer(3000).pipe(
-          takeUntilDestroyed(this.destroyRef)
-        ).subscribe(() => untracked(() => this.refreshStats()));
       }
     });
     effect(() => {
@@ -1563,6 +1558,11 @@ export class ModerateComponent implements OnInit, OnDestroy {
         // Update visible items if we found any new ones
         if (newItems.length > 0) {
           this.allFetchedItems.set([...existing, ...newItems]);
+          // Fetch workspace aggregates only after items are loading successfully,
+          // which reduces startup load on the backend.
+          if (!this.workspaceStats() && !this.statsLoading()) {
+            this.refreshStats();
+          }
         } else if (items.length < 500) {
           // No new items AND got fewer than page_size, we've definitely reached the end
           this.hasMoreItems.set(false);

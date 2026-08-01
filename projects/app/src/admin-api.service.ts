@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { catchError, forkJoin, map, Observable, of, switchMap } from 'rxjs';
+import { catchError, forkJoin, map, Observable, of, switchMap, throwError } from 'rxjs';
 import { AuthService } from './app/auth.service';
 import { CreateOrUpdateWorkspaceRequest, Workspace, WorkspaceStats } from './app/admin/workspace-metadata.interface';
 
@@ -50,8 +50,9 @@ export class AdminApiService {
       }
     }).pipe(
       catchError((error) => {
-        console.error('Error fetching items:', error.error);
-        return of(error.error); // Return null or handle the error as needed
+        console.error('Error fetching items:', error);
+        // Let component-level timeout/retry logic handle this path.
+        return throwError(() => error);
       })
     );
   }
