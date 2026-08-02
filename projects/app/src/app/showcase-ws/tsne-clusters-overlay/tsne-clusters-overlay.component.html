@@ -1,0 +1,5 @@
+<div class="tsne-cluster-labels-container" aria-hidden="true">
+  @for (label of labels(); track label.id) {
+    <div class="tsne-cluster-label" [class.prevent]="isPrevent(label)">{{ label.name }}</div>
+  }
+</div>

@@ -4,8 +4,13 @@ import { Observable, from } from 'rxjs';
 import { PHOTO_CONSTANTS } from './photo-constants';
 
 /**
- * TSNE Layout Strategy that fetches positioning data from a remote configuration service
- * and positions photos according to TSNE (t-Distributed Stochastic Neighbor Embedding) algorithm results.
+ * TSNE Layout Strategy that positions photos according to the t-SNE embedding
+ * precalculated server-side and published alongside the map tiles.
+ *
+ * The same data backs the raster tiles rendered by the Leaflet `/show` output map,
+ * so this layout is a vector reproduction of that view inside the Three.js scene.
+ * Items that are absent from the precalculated grid (e.g. added after the last
+ * recalculation) are hidden rather than approximated.
  */
 export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayoutStrategy {
   private workspaceConfigUrl: string;
@@ -39,7 +44,7 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
   ) {
     super();
     this.workspaceConfigUrl = `${this.baseUrl}/tiles/${this.workspaceId}/config.json`;
-    
+
     // Use same dimensions as grid layout to ensure consistency
     this.photoWidth = options.photoWidth ?? PHOTO_CONSTANTS.PHOTO_WIDTH;
     this.photoHeight = options.photoHeight ?? PHOTO_CONSTANTS.PHOTO_HEIGHT;
@@ -56,7 +61,6 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
     await super.initialize();
     // Always refresh data when switching to TSNE layout to ensure we have the latest data
     await this.forceRefresh();
-
   }
 
   /**
@@ -64,9 +68,9 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
    */
   getConfiguration(): LayoutConfiguration {
     return {
-      name: 'tsne',
+      name: 'tsne-grid',
       displayName: 'TSNE Layout',
-      description: 'Positions photos using TSNE coordinates from a web service with proper spacing',
+      description: 'Positions photos on the server-precalculated t-SNE grid',
       supportsInteraction: false,
       requiresWebService: true,
       settings: {
@@ -99,17 +103,17 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
   private async fetchWorkspaceConfig(): Promise<WorkspaceConfig> {
     try {
       const response = await fetch(this.workspaceConfigUrl);
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch workspace config: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
-      
+
       if (typeof data.set_id !== 'number') {
         throw new Error('Invalid workspace config: missing or invalid set_id: ' + data.set_id + ' ' + typeof data.set_id);
       }
-      
+
       if (!data.state_hash || typeof data.state_hash !== 'string') {
         throw new Error('Invalid workspace config: missing or invalid state_hash: ' + data.state_hash);
       }
@@ -134,7 +138,7 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
 
     this.isLoading = true;
     this.loadPromise = this.doFetchTsneData();
-    
+
     try {
       await this.loadPromise;
     } finally {
@@ -146,31 +150,26 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
     try {
       // First, fetch workspace configuration to get set_id and state_hash
       const workspaceConfig = await this.fetchWorkspaceConfig();
-      
+
       // Check if we need to refresh based on state_hash
       if (this.currentStateHash === workspaceConfig.state_hash && this.tsneData) {
-
         return;
       }
-      
+
       // Update our tracking variables
       this.currentStateHash = workspaceConfig.state_hash;
       this.currentSetId = workspaceConfig.set_id;
       this.tsneConfigUrl = `${this.baseUrl}/tiles/${this.workspaceId}/${workspaceConfig.set_id}/config.json`;
-      
 
-      
       // Now fetch the actual TSNE configuration
       const response = await fetch(this.tsneConfigUrl);
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch TSNE config: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
       this.tsneData = this.validateTsneConfig(data);
-      
-
     } catch (error) {
       console.error('Error fetching TSNE configuration:', error);
       throw error;
@@ -199,11 +198,11 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
       if (!item || typeof item !== 'object') {
         throw new Error(`Invalid TSNE config: grid item ${i} is not an object`);
       }
-      
+
       if (!Array.isArray(item.pos) || item.pos.length !== 2) {
         throw new Error(`Invalid TSNE config: grid item ${i} pos must be an array of 2 numbers`);
       }
-      
+
       if (typeof item.id !== 'string') {
         throw new Error(`Invalid TSNE config: grid item ${i} id must be a string`);
       }
@@ -214,53 +213,30 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
       grid: data.grid as TsneGridItem[],
       padding_ratio: data.padding_ratio || 0.5,
       conversion_ratio: data.conversion_ratio || [1, 1],
-      cell_ratios: data.cell_ratios || [1, 1]
+      cell_ratios: data.cell_ratios || [1, 1],
+      clusters: Array.isArray(data.clusters) ? data.clusters as TsneClusterItem[] : []
     };
   }
 
   /**
-   * Gets the position for a photo based on TSNE coordinates
+   * Gets the position for a photo based on TSNE coordinates.
+   * Returns null (i.e. hides the photo) for items missing from the precalculated grid.
    */
-  async getPositionForPhoto(photo: PhotoData, existingPhotos: PhotoData[]): Promise<LayoutPosition | null> {
+  async getPositionForPhoto(photo: PhotoData): Promise<LayoutPosition | null> {
     // Ensure TSNE data is loaded
     await this.fetchTsneData();
-    
+
     if (!this.tsneData) {
       throw new Error('TSNE data not available');
     }
 
-    // Find the photo in the TSNE grid data by matching ID
     const gridItem = this.tsneData.grid.find(item => item.id === photo.id);
-    
     if (!gridItem) {
-      const fallbackWorldPos = this.getFallbackWorldPosition(photo, existingPhotos);
-      if (fallbackWorldPos) {
-        return {
-          x: fallbackWorldPos.x,
-          y: fallbackWorldPos.y,
-          gridKey: `tsne-fallback-${photo.id}`,
-          metadata: {
-            tsneFallback: true,
-            tsneMissingId: photo.id,
-          }
-        };
-      }
-
-      // Last-resort fallback: place near layout center instead of hiding.
-      const centerJitter = this.getDeterministicJitter(photo.id, Math.min(this.cellW, this.cellH) * 0.35);
-      return {
-        x: centerJitter.x,
-        y: centerJitter.y,
-        gridKey: `tsne-fallback-center-${photo.id}`,
-        metadata: {
-          tsneFallback: true,
-          tsneMissingId: photo.id,
-        }
-      };
+      return null;
     }
 
-    // Convert TSNE grid coordinates to world coordinates
     const worldPos = this.convertTsneToWorldCoordinates(gridItem.pos, this.tsneData.dim);
+    const rotateDeg = gridItem.metadata?.rotate;
 
     return {
       x: worldPos.x,
@@ -268,107 +244,10 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
       gridKey: `tsne-${gridItem.pos[0]}-${gridItem.pos[1]}`,
       metadata: {
         tsnePosition: gridItem.pos,
-        originalMetadata: gridItem.metadata
+        // Consumed by ThreeRendererService when the layout rotation override is enabled,
+        // so item tilt matches the server-rendered tiles exactly.
+        _tsneRotateDeg: typeof rotateDeg === 'number' ? rotateDeg : undefined,
       }
-    };
-  }
-
-  /**
-   * Compute a fallback world position for items missing from TSNE grid data.
-   * Strategy:
-   * 1) Place near centroid of mapped items sharing the same topic.
-   * 2) Else place near centroid of mapped items sharing the same theme.
-    * 3) Else place near the global centroid of all mapped items.
-    * 4) Else return null and let caller use center fallback.
-   */
-  private getFallbackWorldPosition(photo: PhotoData, existingPhotos: PhotoData[]): { x: number; y: number } | null {
-    if (!this.tsneData) return null;
-
-    const mappedById = new Set(this.tsneData.grid.map(item => item.id));
-    const topicCentroids = new Map<string, { sumX: number; sumY: number; count: number }>();
-    const themeCentroids = new Map<string, { sumX: number; sumY: number; count: number }>();
-
-    const globalAccumulator = { sumX: 0, sumY: 0, count: 0 };
-
-    for (const existing of existingPhotos) {
-      if (!mappedById.has(existing.id)) continue;
-      const world = this.getWorldPositionForId(existing.id);
-      if (!world) continue;
-
-      globalAccumulator.sumX += world.x;
-      globalAccumulator.sumY += world.y;
-      globalAccumulator.count += 1;
-
-      const topics: string[] = (existing.metadata['topics'] as string[]) || [];
-      const uniqueTopics = new Set(topics);
-
-      for (const topic of uniqueTopics) {
-        const topicAcc = topicCentroids.get(topic) ?? { sumX: 0, sumY: 0, count: 0 };
-        topicAcc.sumX += world.x;
-        topicAcc.sumY += world.y;
-        topicAcc.count += 1;
-        topicCentroids.set(topic, topicAcc);
-
-        const theme = topic.split('/')[0];
-        const themeAcc = themeCentroids.get(theme) ?? { sumX: 0, sumY: 0, count: 0 };
-        themeAcc.sumX += world.x;
-        themeAcc.sumY += world.y;
-        themeAcc.count += 1;
-        themeCentroids.set(theme, themeAcc);
-      }
-    }
-
-    const photoTopics: string[] = (photo.metadata['topics'] as string[]) || [];
-    for (const topic of photoTopics) {
-      const acc = topicCentroids.get(topic);
-      if (acc && acc.count > 0) {
-        const center = { x: acc.sumX / acc.count, y: acc.sumY / acc.count };
-        const jitter = this.getDeterministicJitter(photo.id, Math.min(this.cellW, this.cellH) * 0.22);
-        return { x: center.x + jitter.x, y: center.y + jitter.y };
-      }
-    }
-
-    for (const topic of photoTopics) {
-      const theme = topic.split('/')[0];
-      const acc = themeCentroids.get(theme);
-      if (acc && acc.count > 0) {
-        const center = { x: acc.sumX / acc.count, y: acc.sumY / acc.count };
-        const jitter = this.getDeterministicJitter(photo.id, Math.min(this.cellW, this.cellH) * 0.3);
-        return { x: center.x + jitter.x, y: center.y + jitter.y };
-      }
-    }
-
-    // Non-evaluated / topic-less items: anchor to overall mapped cloud with stable jitter.
-    if (globalAccumulator.count > 0) {
-      const center = {
-        x: globalAccumulator.sumX / globalAccumulator.count,
-        y: globalAccumulator.sumY / globalAccumulator.count,
-      };
-      const jitter = this.getDeterministicJitter(photo.id, Math.min(this.cellW, this.cellH) * 0.35);
-      return { x: center.x + jitter.x, y: center.y + jitter.y };
-    }
-
-    return null;
-  }
-
-  /**
-   * Stable pseudo-random offset based on item ID to avoid overlap while staying deterministic.
-   */
-  private getDeterministicJitter(id: string, radius: number): { x: number; y: number } {
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) {
-      hash = ((hash << 5) - hash) + id.charCodeAt(i);
-      hash |= 0;
-    }
-
-    const seedA = Math.abs(hash);
-    const seedB = Math.abs(hash * 1103515245 + 12345);
-    const angle = (seedA % 360) * (Math.PI / 180);
-    const dist = ((seedB % 1000) / 1000) * radius;
-
-    return {
-      x: Math.cos(angle) * dist,
-      y: Math.sin(angle) * dist,
     };
   }
 
@@ -377,141 +256,16 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
    */
   async calculateAllPositions(photos: PhotoData[]): Promise<(LayoutPosition | null)[]> {
     await this.fetchTsneData();
-    
+
     if (!this.tsneData) {
       throw new Error('TSNE data not available');
     }
 
     const positions: (LayoutPosition | null)[] = [];
-    
     for (const photo of photos) {
-      const position = await this.getPositionForPhoto(photo, photos);
-      positions.push(position);
+      positions.push(await this.getPositionForPhoto(photo));
     }
-
-    return this.resolvePositionOverlaps(photos, positions);
-  }
-
-  /**
-   * Ensure each item occupies a unique visual slot by spreading coordinate collisions
-   * along a deterministic hex spiral around their shared base position.
-   */
-  private resolvePositionOverlaps(
-    photos: PhotoData[],
-    positions: (LayoutPosition | null)[]
-  ): (LayoutPosition | null)[] {
-    if (!this.tsneData) return positions;
-
-    const dim = this.tsneData.dim;
-    const resolved = positions.map(p => (p ? { ...p, metadata: p.metadata ? { ...p.metadata } : undefined } : null));
-    const occupied = new Set<string>();
-
-    const indices = resolved
-      .map((p, index) => ({ p, index }))
-      .filter(entry => !!entry.p)
-      // Prefer explicit TSNE positions first, then stable by ID for deterministic output.
-      .sort((a, b) => {
-        const aHasTsnePos = Array.isArray(a.p!.metadata?.['tsnePosition']) ? 1 : 0;
-        const bHasTsnePos = Array.isArray(b.p!.metadata?.['tsnePosition']) ? 1 : 0;
-        if (aHasTsnePos !== bHasTsnePos) return bHasTsnePos - aHasTsnePos;
-        return photos[a.index].id.localeCompare(photos[b.index].id);
-      })
-      .map(entry => entry.index);
-
-    for (const index of indices) {
-      const position = resolved[index];
-      if (!position) continue;
-
-      const desired = this.getDesiredGridCoord(position, dim);
-      const assigned = this.findNearestFreeGridCoord(desired, occupied);
-      occupied.add(this.gridCoordKey(assigned));
-
-      const world = this.convertTsneToWorldCoordinates([assigned.x, assigned.y], dim);
-      position.x = world.x;
-      position.y = world.y;
-      position.gridKey = `tsne-${assigned.x}-${assigned.y}`;
-      position.metadata = {
-        ...(position.metadata || {}),
-        tsneAssignedGridPos: [assigned.x, assigned.y],
-      };
-    }
-
-    return resolved;
-  }
-
-  /**
-   * Determine the desired integer grid coordinate for a position.
-   * Uses native TSNE grid position when available; otherwise rounds from world-space.
-   */
-  private getDesiredGridCoord(position: LayoutPosition, dim: [number, number]): { x: number; y: number } {
-    const tsnePosition = position.metadata?.['tsnePosition'];
-    if (Array.isArray(tsnePosition) && tsnePosition.length === 2) {
-      return {
-        x: Math.round(Number(tsnePosition[0])),
-        y: Math.round(Number(tsnePosition[1])),
-      };
-    }
-
-    return this.worldToGridCoordinates(position.x, position.y, dim);
-  }
-
-  /** Convert world coordinates back to nearest integer TSNE grid coordinate. */
-  private worldToGridCoordinates(worldX: number, worldY: number, dim: [number, number]): { x: number; y: number } {
-    const [maxGridX, maxGridY] = dim;
-    const centerOffsetX = (maxGridX - 1) * this.cellW / 2 + this.cellW / 4;
-    const centerOffsetY = (maxGridY - 1) * this.cellH / 2;
-
-    // Estimate gridY first, then correct for the hex row offset when computing gridX.
-    const gridY = Math.round((centerOffsetY - worldY) / this.cellH);
-    const hexOffsetX = (gridY % 2 !== 0) ? this.cellW / 2 : 0;
-    const gridX = Math.round((worldX + centerOffsetX - hexOffsetX) / this.cellW);
-
-    return { x: gridX, y: gridY };
-  }
-
-  /** Find the nearest unoccupied grid coordinate using deterministic hex-spiral expansion. */
-  private findNearestFreeGridCoord(
-    desired: { x: number; y: number },
-    occupied: Set<string>
-  ): { x: number; y: number } {
-    const desiredKey = this.gridCoordKey(desired);
-    if (!occupied.has(desiredKey)) return desired;
-
-    let ring = 1;
-    while (ring < 1024) {
-      let q = desired.x - ring;
-      let r = desired.y + ring;
-
-      const dirs: ReadonlyArray<readonly [number, number]> = [
-        [1, 0],
-        [1, -1],
-        [0, -1],
-        [-1, 0],
-        [-1, 1],
-        [0, 1],
-      ];
-
-      for (let d = 0; d < dirs.length; d++) {
-        const [dq, dr] = dirs[d];
-        for (let step = 0; step < ring; step++) {
-          const candidate = { x: q, y: r };
-          if (!occupied.has(this.gridCoordKey(candidate))) {
-            return candidate;
-          }
-          q += dq;
-          r += dr;
-        }
-      }
-
-      ring += 1;
-    }
-
-    // Should be practically unreachable; keeps function total in pathological cases.
-    return { x: desired.x, y: desired.y + 2048 };
-  }
-
-  private gridCoordKey(coord: { x: number; y: number }): string {
-    return `${coord.x}:${coord.y}`;
+    return positions;
   }
 
   /**
@@ -523,27 +277,26 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
 
   /**
    * Converts TSNE grid coordinates to Three.js world coordinates.
-   * Uses a hexbin (offset-row) layout: odd rows are shifted right by half
-   * a cell width to produce the classic brick/beehive stagger.
+   *
+   * The layout is a hexbin (offset-row) grid, but the half-cell stagger of odd
+   * rows is already baked into the published `pos[0]` values (odd rows end in
+   * `.5`), so no extra offset is applied here.
    */
   private convertTsneToWorldCoordinates(
-    tsnePos: [number, number], 
+    tsnePos: [number, number],
     gridDim: [number, number]
   ): { x: number; y: number } {
     const [gridX, gridY] = tsnePos;
     const [maxGridX, maxGridY] = gridDim;
-    
-    // Hexbin offset: odd rows are shifted right by half a cell width.
-    const hexOffsetX = (Math.round(gridY) % 2 !== 0) ? this.cellW / 2 : 0;
 
     // Center the grid around origin. The extra cellW/4 accounts for the average
     // half-cell shift across odd/even rows so the overall layout stays centred.
     const centerOffsetX = (maxGridX - 1) * this.cellW / 2 + this.cellW / 4;
     const centerOffsetY = (maxGridY - 1) * this.cellH / 2;
-    
-    const worldX = gridX * this.cellW + hexOffsetX - centerOffsetX;
+
+    const worldX = gridX * this.cellW - centerOffsetX;
     const worldY = centerOffsetY - gridY * this.cellH; // Flip Y axis for screen coordinates
-    
+
     return { x: worldX, y: worldY };
   }
 
@@ -552,47 +305,46 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
    */
   private async getAllPositionsAsMap(photos: PhotoData[]): Promise<{ [photoId: string]: LayoutPosition | null }> {
     await this.fetchTsneData();
-    
+
     if (!this.tsneData) {
       throw new Error('TSNE data not available');
     }
 
     const positions: { [photoId: string]: LayoutPosition | null } = {};
-    
     for (const photo of photos) {
-      const position = await this.getPositionForPhoto(photo, photos);
-      positions[photo.id] = position;
+      positions[photo.id] = await this.getPositionForPhoto(photo);
     }
-    
     return positions;
   }
-  
+
   /**
    * Gets the layout bounds based on TSNE data
    */
   async getLayoutBounds(): Promise<{ width: number; height: number }> {
     await this.fetchTsneData();
-    
+
     if (!this.tsneData) {
       return { width: this.cellW * 10, height: this.cellH * 10 }; // Default fallback
     }
 
     // Calculate dimensions based on TSNE grid size using actual cell dimensions
     const [maxGridX, maxGridY] = this.tsneData.dim;
-    
+
     // Extra cellW/2 for the hex row offset on odd rows.
     const width = maxGridX * this.cellW + this.cellW / 2;
     const height = maxGridY * this.cellH;
-    
+
     return { width, height };
-  }  /**
+  }
+
+  /**
    * Updates the workspace ID and reloads TSNE data
    */
   async setWorkspaceId(workspaceId: string): Promise<void> {
     if (this.workspaceId === workspaceId) {
       return;
     }
-    
+
     this.workspaceId = workspaceId;
     this.workspaceConfigUrl = `${this.baseUrl}/tiles/${this.workspaceId}/config.json`;
     this.tsneData = null;
@@ -601,7 +353,7 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
     this.tsneConfigUrl = null;
     this.isLoading = false;
     this.loadPromise = null;
-    
+
     // Preload new data
     await this.fetchTsneData();
   }
@@ -620,7 +372,7 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
     if (!this.tsneData) {
       return null;
     }
-    
+
     return {
       workspaceId: this.workspaceId,
       gridSize: this.tsneData.dim,
@@ -634,7 +386,7 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
 
   /**
    * Returns the world-space position for an item by its ID, or null if not found.
-   * Requires that TSNE data has been loaded (call fetchTsneData / initialize first).
+   * Requires that TSNE data has been loaded (call initialize() first).
    */
   getWorldPositionForId(id: string): { x: number; y: number } | null {
     if (!this.tsneData) return null;
@@ -645,7 +397,7 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
 
   /**
    * Returns the cluster regions defined in the TSNE configuration, converted to
-   * world-space centre coordinates and approximate sizes.
+   * world-space centre coordinates and sizes.
    * Returns an empty array if no clusters are defined or data has not been loaded.
    */
   getClustersWithWorldCoords(): TsneClusterWithWorldCoords[] {
@@ -653,17 +405,14 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
     const dim = this.tsneData.dim;
     return this.tsneData.clusters.map(cluster => {
       const [[x1, y1], [x2, y2]] = cluster.bounds;
-      const gridCenterX = (x1 + x2) / 2;
-      const gridCenterY = (y1 + y2) / 2;
-      const center = this.convertTsneToWorldCoordinates([gridCenterX, gridCenterY], dim);
-      const topLeft = this.convertTsneToWorldCoordinates([x1, y1], dim);
-      const bottomRight = this.convertTsneToWorldCoordinates([x2, y2], dim);
+      const center = this.convertTsneToWorldCoordinates([(x1 + x2) / 2, (y1 + y2) / 2], dim);
       return {
         title: cluster.title,
         centerX: center.x,
         centerY: center.y,
-        halfW: Math.abs(bottomRight.x - topLeft.x) / 2,
-        halfH: Math.abs(bottomRight.y - topLeft.y) / 2,
+        width: Math.abs(x2 - x1) * this.cellW,
+        height: Math.abs(y2 - y1) * this.cellH,
+        averageRotation: cluster.average_rotation ?? 0,
       };
     });
   }
@@ -678,7 +427,7 @@ interface TsneConfigData {
   padding_ratio: number;
   conversion_ratio: [number, number];
   cell_ratios: [number, number];
-  clusters?: TsneClusterItem[];
+  clusters: TsneClusterItem[];
 }
 
 /**
@@ -699,9 +448,11 @@ export interface TsneClusterWithWorldCoords {
   /** Center of the cluster in Three.js world coordinates */
   centerX: number;
   centerY: number;
-  /** Approximate half-width/height of the cluster region in world units */
-  halfW: number;
-  halfH: number;
+  /** Size of the cluster region in world units */
+  width: number;
+  height: number;
+  /** Mean item rotation (degrees) within the cluster – drives label tilt and colour */
+  averageRotation: number;
 }
 
 /**

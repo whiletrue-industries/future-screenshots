@@ -119,16 +119,23 @@ The application uses Angular standalone components organized by feature:
 
 9. **Showcase WS** (`/showcase-ws`)
    - 3D immersive visualization using Three.js
-   - Multiple layout strategies:
-     - Grid: Random positioning in a grid
-     - TSNE / Thematic: Hex-grid layout driven by taxonomy and embedding similarity. Accessible via the **Thematic** toggle button.
-     - SVG: Interactive placement on custom background with hotspots
-     - Circle Packing: Clustered circular arrangement by group
-   - **Taxonomy overlay labels** (shown in Thematic layout):
-       - Only sub-theme labels are shown; positions are derived from taxonomy label nodes, with TSNE cluster regions as fallback when topic metadata is unavailable
+   - Layout strategies, one per button in the bottom layout toggle (hash key in parentheses):
+     - **Map** (`svg`) – interactive placement on a custom SVG background with hotspots (`SvgBackgroundLayoutStrategy`)
+     - **Thematic** (`tsne`) – hex-grid layout computed client-side from the taxonomy tree (`TaxonomyLayoutStrategy`)
+     - **TSNE** (`tsne-grid`) – the embedding precalculated server-side (`TsneLayoutStrategy`)
+     - **Clusters** (`circle-packing`) – clustered circular arrangement by group (`CirclePackingLayoutStrategy`)
+   - **Thematic layout** (`TaxonomyLayoutStrategy`):
+     - Taxonomy overlay labels: only sub-theme labels are shown; positions are derived from taxonomy label nodes, with TSNE cluster regions as fallback when topic metadata is unavailable
      - Labels update position in real-time at 60 fps using `ThreeRendererService.addFrameCallback()`
-    - TSNE fallback mapping: items missing from server TSNE grid are still positioned in Thematic layout using deterministic topic/theme centroid fallback (instead of being hidden)
-    - TSNE collision handling: all items in Thematic layout (including uncertain/non-evaluated) are assigned globally unique hexbins; collisions are resolved by nearest-free-bin deterministic hex-spiral allocation, and sub-theme label anchor bins are kept free so labels do not share a bin with a photo node
+     - Fallback mapping: items missing from the taxonomy grid are still positioned, using a deterministic topic/theme centroid fallback (instead of being hidden)
+     - Collision handling: all items (including uncertain/non-evaluated) are assigned globally unique hexbins; collisions are resolved by nearest-free-bin deterministic hex-spiral allocation, and sub-theme label anchor bins are kept free so labels do not share a bin with a photo node
+   - **TSNE layout** (`TsneLayoutStrategy`) – a vector reproduction of the raster tiles rendered by the Leaflet `/show` output map, from the same source data:
+     - Reads `tiles/<workspace>/config.json` for the current `set_id` and `state_hash`, then `tiles/<workspace>/<set_id>/config.json` for the grid, and refreshes whenever `state_hash` changes
+     - Grid positions are used verbatim: the half-cell stagger of odd rows is already baked into the published `pos[0]` values, so no extra hex offset is applied
+     - Items absent from the precalculated grid (added since the last recalculation) are hidden rather than approximated, so the view stays faithful to the tiles
+     - Per-item tilt comes from the grid's `metadata.rotate`, applied via `ThreeRendererService.setLayoutRotationOverrideEnabled()`; every other layout derives rotation from plausibility/favorable_future
+     - Cluster titles are overlaid by `TsneClustersOverlayComponent`, matching the output map: italic with a cream halo, tilted by `-average_rotation × 2`, coloured prefer-dark or prevent-dark by the sign of `average_rotation`, and sized to span the cluster so they scale with zoom
+     - Titles are localized with `TaxonomyService.localizeName()`, which follows the browser language (not the `lang` URL parameter)
    - Rejected items are excluded from showcase ingestion (`_private_moderation === 0` or `status === rejected`) and are not rendered in showcase-ws or output-map loops
    - User camera controls:
      - Pan: Click and drag to move around the canvas
@@ -139,12 +146,11 @@ The application uses Angular standalone components organized by feature:
    - Smooth camera animations with damping
    - QR code for easy mobile access
    - Random showcase mode to highlight photos
-    - **Permalink support**: Navigate to specific items via `item-id` parameter
-       - Example: `/showcase-ws?workspace=XXX&api_key=YYY&item-id=ZZZ&layout=svg`
-       - Camera automatically zooms and centers on the specified item
-    - **Layout aliases**: Friendly URL parameters for layout modes
-       - `layout=clusters` → Circle-packing layout
-       - `layout=themes` → Grid layout
+    - **URL state**: the active view, focused item and search text live in the URL *hash*, and are kept in sync as the user navigates
+       - Example: `/showcase-ws?workspace=XXX&api_key=YYY#view=tsne-grid&item=ZZZ&search=foo`
+       - `view` (or its alias `layout`) accepts the exact strategy keys: `svg`, `tsne`, `tsne-grid`, `circle-packing`
+       - `item` focuses an item – the camera zooms and centres on it
+       - Legacy forms are still accepted: a bare `#<view>` or a bare `#<item-id>`
    - **Access control**: Drag-to-edit only for users with admin_key
      - Visitors can view and click but not drag items
      - Editors with admin_key can drag and edit all items
