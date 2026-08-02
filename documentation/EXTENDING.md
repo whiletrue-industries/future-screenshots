@@ -441,6 +441,56 @@ export class MyShowcaseComponent {
 </div>
 ```
 
+## Adding a Layout to Showcase WS
+
+A "view" in `/showcase-ws` is a `LayoutStrategy` that positions the same Three.js
+photo meshes. Adding one means writing the strategy and registering it in five
+places in `showcase-ws.component.ts`.
+
+### 1. Write the strategy
+
+Extend `LayoutStrategy` (`app/showcase-ws/layout-strategy.interface.ts`) and implement
+`getConfiguration()`, `getPositionForPhoto()` and `calculateAllPositions()`. Return
+`null` for a photo to hide it. Anything you put in `LayoutPosition.metadata` is merged
+into the photo's metadata, which is how a layout passes hints to the renderer.
+
+If the layout needs remote data, also implement `WebServiceLayoutStrategy` and do the
+fetching in `initialize()` — see `tsne-layout-strategy.ts`, which loads the
+precalculated t-SNE from `tiles/<workspace>/<set_id>/config.json`.
+
+### 2. Register the view
+
+```typescript
+// 1. The view union
+export type ShowcaseLayoutView = 'tsne' | 'tsne-grid' | 'svg' | 'circle-packing' | 'my-layout';
+const SHOWCASE_LAYOUT_VIEWS: readonly ShowcaseLayoutView[] = [/* …, */ 'my-layout'];
+
+// 2. A switcher, next to the existing switchToXxxLayout() methods
+public async switchToMyLayout() { /* set currentLayout, updateHashState, build + apply strategy */ }
+
+// 3. Dispatch from the hash, in applyHashStateFromUrl()
+// 4. Both initial-layout paths in ngAfterViewInit (before and after the first data load)
+// 5. A <button class='toggle-button'> in the .layout-toggle block of the template
+```
+
+Each switcher must also release the state owned by the view it replaces — see
+`clearTaxonomyOverlayState()` / `clearTsneGridState()`.
+
+### 3. Add an overlay (optional)
+
+To draw HTML on top of the scene, register a per-frame callback and project world
+coordinates yourself:
+
+```typescript
+this.rendererService.addFrameCallback(() => {
+  const screen = this.rendererService.worldToScreen(worldX, worldY);
+  el.style.transform = `translate(-50%, -50%) translate(${screen.x}px, ${screen.y}px)`;
+});
+```
+
+Run it inside `ngZone.runOutsideAngular()` so it does not trigger change detection on
+every frame. `taxonomy-clusters-overlay/` and `tsne-clusters-overlay/` are both examples.
+
 ## Adding Custom Fields to Workspaces
 
 Workspaces can have custom fields for collecting additional data.
