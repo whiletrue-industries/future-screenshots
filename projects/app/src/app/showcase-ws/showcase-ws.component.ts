@@ -15,6 +15,7 @@ import { LayoutStrategy } from './layout-strategy.interface';
 import { TaxonomyLayoutStrategy } from './taxonomy-layout-strategy';
 import { SvgBackgroundLayoutStrategy } from './svg-background-layout-strategy';
 import { CirclePackingLayoutStrategy } from './circle-packing-layout-strategy';
+import { TsneLayoutStrategy } from './tsne-layout-strategy';
 import { PhotoDataRepository } from './photo-data-repository';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
@@ -22,6 +23,19 @@ import { ApiService } from '../../api.service';
 import { TaxonomyClustersOverlayComponent } from './taxonomy-clusters-overlay/taxonomy-clusters-overlay.component';
 import { TaxonomyClusterLabel } from './taxonomy-clusters-overlay/taxonomy-label.interface';
 import { TaxonomyLabelHoverEvent } from './taxonomy-clusters-overlay/taxonomy-clusters-overlay.component';
+import { TsneClustersOverlayComponent } from './tsne-clusters-overlay/tsne-clusters-overlay.component';
+import { TsneClusterLabel } from './tsne-clusters-overlay/tsne-cluster-label.interface';
+
+/**
+ * The views offered by the layout toggle.
+ * - `svg` – Map
+ * - `tsne` – Thematic (taxonomy-driven, see TaxonomyLayoutStrategy)
+ * - `tsne-grid` – TSNE (server-precalculated embedding, see TsneLayoutStrategy)
+ * - `circle-packing` – Clusters
+ */
+export type ShowcaseLayoutView = 'tsne' | 'tsne-grid' | 'svg' | 'circle-packing';
+
+const SHOWCASE_LAYOUT_VIEWS: readonly ShowcaseLayoutView[] = ['tsne', 'tsne-grid', 'svg', 'circle-packing'];
 
 /** Duration of the drag_all countdown in minutes when first enabled. */
 const DRAG_ALL_DEFAULT_MINUTES = 5;
@@ -31,7 +45,7 @@ const DRAG_ALL_ALLOWED_PROPERTIES = 'layout_x,layout_y,plausibility,favorable_fu
 
 @Component({
   selector: 'app-showcase-ws',
-  imports: [QrcodeComponent, EvaluationSidebarComponent, FiltersBarComponent, TaxonomyClustersOverlayComponent],
+  imports: [QrcodeComponent, EvaluationSidebarComponent, FiltersBarComponent, TaxonomyClustersOverlayComponent, TsneClustersOverlayComponent],
   templateUrl: './showcase-ws.component.html',
   styleUrl: './showcase-ws.component.less'
 })
@@ -55,7 +69,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   admin_key = signal('');
   lang = signal('');
   allowAdditionalContributions = signal(true); // Default to showing QR code
-  currentLayout = signal<'tsne' | 'svg' | 'circle-packing'>('circle-packing');
+  currentLayout = signal<ShowcaseLayoutView>('circle-packing');
   enableRandomShowcase = signal(false);
   enableSvgAutoPositioning = signal(true);
   fisheyeEnabled = signal(false);
@@ -67,6 +81,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   taxonomySubThemeLabels = signal<TaxonomyClusterLabel[]>([]);
   /** Reference to the active TSNE layout strategy so we can query cluster positions. */
   private currentTsneStrategy: TaxonomyLayoutStrategy | null = null;
+
+  // Cluster labels for the TSNE layout, read from the server's t-SNE configuration.
+  tsneClusterLabels = signal<TsneClusterLabel[]>([]);
   
   // Evaluation sidebar state
   sidebarOpen = signal(false);
@@ -425,13 +442,17 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         // If a hash-selected layout was already prepared before first load,
         // we still rerun TSNE once after data arrives so positions/cache are
         // populated from actual items (prevents empty thematic view on load).
+        const layoutNeedsRerun = this.currentLayout() === 'tsne' || this.currentLayout() === 'tsne-grid';
         const shouldSwitchAfterLoad = this.currentLayout() !== 'circle-packing'
-          && (!this.initialLayoutPreparedBeforeLoad || this.currentLayout() === 'tsne');
+          && (!this.initialLayoutPreparedBeforeLoad || layoutNeedsRerun);
         if (shouldSwitchAfterLoad) {
           try {
             switch (this.currentLayout()) {
               case 'tsne':
                 await this.switchToTsneLayout();
+                break;
+              case 'tsne-grid':
+                await this.switchToTsneGridLayout();
                 break;
               case 'svg':
                 await this.switchToSvgLayout();
@@ -1169,6 +1190,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         try {
           if (this.currentLayout() === 'tsne') {
             await this.switchToTsneLayout();
+          } else if (this.currentLayout() === 'tsne-grid') {
+            await this.switchToTsneGridLayout();
           } else if (this.currentLayout() === 'svg') {
             await this.switchToSvgLayout();
           }
@@ -1237,7 +1260,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       this.currentLayout.set('tsne');
       this.updateHashState({ view: 'tsne' });
       this.syncThematicFisheyeEffects();
-      
+      this.clearTsneGridState();
+
       // Create TSNE layout strategy with same dimensions as grid layout
       const tsneStrategy = new TaxonomyLayoutStrategy({
         photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
@@ -1265,6 +1289,79 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     } finally {
       this.layoutChangeInProgress = false;
     }
+  }
+
+  /**
+   * Switch to the TSNE layout: the embedding precalculated server-side and
+   * published alongside the map tiles, the same data the Leaflet `/show` map
+   * renders. Items missing from the precalculated grid are hidden.
+   */
+  public async switchToTsneGridLayout() {
+    if (this.layoutChangeInProgress) {
+      return;
+    }
+
+    if (!this.workspace()) {
+      console.error('Workspace not set');
+      return;
+    }
+
+    this.layoutChangeInProgress = true;
+    try {
+      // Update UI immediately for responsive feedback
+      this.currentLayout.set('tsne-grid');
+      this.updateHashState({ view: 'tsne-grid' });
+      this.syncThematicFisheyeEffects();
+      this.clearTaxonomyOverlayState();
+
+      const tsneStrategy = new TsneLayoutStrategy(this.workspace(), undefined, {
+        photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
+        photoHeight: PHOTO_CONSTANTS.PHOTO_HEIGHT,
+        spacingX: PHOTO_CONSTANTS.SPACING_X,
+        spacingY: PHOTO_CONSTANTS.SPACING_Y
+      });
+
+      // Fetches the workspace config and the set's t-SNE configuration
+      await tsneStrategy.initialize();
+
+      // Remove SVG background if switching from SVG layout
+      this.rendererService.removeSvgBackground();
+      this.photoRepository.setSvgVisible(false);
+
+      // Use the server's per-item rotation so tilt matches the rendered tiles
+      this.rendererService.setLayoutRotationOverrideEnabled(true);
+
+      await this.photoRepository.setLayoutStrategy(tsneStrategy);
+
+      this.tsneClusterLabels.set(
+        tsneStrategy.getClustersWithWorldCoords().map((cluster, index) => ({
+          id: `tsne-cluster-${index}`,
+          name: this.taxonomyService.localizeName(cluster.title),
+          worldX: cluster.centerX,
+          worldY: cluster.centerY,
+          worldWidth: cluster.width,
+          rotationDeg: cluster.averageRotation,
+        }))
+      );
+    } catch (error) {
+      console.error('Error switching to TSNE layout:', error);
+    } finally {
+      this.layoutChangeInProgress = false;
+    }
+  }
+
+  /** Tear down state owned by the TSNE layout when leaving it. */
+  private clearTsneGridState(): void {
+    this.tsneClusterLabels.set([]);
+    this.rendererService.setLayoutRotationOverrideEnabled(false);
+  }
+
+  /** Tear down state owned by the Thematic layout when leaving it. */
+  private clearTaxonomyOverlayState(): void {
+    this.currentTsneStrategy = null;
+    this.taxonomyThemeLabels.set([]);
+    this.taxonomySubThemeLabels.set([]);
+    this.rendererService.resetTaxonomyHoverOpacityFocus();
   }
 
   /**
@@ -1347,12 +1444,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       this.updateHashState({ view: 'svg' });
       this.syncThematicFisheyeEffects();
 
-      // Clear taxonomy overlay labels
-      this.currentTsneStrategy = null;
-      this.taxonomyThemeLabels.set([]);
-      this.taxonomySubThemeLabels.set([]);
-      this.rendererService.resetTaxonomyHoverOpacityFocus();
-      
+      this.clearTaxonomyOverlayState();
+      this.clearTsneGridState();
+
       // Read optional `svg` query param to override background path
       const svgParam = this.activatedRoute.snapshot.queryParams['svg'];
       const svgPath = svgParam || '/showcase-bg.svg';
@@ -1565,12 +1659,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       this.updateHashState({ view: 'circle-packing' });
       this.syncThematicFisheyeEffects();
 
-      // Clear taxonomy overlay labels
-      this.currentTsneStrategy = null;
-      this.taxonomyThemeLabels.set([]);
-      this.taxonomySubThemeLabels.set([]);
-      this.rendererService.resetTaxonomyHoverOpacityFocus();
-      
+      this.clearTaxonomyOverlayState();
+      this.clearTsneGridState();
+
       // Create circle packing layout strategy
       const circlePackingStrategy = new CirclePackingLayoutStrategy({
         photoWidth: PHOTO_CONSTANTS.PHOTO_WIDTH,
@@ -2072,7 +2163,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   private parseHashState(): {
-    view?: 'tsne' | 'svg' | 'circle-packing';
+    view?: ShowcaseLayoutView;
     itemId?: string;
     search?: string;
   } {
@@ -2108,16 +2199,15 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     };
   }
 
-  private normalizeLayout(layout: string | null): 'tsne' | 'svg' | 'circle-packing' | null {
+  private normalizeLayout(layout: string | null): ShowcaseLayoutView | null {
     if (!layout) return null;
-    if (layout === 'tsne' || layout === 'svg' || layout === 'circle-packing') {
-      return layout;
-    }
-    return null;
+    return SHOWCASE_LAYOUT_VIEWS.includes(layout as ShowcaseLayoutView)
+      ? layout as ShowcaseLayoutView
+      : null;
   }
 
   private updateHashState(patch: {
-    view?: 'tsne' | 'svg' | 'circle-packing' | null;
+    view?: ShowcaseLayoutView | null;
     itemId?: string | null;
     search?: string | null;
   }): void {
@@ -2178,6 +2268,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     if (hashState.view && hashState.view !== this.currentLayout()) {
       if (hashState.view === 'tsne') {
         void this.switchToTsneLayout();
+      } else if (hashState.view === 'tsne-grid') {
+        void this.switchToTsneGridLayout();
       } else if (hashState.view === 'svg') {
         void this.switchToSvgLayout();
       } else {
