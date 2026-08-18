@@ -27,6 +27,12 @@
     cursor: pointer;
 }
 
+.workspace-link-date {
+    display: inline-flex;
+    text-decoration: none;
+    color: inherit;
+}
+
 .row {
     display: grid;
     grid-template-columns: 120px 2fr 1.2fr 1.2fr auto;
@@ -35,13 +41,98 @@
 }
 
 .cell { color: @color-purple; }
-.date { color: @color-gray; }
+.date {
+    color: @color-gray;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+}
 .title { font-weight: 600; display: flex; flex-direction: column; gap: 4px; }
+.title-main {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
 .title-text { 
     color: @color-purple; 
     transition: color 0.15s ease;
 }
 .meta { color: @color-gray; font-size: 12px; }
+
+.workspace-link--title {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+
+.now-badge {
+    align-self: flex-start;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid @color-light-purple;
+    background: white;
+    color: @color-light-purple;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+        background: #F8F4FF;
+    }
+
+    &.active {
+        background: @color-light-purple;
+        color: white;
+    }
+
+    &.busy {
+        opacity: 0.65;
+        cursor: wait;
+    }
+}
+
+.now-end-time-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+}
+
+.now-end-time-label {
+    font-size: 11px;
+    color: @color-gray;
+}
+
+.now-end-time-input {
+    width: 100%;
+    min-width: 140px;
+    padding: 4px 6px;
+    border-radius: 8px;
+    border: 1px solid #E7CBFF;
+    font-size: 11px;
+    color: @color-purple;
+    background: #fff;
+}
+
+.now-end-time-clear {
+    align-self: flex-start;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid #E7CBFF;
+    background: #fff;
+    color: @color-purple;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:disabled {
+        opacity: 0.65;
+        cursor: wait;
+    }
+}
 
 .date-chip {
     display: inline-flex;

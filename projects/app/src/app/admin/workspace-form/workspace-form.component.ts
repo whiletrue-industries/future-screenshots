@@ -3,7 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminApiService } from '../../../admin-api.service';
-import { WorkspaceMetadata, CreateOrUpdateWorkspaceRequest, WsGroup } from '../workspace-metadata.interface';
+import { WorkspaceMetadata, CreateOrUpdateWorkspaceRequest, WsGroup, NowDefaultMode } from '../workspace-metadata.interface';
 
 interface LanguageOption {
   code: string;
@@ -18,9 +18,11 @@ interface LanguageOption {
   styleUrls: ['./workspace-form.component.less']
 })
 export class WorkspaceFormComponent implements OnInit {
+  private readonly nowWorkspaceStorageKey = 'fs_now_workspace_target';
   isEditMode = signal(false);
   workspaceId = signal<string | null>(null);
   adminKey = signal<string | null>(null);
+  collaborateApiKey = signal<string | null>(null);
 
   // Form data
   formData = signal<WorkspaceMetadata>({
@@ -35,15 +37,19 @@ export class WorkspaceFormComponent implements OnInit {
     keywords: [],
     active_templates: [
       'post', 'chat', 'notification', 'review', 'prompt', 
-      'photo', 'sign', 'holyland', 'world'
+      'photo', 'sign', 'holyland', 'world', 'blank'
     ], // Default: all except jerusalem, europe, us
     'context-label': '',
     source: '',
-    'email-template': ''
+    'email-template': '',
+    open_now: false,
+    now_default_mode: 'evaluate'
   });
 
   publicVisible = signal(false);
   collaborate = signal(false);
+  openNow = signal(false);
+  nowDefaultMode = signal<NowDefaultMode>('evaluate');
 
   // Available options
   availableLanguages: LanguageOption[] = [
@@ -82,6 +88,7 @@ export class WorkspaceFormComponent implements OnInit {
     { id: 'sign', name: 'Sign' },
     { id: 'holyland', name: 'Holy Land' },
     { id: 'world', name: 'World' },
+    { id: 'blank', name: 'Blank' },
     { id: 'jerusalem', name: 'Jerusalem' },
     { id: 'europe', name: 'Europe' },
     { id: 'us', name: 'United States' },
@@ -135,6 +142,33 @@ export class WorkspaceFormComponent implements OnInit {
           this.formData.set(metadata);
           this.publicVisible.set(workspace_metadata['public'] || false);
           this.collaborate.set(workspace_metadata['collaborate'] || false);
+          this.collaborateApiKey.set(workspace_metadata?.keys?.collaborate || null);
+
+          const storedTarget = this.getStoredNowWorkspaceTarget();
+          const isStoredNowTarget = storedTarget?.workspaceId === id;
+          const metadataOpenNow = workspace_metadata['open_now'] === true || metadata['open_now'] === true;
+          this.openNow.set(metadataOpenNow || isStoredNowTarget);
+          this.formData.update(data => ({
+            ...data,
+            open_now: this.openNow(),
+          }));
+
+          const requestedMode = workspace_metadata['now_default_mode'] || metadata['now_default_mode'];
+          const storedMode = isStoredNowTarget ? storedTarget?.defaultMode : null;
+          const nowMode = requestedMode === 'workshop' || requestedMode === 'batch'
+            ? requestedMode
+            : storedMode;
+          if (nowMode === 'workshop' || nowMode === 'batch') {
+            this.nowDefaultMode.set(nowMode);
+          } else {
+            this.nowDefaultMode.set('evaluate');
+          }
+          this.formData.update(data => ({
+            ...data,
+            now_default_mode: this.nowDefaultMode(),
+          }));
+
+          this.persistNowWorkspaceTarget(id, this.collaborateApiKey());
 
           // Ensure facilitator_names is an array
           if (!this.formData().facilitator_names || this.formData().facilitator_names.length === 0) {
@@ -212,7 +246,7 @@ export class WorkspaceFormComponent implements OnInit {
     if (!metadata.active_templates) {
       metadata.active_templates = [
         'post', 'chat', 'notification', 'review', 'prompt', 
-        'photo', 'sign', 'holyland', 'world'
+        'photo', 'sign', 'holyland', 'world', 'blank'
       ];
     }
 
@@ -394,12 +428,15 @@ export class WorkspaceFormComponent implements OnInit {
     const request: CreateOrUpdateWorkspaceRequest = {
       metadata: this.formData(),
       public: this.publicVisible(),
-      collaborate: this.collaborate()
+      collaborate: this.collaborate(),
+      open_now: this.openNow(),
+      now_default_mode: this.nowDefaultMode()
     };
 
     this.adminApi.createWorkspace(request).subscribe({
       next: (workspace) => {
         console.log('Workspace created successfully:', workspace);
+        this.persistNowWorkspaceTarget(workspace?.id || this.workspaceId(), workspace?.keys?.collaborate || null);
         this.router.navigate(['/admin'], {
           state: { message: 'Workspace created successfully!' }
         });
@@ -425,12 +462,15 @@ export class WorkspaceFormComponent implements OnInit {
     const request: CreateOrUpdateWorkspaceRequest = {
       metadata: this.formData(),
       public: this.publicVisible(),
-      collaborate: this.collaborate()
+      collaborate: this.collaborate(),
+      open_now: this.openNow(),
+      now_default_mode: this.nowDefaultMode()
     };
 
     this.adminApi.updateWorkspace(id, key, request).subscribe({
       next: (response) => {
         console.log('Workspace updated successfully:', response);
+        this.persistNowWorkspaceTarget(id, this.collaborateApiKey());
         this.router.navigate(['/admin'], {
           state: { message: 'Workspace updated successfully!' }
         });
@@ -456,6 +496,83 @@ export class WorkspaceFormComponent implements OnInit {
 
   onWsStrategicChange(value: boolean) {
     this.formData.update(d => ({ ...d, ws_strategic: value }));
+  }
+
+  onNowDefaultModeChange(value: string) {
+    if (value === 'workshop' || value === 'batch') {
+      this.nowDefaultMode.set(value);
+      this.formData.update(data => ({ ...data, now_default_mode: value }));
+      return;
+    }
+    this.nowDefaultMode.set('evaluate');
+    this.formData.update(data => ({ ...data, now_default_mode: 'evaluate' }));
+  }
+
+  onOpenNowChange(value: boolean) {
+    this.openNow.set(value);
+    this.formData.update(data => ({ ...data, open_now: value }));
+    if (!value && typeof window !== 'undefined') {
+      window.localStorage.removeItem(this.nowWorkspaceStorageKey);
+    }
+  }
+
+  private persistNowWorkspaceTarget(workspaceId: string | null | undefined, collaborateApiKey: string | null | undefined): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    try {
+      if (!this.openNow() || !workspaceId || !collaborateApiKey) {
+        const existing = window.localStorage.getItem(this.nowWorkspaceStorageKey);
+        if (existing) {
+          const parsed = JSON.parse(existing);
+          if (parsed?.workspaceId === workspaceId) {
+            window.localStorage.removeItem(this.nowWorkspaceStorageKey);
+          }
+        }
+        return;
+      }
+
+      window.localStorage.setItem(this.nowWorkspaceStorageKey, JSON.stringify({
+        workspaceId,
+        collaborateApiKey,
+        defaultMode: this.nowDefaultMode(),
+      }));
+    } catch {
+      // Ignore storage errors.
+    }
+  }
+
+  private getStoredNowWorkspaceTarget(): { workspaceId: string; collaborateApiKey: string; defaultMode: NowDefaultMode } | null {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    try {
+      const raw = window.localStorage.getItem(this.nowWorkspaceStorageKey);
+      if (!raw) {
+        return null;
+      }
+
+      const parsed = JSON.parse(raw);
+      const workspaceId = typeof parsed?.workspaceId === 'string' ? parsed.workspaceId : '';
+      const collaborateApiKey = typeof parsed?.collaborateApiKey === 'string' ? parsed.collaborateApiKey : '';
+      const defaultMode = parsed?.defaultMode === 'workshop' || parsed?.defaultMode === 'batch'
+        ? parsed.defaultMode
+        : 'evaluate';
+
+      if (!workspaceId || !collaborateApiKey) {
+        return null;
+      }
+
+      return {
+        workspaceId,
+        collaborateApiKey,
+        defaultMode,
+      };
+    } catch {
+      return null;
+    }
   }
 
   // ---- Strategic workshop: group management ----

@@ -29,4 +29,18 @@ export class MainMenuComponent {
     });
   }
 
+  nowEndTimeText(): string | null {
+    const rawEndTime = this.api.workspace()?.metadata?.now_end_time;
+    if (typeof rawEndTime !== 'string' || rawEndTime.length === 0) {
+      return null;
+    }
+
+    const date = new Date(rawEndTime);
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
+
+    return date.toLocaleString();
+  }
+
 }

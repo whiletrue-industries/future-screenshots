@@ -16,6 +16,12 @@ import { WorkspaceNameUtility } from '../../shared/workspace-name.utility';
 })
 export class WorkspaceItemComponent {
   workspace = input<any>();
+  nowBadgeEnabled = input(false);
+  nowBadgeActive = input(false);
+  nowBadgeBusy = input(false);
+  nowBadgeClicked = input<((workspaceId: string) => void) | null>(null);
+  nowEndTime = input<string | null>(null);
+  nowEndTimeChanged = input<((workspaceId: string, nowEndTime: string | null) => void) | null>(null);
   ingestMenuOpen = signal(false);
   ingestSuffix = computed(() => {
     const w = this.workspace();
@@ -79,5 +85,57 @@ export class WorkspaceItemComponent {
   
   closeIngestMenu() {
     this.ingestMenuOpen.set(false);
+  }
+
+  toggleNowBadge(event: Event) {
+    event.stopPropagation();
+    const workspace = this.workspace();
+    const handler = this.nowBadgeClicked();
+    if (workspace?.id && handler && !this.nowBadgeBusy()) {
+      handler(workspace.id);
+    }
+  }
+
+  updateNowEndTime(event: Event): void {
+    event.stopPropagation();
+    const workspace = this.workspace();
+    const handler = this.nowEndTimeChanged();
+    const value = String((event.target as HTMLInputElement)?.value || '').trim();
+    if (workspace?.id && handler && !this.nowBadgeBusy()) {
+      handler(workspace.id, value ? this.localInputToIso(value) : null);
+    }
+  }
+
+  clearNowEndTime(event: Event): void {
+    event.stopPropagation();
+    const workspace = this.workspace();
+    const handler = this.nowEndTimeChanged();
+    if (workspace?.id && handler && !this.nowBadgeBusy()) {
+      handler(workspace.id, null);
+    }
+  }
+
+  nowEndTimeLocalInputValue(): string {
+    const iso = this.nowEndTime();
+    if (!iso) {
+      return '';
+    }
+
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    const hour = `${date.getHours()}`.padStart(2, '0');
+    const minute = `${date.getMinutes()}`.padStart(2, '0');
+    return `${year}-${month}-${day}T${hour}:${minute}`;
+  }
+
+  private localInputToIso(localValue: string): string {
+    const date = new Date(localValue);
+    return Number.isNaN(date.getTime()) ? '' : date.toISOString();
   }
 }

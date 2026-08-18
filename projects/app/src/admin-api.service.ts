@@ -99,7 +99,9 @@ export class AdminApiService {
         return this.updateWorkspace(workspace.id, workspace.keys!.admin, {
           metadata: null,
           public: request.public,
-          collaborate: request.collaborate
+          collaborate: request.collaborate,
+          open_now: request.open_now,
+          now_default_mode: request.now_default_mode
         }).pipe(map(() => workspace));
       })
     );
@@ -110,6 +112,12 @@ export class AdminApiService {
     let params: any = {};
     params.public = request.public;
     params.collaborate = request.collaborate;
+    if (request.open_now !== undefined) {
+      params.open_now = request.open_now;
+    }
+    if (request.now_default_mode) {
+      params.now_default_mode = request.now_default_mode;
+    }
     return this.http.put<any>(`${this.CHRONOMAPS_API_URL}/${workspaceId}`, request.metadata || {}, { headers, params });
   }
 

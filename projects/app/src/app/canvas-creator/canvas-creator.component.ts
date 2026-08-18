@@ -19,7 +19,7 @@ interface Template {
 
 const DEFAULT_ACTIVE_TEMPLATE_IDS = [
   'post', 'chat', 'notification', 'review', 'prompt',
-  'photo', 'sign', 'holyland', 'world'
+  'photo', 'sign', 'holyland', 'world', 'blank'
 ];
 
 @Component({
@@ -125,6 +125,7 @@ export class CanvasCreatorComponent implements AfterViewInit {
     { id: 'sign', name: 'Sign', url: '/templates/FS_template_sign.png', preview: '/templates/FS_template_sign.png' },
     { id: 'holyland', name: 'Holy Land', url: '/templates/FS_template_holyland.png', preview: '/templates/FS_template_holyland.png' },
     { id: 'world', name: 'World', url: '/templates/FS_template_world.png', preview: '/templates/FS_template_world.png' },
+    { id: 'blank', name: 'Blank', url: '/templates/FS_template_blank.png', preview: '/templates/FS_template_blank.png' },
     { id: 'jerusalem', name: 'Jerusalem', url: '/templates/FS_template_jerusalem.png', preview: '/templates/FS_template_jerusalem.png' },
     { id: 'us', name: 'United States', url: '/templates/FS_template_US.png', preview: '/templates/FS_template_US.png' },
     { id: 'europe', name: 'Europe', url: '/templates/FS_template_europe.png', preview: '/templates/FS_template_europe.png' },
@@ -411,6 +412,24 @@ export class CanvasCreatorComponent implements AfterViewInit {
       ]
     },
     world: {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [80, 604] },
+          properties: {
+            id: 'textbox-0',
+            placeholder: 'transition',
+            'line-height': 0.75,
+            width: 175,
+            height: 59,
+            textAlign: 'center',
+            originY: 'bottom',
+          },
+        },
+      ],
+    },
+    blank: {
       type: 'FeatureCollection',
       features: [
         {

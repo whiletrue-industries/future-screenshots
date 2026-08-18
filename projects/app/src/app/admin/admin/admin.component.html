@@ -78,7 +78,15 @@
 
   <div class="workspaces-list" role="list">
     @for (workspace of filteredWorkspaces(); track workspace.id) {
-      <app-workspace-item [workspace]="workspace"></app-workspace-item>
+      <app-workspace-item
+        [workspace]="workspace"
+        [nowBadgeEnabled]="true"
+        [nowBadgeActive]="nowWorkspaceId() === workspace.id"
+        [nowBadgeBusy]="nowBadgeBusy()"
+        [nowBadgeClicked]="setNowWorkspace"
+        [nowEndTime]="nowWorkspaceId() === workspace.id ? nowWorkspaceEndTime() : null"
+        [nowEndTimeChanged]="setNowEndTime">
+      </app-workspace-item>
     }
   </div>
 </div>
