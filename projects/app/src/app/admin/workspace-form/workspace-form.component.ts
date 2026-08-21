@@ -1,9 +1,11 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminApiService } from '../../../admin-api.service';
 import { WorkspaceMetadata, CreateOrUpdateWorkspaceRequest, WsGroup } from '../workspace-metadata.interface';
+import { NowMode, NowTargetService, normalizeNowMode } from '../../shared/now-target.service';
+import { Observable, of, switchMap } from 'rxjs';
 
 interface LanguageOption {
   code: string;
@@ -18,6 +20,7 @@ interface LanguageOption {
   styleUrls: ['./workspace-form.component.less']
 })
 export class WorkspaceFormComponent implements OnInit {
+  private nowTargetService = inject(NowTargetService);
   isEditMode = signal(false);
   workspaceId = signal<string | null>(null);
   adminKey = signal<string | null>(null);
@@ -35,15 +38,17 @@ export class WorkspaceFormComponent implements OnInit {
     keywords: [],
     active_templates: [
       'post', 'chat', 'notification', 'review', 'prompt', 
-      'photo', 'sign', 'holyland', 'world'
+      'photo', 'sign', 'holyland', 'world', 'blank'
     ], // Default: all except jerusalem, europe, us
     'context-label': '',
     source: '',
-    'email-template': ''
+    'email-template': '',
+    now_default_mode: 'evaluate'
   });
 
   publicVisible = signal(false);
   collaborate = signal(false);
+  nowDefaultMode = signal<NowMode>('evaluate');
 
   // Available options
   availableLanguages: LanguageOption[] = [
@@ -82,6 +87,7 @@ export class WorkspaceFormComponent implements OnInit {
     { id: 'sign', name: 'Sign' },
     { id: 'holyland', name: 'Holy Land' },
     { id: 'world', name: 'World' },
+    { id: 'blank', name: 'Blank' },
     { id: 'jerusalem', name: 'Jerusalem' },
     { id: 'europe', name: 'Europe' },
     { id: 'us', name: 'United States' },
@@ -135,6 +141,12 @@ export class WorkspaceFormComponent implements OnInit {
           this.formData.set(metadata);
           this.publicVisible.set(workspace_metadata['public'] || false);
           this.collaborate.set(workspace_metadata['collaborate'] || false);
+
+          this.nowDefaultMode.set(normalizeNowMode(metadata['now_default_mode']) || 'evaluate');
+          this.formData.update(data => ({
+            ...data,
+            now_default_mode: this.nowDefaultMode(),
+          }));
 
           // Ensure facilitator_names is an array
           if (!this.formData().facilitator_names || this.formData().facilitator_names.length === 0) {
@@ -212,7 +224,7 @@ export class WorkspaceFormComponent implements OnInit {
     if (!metadata.active_templates) {
       metadata.active_templates = [
         'post', 'chat', 'notification', 'review', 'prompt', 
-        'photo', 'sign', 'holyland', 'world'
+        'photo', 'sign', 'holyland', 'world', 'blank'
       ];
     }
 
@@ -428,7 +440,9 @@ export class WorkspaceFormComponent implements OnInit {
       collaborate: this.collaborate()
     };
 
-    this.adminApi.updateWorkspace(id, key, request).subscribe({
+    this.adminApi.updateWorkspace(id, key, request).pipe(
+      switchMap((response) => this.syncNowTargetMode(id).pipe(switchMap(() => of(response))))
+    ).subscribe({
       next: (response) => {
         console.log('Workspace updated successfully:', response);
         this.router.navigate(['/admin'], {
@@ -456,6 +470,27 @@ export class WorkspaceFormComponent implements OnInit {
 
   onWsStrategicChange(value: boolean) {
     this.formData.update(d => ({ ...d, ws_strategic: value }));
+  }
+
+  onNowDefaultModeChange(value: string) {
+    const mode = normalizeNowMode(value) || 'evaluate';
+    this.nowDefaultMode.set(mode);
+    this.formData.update(data => ({ ...data, now_default_mode: mode }));
+  }
+
+  /**
+   * If this workspace is the current /#now target, keep the global target's
+   * mode in sync with the (possibly changed) default mode.
+   */
+  private syncNowTargetMode(workspaceId: string): Observable<unknown> {
+    return this.nowTargetService.load().pipe(
+      switchMap((target) => {
+        if (!target || target.workspace_id !== workspaceId || target.mode === this.nowDefaultMode()) {
+          return of(null);
+        }
+        return this.adminApi.setNowTarget({ ...target, mode: this.nowDefaultMode() });
+      })
+    );
   }
 
   // ---- Strategic workshop: group management ----

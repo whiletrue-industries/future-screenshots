@@ -63,7 +63,9 @@
     }
 
     input[type="text"],
-    input[type="date"] {
+    input[type="date"],
+    input[type="number"],
+    select {
       width: 100%;
       padding: 0.75rem;
       border: 2px solid @color-dark-pink;
@@ -84,6 +86,10 @@
         color: @color-gray;
         cursor: not-allowed;
       }
+    }
+
+    select {
+      appearance: auto;
     }
 
     &.checkbox-group {
@@ -263,11 +269,33 @@
     }
   }
 
-  .auto-generated-section,
-  .visibility-section {
+  .workspace-state-section,
+  .auto-generated-section {
     margin-top: 2rem;
     padding-top: 2rem;
     border-top: 2px solid @color-dark-pink;
+  }
+
+  .workspace-state-section {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+    padding-bottom: 1.25rem;
+    border-bottom: 2px solid @color-dark-pink;
+
+    h3 {
+      margin-top: 0;
+    }
+
+    .state-option {
+      margin-bottom: 1rem;
+
+      .field-hint {
+        margin-left: 1.8rem;
+        margin-top: 0.15rem;
+        margin-bottom: 0;
+      }
+    }
   }
 
   .strategic-workshop-section {

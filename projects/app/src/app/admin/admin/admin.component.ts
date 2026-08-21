@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { AdminApiService } from '../../../admin-api.service';
 import { WorkspaceItemComponent } from "../workspace-item/workspace-item.component";
-import { delay, filter, take } from 'rxjs';
+import { Observable, delay, filter, of, switchMap, take } from 'rxjs';
 import { AuthService } from '../../auth.service';
+import { NowTarget, NowTargetService, normalizeNowMode } from '../../shared/now-target.service';
 import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 
@@ -21,6 +22,7 @@ type OrderBy = 'date' | 'screenshots' | 'completion';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AdminComponent implements OnInit {
+  private nowTargetService = inject(NowTargetService);
 
   workspaces = signal<any[]>([]);
   successMessage = signal<string | null>(null);
@@ -31,6 +33,7 @@ export class AdminComponent implements OnInit {
   facilitatorFilter = signal<string>('all');
   searchQuery = signal<string>('');
   orderBy = signal<OrderBy>('date');
+  nowBadgeBusy = signal(false);
 
   // All available facilitators and keywords from workspaces
   allFacilitators = computed(() => {
@@ -48,6 +51,11 @@ export class AdminComponent implements OnInit {
     });
     return Array.from(keywords).sort();
   });
+
+  // The /#now quick-link target (server-side global key `now`)
+  nowTarget = this.nowTargetService.target;
+  nowWorkspaceId = computed(() => this.nowTarget()?.workspace_id ?? null);
+  nowWorkspaceEndTime = computed(() => this.nowTarget()?.end_time ?? null);
 
   // Helper to get workspace status
   getWorkspaceStatus(w: any): WorkspaceStatus {
@@ -151,16 +159,98 @@ export class AdminComponent implements OnInit {
 
     this.auth.user.pipe(filter(user => !!user), take(1), delay(0)).subscribe(() => {
       console.log('AUTH TOKEN:', this.auth.token());
-      this.adminApi.listWorkspaces().subscribe(workspaces => {
-        console.log('Workspaces:', workspaces);
-        const sorted = [...workspaces].sort((a, b) => {
-          const ad = a?.metadata?.date ?? '';
-          const bd = b?.metadata?.date ?? '';
-          // Reverse chronological: latest first
-          return bd.localeCompare(ad);
+      this.loadWorkspaces();
+      this.nowTargetService.load().subscribe();
+    });
+  }
+
+  /**
+   * Toggles the /#now target: clicking the active workspace clears the target,
+   * clicking any other workspace makes it the target (and ensures it accepts
+   * submissions).
+   */
+  setNowWorkspace(targetWorkspaceId: string): void {
+    if (this.nowBadgeBusy() || !this.auth.token()) {
+      return;
+    }
+
+    if (this.nowWorkspaceId() === targetWorkspaceId) {
+      this.writeNowTarget(null);
+      return;
+    }
+
+    const workspace = this.workspaces().find(w => w.id === targetWorkspaceId);
+    const collaborateKey = workspace?.keys?.collaborate;
+    if (!workspace || !collaborateKey) {
+      return;
+    }
+
+    const target: NowTarget = {
+      workspace_id: workspace.id,
+      api_key: collaborateKey,
+      mode: normalizeNowMode(workspace.metadata?.now_default_mode) || 'evaluate',
+      end_time: null,
+    };
+
+    // /#now sends participants to the ingest flow, so the workspace must accept submissions.
+    const ensureCollaborate: Observable<unknown> = workspace.collaborate
+      ? of(null)
+      : this.adminApi.updateWorkspace(workspace.id, workspace.keys.admin, {
+          metadata: null,
+          public: workspace.public,
+          collaborate: true,
         });
-        this.workspaces.set(sorted);
+
+    this.nowBadgeBusy.set(true);
+    ensureCollaborate.pipe(
+      switchMap(() => this.adminApi.setNowTarget(target))
+    ).subscribe({
+      next: (saved) => {
+        this.nowTargetService.target.set(saved);
+        this.nowBadgeBusy.set(false);
+        if (!workspace.collaborate) {
+          this.loadWorkspaces();
+        }
+      },
+      error: (error) => {
+        console.error('Failed to set /#now workspace:', error);
+        this.nowBadgeBusy.set(false);
+      }
+    });
+  }
+
+  setNowEndTime(workspaceId: string, nowEndTime: string | null): void {
+    const current = this.nowTarget();
+    if (this.nowBadgeBusy() || !this.auth.token() || !current || current.workspace_id !== workspaceId) {
+      return;
+    }
+    this.writeNowTarget({ ...current, end_time: nowEndTime || null });
+  }
+
+  private writeNowTarget(target: NowTarget | null): void {
+    this.nowBadgeBusy.set(true);
+    this.adminApi.setNowTarget(target).subscribe({
+      next: (saved) => {
+        this.nowTargetService.target.set(saved);
+        this.nowBadgeBusy.set(false);
+      },
+      error: (error) => {
+        console.error('Failed to update /#now target:', error);
+        this.nowBadgeBusy.set(false);
+      }
+    });
+  }
+
+  private loadWorkspaces(): void {
+    this.adminApi.listWorkspaces().subscribe(workspaces => {
+      console.log('Workspaces:', workspaces);
+      const sorted = [...workspaces].sort((a, b) => {
+        const ad = a?.metadata?.date ?? '';
+        const bd = b?.metadata?.date ?? '';
+        // Reverse chronological: latest first
+        return bd.localeCompare(ad);
       });
+      this.workspaces.set(sorted);
     });
   }
 }

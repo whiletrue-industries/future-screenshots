@@ -2,15 +2,53 @@
 @if (!!w) {
     <article class="workspace-item" role="listitem" aria-label="Workspace item">
         <div class="row">
-            <a [routerLink]="['/admin/moderate']" [queryParams]="{ api_key: w.keys.admin, workspace: w.id }" class="workspace-link">
-                <div class="cell date">
+            <div class="cell date">
+                <a [routerLink]="['/admin/moderate']" [queryParams]="{ api_key: w.keys.admin, workspace: w.id }" class="workspace-link-date">
                     <span class="date-chip">{{ formattedDate() }}</span>
-                </div>
-            </a>
+                </a>
+                @if (nowBadgeEnabled()) {
+                    <button
+                        type="button"
+                        class="now-badge"
+                        [class.active]="nowBadgeActive()"
+                        [class.busy]="nowBadgeBusy()"
+                        (click)="toggleNowBadge($event)"
+                        [attr.aria-pressed]="nowBadgeActive()"
+                        [attr.aria-label]="nowBadgeActive() ? 'Disable NOW' : 'Enable NOW'"
+                        title="Toggle /#now workspace">
+                        @if (nowBadgeActive()) { NOW ON } @else { NOW OFF }
+                    </button>
+                    @if (nowBadgeActive()) {
+                        <div class="now-end-time-controls">
+                            <label class="now-end-time-label" [attr.for]="'now-end-time-' + w.id">Until</label>
+                            <input
+                                class="now-end-time-input"
+                                [id]="'now-end-time-' + w.id"
+                                type="datetime-local"
+                                [value]="nowEndTimeLocalInputValue()"
+                                (change)="updateNowEndTime($event)"
+                                [disabled]="nowBadgeBusy()"
+                                title="Set NOW end time" />
+                            <button
+                                type="button"
+                                class="now-end-time-clear"
+                                (click)="clearNowEndTime($event)"
+                                [disabled]="nowBadgeBusy()">
+                                Clear
+                            </button>
+                        </div>
+                    }
+                }
+            </div>
+
             <a [routerLink]="['/admin/moderate']" [queryParams]="{ api_key: w.keys.admin, workspace: w.id }" class="workspace-link">
                 <div class="cell title">
-                    <div class="title-text">{{ workspaceNameWithEmojis() }}</div>
-                    <div class="meta">{{ locationText() }}</div>
+                    <div class="title-main">
+                        <div class="title-text">
+                            {{ workspaceNameWithEmojis() }}
+                        </div>
+                        <div class="meta">{{ locationText() }}</div>
+                    </div>
                 </div>
             </a>
             <a [routerLink]="['/admin/moderate']" [queryParams]="{ api_key: w.keys.admin, workspace: w.id }" class="workspace-link">

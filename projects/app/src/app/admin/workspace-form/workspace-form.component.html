@@ -6,6 +6,78 @@
   }
 
   <form (ngSubmit)="onSubmit()" #workspaceForm="ngForm">
+    <!-- Workspace State -->
+    <div class="workspace-state-section">
+      <h3>Workspace State</h3>
+
+      <div class="form-group checkbox-group state-option">
+        <label>
+          <input
+            type="checkbox"
+            name="interactive_workshop"
+            [(ngModel)]="formData().interactive_workshop"
+            (ngModelChange)="onFieldChange()"
+          />
+          Interactive Workshop
+        </label>
+        <p class="field-hint">When enabled, participants are sent evaluation flow content during workshop facilitation.</p>
+      </div>
+
+      <div class="form-group checkbox-group state-option">
+        <label>
+          <input
+            type="checkbox"
+            name="publicVisible"
+            [ngModel]="publicVisible()"
+            (ngModelChange)="publicVisible.set($event)"
+          />
+          Publicly Visible
+        </label>
+        <p class="field-hint">Allows this workspace to be shown in public-facing views.</p>
+      </div>
+
+      <div class="form-group checkbox-group state-option">
+        <label>
+          <input
+            type="checkbox"
+            name="collaborate"
+            [ngModel]="collaborate()"
+            (ngModelChange)="collaborate.set($event)"
+          />
+          Accepting Submissions
+        </label>
+        <p class="field-hint">Allows new items to be added. The workshop QR code is shown only while this is enabled.</p>
+      </div>
+
+      <div class="form-group checkbox-group state-option">
+        <label>
+          <input
+            type="checkbox"
+            name="ws_strategic"
+            [ngModel]="formData().ws_strategic"
+            (ngModelChange)="onWsStrategicChange($event)"
+          />
+          Strategic Workshop
+        </label>
+        <p class="field-hint">Enables group-based, multi-round digital screenshot creation.</p>
+      </div>
+
+      <div class="form-group state-option">
+        <label for="nowDefaultMode">Default /#now Mode</label>
+        <select
+          id="nowDefaultMode"
+          name="nowDefaultMode"
+          [ngModel]="nowDefaultMode()"
+          (ngModelChange)="onNowDefaultModeChange($event)"
+        >
+          <option value="evaluate">Scan + Evaluate</option>
+          <option value="workshop">Scan in Workshop</option>
+          <option value="batch">Batch Scan</option>
+        </select>
+        <p class="field-hint">Used when visitors open /#now without a mode override.</p>
+      </div>
+    </div>
+
     <!-- Date -->
     <div class="form-group">
       <label for="date">Date <span class="required">*</span></label>
@@ -68,19 +140,6 @@
         (ngModelChange)="onFieldChange()"
         required
       />
-    </div>
-
-    <!-- Interactive Workshop -->
-    <div class="form-group checkbox-group">
-      <label>
-        <input
-          type="checkbox"
-          name="interactive_workshop"
-          [(ngModel)]="formData().interactive_workshop"
-          (ngModelChange)="onFieldChange()"
-        />
-        Interactive Workshop
-      </label>
     </div>
 
     <!-- Languages -->
@@ -196,51 +255,9 @@
       </div>
     </div>
 
-    <!-- Visibility Settings -->
-    <div class="visibility-section">
-      <h3>Workspace Settings</h3>
-
-      <div class="form-group checkbox-group">
-        <label>
-          <input
-            type="checkbox"
-            name="publicVisible"
-            [ngModel]="publicVisible()"
-            (ngModelChange)="publicVisible.set($event)"
-          />
-          Public Visibility
-        </label>
-      </div>
-
-      <div class="form-group checkbox-group">
-        <label>
-          <input
-            type="checkbox"
-            name="collaborate"
-            [ngModel]="collaborate()"
-            (ngModelChange)="collaborate.set($event)"
-          />
-          Allow Collaboration (new items can be added)
-        </label>
-      </div>
-    </div>
-
     <!-- Strategic Workshop Settings -->
     <div class="strategic-workshop-section">
-      <h3>Strategic Workshop</h3>
-
-      <div class="form-group checkbox-group">
-        <label>
-          <input
-            type="checkbox"
-            name="ws_strategic"
-            [ngModel]="formData().ws_strategic"
-            (ngModelChange)="onWsStrategicChange($event)"
-          />
-          Enable Strategic Workshop Mode
-        </label>
-        <p class="field-hint">Enables group-based, multi-round digital screenshot creation.</p>
-      </div>
+      <h3>Strategic Workshop Details</h3>
 
       @if (formData().ws_strategic) {
         <!-- Number of rounds -->

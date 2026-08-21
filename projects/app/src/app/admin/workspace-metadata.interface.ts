@@ -1,3 +1,5 @@
+import { NowMode } from '../shared/now-target.service';
+
 export interface WorkspaceMetadata {
   // Mandatory fields
   date: string; // YYYY-MM-DD format
@@ -18,6 +20,7 @@ export interface WorkspaceMetadata {
   ws_groups?: WsGroup[]; // Thematic groups for the strategic workshop
   ws_rounds?: number; // Number of rounds (default: 4)
   ws_round_prompts?: string[]; // Array of prompts, one per round
+  now_default_mode?: NowMode; // Ingest mode used by /#now when this workspace is the NOW target (see NowTargetService)
 
   // Auto-generated fields
   'context-label'?: string; // '{City}, {Month Name} {Year}'
