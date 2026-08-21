@@ -222,7 +222,25 @@
           <span class='button-label'>Thematic</span>
         </div>
       </button>
-      <button 
+      <button
+        class='toggle-button tsne-button'
+        [class.active]='currentLayout() === "tsne-grid"'
+        (click)='switchToTsneGridLayout()'
+        title='TSNE Layout'>
+        <div class='button-content'>
+          <svg viewBox='0 0 24 24' class='button-icon' aria-hidden='true'>
+            <circle cx='6' cy='7' r='1.8' fill='currentColor'/>
+            <circle cx='11' cy='4.5' r='1.8' fill='currentColor'/>
+            <circle cx='9' cy='12' r='1.8' fill='currentColor'/>
+            <circle cx='16' cy='9' r='1.8' fill='currentColor'/>
+            <circle cx='5' cy='17' r='1.8' fill='currentColor'/>
+            <circle cx='13' cy='18' r='1.8' fill='currentColor'/>
+            <circle cx='19' cy='15' r='1.8' fill='currentColor'/>
+          </svg>
+          <span class='button-label'>TSNE</span>
+        </div>
+      </button>
+      <button
         class='toggle-button clusters-button'
         [class.active]='currentLayout() === "circle-packing"'
         (click)='switchToCirclePackingLayout()'
@@ -258,6 +276,11 @@
     [zoomLevel]='currentZoomLevel()'
     (labelHover)='onTaxonomyLabelHover($event)'
   ></app-taxonomy-clusters-overlay>
+}
+
+<!-- TSNE cluster labels overlay (visible only in the TSNE layout) -->
+@if (currentLayout() === 'tsne-grid') {
+  <app-tsne-clusters-overlay [labels]='tsneClusterLabels()'></app-tsne-clusters-overlay>
 }
 
 @if (currentLayout() === 'tsne' && fisheyeEnabled() && fisheyeTaxonomyFocusLabel()) {

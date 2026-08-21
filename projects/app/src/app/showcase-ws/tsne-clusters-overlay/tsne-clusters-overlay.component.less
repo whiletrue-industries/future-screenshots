@@ -1,0 +1,51 @@
+@import '../../../common.less';
+
+:host {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 50;
+}
+
+.tsne-cluster-labels-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.tsne-cluster-label {
+  .font-sans;
+
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* Initial transform applied before the first frame callback – keeps the label off-screen */
+  transform: translate(-50%, -50%) translate(-9999px, -9999px);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--label-font-size, 16px);
+  line-height: 1;
+  color: @color-prefer-dark;
+
+  /* Cream halo, standing in for the SVG `stroke` + `paint-order: stroke` used by
+     the output map – keeps titles readable over the item thumbnails. */
+  @halo: 0.12em;
+  text-shadow:
+    (-@halo) (-@halo) @halo @color-creme,
+    @halo (-@halo) @halo @color-creme,
+    (-@halo) @halo @halo @color-creme,
+    @halo @halo @halo @color-creme,
+    0 0 (@halo * 2) @color-creme;
+
+  &.prevent {
+    color: @color-prevent-dark;
+  }
+}

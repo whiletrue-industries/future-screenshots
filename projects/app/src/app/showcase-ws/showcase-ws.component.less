@@ -280,11 +280,11 @@
                 opacity: 0.5;
                 position: relative;
                 
-                // Mobile responsive
+                // Mobile responsive – tightened so all four views fit on narrow screens
                 @media (max-width: 768px) {
-                    min-width: 90px;
+                    min-width: 72px;
                     height: 40px;
-                    padding: 0 12px;
+                    padding: 0 8px;
                     font-size: 12px;
                     border-radius: 18px;
                 }
@@ -385,6 +385,10 @@
                 }
 
                 &.thematic-button {
+                    border-radius: 23.5px;
+                }
+
+                &.tsne-button {
                     border-radius: 23.5px;
                 }
 

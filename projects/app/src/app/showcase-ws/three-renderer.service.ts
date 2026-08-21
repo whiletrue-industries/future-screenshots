@@ -189,6 +189,7 @@ export class ThreeRendererService {
   private fisheyeAffectedMeshes = new Set<THREE.Mesh>();
   private topFisheyeMesh: THREE.Mesh | null = null;
   private thematicFisheyeEffectsEnabled = false;
+  private layoutRotationOverrideEnabled = false;
   private fisheyeLastDeltaTime = 1 / 60;
   private fisheyePointerActive = false;
   private taxonomyEffectBaseOpacity = new Map<THREE.Mesh, number>();
@@ -672,7 +673,17 @@ export class ThreeRendererService {
    */
   private calculatePhotoRotation(photoData: PhotoData): number {
     const metadata = photoData.metadata;
-    
+
+    // The TSNE layout supplies the server's own rotation for each item, so the
+    // view reproduces the rendered tiles exactly. Same convention as the formula
+    // below: positive = prefer, negative = prevent.
+    if (this.layoutRotationOverrideEnabled) {
+      const layoutRotateDeg = metadata['_tsneRotateDeg'];
+      if (typeof layoutRotateDeg === 'number') {
+        return THREE.MathUtils.degToRad(layoutRotateDeg);
+      }
+    }
+
     const plausibility = metadata['plausibility'];
     const favorableFuture = metadata['_svgZoneFavorableFuture'] as string | undefined || metadata['favorable_future'];
     
@@ -1036,6 +1047,30 @@ export class ThreeRendererService {
     if (!enabled) {
       this.resetFisheyeTaxonomyOpacityDimming();
     }
+  }
+
+  /**
+   * When enabled, photo rotation is taken from the layout-supplied
+   * `_tsneRotateDeg` metadata instead of being derived from the item's
+   * evaluation. Used by the TSNE layout so tilt matches the server-rendered
+   * tiles exactly.
+   *
+   * The flag is needed because layout metadata is merged into the photo
+   * permanently, so `_tsneRotateDeg` outlives a switch to another layout.
+   */
+  setLayoutRotationOverrideEnabled(enabled: boolean): void {
+    if (this.layoutRotationOverrideEnabled === enabled) return;
+    this.layoutRotationOverrideEnabled = enabled;
+    // Re-apply rotation to every existing mesh so the change is visible immediately.
+    this.meshToPhotoData.forEach((photoData, mesh) => {
+      mesh.rotation.z = this.calculatePhotoRotation(photoData);
+      // Keep any stashed pre-fisheye rotation in sync so restoring it doesn't
+      // resurrect the previous layout's tilt.
+      if (mesh.userData['originalRotation'] !== undefined) {
+        mesh.userData['originalRotation'] = mesh.rotation.z;
+      }
+    });
+    this.wakeUpRenderLoop();
   }
 
   /**
