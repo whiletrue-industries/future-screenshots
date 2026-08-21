@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { AdminApiService } from '../../../admin-api.service';
 import { WorkspaceItemComponent } from "../workspace-item/workspace-item.component";
-import { delay, filter, from, map, concatMap, take, toArray } from 'rxjs';
+import { Observable, delay, filter, of, switchMap, take } from 'rxjs';
 import { AuthService } from '../../auth.service';
+import { NowTarget, NowTargetService, normalizeNowMode } from '../../shared/now-target.service';
 import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 
@@ -21,7 +22,7 @@ type OrderBy = 'date' | 'screenshots' | 'completion';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AdminComponent implements OnInit {
-  private readonly nowWorkspaceStorageKey = 'fs_now_workspace_target';
+  private nowTargetService = inject(NowTargetService);
 
   workspaces = signal<any[]>([]);
   successMessage = signal<string | null>(null);
@@ -51,32 +52,10 @@ export class AdminComponent implements OnInit {
     return Array.from(keywords).sort();
   });
 
-  nowWorkspaceId = computed(() => {
-    const metadataWorkspace = this.workspaces().find(w => w?.metadata?.open_now === true || w?.open_now === true);
-    if (metadataWorkspace?.id) {
-      return metadataWorkspace.id;
-    }
-
-    const storedWorkspaceId = this.getStoredNowWorkspaceId();
-    if (!storedWorkspaceId) {
-      return null;
-    }
-
-    const storedWorkspace = this.workspaces().find(w => w?.id === storedWorkspaceId);
-    return storedWorkspace?.id || null;
-  });
-
-  nowWorkspaceEndTime = computed(() => {
-    const activeWorkspaceId = this.nowWorkspaceId();
-    if (!activeWorkspaceId) {
-      return null;
-    }
-
-    const activeWorkspace = this.workspaces().find(w => w?.id === activeWorkspaceId);
-    return typeof activeWorkspace?.metadata?.now_end_time === 'string' && activeWorkspace.metadata.now_end_time.length > 0
-      ? activeWorkspace.metadata.now_end_time
-      : null;
-  });
+  // The /#now quick-link target (server-side global key `now`)
+  nowTarget = this.nowTargetService.target;
+  nowWorkspaceId = computed(() => this.nowTarget()?.workspace_id ?? null);
+  nowWorkspaceEndTime = computed(() => this.nowTarget()?.end_time ?? null);
 
   // Helper to get workspace status
   getWorkspaceStatus(w: any): WorkspaceStatus {
@@ -181,184 +160,88 @@ export class AdminComponent implements OnInit {
     this.auth.user.pipe(filter(user => !!user), take(1), delay(0)).subscribe(() => {
       console.log('AUTH TOKEN:', this.auth.token());
       this.loadWorkspaces();
+      this.nowTargetService.load().subscribe();
     });
   }
 
-  setNowWorkspace = (targetWorkspaceId: string): void => {
-    if (this.nowBadgeBusy()) {
+  /**
+   * Toggles the /#now target: clicking the active workspace clears the target,
+   * clicking any other workspace makes it the target (and ensures it accepts
+   * submissions).
+   */
+  setNowWorkspace(targetWorkspaceId: string): void {
+    if (this.nowBadgeBusy() || !this.auth.token()) {
       return;
     }
 
-    const currentNowWorkspaceId = this.nowWorkspaceId();
-    if (currentNowWorkspaceId === targetWorkspaceId) {
-      this.disableNowWorkspace();
+    if (this.nowWorkspaceId() === targetWorkspaceId) {
+      this.writeNowTarget(null);
       return;
     }
 
-    if (!this.auth.token()) {
+    const workspace = this.workspaces().find(w => w.id === targetWorkspaceId);
+    const collaborateKey = workspace?.keys?.collaborate;
+    if (!workspace || !collaborateKey) {
       return;
     }
 
-    this.nowBadgeBusy.set(true);
-
-    const selectedWorkspace = this.workspaces().find(workspace => workspace.id === targetWorkspaceId);
-    const selectedApiKey = selectedWorkspace?.keys?.collaborate;
-    if (!selectedWorkspace || !selectedApiKey) {
-      this.nowBadgeBusy.set(false);
-      return;
-    }
-
-    const nextWorkspaces = this.workspaces().map(workspace => ({
-      ...workspace,
-      collaborate: workspace.id === targetWorkspaceId ? true : workspace.collaborate,
-      metadata: {
-        ...workspace.metadata,
-        open_now: workspace.id === targetWorkspaceId,
-        now_end_time: workspace.id === targetWorkspaceId ? workspace.metadata?.now_end_time : undefined,
-      },
-      open_now: workspace.id === targetWorkspaceId,
-    }));
-
-    from(nextWorkspaces).pipe(
-      concatMap((workspace) => {
-        const request = {
-          metadata: workspace.metadata,
-          public: workspace.public,
-          collaborate: workspace.id === targetWorkspaceId ? true : workspace.collaborate,
-          open_now: workspace.id === targetWorkspaceId,
-          now_default_mode: workspace.metadata?.now_default_mode,
-        };
-        return this.adminApi.updateWorkspace(workspace.id, workspace.keys.admin, request).pipe(
-          map(() => workspace)
-        );
-      }),
-      toArray()
-    ).subscribe({
-      next: () => {
-        this.loadWorkspaces(() => {
-          const refreshedWorkspace = this.workspaces().find(workspace => workspace.id === targetWorkspaceId);
-          const refreshedApiKey = refreshedWorkspace?.keys?.collaborate;
-          if (refreshedWorkspace?.id && refreshedApiKey) {
-            this.persistNowWorkspaceTarget(
-              refreshedWorkspace.id,
-              refreshedApiKey,
-              refreshedWorkspace.metadata?.now_default_mode || 'evaluate',
-              refreshedWorkspace.metadata?.now_end_time || null
-            );
-          }
-        });
-      },
-      error: (error) => {
-        console.error('Failed to update /#now workspace:', error);
-        this.syncStoredNowWorkspaceTargetFromList();
-        this.nowBadgeBusy.set(false);
-      },
-      complete: () => {
-        // Busy state is cleared in loadWorkspaces callback after fresh state arrives.
-      }
-    });
-  }
-
-  setNowEndTime = (workspaceId: string, nowEndTime: string | null): void => {
-    if (this.nowBadgeBusy()) {
-      return;
-    }
-
-    const workspace = this.workspaces().find(item => item.id === workspaceId);
-    if (!workspace || !workspace.keys?.admin || !this.auth.token()) {
-      return;
-    }
-
-    if (!(workspace?.metadata?.open_now === true || workspace?.open_now === true)) {
-      return;
-    }
-
-    this.nowBadgeBusy.set(true);
-
-    const metadata = {
-      ...workspace.metadata,
-      open_now: true,
-      now_end_time: nowEndTime || undefined,
+    const target: NowTarget = {
+      workspace_id: workspace.id,
+      api_key: collaborateKey,
+      mode: normalizeNowMode(workspace.metadata?.now_default_mode) || 'evaluate',
+      end_time: null,
     };
 
-    this.adminApi.updateWorkspace(workspace.id, workspace.keys.admin, {
-      metadata,
-      public: workspace.public,
-      collaborate: workspace.collaborate,
-      open_now: true,
-      now_default_mode: workspace.metadata?.now_default_mode,
-    }).subscribe({
-      next: () => {
-        this.loadWorkspaces(() => {
-          const refreshedWorkspace = this.workspaces().find(item => item.id === workspaceId);
-          const refreshedApiKey = refreshedWorkspace?.keys?.collaborate;
-          if (refreshedWorkspace?.id && refreshedApiKey) {
-            this.persistNowWorkspaceTarget(
-              refreshedWorkspace.id,
-              refreshedApiKey,
-              refreshedWorkspace.metadata?.now_default_mode || 'evaluate',
-              refreshedWorkspace.metadata?.now_end_time || null
-            );
-          }
+    // /#now sends participants to the ingest flow, so the workspace must accept submissions.
+    const ensureCollaborate: Observable<unknown> = workspace.collaborate
+      ? of(null)
+      : this.adminApi.updateWorkspace(workspace.id, workspace.keys.admin, {
+          metadata: null,
+          public: workspace.public,
+          collaborate: true,
         });
-      },
-      error: (error) => {
-        console.error('Failed to update NOW end time:', error);
-        this.nowBadgeBusy.set(false);
-      },
-      complete: () => {
-        // Busy state is cleared in loadWorkspaces callback after fresh state arrives.
-      }
-    });
-  }
-
-  private disableNowWorkspace(): void {
-    if (!this.auth.token()) {
-      return;
-    }
 
     this.nowBadgeBusy.set(true);
-
-    const nextWorkspaces = this.workspaces().map(workspace => ({
-      ...workspace,
-      metadata: {
-        ...workspace.metadata,
-        open_now: false,
-      },
-      open_now: false,
-    }));
-
-    from(nextWorkspaces).pipe(
-      concatMap((workspace) => {
-        const request = {
-          metadata: workspace.metadata,
-          public: workspace.public,
-          collaborate: workspace.collaborate,
-          open_now: false,
-          now_default_mode: workspace.metadata?.now_default_mode,
-        };
-        return this.adminApi.updateWorkspace(workspace.id, workspace.keys.admin, request).pipe(
-          map(() => workspace)
-        );
-      }),
-      toArray()
+    ensureCollaborate.pipe(
+      switchMap(() => this.adminApi.setNowTarget(target))
     ).subscribe({
-      next: () => {
-        this.loadWorkspaces(() => {
-          this.clearStoredNowWorkspaceTarget();
-        });
+      next: (saved) => {
+        this.nowTargetService.target.set(saved);
+        this.nowBadgeBusy.set(false);
+        if (!workspace.collaborate) {
+          this.loadWorkspaces();
+        }
       },
       error: (error) => {
-        console.error('Failed to disable /#now workspace:', error);
+        console.error('Failed to set /#now workspace:', error);
         this.nowBadgeBusy.set(false);
-      },
-      complete: () => {
-        // Busy state is cleared in loadWorkspaces callback after fresh state arrives.
       }
     });
   }
 
-  private loadWorkspaces(afterLoad?: () => void): void {
+  setNowEndTime(workspaceId: string, nowEndTime: string | null): void {
+    const current = this.nowTarget();
+    if (this.nowBadgeBusy() || !this.auth.token() || !current || current.workspace_id !== workspaceId) {
+      return;
+    }
+    this.writeNowTarget({ ...current, end_time: nowEndTime || null });
+  }
+
+  private writeNowTarget(target: NowTarget | null): void {
+    this.nowBadgeBusy.set(true);
+    this.adminApi.setNowTarget(target).subscribe({
+      next: (saved) => {
+        this.nowTargetService.target.set(saved);
+        this.nowBadgeBusy.set(false);
+      },
+      error: (error) => {
+        console.error('Failed to update /#now target:', error);
+        this.nowBadgeBusy.set(false);
+      }
+    });
+  }
+
+  private loadWorkspaces(): void {
     this.adminApi.listWorkspaces().subscribe(workspaces => {
       console.log('Workspaces:', workspaces);
       const sorted = [...workspaces].sort((a, b) => {
@@ -368,77 +251,6 @@ export class AdminComponent implements OnInit {
         return bd.localeCompare(ad);
       });
       this.workspaces.set(sorted);
-      this.syncStoredNowWorkspaceTargetFromList();
-      this.nowBadgeBusy.set(false);
-      if (afterLoad) {
-        afterLoad();
-      }
     });
-  }
-
-  private persistNowWorkspaceTarget(workspaceId: string, collaborateApiKey: string, defaultMode: string, nowEndTime: string | null): void {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    try {
-      window.localStorage.setItem(this.nowWorkspaceStorageKey, JSON.stringify({
-        workspaceId,
-        collaborateApiKey,
-        defaultMode: defaultMode === 'workshop' || defaultMode === 'batch' ? defaultMode : 'evaluate',
-        nowEndTime,
-      }));
-    } catch {
-      // Ignore storage failures.
-    }
-  }
-
-  private getStoredNowWorkspaceId(): string | null {
-    if (typeof window === 'undefined') {
-      return null;
-    }
-
-    try {
-      const raw = window.localStorage.getItem(this.nowWorkspaceStorageKey);
-      if (!raw) {
-        return null;
-      }
-      const parsed = JSON.parse(raw);
-      return typeof parsed?.workspaceId === 'string' ? parsed.workspaceId : null;
-    } catch {
-      return null;
-    }
-  }
-
-  private syncStoredNowWorkspaceTargetFromList(): void {
-    const selectedWorkspace = this.workspaces().find(workspace => workspace?.metadata?.open_now === true || workspace?.open_now === true);
-    if (!selectedWorkspace) {
-      this.clearStoredNowWorkspaceTarget();
-      return;
-    }
-
-    const selectedApiKey = selectedWorkspace?.keys?.collaborate;
-    if (!selectedWorkspace?.id || !selectedApiKey) {
-      return;
-    }
-
-    this.persistNowWorkspaceTarget(
-      selectedWorkspace.id,
-      selectedApiKey,
-      selectedWorkspace.metadata?.now_default_mode || 'evaluate',
-      selectedWorkspace.metadata?.now_end_time || null
-    );
-  }
-
-  private clearStoredNowWorkspaceTarget(): void {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    try {
-      window.localStorage.removeItem(this.nowWorkspaceStorageKey);
-    } catch {
-      // Ignore storage failures.
-    }
   }
 }

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { WorkspaceNameUtility } from '../../shared/workspace-name.utility';
 
@@ -19,9 +19,9 @@ export class WorkspaceItemComponent {
   nowBadgeEnabled = input(false);
   nowBadgeActive = input(false);
   nowBadgeBusy = input(false);
-  nowBadgeClicked = input<((workspaceId: string) => void) | null>(null);
   nowEndTime = input<string | null>(null);
-  nowEndTimeChanged = input<((workspaceId: string, nowEndTime: string | null) => void) | null>(null);
+  nowToggle = output<string>();
+  nowEndTimeChange = output<{ workspaceId: string; endTime: string | null }>();
   ingestMenuOpen = signal(false);
   ingestSuffix = computed(() => {
     const w = this.workspace();
@@ -90,28 +90,25 @@ export class WorkspaceItemComponent {
   toggleNowBadge(event: Event) {
     event.stopPropagation();
     const workspace = this.workspace();
-    const handler = this.nowBadgeClicked();
-    if (workspace?.id && handler && !this.nowBadgeBusy()) {
-      handler(workspace.id);
+    if (workspace?.id && !this.nowBadgeBusy()) {
+      this.nowToggle.emit(workspace.id);
     }
   }
 
   updateNowEndTime(event: Event): void {
     event.stopPropagation();
     const workspace = this.workspace();
-    const handler = this.nowEndTimeChanged();
     const value = String((event.target as HTMLInputElement)?.value || '').trim();
-    if (workspace?.id && handler && !this.nowBadgeBusy()) {
-      handler(workspace.id, value ? this.localInputToIso(value) : null);
+    if (workspace?.id && !this.nowBadgeBusy()) {
+      this.nowEndTimeChange.emit({ workspaceId: workspace.id, endTime: value ? this.localInputToIso(value) : null });
     }
   }
 
   clearNowEndTime(event: Event): void {
     event.stopPropagation();
     const workspace = this.workspace();
-    const handler = this.nowEndTimeChanged();
-    if (workspace?.id && handler && !this.nowBadgeBusy()) {
-      handler(workspace.id, null);
+    if (workspace?.id && !this.nowBadgeBusy()) {
+      this.nowEndTimeChange.emit({ workspaceId: workspace.id, endTime: null });
     }
   }
 

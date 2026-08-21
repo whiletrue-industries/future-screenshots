@@ -83,9 +83,9 @@
         [nowBadgeEnabled]="true"
         [nowBadgeActive]="nowWorkspaceId() === workspace.id"
         [nowBadgeBusy]="nowBadgeBusy()"
-        [nowBadgeClicked]="setNowWorkspace"
         [nowEndTime]="nowWorkspaceId() === workspace.id ? nowWorkspaceEndTime() : null"
-        [nowEndTimeChanged]="setNowEndTime">
+        (nowToggle)="setNowWorkspace($event)"
+        (nowEndTimeChange)="setNowEndTime($event.workspaceId, $event.endTime)">
       </app-workspace-item>
     }
   </div>

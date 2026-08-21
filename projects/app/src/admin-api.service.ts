@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { catchError, map, Observable, of, switchMap } from 'rxjs';
 import { AuthService } from './app/auth.service';
 import { CreateOrUpdateWorkspaceRequest, Workspace } from './app/admin/workspace-metadata.interface';
+import { NOW_GLOBAL_KEY, NowTarget, parseNowTarget } from './app/shared/now-target.service';
 
 @Injectable({
   providedIn: 'root'
@@ -99,9 +100,7 @@ export class AdminApiService {
         return this.updateWorkspace(workspace.id, workspace.keys!.admin, {
           metadata: null,
           public: request.public,
-          collaborate: request.collaborate,
-          open_now: request.open_now,
-          now_default_mode: request.now_default_mode
+          collaborate: request.collaborate
         }).pipe(map(() => workspace));
       })
     );
@@ -112,13 +111,25 @@ export class AdminApiService {
     let params: any = {};
     params.public = request.public;
     params.collaborate = request.collaborate;
-    if (request.open_now !== undefined) {
-      params.open_now = request.open_now;
-    }
-    if (request.now_default_mode) {
-      params.now_default_mode = request.now_default_mode;
-    }
     return this.http.put<any>(`${this.CHRONOMAPS_API_URL}/${workspaceId}`, request.metadata || {}, { headers, params });
+  }
+
+  /**
+   * Writes a value to the per-database global key-value store
+   * (`PUT /global/<key>`). Requires an admin Firebase token.
+   */
+  setGlobalKey<T>(key: string, value: T): Observable<{ key: string; value: T; updated_at: string }> {
+    const headers = { 'Authorization': 'Bearer ' + this.auth.token() };
+    return this.http.put<{ key: string; value: T; updated_at: string }>(
+      `${this.CHRONOMAPS_API_URL}/global/${encodeURIComponent(key)}`, value, { headers }
+    );
+  }
+
+  /** Sets (or clears, with `null`) the `/#now` quick-link target. */
+  setNowTarget(target: NowTarget | null): Observable<NowTarget | null> {
+    return this.setGlobalKey<NowTarget | null>(NOW_GLOBAL_KEY, target).pipe(
+      map(response => parseNowTarget(response?.value))
+    );
   }
 
   replaceImage(workspace: string, apiKey: string, itemId: string, itemKey: string, image: Blob): Observable<{ item_id: string; screenshot_url: string }> {

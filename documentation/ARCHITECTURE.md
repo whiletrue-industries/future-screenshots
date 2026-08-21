@@ -178,24 +178,30 @@ The application uses Angular standalone components organized by feature:
 10. **Admin Login** (`/admin/login`)
     - Admin authentication interface
 
-11. **Moderate Component** (`/admin/moderate`)
+11. **Admin Dashboard** (`/admin`)
+    - Lists all workspaces with filtering, search and ordering
+    - Per-workspace links to moderation, ingest flows and the map
+    - **NOW badge**: marks one workspace as the `/#now` quick-link target and optionally sets an end time (see [`/#now` Quick Link](#now-quick-link))
+
+12. **Moderate Component** (`/admin/moderate`)
     - Content moderation interface
     - Approve/reject items
     - Edit item properties
     - Display and filter by auto-assigned taxonomy topics
 
-12. **Workspace Form** (`/admin/workspace-form`)
+13. **Workspace Form** (`/admin/workspace-form`)
     - Workspace creation and configuration
     - API key management
     - Custom field definitions
+    - Workspace state (public, accepting submissions, interactive/strategic workshop) and the default `/#now` ingest mode (`metadata.now_default_mode`)
 
 #### Supporting Components
 
-13. **Password Prompt** (`/password-prompt`)
+14. **Password Prompt** (`/password-prompt`)
     - Password protection for workspaces
     - Session-based access control
 
-14. **About Component** (`/about`)
+15. **About Component** (`/about`)
     - Information about the platform
 
 15. **Messages Component** (`/messages`)
@@ -259,10 +265,15 @@ The application uses Angular standalone components organized by feature:
 - Read-only access to workspace items
 - No authentication required
 
-**AdminApiService** (`projects/app/src/app/admin/admin-api.service.ts`)
+**AdminApiService** (`projects/app/src/admin-api.service.ts`)
 - Admin-specific operations
 - Moderation actions
 - Workspace management
+- Writes to the server's global key-value store (`setGlobalKey()`, `setNowTarget()`) using the admin's Firebase token
+
+**NowTargetService** (`projects/app/src/app/shared/now-target.service.ts`)
+- Read side of the `/#now` quick-link target: fetches `GET /global/now` (public) and exposes it as a `target` signal
+- Shared parsing/validation (`parseNowTarget`), expiry check (`isNowTargetExpired`) and ingest URL builder (`buildNowIngestUrl`)
 
 **TaxonomyService** (`projects/app/src/app/shared/taxonomy.service.ts`)
 - Fetches and caches the cross-workspace taxonomy from `GET /taxonomy`
@@ -403,6 +414,19 @@ The `drag_all` mode is a temporary workshop feature that allows any participant 
   2. API key / collaborate key (if present in URL)
   3. Photo's own item_key (for authors)
   4. Graceful silent failure (visual drag only, no server persistence)
+
+#### `/#now` Quick Link
+
+`/#now` (alias `/#new`) is a stable, shareable link that always leads to the ingest flow of whichever workspace is currently "live". It must work for any visitor on any device, so the target is stored **server-side** in the per-database global key-value store rather than in workspace metadata or browser storage:
+
+- **Storage**: global key `now` (`GET /global/now` is public; `PUT /global/now` requires an admin Firebase token). Value:
+  ```json
+  { "workspace_id": "...", "api_key": "<collaborate key>", "mode": "evaluate|workshop|batch", "end_time": "<ISO datetime>|null" }
+  ```
+  A `null` value (or an unset key → 404) means no workspace is live.
+- **Set by** an admin from the Admin Dashboard NOW badge. Activating a workspace also enables `collaborate` on it (the quick link leads to submission). The `mode` is copied from the workspace's `metadata.now_default_mode` and re-synced when that field is edited in the Workspace Form while the workspace is the target.
+- **End time**: optional; set/cleared from the NOW badge. When passed, `/#now` stops redirecting (the key is left in place so the admin can extend or clear it). The main menu shows "NOW active until …" inside the target workspace while an end time is set.
+- **Resolution** (`AppComponent`, browser only): on load and on `hashchange`, if the hash starts with `#now`/`#new`, fetch the target and `location.replace()` to `prescan?workspace=…&api_key=…` (+`&ws=true` for `workshop`, `&automatic=true` for `batch`), relative to the document base href. `#now?mode=<mode>` overrides the stored mode.
 
 #### Workspace Management
 
