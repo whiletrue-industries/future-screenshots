@@ -21,7 +21,12 @@ import { ThreeRendererService } from './three-renderer.service';
 })
 export class DemoModeService {
   private renderer = inject(ThreeRendererService);
-  private photoRepository = inject(PhotoDataRepository);
+
+  /**
+   * The repository to tour. Handed over by the showcase component, which builds
+   * its own repository rather than taking the injected one.
+   */
+  private photoRepository: PhotoDataRepository | null = null;
 
   /** Whether the tour is running. */
   readonly active = signal(false);
@@ -39,7 +44,22 @@ export class DemoModeService {
   private exitAllowedAt = 0;
 
   /**
-   * Start the tour. Safe to call when already running.
+   * Bind the repository whose photos this tour visits.
+   */
+  attach(photoRepository: PhotoDataRepository): void {
+    this.photoRepository = photoRepository;
+  }
+
+  /**
+   * Let go of the repository when the showcase is torn down.
+   */
+  detach(): void {
+    this.photoRepository = null;
+  }
+
+  /**
+   * Start the tour. Safe to call when already running, or before a repository
+   * has been attached — the loop simply waits for photos to appear.
    */
   start(): void {
     if (this.active()) {
@@ -120,13 +140,18 @@ export class DemoModeService {
    * and when it appears on the canvas.
    */
   private pickNext(): PhotoData | null {
+    const repository = this.photoRepository;
+    if (!repository) {
+      return null;
+    }
+
     for (let attempts = this.queue.length; attempts > 0; attempts--) {
       const id = this.queue.shift();
       if (!id) {
         break;
       }
 
-      const photo = this.photoRepository.getPhoto(id);
+      const photo = repository.getPhoto(id);
       if (!photo) {
         continue; // Gone for good
       }
@@ -138,7 +163,7 @@ export class DemoModeService {
       this.queue.push(id); // Not on the canvas right now – come back to it later
     }
 
-    const candidates = this.photoRepository.getVisiblePhotos().filter(photo => this.isFocusable(photo));
+    const candidates = repository.getVisiblePhotos().filter(photo => this.isFocusable(photo));
     if (candidates.length === 0) {
       return null;
     }
@@ -232,7 +257,7 @@ export class DemoModeService {
    * Current world position and tilt of the item, or null if it has left the canvas.
    */
   private focusTarget(id: string): { photo: PhotoData; x: number; y: number; roll: number } | null {
-    const photo = this.photoRepository.getPhoto(id);
+    const photo = this.photoRepository?.getPhoto(id);
     if (!photo || !photo.mesh || !this.isFocusable(photo)) {
       return null;
     }

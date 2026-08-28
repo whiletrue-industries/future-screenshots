@@ -1193,6 +1193,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
     await this.photoRepository.initialize(defaultStrategy, this.rendererService);
 
+    // The repository is built here rather than injected, so hand it to the tour
+    this.demoMode.attach(this.photoRepository);
+
     // Set up repository event subscriptions
     this.photoRepository.photoAdded$
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -2370,6 +2373,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy() {
     this.demoMode.stop();
+    this.demoMode.detach();
     this.rendererService.dispose();
   }
 }
