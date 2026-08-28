@@ -35,6 +35,30 @@
         &.fisheye-above-labels {
             z-index: 60;
         }
+
+        // Demo mode runs unattended – no pointer on screen
+        &.demo-mode {
+            cursor: none;
+        }
+    }
+
+    // Demo mode: full-viewport target so a tap or click anywhere leaves the tour.
+    // Sits above everything so it also keeps hover and drag off the canvas.
+    .demo-exit-layer {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        padding: 0;
+        border: none;
+        background: transparent;
+        cursor: none;
+        z-index: 2500;
+
+        &:focus-visible {
+            outline: 2px solid #4E02B2;
+            outline-offset: -4px;
+        }
     }
 
     .fisheye-taxonomy-focus-label {

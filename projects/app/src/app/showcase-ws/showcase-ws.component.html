@@ -1,4 +1,8 @@
-<div class='container' [class.dragging]='isDragging()' [class.hovering]='isHoveringItem()' #container></div>
+<div class='container'
+  [class.dragging]='isDragging()'
+  [class.hovering]='isHoveringItem()'
+  [class.demo-mode]='demoMode.active()'
+  #container></div>
 
 <!-- Preloader - shown until layout has fully loaded and composed -->
 @if (isLayoutLoading()) {
@@ -16,21 +20,23 @@
     class='hide-on-mobile qr-clickable'></app-qrcode>
 }
 
-<!-- Evaluation Sidebar -->
-<app-evaluation-sidebar
-  [isOpen]='sidebarOpen() && canEditSelectedItem()'
-  [itemId]='selectedItemId()'
-  [itemKey]='selectedItemKey()'
-  [workspaceId]='workspace()'
-  [apiKey]='api_key()'
-  [adminKey]='admin_key()'
-  [lang]='lang()'
-  (close)='onSidebarClose()'
-  (metadataUpdated)='onMetadataUpdated($event)'
-></app-evaluation-sidebar>
+<!-- Evaluation Sidebar (hidden while the demo tour runs) -->
+@if (!demoMode.active()) {
+  <app-evaluation-sidebar
+    [isOpen]='sidebarOpen() && canEditSelectedItem()'
+    [itemId]='selectedItemId()'
+    [itemKey]='selectedItemKey()'
+    [workspaceId]='workspace()'
+    [apiKey]='api_key()'
+    [adminKey]='admin_key()'
+    [lang]='lang()'
+    (close)='onSidebarClose()'
+    (metadataUpdated)='onMetadataUpdated($event)'
+  ></app-evaluation-sidebar>
+}
 
 <!-- Filters Bar (Admin only) -->
-@if (isAdmin() && !isLoading() && viewInitialized()) {
+@if (isAdmin() && !isLoading() && viewInitialized() && !demoMode.active()) {
   <div class='filters-bar-container' [class.open]='filtersBarOpen()'>
     <app-filters-bar
       [counts]='filterCounts()'
@@ -47,19 +53,21 @@
 }
 
 <!-- Home Controls: Logo (desktop) + Up Arrow (mobile) -->
-<a class='logo-link hide-on-mobile' href='/' title='Back to Home'>
-  <img src='/futures-map-logo.svg' alt='Futures Map' class='logo-icon'>
-</a>
+@if (!demoMode.active()) {
+  <a class='logo-link hide-on-mobile' href='/' title='Back to Home'>
+    <img src='/futures-map-logo.svg' alt='Futures Map' class='logo-icon'>
+  </a>
 
-<button 
-  class='home-button show-on-mobile'
-  (click)='goBack()'
-  title='Back to Home'>
-  <!-- Up Arrow using original back-arrow shape rotated up -->
-  <svg viewBox='0 0 24 24' class='button-icon'>
-    <path d='M11 20V7.83L5.41 13 4 11.59 12 3l8 8-1.41 1.41L13 7.83V20z' fill='currentColor'/>
-  </svg>
-</button>
+  <button 
+    class='home-button show-on-mobile'
+    (click)='goBack()'
+    title='Back to Home'>
+    <!-- Up Arrow using original back-arrow shape rotated up -->
+    <svg viewBox='0 0 24 24' class='button-icon'>
+      <path d='M11 20V7.83L5.41 13 4 11.59 12 3l8 8-1.41 1.41L13 7.83V20z' fill='currentColor'/>
+    </svg>
+  </button>
+}
 
 <!-- Workspace Title -->
 @if (workspaceTitle()) {
@@ -69,6 +77,7 @@
 }
 
 <!-- Zoom Controls (Top Right) -->
+@if (!demoMode.active()) {
 <div class='zoom-controls' [class.sidebar-open]='sidebarOpen()'>
   <div class='zoom-buttons'>
     <!-- Search Controls -->
@@ -142,9 +151,9 @@
   @if (isAdmin()) {
     <button 
       class='showcase-toggle hide-on-mobile'
-      [class.active]='enableRandomShowcase()'
-      (click)='toggleRandomShowcase()'
-      title='Toggle Random Showcase'>
+      [class.active]='demoMode.active()'
+      (click)='toggleDemoMode()'
+      title='Start demo mode (Escape or tap to exit)'>
       <svg viewBox='0 0 24 24' class='button-icon'>
         <circle cx='12' cy='8' r='2' fill='currentColor'/>
         <circle cx='12' cy='16' r='2' fill='currentColor'/>
@@ -177,8 +186,10 @@
   }
   
 </div>
+}
 
 <!-- Layout Selection Toggle (Visible to All Users) -->
+@if (!demoMode.active()) {
 <div class='layout-toggle-centered'>
   <div class='layout-toggle'>
     <div class='toggle-background'>
@@ -267,6 +278,16 @@
   </div>
 
 </div>
+}
+
+<!-- Demo mode: a tap or click anywhere leaves the tour (Escape does too) -->
+@if (demoMode.active()) {
+  <button
+    type='button'
+    class='demo-exit-layer'
+    (click)='onDemoExitTap()'
+    aria-label='Exit demo mode'></button>
+}
 
 <!-- Taxonomy cluster labels overlay (visible only in Thematic / TSNE layout) -->
 @if (currentLayout() === 'tsne') {

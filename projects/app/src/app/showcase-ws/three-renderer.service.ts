@@ -151,6 +151,21 @@ export class ThreeRendererService {
   private panStartMouse = new THREE.Vector2();
   private panStartCameraPos = new THREE.Vector3();
   private cameraMode: 'auto-fit' | 'user-controlled' = 'auto-fit';
+  /**
+   * Camera roll around the view axis, in radians. Non-zero only while demo mode
+   * aligns the view with a tilted item. The screen↔world helpers below
+   * (projectScreenToWorld, panCamera, zoomAtPoint, drag hit-testing) assume an
+   * unrolled camera, which holds because demo mode disables user control before
+   * rolling and unrolls before handing control back.
+   */
+  private camRoll = 0;
+  /**
+   * Generation counters for camera animations. Starting a new pan/zoom (or a new
+   * roll) supersedes the one in flight instead of the two fighting over the
+   * camera — which is what an interrupted demo mode cycle would otherwise do.
+   */
+  private camMoveTweenId = 0;
+  private camRollTweenId = 0;
   private lastMousePos = new THREE.Vector2();
   private lastClientX: number | null = null;
   private lastClientY: number | null = null;
@@ -196,6 +211,7 @@ export class ThreeRendererService {
   private taxonomyHoverFocus: { topicId: string | null; themeId: string | null } | null = null;
   private fisheyeFocusPoint = new THREE.Vector3();
   private permalinkTargetId: string | null = null;
+  private highResPriorityId: string | null = null;
   private meshOriginalStates = new Map<THREE.Mesh, { position: THREE.Vector3; scale: THREE.Vector3; renderOrder: number }>();
   
   // Hover state signal for cursor feedback
@@ -346,8 +362,7 @@ export class ThreeRendererService {
         // Apply high-res texture
         mesh.material.map = highResTexture;
         mesh.material.needsUpdate = true;
-        
-
+        this.wakeUpRenderLoop();
       }
     } catch (error) {
       console.warn('Failed to upgrade to high-res texture, keeping low-res:', error);
@@ -526,6 +541,7 @@ export class ThreeRendererService {
       const startY = this.targetCamY;
       const startZ = this.targetCamZ;
       const dur = options.duration ?? 2.4;
+      const generation = ++this.camMoveTweenId;
 
       // Skip if already at target
       if (Math.abs(targetZ - startZ) < 0.01 &&
@@ -548,7 +564,7 @@ export class ThreeRendererService {
             resolve();
           }
         });
-        this.addTween(tweenFn);
+        this.addTween(this.supersedable(tweenFn, () => generation === this.camMoveTweenId, resolve));
       });
     } else {
       this.targetCamX = targetX;
@@ -625,8 +641,65 @@ export class ThreeRendererService {
   /**
    * Reset camera view to fit all content
    */
-  resetCameraView(animated = true): void {
-    this.setSceneBounds(this.contentBounds, { animate: animated, force: true, duration: 0.5 });
+  resetCameraView(animated = true, durationSec = 0.5): Promise<void> {
+    return this.setSceneBounds(this.contentBounds, { animate: animated, force: true, duration: durationSec });
+  }
+
+  /**
+   * Current camera roll in radians.
+   */
+  getCameraRoll(): number {
+    return this.camRoll;
+  }
+
+  /**
+   * Set the camera roll immediately (radians). Used to restore an unrolled
+   * camera when demo mode is cut short.
+   */
+  setCameraRoll(roll: number): void {
+    this.camRoll = roll;
+    this.wakeUpRenderLoop();
+  }
+
+  /**
+   * Smoothly roll the camera around the view axis to the given angle (radians).
+   */
+  animateCameraRoll(roll: number, durationSec: number): Promise<void> {
+    const startRoll = this.camRoll;
+    const generation = ++this.camRollTweenId;
+
+    if (durationSec <= 0.01 || Math.abs(roll - startRoll) < 1e-4) {
+      this.setCameraRoll(roll);
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve) => {
+      const tweenFn = this.makeTween(durationSec, (progress: number) => {
+        const eased = this.easeInOutCubic(progress);
+        this.camRoll = this.lerp(startRoll, roll, eased);
+
+        if (progress >= 1.0) {
+          this.camRoll = roll;
+          resolve();
+        }
+      });
+
+      this.addTween(this.supersedable(tweenFn, () => generation === this.camRollTweenId, resolve));
+    });
+  }
+
+  /**
+   * Wrap a tween so it drops out the moment a newer animation of the same kind
+   * takes over, resolving its promise rather than leaving the caller hanging.
+   */
+  private supersedable(tweenFn: TweenFn, isCurrent: () => boolean, resolve: () => void): TweenFn {
+    return (dt: number) => {
+      if (!isCurrent()) {
+        resolve();
+        return true;
+      }
+      return tweenFn(dt);
+    };
   }
 
 
@@ -966,27 +1039,51 @@ export class ThreeRendererService {
     this.fisheyeAnimationLock = true;
     this.fisheyeResumeOnPointer = false;
 
-    let targetZoomZ = this.targetCamZ * 0.25; // Fallback
-    
-    // Calculate target zoom based on item height filling 50% of screen
-    if (photoData && photoData.mesh) {
-      const bbox = new THREE.Box3().setFromObject(photoData.mesh);
-      const itemWidth = bbox.max.x - bbox.min.x;
-      const itemHeight = bbox.max.y - bbox.min.y;
-      
-      
-      // At distance Z, visible height = 2 * Z * tan(FOV/2)
-      // We want: itemHeight = 0.5 * visibleHeight
-      // So: Z = itemHeight / (2 * 0.5 * tan(FOV/2)) = itemHeight / tan(FOV/2)
-      const fovRad = THREE.MathUtils.degToRad(this.FOV_DEG);
-      targetZoomZ = itemHeight / Math.tan(fovRad / 2);
-    }
-
-    // Clamp to valid range
-    targetZoomZ = THREE.MathUtils.clamp(targetZoomZ, this.computedMinCamZ, this.computedMaxCamZ);
+    const targetZoomZ = (photoData && photoData.mesh)
+      ? this.computeFocusZForItem(photoData, 0.5, true)
+      : THREE.MathUtils.clamp(this.targetCamZ * 0.25, this.computedMinCamZ, this.computedMaxCamZ);
 
     // Single unified animation: pan + zoom together (1.25 seconds with smooth easing)
     await this.animateCameraToZoomLevel(x, y, targetZoomZ, 1.25);
+  }
+
+  /**
+   * Camera Z at which an item fills the given fraction of the viewport height.
+   *
+   * @param fillRatio Fraction of the viewport height the item should occupy (0-1)
+   * @param useTiltedFootprint When true, measures the item's rotated bounding box —
+   *   the right frame for an unrolled camera. When false, uses the item's true
+   *   height, valid once the camera roll matches the item's own rotation.
+   */
+  computeFocusZForItem(photoData: PhotoData, fillRatio: number, useTiltedFootprint: boolean): number {
+    let itemHeight = this.PHOTO_H;
+
+    if (useTiltedFootprint && photoData.mesh) {
+      const bbox = new THREE.Box3().setFromObject(photoData.mesh);
+      itemHeight = bbox.max.y - bbox.min.y;
+    }
+
+    // At distance Z the visible height is 2 * Z * tan(FOV/2), and we want
+    // itemHeight = fillRatio * visibleHeight
+    const fovRad = THREE.MathUtils.degToRad(this.FOV_DEG);
+    const targetZ = itemHeight / (2 * Math.max(0.01, fillRatio) * Math.tan(fovRad / 2));
+
+    return THREE.MathUtils.clamp(targetZ, this.computedMinCamZ, this.computedMaxCamZ);
+  }
+
+  /**
+   * Smoothly pan and zoom the camera to a world position, keeping the fisheye
+   * effect disabled for the duration. Used by the demo mode focus cycle.
+   */
+  focusCameraOn(x: number, y: number, targetZ: number, durationSec: number): Promise<void> {
+    // Hold the camera against auto-fit: a photo arriving mid-flight must not
+    // yank the view back to the full canvas
+    this.cameraMode = 'user-controlled';
+    this.disableFisheyeForZoom();
+    this.fisheyeAnimationLock = true;
+    this.fisheyeResumeOnPointer = false;
+
+    return this.animateCameraToZoomLevel(x, y, targetZ, durationSec);
   }
 
   /**
@@ -994,6 +1091,8 @@ export class ThreeRendererService {
    * Fisheye will only re-enable if the camera zooms back out beyond the target level
    */
   private animateCameraToZoomLevel(x: number, y: number, targetZ: number, durationSec: number): Promise<void> {
+    const generation = ++this.camMoveTweenId;
+
     return new Promise((resolve) => {
       const startX = this.targetCamX;
       const startY = this.targetCamY;
@@ -1024,7 +1123,7 @@ export class ThreeRendererService {
         }
       });
 
-      this.addTween(tweenFn);
+      this.addTween(this.supersedable(tweenFn, () => generation === this.camMoveTweenId, resolve));
     });
   }
 
@@ -2027,6 +2126,15 @@ export class ThreeRendererService {
 
   setPermalinkTarget(photoId: string | null): void {
     this.permalinkTargetId = photoId;
+  }
+
+  /**
+   * Keep a photo on the high-res texture regardless of its on-screen size.
+   * Tracked separately from the permalink target so demo mode can claim
+   * high-res for the item it is flying to without clobbering it.
+   */
+  setHighResPriorityId(photoId: string | null): void {
+    this.highResPriorityId = photoId;
   }
 
   /**
@@ -3434,6 +3542,8 @@ export class ThreeRendererService {
         this.CAM_DAMP, 
         dt
       );
+      // Rolling the camera by +θ makes an item tilted by +θ read as upright
+      this.camera.up.set(-Math.sin(this.camRoll), Math.cos(this.camRoll), 0);
       this.camera.lookAt(this.targetCamX, this.targetCamY, 0);
 
       // Check if scene is idle (camera stopped moving and no active tweens)
@@ -3999,6 +4109,8 @@ export class ThreeRendererService {
    * Monitors zoom level and disables fisheye once it passes the full extent threshold.
    */
   focusOnPositionAnimated(x: number, y: number, targetZ: number = 800, durationSec: number = 1): Promise<void> {
+    const generation = ++this.camMoveTweenId;
+
     return new Promise((resolve) => {
       this.cameraMode = 'user-controlled';
 
@@ -4046,7 +4158,7 @@ export class ThreeRendererService {
         }
       });
 
-      this.addTween(tweenFn);
+      this.addTween(this.supersedable(tweenFn, () => generation === this.camMoveTweenId, resolve));
     });
   }
 
@@ -4183,7 +4295,8 @@ export class ThreeRendererService {
 
       const photoId = this.findPhotoIdForMesh(mesh);
       const isPermalinkTarget = this.permalinkTargetId !== null && photoId === this.permalinkTargetId;
-      const eligibleForHighRes = isPermalinkTarget || this.fisheyeAffectedMeshes.has(mesh) || occupiesViewport;
+      const isHighResPriority = this.highResPriorityId !== null && photoId === this.highResPriorityId;
+      const eligibleForHighRes = isPermalinkTarget || isHighResPriority || this.fisheyeAffectedMeshes.has(mesh) || occupiesViewport;
 
       if (!eligibleForHighRes) {
         if (isHigh) {
