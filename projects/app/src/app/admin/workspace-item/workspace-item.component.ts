@@ -1,11 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { WorkspaceNameUtility } from '../../shared/workspace-name.utility';
+import { DropboxConfigModalComponent } from '../dropbox-config-modal/dropbox-config-modal.component';
 
 @Component({
   selector: 'app-workspace-item',
   imports: [
-    RouterLink
+    RouterLink,
+    DropboxConfigModalComponent
   ],
   templateUrl: './workspace-item.component.html',
   styleUrl: './workspace-item.component.less',
@@ -23,6 +25,7 @@ export class WorkspaceItemComponent {
   nowToggle = output<string>();
   nowEndTimeChange = output<{ workspaceId: string; endTime: string | null }>();
   ingestMenuOpen = signal(false);
+  dropboxConfigOpen = signal(false);
   ingestSuffix = computed(() => {
     const w = this.workspace();
     if (w && w.id && w.keys) {
@@ -78,6 +81,16 @@ export class WorkspaceItemComponent {
     return WorkspaceNameUtility.formatWorkspaceNameWithEmojis(this.workspace());
   });
   
+  openDropboxConfig(event: Event) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.dropboxConfigOpen.set(true);
+  }
+
+  closeDropboxConfig() {
+    this.dropboxConfigOpen.set(false);
+  }
+
   toggleIngestMenu(event: Event) {
     event.stopPropagation();
     this.ingestMenuOpen.update(open => !open);

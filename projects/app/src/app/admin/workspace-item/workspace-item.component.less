@@ -156,6 +156,9 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
+    // The Dropbox action is a <button>, which would otherwise fall back to the
+    // browser's UI font instead of inheriting the row's.
+    font-family: inherit;
     padding: 6px 10px;
     border-radius: 10px;
     border: 1px solid #E7CBFF;

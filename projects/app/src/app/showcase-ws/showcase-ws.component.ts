@@ -683,6 +683,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     this.rendererService.setUserControlEnabled(false);
 
     this.demoMode.start();
+    this.updateLoopQueryParam(true);
   }
 
   /**
@@ -699,6 +700,31 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     if (this.fisheyeWasEnabled) {
       this.toggleFisheyeEffect();
       this.fisheyeWasEnabled = false;
+    }
+
+    this.updateLoopQueryParam(false);
+  }
+
+  /**
+   * Keep ?loop in step with demo mode, so the address bar always describes what
+   * is on screen and can be copied straight to a wall display. Replaces the
+   * history entry rather than pushing one, so toggling does not pile up
+   * history, and leaves the hash (view, item, search) alone.
+   */
+  private updateLoopQueryParam(active: boolean): void {
+    if (!this.platform.browser()) {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    if (active) {
+      url.searchParams.set('loop', 'true');
+    } else {
+      url.searchParams.delete('loop');
+    }
+
+    if (url.href !== window.location.href) {
+      window.history.replaceState(window.history.state, '', url.href);
     }
   }
 

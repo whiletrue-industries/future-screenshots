@@ -118,6 +118,7 @@ The Showcase WS view provides an interactive 3D visualization of all submitted p
 - Add `loop=true` to the URL and the tour starts on its own once the canvas has loaded — no admin key and no clicking required
 - Example: `/showcase-ws?workspace=xxx&api_key=xxx&loop=true`
 - Handy for a screen left running in an exhibition or a workshop room
+- Starting the tour from the toggle adds `loop=true` to the address bar, and exiting removes it again — so the URL on screen is always ready to copy to another display
 
 **Fisheye Lens Effect:**
 - Located at the bottom-right of the screen (purple circular icon)
