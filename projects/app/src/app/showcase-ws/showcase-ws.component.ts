@@ -17,6 +17,7 @@ import { SvgBackgroundLayoutStrategy } from './svg-background-layout-strategy';
 import { CirclePackingLayoutStrategy } from './circle-packing-layout-strategy';
 import { TsneLayoutStrategy } from './tsne-layout-strategy';
 import { PhotoDataRepository } from './photo-data-repository';
+import { DemoModeService } from './demo-mode.service';
 import { PHOTO_CONSTANTS } from './photo-constants';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
@@ -70,7 +71,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   lang = signal('');
   allowAdditionalContributions = signal(true); // Default to showing QR code
   currentLayout = signal<ShowcaseLayoutView>('circle-packing');
-  enableRandomShowcase = signal(false);
+  /** Demo mode – the unattended camera tour (see DemoModeService). */
+  demoMode = inject(DemoModeService);
+  /** Fisheye state to restore when demo mode ends. */
+  private fisheyeWasEnabled = false;
+  /** ?loop=true – start the tour by itself once the canvas has settled. */
+  private autoStartDemoMode = false;
   enableSvgAutoPositioning = signal(true);
   fisheyeEnabled = signal(false);
   currentZoomLevel = signal(1.0); // Track current zoom level for UI display
@@ -481,6 +487,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           this.focusOnItem(focusId, { animateFromFull: true, fromShowOnMap: true });
         }
 
+        // A ?loop=true display starts touring once the canvas has settled
+        if (this.autoStartDemoMode) {
+          this.autoStartDemoMode = false;
+          this.startDemoMode();
+        }
+
         // Set lastCreatedAt to the most recent item
         const latestItem = items[items.length - 1];
         this.lastCreatedAt = latestItem.created_at;
@@ -571,9 +583,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         }
       }
 
-      // Update showcase behavior
-      this.photoRepository.setRandomShowcaseEnabled(this.enableRandomShowcase());
-      
       // Schedule next poll unless inactive for too long
       if (Date.now() - this.lastActivityAt < ANIMATION_CONSTANTS.INACTIVITY_TIMEOUT) {
         setTimeout(() => {
@@ -639,6 +648,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     if (qp['fisheye'] === '1' || qp['fisheye'] === 'true') {
       this.fisheyeEnabled.set(true);
     }
+
+    // ?loop=true starts the demo tour on its own – for unattended wall displays
+    this.autoStartDemoMode = qp['loop'] === 'true' || qp['loop'] === '1';
     
     apiService.updateFromRoute(this.activatedRoute.snapshot);
     const authToken = this.resolveAuthToken();
@@ -648,11 +660,89 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Toggle the random showcase behavior
+   * Enter demo mode: hand the camera to the tour and take the UI off screen.
    */
-  toggleRandomShowcase() {
-    this.enableRandomShowcase.set(!this.enableRandomShowcase());
-    this.photoRepository.setRandomShowcaseEnabled(this.enableRandomShowcase());
+  startDemoMode(): void {
+    if (this.demoMode.active()) {
+      return;
+    }
+
+    // Nothing may compete with the tour for the camera or the pointer
+    this.sidebarOpen.set(false);
+    this.selectedItemId.set(null);
+    this.dragAllControlsOpen.set(false);
+    this.searchActive.set(false);
+    this.filtersBarOpen.set(false);
+
+    this.fisheyeWasEnabled = this.fisheyeEnabled();
+    if (this.fisheyeWasEnabled) {
+      this.toggleFisheyeEffect();
+    }
+
+    this.rendererService.setCameraMode('user-controlled');
+    this.rendererService.setUserControlEnabled(false);
+
+    this.demoMode.start();
+    this.updateLoopQueryParam(true);
+  }
+
+  /**
+   * Leave demo mode and hand the camera back to the viewer.
+   */
+  stopDemoMode(): void {
+    if (!this.demoMode.active()) {
+      return;
+    }
+
+    this.demoMode.stop();
+
+    this.rendererService.setUserControlEnabled(true);
+    if (this.fisheyeWasEnabled) {
+      this.toggleFisheyeEffect();
+      this.fisheyeWasEnabled = false;
+    }
+
+    this.updateLoopQueryParam(false);
+  }
+
+  /**
+   * Keep ?loop in step with demo mode, so the address bar always describes what
+   * is on screen and can be copied straight to a wall display. Replaces the
+   * history entry rather than pushing one, so toggling does not pile up
+   * history, and leaves the hash (view, item, search) alone.
+   */
+  private updateLoopQueryParam(active: boolean): void {
+    if (!this.platform.browser()) {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    if (active) {
+      url.searchParams.set('loop', 'true');
+    } else {
+      url.searchParams.delete('loop');
+    }
+
+    if (url.href !== window.location.href) {
+      window.history.replaceState(window.history.state, '', url.href);
+    }
+  }
+
+  /**
+   * Toggle demo mode from the admin toolbar.
+   */
+  toggleDemoMode(): void {
+    this.demoMode.active() ? this.stopDemoMode() : this.startDemoMode();
+  }
+
+  /**
+   * Exit demo mode on a tap or click anywhere, once the gesture that started
+   * the tour is safely in the past.
+   */
+  onDemoExitTap(): void {
+    if (this.demoMode.canExitByPointer()) {
+      this.stopDemoMode();
+    }
   }
 
   /**
@@ -1027,6 +1117,13 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Handle keyboard shortcuts
    */
   private onKeyDown(event: KeyboardEvent): void {
+    // Escape leaves demo mode – the only way out besides tapping the screen
+    if (event.key === 'Escape' && this.demoMode.active()) {
+      event.preventDefault();
+      this.stopDemoMode();
+      return;
+    }
+
     // Press 'P' to toggle performance monitoring
     if (event.key === 'p' || event.key === 'P') {
       const currentMetrics = this.rendererService.getPerformanceMetrics();
@@ -1120,20 +1217,17 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       useFanLayout: !this.isMobile()
     });
 
-    await this.photoRepository.initialize(
-      defaultStrategy,
-      this.rendererService,
-      {
-        enableRandomShowcase: this.enableRandomShowcase(),
-        showcaseInterval: ANIMATION_CONSTANTS.SHOWCASE_INTERVAL,
-        newPhotoAnimationDelay: ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DELAY
-      }
-    );
+    await this.photoRepository.initialize(defaultStrategy, this.rendererService);
+
+    // The repository is built here rather than injected, so hand it to the tour
+    this.demoMode.attach(this.photoRepository);
 
     // Set up repository event subscriptions
     this.photoRepository.photoAdded$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((photoData) => {
+        // The photo is already on the canvas; this only puts it next in the tour
+        this.demoMode.enqueueNewPhoto(photoData.id);
       });
 
     this.photoRepository.photoRemoved$
@@ -2304,6 +2398,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
 
   ngOnDestroy() {
+    this.demoMode.stop();
+    this.demoMode.detach();
     this.rendererService.dispose();
   }
 }

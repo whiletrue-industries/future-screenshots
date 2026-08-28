@@ -1,0 +1,45 @@
+<div class="modal-overlay" (click)="close()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Dropbox folder config</h2>
+      <button class="close-button" (click)="close()" aria-label="Close dialog">×</button>
+    </div>
+
+    <div class="modal-body">
+      <p class="instructions">
+        Save this as <code>chronomaps.config</code> in the workspace's Dropbox folder.
+        Scans dropped in that folder are then ingested into
+        <strong>{{ workspaceName() }}</strong>.
+      </p>
+
+      @if (configText()) {
+        <pre class="config" aria-label="chronomaps.config contents">{{ configText() }}</pre>
+
+        @if (!collaborationEnabled()) {
+          <p class="warning" role="status">
+            Collaboration is off for this workspace, so this key will be rejected and every
+            image will fail with a 403. Turn collaboration on in Settings before using this file.
+          </p>
+        }
+
+        <p class="note">
+          This uses the <strong>collaborate</strong> key, not the admin key — the archive is
+          usually a shared folder, and anyone who can open it can read this file.
+        </p>
+
+        <div class="actions">
+          <button class="button secondary" (click)="download()">
+            Download file
+          </button>
+          <button class="button primary" (click)="copy()">
+            @if (copied()) { Copied! } @else { Copy contents }
+          </button>
+        </div>
+      } @else {
+        <p class="warning" role="status">
+          This workspace has no collaborate key, so a config file can't be generated for it.
+        </p>
+      }
+    </div>
+  </div>
+</div>

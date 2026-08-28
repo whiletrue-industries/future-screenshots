@@ -96,6 +96,11 @@
                     <span class="label">Map</span>
                 </a>
                 
+                <button type="button" class="action-btn" aria-label="Generate Dropbox folder config" title="Dropbox config" (click)="openDropboxConfig($event)">
+                    <span class="icon">📥</span>
+                    <span class="label">Dropbox</span>
+                </button>
+
                 <a [routerLink]="['/admin/edit', w.id]" [queryParams]="{ key: w.keys.admin }" aria-label="Edit settings" class="action-btn" title="Settings" (click)="$event.stopPropagation()">
                     <span class="icon">⚙️</span>
                     <span class="label">Settings</span>
@@ -103,4 +108,10 @@
             </div>
         </div>
     </article>
+
+    @if (dropboxConfigOpen()) {
+        <app-dropbox-config-modal
+            [workspace]="w"
+            (closed)="closeDropboxConfig()" />
+    }
 }

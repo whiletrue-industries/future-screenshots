@@ -884,6 +884,20 @@ When validating the admin image replacement dialog:
 12. In `Upload`, verify `Replace` button for direct replacement
 13. Validate `Cancel` closes the dialog without changes
 
+### Showcase Demo Mode
+
+Demo mode drives the camera and unmounts the UI, so it is checked by hand in `/showcase-ws`:
+
+1. Click the demo toggle in the toolbar and verify the controls, logo and sidebar come off screen, the cursor disappears, and the QR code, workspace title and cluster labels stay
+2. Verify one cycle: the camera flies to an item, the view rotates until the item reads upright and fills most of the screen, holds a few seconds, then zooms back out level to the whole canvas
+3. Verify the focused item is sharp (full-resolution) by the time the camera settles, not after
+4. Contribute an item while the tour runs: it must appear on the canvas immediately, and be the next item visited
+5. Set a filter that hides an item before starting, then clear it mid-tour: the hidden item is skipped and visited once it reappears
+6. Press `Escape` mid-flight (while the view is rotated and zoomed in): the camera unrolls and returns to the full canvas in one motion, with no fighting or snapping, and pan/zoom work normally again
+7. Repeat step 6 with a tap/click anywhere instead of `Escape`
+8. Verify the click that starts the tour does not immediately end it
+9. Load with `?loop=true` and no `admin_key`: the tour starts by itself once the canvas has settled, and `Escape`/tap still exits
+
 ## Resources
 
 - [Angular Testing Guide](https://angular.dev/guide/testing)

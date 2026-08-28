@@ -7,15 +7,9 @@ import { ThreeRendererService } from './three-renderer.service';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { PHOTO_CONSTANTS } from './photo-constants';
 
-export interface PhotoDataRepositoryOptions {
-  enableRandomShowcase?: boolean;
-  showcaseInterval?: number; // milliseconds
-  newPhotoAnimationDelay?: number; // milliseconds
-}
-
 /**
  * PhotoDataRepository manages all PhotoData objects and their lifecycle
- * Handles layout positioning, visibility, and showcase behavior
+ * Handles layout positioning and visibility. Touring the canvas is DemoModeService's job.
  */
 @Injectable({
   providedIn: 'root'
@@ -26,23 +20,13 @@ export class PhotoDataRepository {
   private renderer: ThreeRendererService | null = null;
   
   // Configuration
-  private enableRandomShowcase = false;
   private enableSvgAutoPositioning = false;
   private isDragEnabled = false; // Admin permission flag for dragging
   private isDragAllEnabled = false; // Temporary drag_all mode (any viewer can drag)
   private userAuthorId: string | null = null; // Author ID for item_key-authenticated users
   private svgVisible = false; // Whether SVG background is visible (enables drag)
   private svgStrategy: SvgBackgroundLayoutStrategy | null = null; // SVG strategy reference for drag handlers
-  private showcaseInterval: number = ANIMATION_CONSTANTS.SHOWCASE_INTERVAL;
-  private newPhotoAnimationDelay: number = ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DELAY;
-  
-  // State management
-  private showcaseTimer: any = null;
-  private isShowcasing = false;
-  
-  // Queue system for new photos awaiting showcase
-  private photoQueue: string[] = [];
-  
+
     // Event subjects for external subscribers
   private photoAddedSubject = new Subject<PhotoData>();
   private photoRemovedSubject = new Subject<string>();
@@ -60,27 +44,20 @@ export class PhotoDataRepository {
    */
   async initialize(
     layoutStrategy: LayoutStrategy, 
-    renderer: ThreeRendererService,
-    options: PhotoDataRepositoryOptions = {}
+    renderer: ThreeRendererService
   ): Promise<void> {
     this.layoutStrategy = layoutStrategy;
     this.renderer = renderer;
-    
-    // Apply options
-    this.enableRandomShowcase = options.enableRandomShowcase ?? false;
-    this.showcaseInterval = options.showcaseInterval ?? ANIMATION_CONSTANTS.SHOWCASE_INTERVAL;
-    this.newPhotoAnimationDelay = options.newPhotoAnimationDelay ?? ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DELAY;
 
     // Initialize layout strategy
     await this.layoutStrategy.initialize();
-    
-    // Start showcase loop if enabled
-    this.updateShowcaseLoop();
   }
 
   /**
-   * Add a new photo to the repository
-   * Photos are added to the queue and will be showcased via the random showcase system
+   * Add a new photo to the repository.
+   * The photo is placed on the canvas straight away, at full opacity, as soon as
+   * the layout gives it a position — nothing holds it back. Subscribers hear
+   * about it via photoAdded$.
    */
   async addPhoto(metadata: PhotoMetadata): Promise<PhotoData> {
     if (this.photos.has(metadata.id)) {
@@ -249,11 +226,6 @@ export class PhotoDataRepository {
         (mesh.material as any).opacity = 0;
         (mesh.material as any).transparent = true;
       }
-    }
-
-    // Add to showcase queue for new photo introduction
-    if (hasValidPosition) {
-      this.photoQueue.push(metadata.id);
     }
 
     // Update camera bounds if photo was placed immediately (not animated)
@@ -478,15 +450,6 @@ export class PhotoDataRepository {
   }
 
   /**
-   * Enable or disable random showcase behavior
-   */
-  setRandomShowcaseEnabled(enabled: boolean): void {
-    this.enableRandomShowcase = enabled;
-    this.updateShowcaseLoop();
-    // Note: Camera bounds don't need updating just for showcase behavior change
-  }
-
-  /**
    * Enable or disable SVG auto-positioning
    */
   setSvgAutoPositioningEnabled(enabled: boolean): void {
@@ -699,98 +662,6 @@ export class PhotoDataRepository {
   }
 
   /**
-   * Get current showcase state
-   */
-  isRandomShowcaseEnabled(): boolean {
-    return this.enableRandomShowcase;
-  }
-
-  /**
-   * Get the current photo queue length
-   */
-  getQueueLength(): number {
-    return this.photoQueue.length;
-  }
-
-  /**
-   * Clear the photo queue
-   */
-  clearQueue(): void {
-    this.photoQueue = [];
-  }
-
-  /**
-   * Get a copy of the current queue
-   */
-  getQueue(): string[] {
-    return [...this.photoQueue];
-  }
-
-  /**
-   * Manually trigger showcase of a specific photo
-   */
-  async showcasePhoto(id: string): Promise<void> {
-    const photo = this.photos.get(id);
-    if (!photo || !photo.mesh || !this.renderer) {
-      return;
-    }
-
-    if (this.isShowcasing) {
-      return; // Already showcasing
-    }
-
-    this.isShowcasing = true;
-
-    try {
-      // Upgrade to high-resolution texture before showcasing
-      await this.renderer.upgradeToHighResTexture(photo.mesh, photo.url);
-
-      // Move photo forward to center of screen
-      const originalZ = photo.currentPosition.z;
-      const showcaseZ = this.renderer.getCameraSpawnZ() - 100;
-      
-      const showcaseForwardPos = { x: 0, y: 0, z: showcaseZ };
-      const actualStartPos = {
-        x: photo.mesh.position.x,
-        y: photo.mesh.position.y,
-        z: photo.mesh.position.z
-      };
-      await this.animateToPositionWithUpdate(
-        photo,
-        actualStartPos,
-        showcaseForwardPos,
-        ANIMATION_CONSTANTS.SHOWCASE_FORWARD_DURATION
-      );
-
-      // Shorter showcase duration for less disruption
-      await new Promise(resolve => setTimeout(resolve, Math.min(this.newPhotoAnimationDelay, ANIMATION_CONSTANTS.MAX_SHOWCASE_DURATION)));
-
-      // Move back to original position
-      const returnPos = { ...photo.targetPosition, z: originalZ };
-      const actualReturnStartPos = {
-        x: photo.mesh.position.x,
-        y: photo.mesh.position.y,
-        z: photo.mesh.position.z
-      };
-      await this.animateToPositionWithUpdate(
-        photo,
-        actualReturnStartPos,
-        returnPos,
-        ANIMATION_CONSTANTS.SHOWCASE_RETURN_DURATION
-      );
-      photo.setAnimationState(PhotoAnimationState.POSITIONED);
-      
-      // Downgrade back to low-resolution texture to save memory
-      await this.renderer.downgradeToLowResTexture(photo.mesh, photo.url);
-      
-      // Note: No camera bounds update needed - showcase doesn't change layout positions
-
-    } finally {
-      this.isShowcasing = false;
-    }
-  }
-
-  /**
    * Observable for photo addition events
    */
   get photoAdded(): Observable<PhotoData> {
@@ -815,12 +686,6 @@ export class PhotoDataRepository {
    * Clean up resources
    */
   dispose(): void {
-    // Stop showcase loop
-    if (this.showcaseTimer) {
-      clearTimeout(this.showcaseTimer);
-      this.showcaseTimer = null;
-    }
-    
     // Clean up all photos
     this.photos.forEach(photo => {
       if (photo.mesh && this.renderer) {
@@ -839,96 +704,6 @@ export class PhotoDataRepository {
     this.photoAddedSubject.complete();
     this.photoRemovedSubject.complete();
     this.layoutChangedSubject.complete();
-  }
-
-  /**
-   * Animate a new photo into position
-   */
-  private async animateNewPhoto(photoData: PhotoData): Promise<void> {
-    if (!photoData.mesh || !this.renderer) {
-      return;
-    }
-
-    photoData.setAnimationState(PhotoAnimationState.SPAWNING);
-    
-    // Start at spawn position with opacity 0
-    const spawnZ = this.renderer.getCameraSpawnZ() - 100;
-    const spawnPosition = { x: 0, y: 0, z: spawnZ };
-    photoData.setCurrentPosition(spawnPosition);
-    this.renderer.updateMeshPosition(photoData.mesh, spawnPosition);
-
-    // Wait before animating (reduced delay for better responsiveness)
-    await new Promise(resolve => setTimeout(resolve, Math.min(this.newPhotoAnimationDelay, ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DELAY)));
-
-    // Animate to target position with fade in
-    photoData.setAnimationState(PhotoAnimationState.FLOATING_BACK);
-    await this.animateToPositionWithOpacityUpdate(
-      photoData,
-      spawnPosition,
-      photoData.targetPosition,
-      0, // start opacity
-      1, // target opacity
-      ANIMATION_CONSTANTS.NEW_PHOTO_ANIMATION_DURATION
-    );
-
-    photoData.setAnimationState(PhotoAnimationState.POSITIONED);
-    
-    // Update camera bounds with animation for new photos
-    await this.updateCamera({ animate: true });
-  }
-
-  /**
-   * Update showcase loop based on current settings
-   */
-  private updateShowcaseLoop(): void {
-    // Clear existing timer
-    if (this.showcaseTimer) {
-      clearTimeout(this.showcaseTimer);
-      this.showcaseTimer = null;
-    }
-
-    // Start new timer if enabled
-    if (this.enableRandomShowcase) {
-      this.scheduleRandomShowcase();
-    }
-  }
-
-  /**
-   * Schedule the next random showcase
-   */
-  private scheduleRandomShowcase(): void {
-    if (!this.enableRandomShowcase) {
-      return;
-    }
-
-    this.showcaseTimer = setTimeout(async () => {
-      if (this.isShowcasing) {
-        // Schedule next showcase
-        this.scheduleRandomShowcase();
-        return;
-      }
-
-      let photoIdToShowcase: string | undefined;
-
-      // Prioritize photos from the queue
-      if (this.photoQueue.length > 0) {
-        photoIdToShowcase = this.photoQueue.shift();
-      } else {
-        // Fall back to random selection from visible photos
-        const visiblePhotos = this.getVisiblePhotos();
-        if (visiblePhotos.length > 0) {
-          const randomPhoto = visiblePhotos[Math.floor(Math.random() * visiblePhotos.length)];
-          photoIdToShowcase = randomPhoto.id;
-        }
-      }
-
-      if (photoIdToShowcase) {
-        await this.showcasePhoto(photoIdToShowcase);
-      }
-      
-      // Schedule next showcase
-      this.scheduleRandomShowcase();
-    }, this.showcaseInterval);
   }
 
   /**

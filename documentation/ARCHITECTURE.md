@@ -145,11 +145,25 @@ The application uses Angular standalone components organized by feature:
    - Auto-fit mode: Automatically frames all photos in view
    - Smooth camera animations with damping
    - QR code for easy mobile access
-   - Random showcase mode to highlight photos
+   - **Demo mode** (`DemoModeService`) – an unattended camera tour of the canvas, for wall displays. Items never move; the camera goes to them:
+     1. Fly to the item where it already sits, framed so its tilted footprint fills ~50% of the viewport height
+     2. Claim its high-res texture as the flight starts (`ThreeRendererService.setHighResPriorityId()`, tracked separately from the permalink target), so the swap lands before the camera arrives
+     3. Roll the view to the item's own rotation while closing the last of the distance to ~78% of the viewport height – never zooming back out
+     4. Dwell, then unroll and fit the whole canvas back into view
+     - Items are placed on the canvas as soon as the layout gives them a position; the tour never holds one back. Arrivals (via `photoAdded$`) are queued and toured ahead of the random picks
+     - An item that is not on the canvas at that moment (filtered out, hidden, not yet `POSITIONED`) is moved to the back of the queue and toured if and when it appears; one that no longer exists is dropped
+     - Every phase re-reads the item's position and re-checks the run id, so a repositioned, deleted or exited item unwinds the cycle cleanly
+     - While the tour runs the UI controls are unmounted (the QR code, workspace title and cluster labels stay), the cursor is hidden and `ThreeRendererService.setUserControlEnabled(false)` takes pan/zoom/keys away from the viewer. `Escape`, or a tap/click anywhere on the full-viewport exit layer, ends the tour; pointer input is ignored for the first 500ms so the starting gesture cannot immediately end it
+     - Entered from the admin toolbar toggle, or on its own with `?loop=true` (no admin key needed) once the canvas has settled
+     - `?loop` is kept in step with the tour either way — added when it starts, removed when it ends — so the address bar always describes what is on screen and can be copied straight to a wall display. Written with `history.replaceState`, so toggling adds no history entries and the hash (view, item, search) is untouched
+     - Timings and framing ratios live in `ANIMATION_CONSTANTS` (`DEMO_*`)
+   - **Camera roll** – `ThreeRendererService` rolls the camera about the view axis (`animateCameraRoll()`), applied through `camera.up` before the per-frame `lookAt`. The screen↔world helpers (`projectScreenToWorld`, `panCamera`, `zoomAtPoint`, drag hit-testing) assume an unrolled camera, which holds because demo mode disables user control before rolling and unrolls before handing control back
+   - Camera animations are generation-guarded: starting a new pan/zoom (or roll) supersedes the one in flight and resolves its promise, instead of two tweens fighting over the camera when a cycle is interrupted
     - **URL state**: the active view, focused item and search text live in the URL *hash*, and are kept in sync as the user navigates
        - Example: `/showcase-ws?workspace=XXX&api_key=YYY#view=tsne-grid&item=ZZZ&search=foo`
        - `view` (or its alias `layout`) accepts the exact strategy keys: `svg`, `tsne`, `tsne-grid`, `circle-packing`
        - `item` focuses an item – the camera zooms and centres on it
+    - **URL query parameters**: `loop=true` (also `loop=1`) starts demo mode automatically once the canvas has settled – for unattended wall displays. Distinct from the global `demo` parameter read by `ApiService`, which only affects the scanner
        - Legacy forms are still accepted: a bare `#<view>` or a bare `#<item-id>`
    - **Access control**: Drag-to-edit only for users with admin_key
      - Visitors can view and click but not drag items

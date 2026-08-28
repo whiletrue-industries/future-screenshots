@@ -105,9 +105,20 @@ The Showcase WS view provides an interactive 3D visualization of all submitted p
   - **S** - SVG Layout (interactive placement)
   - **C** - Circle Packing Layout
 
-**Random Showcase Toggle:**
-- Located at the bottom-right of the screen
-- Toggle to enable/disable random photo highlighting
+**Demo Mode Toggle:**
+- Located at the bottom-right of the screen (admin only)
+- Starts an unattended tour of the canvas, for wall displays and presentations
+- The items stay where they are and the camera visits them: it flies to an item, rotates the view to match the item's own tilt so it reads upright, holds for a few seconds, then zooms back out to the whole canvas
+- The item's full-resolution image is loaded on the way in, so it is sharp by the time the camera arrives
+- Newly contributed items appear on the canvas immediately and are the next ones the tour visits. An item that is currently hidden (for example, filtered out) is skipped and visited later if it reappears
+- While the tour runs, all controls come off screen and the mouse pointer is hidden. The QR code and workspace title stay visible
+- **To exit: press `Escape`, or tap/click anywhere on the screen**
+
+**Starting Demo Mode automatically:**
+- Add `loop=true` to the URL and the tour starts on its own once the canvas has loaded — no admin key and no clicking required
+- Example: `/showcase-ws?workspace=xxx&api_key=xxx&loop=true`
+- Handy for a screen left running in an exhibition or a workshop room
+- Starting the tour from the toggle adds `loop=true` to the address bar, and exiting removes it again — so the URL on screen is always ready to copy to another display
 
 **Fisheye Lens Effect:**
 - Located at the bottom-right of the screen (purple circular icon)
