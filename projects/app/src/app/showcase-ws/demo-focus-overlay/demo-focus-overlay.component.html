@@ -1,5 +1,5 @@
 <div class='demo-focus'
-  [class.visible]='!!photo()'
+  [class.visible]='!!photo() && arrived()'
   [class.prefer]='side() === "prefer"'
   [class.prevent]='side() === "prevent"'
   aria-hidden='true'>

@@ -46,6 +46,14 @@ export class DemoModeService {
    */
   readonly highlightedPhotoId = signal<string | null>(null);
 
+  /**
+   * Whether the first flight to the highlighted item is over. Its decoration
+   * (string, clips, labels) is only drawn from then on, so it does not sweep
+   * across the screen during the flight; it then rides along through the roll
+   * and the last of the zoom.
+   */
+  readonly focusArrived = signal(false);
+
   /** Newly arrived items, toured ahead of the random picks. */
   private queue: string[] = [];
 
@@ -228,6 +236,7 @@ export class DemoModeService {
       if (!this.isCurrentRun(runId)) {
         return;
       }
+      this.focusArrived.set(true);
 
       // 2. Roll the view to the item's own rotation, closing the last of the
       //    distance at the same time. Never zooms back out.
@@ -300,6 +309,7 @@ export class DemoModeService {
    * Bring an item to the front, sharp against a blurred canvas, or let it go.
    */
   private highlight(id: string | null): void {
+    this.focusArrived.set(false);
     this.highlightedPhotoId.set(id);
     this.renderer.setDemoFocusPhotoId(id);
   }

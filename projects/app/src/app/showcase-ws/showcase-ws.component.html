@@ -278,7 +278,7 @@
 
 <!-- Demo mode: the string, clips and labels around the item the tour is holding -->
 @if (demoMode.active()) {
-  <app-demo-focus-overlay [photo]='demoHighlightedPhoto()'></app-demo-focus-overlay>
+  <app-demo-focus-overlay [photo]='demoHighlightedPhoto()' [arrived]='demoMode.focusArrived()'></app-demo-focus-overlay>
 }
 
 <!-- Taxonomy cluster labels overlay (visible only in Thematic / TSNE layout) -->

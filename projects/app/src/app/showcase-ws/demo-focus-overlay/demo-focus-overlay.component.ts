@@ -69,10 +69,11 @@ export function resolvePlausibility(value: unknown): DemoFocusPlausibility | nul
  * favorability and plausibility – the vocabulary of the map view, drawn in
  * HTML over the canvas.
  *
- * Everything is sized from the item's on-screen width, so the decoration grows
- * with the item as the camera flies in, and settles at the same proportions on
- * a laptop and on a 4K wall. It is purely decorative (`pointer-events: none`,
- * `aria-hidden`).
+ * Everything is sized from the item's on-screen width and follows the item
+ * every frame, so once it appears – after the first flight has landed – it
+ * rolls and grows with the item through the rest of the approach, and keeps
+ * the same proportions on a laptop and on a 4K wall. It is purely decorative
+ * (`pointer-events: none`, `aria-hidden`).
  */
 @Component({
   selector: 'app-demo-focus-overlay',
@@ -83,6 +84,9 @@ export function resolvePlausibility(value: unknown): DemoFocusPlausibility | nul
 export class DemoFocusOverlayComponent implements OnInit, OnDestroy {
   /** The highlighted item, or null while the camera is pulling back. */
   photo = input<PhotoData | null>(null);
+
+  /** True once the first flight has landed on the item; the decoration only appears then. */
+  arrived = input(false);
 
   favorability = computed(() => resolveFavorability(this.photo()?.metadata['favorable_future']));
   plausibility = computed(() => resolvePlausibility(this.photo()?.metadata['plausibility']));
