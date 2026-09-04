@@ -221,19 +221,6 @@
         </div>
       </button>
       <button
-        class='toggle-button thematic-button'
-        [class.active]='currentLayout() === "tsne"'
-        (click)='switchToTsneLayout()'
-        title='Thematic Layout'>
-        <div class='button-content'>
-          <svg viewBox='0 0 24 24' class='button-icon' aria-hidden='true'>
-            <polygon points='12,3 21,8 21,16 12,21 3,16 3,8' stroke='currentColor' stroke-width='2' fill='none'/>
-            <polygon points='12,8 16,10.5 16,15.5 12,18 8,15.5 8,10.5' fill='currentColor' opacity='0.6'/>
-          </svg>
-          <span class='button-label'>Thematic</span>
-        </div>
-      </button>
-      <button
         class='toggle-button tsne-button'
         [class.active]='currentLayout() === "tsne-grid"'
         (click)='switchToTsneGridLayout()'
@@ -287,6 +274,11 @@
     class='demo-exit-layer'
     (click)='onDemoExitTap()'
     aria-label='Exit demo mode'></button>
+}
+
+<!-- Demo mode: the string, clips and labels around the item the tour is holding -->
+@if (demoMode.active()) {
+  <app-demo-focus-overlay [photo]='demoHighlightedPhoto()'></app-demo-focus-overlay>
 }
 
 <!-- Taxonomy cluster labels overlay (visible only in Thematic / TSNE layout) -->

@@ -26,11 +26,13 @@ import { TaxonomyClusterLabel } from './taxonomy-clusters-overlay/taxonomy-label
 import { TaxonomyLabelHoverEvent } from './taxonomy-clusters-overlay/taxonomy-clusters-overlay.component';
 import { TsneClustersOverlayComponent } from './tsne-clusters-overlay/tsne-clusters-overlay.component';
 import { TsneClusterLabel } from './tsne-clusters-overlay/tsne-cluster-label.interface';
+import { DemoFocusOverlayComponent } from './demo-focus-overlay/demo-focus-overlay.component';
 
 /**
- * The views offered by the layout toggle.
+ * The views the showcase can display.
  * - `svg` – Map
- * - `tsne` – Thematic (taxonomy-driven, see TaxonomyLayoutStrategy)
+ * - `tsne` – Thematic (taxonomy-driven, see TaxonomyLayoutStrategy). Not on
+ *   the layout toggle (#239); reachable only through `#view=tsne`.
  * - `tsne-grid` – TSNE (server-precalculated embedding, see TsneLayoutStrategy)
  * - `circle-packing` – Clusters
  */
@@ -46,7 +48,7 @@ const DRAG_ALL_ALLOWED_PROPERTIES = 'layout_x,layout_y,plausibility,favorable_fu
 
 @Component({
   selector: 'app-showcase-ws',
-  imports: [QrcodeComponent, EvaluationSidebarComponent, FiltersBarComponent, TaxonomyClustersOverlayComponent, TsneClustersOverlayComponent],
+  imports: [QrcodeComponent, EvaluationSidebarComponent, FiltersBarComponent, TaxonomyClustersOverlayComponent, TsneClustersOverlayComponent, DemoFocusOverlayComponent],
   templateUrl: './showcase-ws.component.html',
   styleUrl: './showcase-ws.component.less'
 })
@@ -73,6 +75,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   currentLayout = signal<ShowcaseLayoutView>('circle-packing');
   /** Demo mode – the unattended camera tour (see DemoModeService). */
   demoMode = inject(DemoModeService);
+
+  /** The item the demo tour is holding in front of the viewer, for its decoration. */
+  demoHighlightedPhoto = computed(() => {
+    const id = this.demoMode.highlightedPhotoId();
+    return id ? (this.photoRepository.getPhoto(id) ?? null) : null;
+  });
   /** Fisheye state to restore when demo mode ends. */
   private fisheyeWasEnabled = false;
   /** ?loop=true – start the tour by itself once the canvas has settled. */

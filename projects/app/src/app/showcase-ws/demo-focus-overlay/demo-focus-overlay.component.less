@@ -1,0 +1,118 @@
+@import '../../../common.less';
+
+// Everything below is proportional to --w, the highlighted item's on-screen
+// width, which the component updates every frame. The ratios were read off the
+// design mock-ups (issue #240).
+
+:host {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 70; // Above the overlay canvas (60) that carries the highlighted item
+  font-family: var(--showcase-font-family, "Readex Pro", "Miriam Libre", "Source Sans 3", sans-serif);
+}
+
+.demo-focus {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+
+  --string-color: #8F8F8F;
+  --other-color: #8F8F8F;
+
+  &.prefer {
+    --string-color: @color-prefer;
+    --other-color: @color-prevent;
+  }
+
+  &.prevent {
+    --string-color: @color-prevent;
+    --other-color: @color-prefer;
+  }
+
+  &.visible {
+    opacity: 1;
+  }
+}
+
+.anchor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  visibility: hidden; // Until the first frame places it
+  direction: ltr;
+  --w: 0px;
+}
+
+// The string runs along the item's top edge, far enough both ways to cross the
+// viewport at any tilt.
+.string {
+  position: absolute;
+  left: -200vmax;
+  width: 400vmax;
+  height: max(1.5px, calc(var(--w) * 0.009));
+  top: 0;
+  transform: translateY(-50%);
+  background: var(--string-color);
+}
+
+// Clips hang over the top edge; the spring sits just above the string.
+.clip {
+  position: absolute;
+  height: calc(var(--w) * 0.5);
+  width: auto;
+  left: calc(var(--w) * (0.04 + 0.17 * var(--clip-index, 0)));
+  top: calc(var(--w) * -0.33);
+}
+
+.labels {
+  position: absolute;
+  left: calc(var(--w) * (0.07 + 0.17 * var(--clip-count, 0)));
+  bottom: calc(var(--w) * 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(var(--w) * 0.03);
+  white-space: nowrap;
+  line-height: 1.15;
+  text-align: left;
+}
+
+.favorability {
+  display: inline-flex;
+  overflow: hidden;
+  border-radius: calc(var(--w) * 0.02);
+  font-size: calc(var(--w) * 0.085);
+  font-weight: 400;
+  color: @color-white;
+
+  .side,
+  .ish {
+    padding: calc(var(--w) * 0.01) calc(var(--w) * 0.035);
+  }
+
+  .side {
+    background: var(--string-color);
+  }
+
+  .ish {
+    background: var(--other-color);
+    padding-left: calc(var(--w) * 0.015);
+  }
+
+  &.ish .side {
+    padding-right: calc(var(--w) * 0.015);
+  }
+}
+
+.plausibility {
+  font-size: calc(var(--w) * 0.1);
+  font-weight: 400;
+  color: var(--string-color);
+}
