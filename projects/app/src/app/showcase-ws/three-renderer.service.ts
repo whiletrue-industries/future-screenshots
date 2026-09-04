@@ -4,6 +4,7 @@ import { signal, Signal } from '@angular/core';
 import { fromEvent, Subject, takeUntil } from 'rxjs';
 import { PhotoData, PhotoAnimationState } from './photo-data';
 import { PHOTO_CONSTANTS } from './photo-constants';
+import { ANIMATION_CONSTANTS } from './animation-constants';
 import { FisheyeEffectService } from './fisheye-effect.service';
 import { PlatformService } from '../../platform.service';
 
@@ -59,6 +60,15 @@ export class ThreeRendererService {
   private container: HTMLElement | null = null;
   private renderer!: THREE.WebGLRenderer;
   private overlayRenderer: THREE.WebGLRenderer | null = null;
+
+  /** Demo mode: blur and fade applied to the main canvas while an item is highlighted. */
+  private static readonly DEMO_DIM_BLUR_PX = 8;
+  private static readonly DEMO_DIM_OPACITY = 0.75;
+  /** Draw order that keeps the highlighted item in front if the overlay canvas cannot be created. */
+  private static readonly DEMO_FOCUS_RENDER_ORDER = 1000;
+
+  /** Item the demo tour is highlighting: drawn sharp, on its own canvas, in front of everything else. */
+  private demoFocusPhotoId: string | null = null;
   private scene!: THREE.Scene;
   private camera!: THREE.PerspectiveCamera;
   private root!: THREE.Group;
@@ -1928,8 +1938,18 @@ export class ThreeRendererService {
     mesh.renderOrder = 0;
   }
 
-  /** Render scene while placing only the top fisheye mesh above HTML overlays. */
+  /**
+   * Render the scene, lifting one mesh onto the overlay canvas when something
+   * has to sit above the HTML overlays: the demo tour's highlighted item, or
+   * else the top fisheye mesh.
+   */
   private renderScene(): void {
+    const demoFocusMesh = this.getDemoFocusMesh();
+    if (demoFocusMesh) {
+      this.renderDemoFocus(demoFocusMesh);
+      return;
+    }
+
     const topMesh = this.topFisheyeMesh;
     const shouldOverlayTopMesh = !!(
       this.fisheyeEnabled &&
@@ -1959,6 +1979,49 @@ export class ThreeRendererService {
     const previousVisibility = children.map(child => child.visible);
     for (let i = 0; i < children.length; i++) {
       children[i].visible = children[i] === topMesh;
+    }
+
+    this.overlayRenderer.clear();
+    this.overlayRenderer.render(this.scene, this.camera);
+
+    for (let i = 0; i < children.length; i++) {
+      children[i].visible = previousVisibility[i];
+    }
+  }
+
+  /**
+   * Demo mode rendering. Every other item goes to the main canvas, which CSS
+   * blurs and fades; the highlighted item goes to the overlay canvas, sharp and
+   * in front of everything. The map background – the strings – is drawn on the
+   * overlay too, so it stays sharp and keeps running over the faded items.
+   */
+  private renderDemoFocus(focusMesh: THREE.Mesh): void {
+    this.ensureOverlayRenderer();
+    if (!this.overlayRenderer) {
+      // No overlay canvas: the raised renderOrder still keeps the item in front
+      this.renderer.render(this.scene, this.camera);
+      return;
+    }
+
+    const background = this.svgBackgroundPlane;
+    const backgroundWasVisible = background?.visible ?? false;
+
+    // Main canvas: everything but the highlighted item and the background
+    focusMesh.visible = false;
+    if (background) {
+      background.visible = false;
+    }
+    this.renderer.render(this.scene, this.camera);
+    focusMesh.visible = true;
+    if (background) {
+      background.visible = backgroundWasVisible;
+    }
+
+    // Overlay canvas: the background and the highlighted item only
+    const children = this.root.children;
+    const previousVisibility = children.map(child => child.visible);
+    for (let i = 0; i < children.length; i++) {
+      children[i].visible = children[i] === focusMesh;
     }
 
     this.overlayRenderer.clear();
@@ -2135,6 +2198,98 @@ export class ThreeRendererService {
    */
   setHighResPriorityId(photoId: string | null): void {
     this.highResPriorityId = photoId;
+  }
+
+  /**
+   * Highlight the item the demo tour is focused on, or clear the highlight.
+   *
+   * While set, the item is rendered on the overlay canvas – always in front,
+   * never hidden by a neighbour – and the main canvas, with every other item,
+   * is blurred and faded behind it. See {@link renderDemoFocus}.
+   */
+  setDemoFocusPhotoId(photoId: string | null): void {
+    if (photoId === this.demoFocusPhotoId) {
+      return;
+    }
+
+    const previous = this.demoFocusPhotoId ? this.photoIdToMesh.get(this.demoFocusPhotoId) : undefined;
+    if (previous) {
+      this.restoreBaseRenderOrder(previous, this.meshToPhotoData.get(previous));
+    }
+
+    this.demoFocusPhotoId = photoId;
+
+    const mesh = photoId ? this.photoIdToMesh.get(photoId) : undefined;
+    if (mesh) {
+      // Only matters when there is no overlay canvas to lift the item onto
+      mesh.renderOrder = ThreeRendererService.DEMO_FOCUS_RENDER_ORDER;
+    }
+
+    this.applyDemoDimming(!!photoId);
+    this.isSceneIdle = false; // Repaint even if the camera is at rest
+  }
+
+  /**
+   * Blur and fade the main canvas – everything but the highlighted item – or
+   * bring it back. The CSS transition eases the change in over the flight and
+   * out over the pull-back.
+   */
+  private applyDemoDimming(active: boolean): void {
+    const canvas = this.renderer?.domElement;
+    if (!canvas) {
+      return;
+    }
+
+    const seconds = ANIMATION_CONSTANTS.DEMO_DIM_TRANSITION_DURATION;
+    canvas.style.transition = `filter ${seconds}s ease, opacity ${seconds}s ease`;
+    canvas.style.filter = active ? `blur(${ThreeRendererService.DEMO_DIM_BLUR_PX}px)` : '';
+    canvas.style.opacity = active ? String(ThreeRendererService.DEMO_DIM_OPACITY) : '';
+  }
+
+  private getDemoFocusMesh(): THREE.Mesh | null {
+    if (!this.demoFocusPhotoId) {
+      return null;
+    }
+    const mesh = this.photoIdToMesh.get(this.demoFocusPhotoId);
+    return mesh && mesh.visible ? mesh : null;
+  }
+
+  /**
+   * On-screen footprint of an item, in container pixels: its top-left corner,
+   * its size, and its tilt as CSS `rotate()` reads it (clockwise radians).
+   * Null if the item has no mesh yet or the renderer is not ready.
+   *
+   * Projects the mesh's own corners, so scale, tilt, camera roll and
+   * perspective are all accounted for.
+   */
+  getPhotoScreenFrame(photoId: string): { x: number; y: number; width: number; height: number; rotation: number } | null {
+    const mesh = this.photoIdToMesh.get(photoId);
+    if (!mesh || !this.camera || !this.container || !this.isInitialized) {
+      return null;
+    }
+
+    const geometry = mesh.geometry;
+    if (!geometry.boundingBox) {
+      geometry.computeBoundingBox();
+    }
+    const box = geometry.boundingBox!;
+    const rect = this.container.getBoundingClientRect();
+
+    const project = (x: number, y: number) => {
+      const v = new THREE.Vector3(x, y, 0).applyMatrix4(mesh.matrixWorld).project(this.camera);
+      return { x: (v.x * 0.5 + 0.5) * rect.width, y: (-v.y * 0.5 + 0.5) * rect.height };
+    };
+    const topLeft = project(box.min.x, box.max.y);
+    const topRight = project(box.max.x, box.max.y);
+    const bottomLeft = project(box.min.x, box.min.y);
+
+    return {
+      x: topLeft.x,
+      y: topLeft.y,
+      width: Math.hypot(topRight.x - topLeft.x, topRight.y - topLeft.y),
+      height: Math.hypot(bottomLeft.x - topLeft.x, bottomLeft.y - topLeft.y),
+      rotation: Math.atan2(topRight.y - topLeft.y, topRight.x - topLeft.x),
+    };
   }
 
   /**

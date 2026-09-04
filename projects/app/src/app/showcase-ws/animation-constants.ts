@@ -65,14 +65,20 @@ export const ANIMATION_CONSTANTS = {
   /** Demo mode: viewport fraction the item's tilted footprint fills on arrival (0-1) */
   DEMO_FOCUS_FILL_RATIO: 0.5,
 
-  /** Demo mode: viewport fraction the item fills once the view matches its rotation (0-1) */
-  DEMO_ALIGNED_FILL_RATIO: 0.78,
+  /**
+   * Demo mode: viewport fraction the item fills once the view matches its rotation (0-1).
+   * Leaves room above the item for its string, clip and labels (DemoFocusOverlayComponent).
+   */
+  DEMO_ALIGNED_FILL_RATIO: 0.62,
 
   /** Demo mode: unroll when the tour is cut short, quicker than a full cycle (seconds) */
   DEMO_EXIT_ROLL_DURATION: 0.4,
 
   /** Demo mode: pointer input ignored for this long after entering, so the starting gesture cannot exit (milliseconds) */
-  DEMO_EXIT_GRACE_PERIOD: 500
+  DEMO_EXIT_GRACE_PERIOD: 500,
+
+  /** Demo mode: blur and fade of everything but the focused item, eased in during the flight and out during the pull-back (seconds) */
+  DEMO_DIM_TRANSITION_DURATION: 0.8
 } as const;
 
 /**

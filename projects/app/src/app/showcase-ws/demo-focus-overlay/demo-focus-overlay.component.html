@@ -1,0 +1,34 @@
+<div class='demo-focus'
+  [class.visible]='!!photo() && arrived()'
+  [class.prefer]='side() === "prefer"'
+  [class.prevent]='side() === "prevent"'
+  aria-hidden='true'>
+  <!-- Origin: the item's top-left corner, rotated with the item. --w is the item's on-screen width. -->
+  <div class='anchor' #anchor>
+    <div class='string'></div>
+    @for (clip of clips(); track $index) {
+      <img class='clip' [src]='"/img-pin-" + clip + "-v.svg"' alt='' [style.--clip-index]='$index'>
+    }
+    <div class='labels' [style.--clip-count]='clips().length'>
+      @if (side(); as side) {
+        <div class='favorability' [class.ish]='isIsh()'>
+          @if (side === 'prefer') {
+            <span class='side' i18n>Prefer</span>
+          } @else {
+            <span class='side' i18n>Prevent</span>
+          }
+          @if (isIsh()) {
+            <span class='ish' i18n>-ish</span>
+          }
+        </div>
+      }
+      @switch (plausibility()) {
+        @case (100) { <div class='plausibility' i18n>Projected</div> }
+        @case (75) { <div class='plausibility' i18n>Probable</div> }
+        @case (50) { <div class='plausibility' i18n>Plausible</div> }
+        @case (25) { <div class='plausibility' i18n>Possible</div> }
+        @case (0) { <div class='plausibility' i18n>Preposterous</div> }
+      }
+    </div>
+  </div>
+</div>

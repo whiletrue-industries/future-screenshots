@@ -13,6 +13,11 @@ import { ThreeRendererService } from './three-renderer.service';
  * match the item's own tilt while closing the last of the distance, dwells, then
  * unrolls and fits the whole canvas back into view.
  *
+ * While the camera holds an item it is highlighted: drawn in front of its
+ * neighbours and decorated (see DemoFocusOverlayComponent), with everything
+ * else blurred and faded behind it. The highlight lifts as the camera pulls
+ * back.
+ *
  * Newly arrived items are toured first. An item that is not on the canvas right
  * now (filtered out, hidden, not yet positioned) is skipped and retried later.
  */
@@ -31,8 +36,23 @@ export class DemoModeService {
   /** Whether the tour is running. */
   readonly active = signal(false);
 
-  /** The item the camera is currently focused on, if any. */
+  /** The item the camera is currently focused on, if any. Held for the whole cycle. */
   readonly focusedPhotoId = signal<string | null>(null);
+
+  /**
+   * The item drawn in front and decorated. Set once the flight begins and
+   * cleared as the camera starts to pull back, so the effect fades out with
+   * the zoom rather than after it.
+   */
+  readonly highlightedPhotoId = signal<string | null>(null);
+
+  /**
+   * Whether the first flight to the highlighted item is over. Its decoration
+   * (string, clips, labels) is only drawn from then on, so it does not sweep
+   * across the screen during the flight; it then rides along through the roll
+   * and the last of the zoom.
+   */
+  readonly focusArrived = signal(false);
 
   /** Newly arrived items, toured ahead of the random picks. */
   private queue: string[] = [];
@@ -85,6 +105,7 @@ export class DemoModeService {
     this.focusedPhotoId.set(null);
     this.queue = [];
     this.renderer.setHighResPriorityId(null);
+    this.highlight(null);
     this.renderer.animateCameraRoll(0, ANIMATION_CONSTANTS.DEMO_EXIT_ROLL_DURATION);
     this.renderer.resetCameraView(true);
   }
@@ -199,6 +220,8 @@ export class DemoModeService {
         return;
       }
 
+      this.highlight(id);
+
       const arrivalZ = this.renderer.computeFocusZForItem(
         target.photo,
         ANIMATION_CONSTANTS.DEMO_FOCUS_FILL_RATIO,
@@ -213,6 +236,7 @@ export class DemoModeService {
       if (!this.isCurrentRun(runId)) {
         return;
       }
+      this.focusArrived.set(true);
 
       // 2. Roll the view to the item's own rotation, closing the last of the
       //    distance at the same time. Never zooms back out.
@@ -239,7 +263,8 @@ export class DemoModeService {
         return;
       }
 
-      // 4. Unroll and fit the whole canvas back into view
+      // 4. Let go of the highlight, unroll and fit the whole canvas back into view
+      this.highlight(null);
       await Promise.all([
         this.renderer.animateCameraRoll(0, ANIMATION_CONSTANTS.DEMO_ZOOM_OUT_DURATION),
         this.renderer.resetCameraView(true, ANIMATION_CONSTANTS.DEMO_ZOOM_OUT_DURATION)
@@ -248,6 +273,7 @@ export class DemoModeService {
       // The LOD pass downgrades the texture once the item is small again
       if (this.isCurrentRun(runId)) {
         this.renderer.setHighResPriorityId(null);
+        this.highlight(null);
         this.focusedPhotoId.set(null);
       }
     }
@@ -277,6 +303,15 @@ export class DemoModeService {
     return !!photo.mesh
       && opacity > 0
       && photo.animationState === PhotoAnimationState.POSITIONED;
+  }
+
+  /**
+   * Bring an item to the front, sharp against a blurred canvas, or let it go.
+   */
+  private highlight(id: string | null): void {
+    this.focusArrived.set(false);
+    this.highlightedPhotoId.set(id);
+    this.renderer.setDemoFocusPhotoId(id);
   }
 
   private isCurrentRun(runId: number): boolean {
