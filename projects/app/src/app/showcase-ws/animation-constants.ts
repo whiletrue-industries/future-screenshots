@@ -32,8 +32,14 @@ export const ANIMATION_CONSTANTS = {
   /** Initial delay before starting API polling (milliseconds) */
   INITIAL_POLLING_DELAY: 1000,
 
-  /** Inactivity timeout before stopping all polling (milliseconds) — 1 hour */
-  INACTIVITY_TIMEOUT: 3600000,
+  /**
+   * Polling winds down once no item has been created or updated for this long (milliseconds) — 30 minutes.
+   * The /#now workspace is exempt: it keeps polling for as long as it stays the target.
+   */
+  ITEM_STALE_TIMEOUT: 1800000,
+
+  /** How often a quiet workspace re-checks whether it is still the /#now target (milliseconds) — 5 minutes */
+  NOW_RECHECK_INTERVAL: 300000,
   
   /** Duration for opacity fade in/out animations (seconds) */
   OPACITY_FADE_DURATION: 0.4,

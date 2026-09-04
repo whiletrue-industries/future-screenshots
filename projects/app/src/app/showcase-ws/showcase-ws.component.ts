@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, computed, effect, ElementRef, signal, ViewChild, inject, OnDestroy, ChangeDetectorRef, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { catchError, distinctUntilChanged, filter, forkJoin, from, fromEvent, interval, Observable, of, Subject, timer } from 'rxjs';
+import { catchError, distinctUntilChanged, filter, firstValueFrom, forkJoin, from, fromEvent, interval, Observable, of, Subject, timer } from 'rxjs';
 import { PlatformService } from '../../platform.service';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -8,6 +8,7 @@ import { QrcodeComponent } from "./qrcode/qrcode.component";
 import { EvaluationSidebarComponent } from "./evaluation-sidebar/evaluation-sidebar.component";
 import { FiltersBarComponent, FiltersBarState } from '../shared/filters-bar/filters-bar.component';
 import { TaxonomyService } from '../shared/taxonomy.service';
+import { NowTargetService, isNowTargetExpired } from '../shared/now-target.service';
 import { FisheyeSettings } from './settings-panel.component';
 import { PhotoData, PhotoAnimationState, PhotoMetadata } from './photo-data';
 import { ThreeRendererService } from './three-renderer.service';
@@ -61,8 +62,14 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   loop = new Subject<any[]>();
   lastCreatedAt = '0';
   lastFetchedAt = '';
-  lastActivityAt = Date.now();
   isPollingActive = signal(true);
+
+  private nowTargetService = inject(NowTargetService);
+  /** Last answer to "is this the /#now workspace?" (null until the first lookup), and when it was fetched. */
+  private nowVerdict: boolean | null = null;
+  private nowCheckedAt = 0;
+  /** The TSNE layout in use, kept so each poll can pick up a newly published set. */
+  private tsneGridStrategy: TsneLayoutStrategy | null = null;
   qrSmall = signal(false);
   workspace = signal('');
   workspaceTitle = signal('');
@@ -505,7 +512,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         });
         
         if (newItems.length > 0) {
-          this.lastActivityAt = Date.now();
           // Process new photos immediately - they'll be added to the showcase queue
           const photoPromises = newItems.map(async (item) => {
             const id = item._id;
@@ -583,8 +589,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         }
       }
 
-      // Schedule next poll unless inactive for too long
-      if (Date.now() - this.lastActivityAt < ANIMATION_CONSTANTS.INACTIVITY_TIMEOUT) {
+      await this.refreshTsneGridIfChanged();
+
+      // Schedule the next poll, or wind down once the workspace has gone quiet
+      if (await this.shouldKeepPolling()) {
         setTimeout(() => {
           this.getItems(this.lastFetchedAt || undefined).pipe(
             takeUntilDestroyed(this.destroyRef)
@@ -1037,6 +1045,71 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       });
   }
 
+  /**
+   * Whether to keep polling the items API.
+   *
+   * A workspace is quiet once no item has been created or updated for
+   * ITEM_STALE_TIMEOUT; a quiet workspace stops polling. The /#now workspace
+   * is the exception: it keeps refreshing for as long as it stays the target,
+   * since it may simply be waiting for its first submissions. The target is
+   * re-read every NOW_RECHECK_INTERVAL, so a wall display left on a workspace
+   * that was once NOW winds down after the badge has moved on.
+   */
+  private async shouldKeepPolling(): Promise<boolean> {
+    const newest = Date.parse(this.lastFetchedAt);
+    const quiet = Number.isNaN(newest) || Date.now() - newest > ANIMATION_CONSTANTS.ITEM_STALE_TIMEOUT;
+    if (!quiet) {
+      return true;
+    }
+    return this.isNowWorkspace();
+  }
+
+  /**
+   * Whether this workspace is the current, unexpired /#now target. The answer
+   * is cached for NOW_RECHECK_INTERVAL. A failed lookup keeps the previous
+   * answer and retries on the next poll, so a network blip cannot end polling
+   * on a live wall; until any answer has arrived, polling continues.
+   */
+  private async isNowWorkspace(): Promise<boolean> {
+    if (Date.now() - this.nowCheckedAt >= ANIMATION_CONSTANTS.NOW_RECHECK_INTERVAL) {
+      try {
+        const target = await firstValueFrom(this.nowTargetService.fetch());
+        this.nowVerdict = !!target
+          && target.workspace_id === this.workspace()
+          && !isNowTargetExpired(target, Date.now());
+        this.nowCheckedAt = Date.now();
+      } catch (error) {
+        console.error('Error checking the /#now target:', error);
+      }
+    }
+    return this.nowVerdict ?? true;
+  }
+
+  /**
+   * While the TSNE layout is showing, pick up a newly published set. The
+   * server writes a new set after every clustering run, so items that arrived
+   * since the previous run – hidden until now – get their place, and existing
+   * ones glide to their new positions.
+   */
+  private async refreshTsneGridIfChanged(): Promise<void> {
+    const strategy = this.tsneGridStrategy;
+    if (!strategy || this.currentLayout() !== 'tsne-grid' || this.layoutChangeInProgress) {
+      return;
+    }
+
+    if (!(await strategy.refreshIfChanged())) {
+      return;
+    }
+
+    // The layout may have been switched away while the set was loading
+    if (this.tsneGridStrategy !== strategy || this.currentLayout() !== 'tsne-grid') {
+      return;
+    }
+
+    await this.photoRepository.refreshLayout();
+    this.updateTsneClusterLabels(strategy);
+  }
+
   getItems(since?: string): Observable<any[]> {
     const httpOptions: { headers?: Record<string, string> } = {};
     const authToken = this.resolveAuthToken();
@@ -1426,17 +1499,9 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       this.rendererService.setLayoutRotationOverrideEnabled(true);
 
       await this.photoRepository.setLayoutStrategy(tsneStrategy);
+      this.tsneGridStrategy = tsneStrategy;
 
-      this.tsneClusterLabels.set(
-        tsneStrategy.getClustersWithWorldCoords().map((cluster, index) => ({
-          id: `tsne-cluster-${index}`,
-          name: this.taxonomyService.localizeName(cluster.title),
-          worldX: cluster.centerX,
-          worldY: cluster.centerY,
-          worldWidth: cluster.width,
-          rotationDeg: cluster.averageRotation,
-        }))
-      );
+      this.updateTsneClusterLabels(tsneStrategy);
     } catch (error) {
       console.error('Error switching to TSNE layout:', error);
     } finally {
@@ -1444,8 +1509,23 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /** Cluster labels for the TSNE overlay, from the set the strategy currently holds. */
+  private updateTsneClusterLabels(tsneStrategy: TsneLayoutStrategy): void {
+    this.tsneClusterLabels.set(
+      tsneStrategy.getClustersWithWorldCoords().map((cluster, index) => ({
+        id: `tsne-cluster-${index}`,
+        name: this.taxonomyService.localizeName(cluster.title),
+        worldX: cluster.centerX,
+        worldY: cluster.centerY,
+        worldWidth: cluster.width,
+        rotationDeg: cluster.averageRotation,
+      }))
+    );
+  }
+
   /** Tear down state owned by the TSNE layout when leaving it. */
   private clearTsneGridState(): void {
+    this.tsneGridStrategy = null;
     this.tsneClusterLabels.set([]);
     this.rendererService.setLayoutRotationOverrideEnabled(false);
   }

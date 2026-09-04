@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
-import { Observable, catchError, map, of, tap } from 'rxjs';
+import { Observable, catchError, map, of, tap, throwError } from 'rxjs';
 
 export type NowMode = 'evaluate' | 'workshop' | 'batch';
 
@@ -79,15 +79,23 @@ export class NowTargetService {
   /** Last known target; `undefined` until the first load completes. */
   target = signal<NowTarget | null | undefined>(undefined);
 
-  /** Fetches the current target from the public `GET /global/now` endpoint. */
-  load(): Observable<NowTarget | null> {
+  /**
+   * Fetches the current target from the public `GET /global/now` endpoint.
+   * A key that was never set resolves to `null`; any other failure errors, so
+   * callers that must tell "no target" from "could not ask" can.
+   */
+  fetch(): Observable<NowTarget | null> {
     return this.http.get<unknown>(`${this.CHRONOMAPS_API_URL}/global/${NOW_GLOBAL_KEY}`).pipe(
       map(value => parseNowTarget(value)),
+      catchError((error) => error?.status === 404 ? of(null) : throwError(() => error))
+    );
+  }
+
+  /** Fetches the current target into the `target` signal; failures log and read as "no target". */
+  load(): Observable<NowTarget | null> {
+    return this.fetch().pipe(
       catchError((error) => {
-        // 404 simply means the key was never set.
-        if (error?.status !== 404) {
-          console.error('Error fetching /#now target:', error);
-        }
+        console.error('Error fetching /#now target:', error);
         return of(null);
       }),
       tap(target => this.target.set(target))
