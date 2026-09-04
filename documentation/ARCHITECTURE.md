@@ -359,6 +359,14 @@ Items returned → Visualization
    └─ 3D Scene (Three.js)
 ```
 
+#### Showcase Live Updates
+
+The 3D showcase (`showcase-ws`) keeps itself current by polling:
+
+- **Items**: every 30 seconds (`API_POLLING_INTERVAL`) it fetches items updated since the newest timestamp it has seen. New items are placed on the canvas (and toured next by demo mode); changed evaluations and drag positions are synced onto existing items; rejected items are removed.
+- **TSNE layout**: on every poll the `TsneLayoutStrategy` re-reads `tiles/<workspace>/config.json`. When its `state_hash` changed (the server writes a new `set_id` after each clustering run), the new set is loaded and the layout re-run, so items missing from the previous set appear and the rest glide to their new positions.
+- **Winding down**: polling stops once the workspace is quiet, meaning no item was created or updated in the last 30 minutes (`ITEM_STALE_TIMEOUT`), unless the workspace is the current `/#now` target, which keeps polling for as long as it stays the target (it may be waiting for its first submissions). A quiet workspace re-checks the `/#now` target every 5 minutes (`NOW_RECHECK_INTERVAL`), so a display left on a former NOW workspace winds down after the badge moves on. Once stopped, polling does not restart without a reload.
+
 ### Showcase Camera Controls
 
 The Showcase WS component provides interactive camera controls for navigating the 3D visualization:

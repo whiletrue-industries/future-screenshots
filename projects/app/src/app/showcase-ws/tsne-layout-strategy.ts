@@ -156,23 +156,61 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
         return;
       }
 
-      // Update our tracking variables
-      this.currentStateHash = workspaceConfig.state_hash;
-      this.currentSetId = workspaceConfig.set_id;
-      this.tsneConfigUrl = `${this.baseUrl}/tiles/${this.workspaceId}/${workspaceConfig.set_id}/config.json`;
-
-      // Now fetch the actual TSNE configuration
-      const response = await fetch(this.tsneConfigUrl);
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch TSNE config: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      this.tsneData = this.validateTsneConfig(data);
+      await this.loadSet(workspaceConfig);
     } catch (error) {
       console.error('Error fetching TSNE configuration:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Fetches the set named by the workspace config and makes it current. The
+   * tracking fields only move once the set has loaded, so a failed fetch
+   * leaves the previous set in place and is retried on the next check.
+   */
+  private async loadSet(workspaceConfig: WorkspaceConfig): Promise<void> {
+    const url = `${this.baseUrl}/tiles/${this.workspaceId}/${workspaceConfig.set_id}/config.json`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch TSNE config: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    this.tsneData = this.validateTsneConfig(data);
+    this.currentStateHash = workspaceConfig.state_hash;
+    this.currentSetId = workspaceConfig.set_id;
+    this.tsneConfigUrl = url;
+  }
+
+  /**
+   * Re-reads the workspace config and, when the server has published a new set
+   * (its `state_hash` changed), loads it. Returns true when the set changed and
+   * the caller should re-run the layout. Returns false when nothing changed,
+   * and also when a fetch failed: a transient error must not disturb the
+   * layout currently on screen, and the next check will try again.
+   */
+  async refreshIfChanged(): Promise<boolean> {
+    if (this.isLoading) {
+      return false;
+    }
+
+    try {
+      const workspaceConfig = await this.fetchWorkspaceConfig();
+      if (this.currentStateHash === workspaceConfig.state_hash && this.tsneData) {
+        return false;
+      }
+
+      this.isLoading = true;
+      try {
+        await this.loadSet(workspaceConfig);
+      } finally {
+        this.isLoading = false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Error checking for a new TSNE set:', error);
+      return false;
     }
   }
 
