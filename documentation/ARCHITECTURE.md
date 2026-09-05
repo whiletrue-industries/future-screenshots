@@ -146,10 +146,10 @@ The application uses Angular standalone components organized by feature:
    - Smooth camera animations with damping
    - QR code for easy mobile access
    - **Demo mode** (`DemoModeService`) – an unattended camera tour of the canvas, for wall displays. Items never move; the camera goes to them:
-     1. Fly to the item where it already sits, framed so its tilted footprint fills ~50% of the viewport height
+     1. One eased flight to the item where it already sits. The camera stays level: the item keeps its tilt on screen, so its string and labels read along the cone's own angles (`DEMO_ROLL_TO_ITEM` turns the roll back on). The framing (`ThreeRendererService.computeFocusFrame()`) fits the item's tilted footprint *plus* headroom above its top edge for the decoration (`DEMO_DECORATION_HEADROOM`) to ~62% of the viewport in whichever dimension is tighter, and centres that composition – so the labels never leave the viewport, portrait screens and steep tilts included
      2. Claim its high-res texture as the flight starts (`ThreeRendererService.setHighResPriorityId()`, tracked separately from the permalink target), so the swap lands before the camera arrives
-     3. Roll the view to the item's own rotation while closing the last of the distance to ~78% of the viewport height – never zooming back out
-     4. Dwell, then unroll and fit the whole canvas back into view
+     3. On arrival, highlight the item: it is drawn on the overlay canvas, in front of everything, while the main canvas is blurred and faded; `DemoFocusOverlayComponent` hangs it from its string with prefer/prevent clip(s) and its favorability and plausibility labels (human evaluation, falling back to the AI's). The string wipes in first, the clips drop in on top of it, then the badge
+     4. Dwell, then let the highlight go and fit the whole canvas back into view
      - Items are placed on the canvas as soon as the layout gives them a position; the tour never holds one back. Arrivals (via `photoAdded$`) are queued and toured ahead of the random picks
      - An item that is not on the canvas at that moment (filtered out, hidden, not yet `POSITIONED`) is moved to the back of the queue and toured if and when it appears; one that no longer exists is dropped
      - Every phase re-reads the item's position and re-checks the run id, so a repositioned, deleted or exited item unwinds the cycle cleanly

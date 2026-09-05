@@ -107,7 +107,7 @@
   display: inline-flex;
   overflow: hidden;
   border-radius: calc(var(--w) * 0.02);
-  font-size: calc(var(--w) * 0.085);
+  font-size: calc(var(--w) * 0.1); // Same size as the plausibility label
   font-weight: 400;
   color: @color-white;
 
@@ -136,37 +136,42 @@
   color: var(--string-color);
 }
 
-// Entrance, replayed each time the decoration is shown: the clip lands, the
-// badge follows, then the string wipes in from the left and the plausibility
-// label appears as the wipe passes it. Base styles are the settled state, so
-// dropping `.visible` lets the whole thing fade out as one.
-@string-start: 0.6s;
+// Entrance, replayed each time the decoration is shown: the string wipes in
+// from the left with the plausibility label appearing as the wipe passes it,
+// then the clips drop in quickly from above and pin it, and the badge follows.
+// Base styles are the settled state, so dropping `.visible` lets the whole
+// thing fade out as one.
 @string-wipe: 1.2s;
+@clips-start: 1.0s;
+@clip-drop: 0.3s;
 
 .demo-focus.visible {
-  .clip {
-    animation: demo-clip-in 0.35s ease-out both;
-    animation-delay: calc(var(--clip-index, 0) * 0.12s);
-  }
-
-  .favorability {
-    animation: demo-fade-in 0.3s ease-out 0.35s both;
-  }
-
   .string {
-    animation: demo-wipe-in @string-wipe ease-in-out @string-start both;
+    animation: demo-wipe-in @string-wipe ease-in-out both;
   }
 
   .plausibility {
     // The label sits near the middle of the string, where the wipe passes halfway through
-    animation: demo-fade-in 0.3s ease-out (@string-start + @string-wipe / 2) both;
+    animation: demo-fade-in 0.3s ease-out (@string-wipe / 2) both;
+  }
+
+  .clip {
+    animation: demo-clip-drop @clip-drop cubic-bezier(0.2, 0.9, 0.3, 1) both;
+    animation-delay: calc(@clips-start + var(--clip-index, 0) * 0.1s);
+  }
+
+  .favorability {
+    animation: demo-fade-in 0.3s ease-out (@clips-start + @clip-drop) both;
   }
 }
 
-@keyframes demo-clip-in {
+@keyframes demo-clip-drop {
   from {
     opacity: 0;
-    transform: rotate(var(--clip-tilt, 0deg)) translateY(-20%);
+    transform: rotate(var(--clip-tilt, 0deg)) translateY(-250%);
+  }
+  30% {
+    opacity: 1;
   }
   to {
     opacity: 1;
