@@ -1142,7 +1142,13 @@ export class ThreeRendererService {
    * Smoothly pan and zoom the camera to a world position, keeping the fisheye
    * effect disabled for the duration. Used by the demo mode focus cycle.
    */
-  focusCameraOn(x: number, y: number, targetZ: number, durationSec: number): Promise<void> {
+  focusCameraOn(
+    x: number,
+    y: number,
+    targetZ: number,
+    durationSec: number,
+    easing?: (progress: number) => number
+  ): Promise<void> {
     // Hold the camera against auto-fit: a photo arriving mid-flight must not
     // yank the view back to the full canvas
     this.cameraMode = 'user-controlled';
@@ -1150,14 +1156,24 @@ export class ThreeRendererService {
     this.fisheyeAnimationLock = true;
     this.fisheyeResumeOnPointer = false;
 
-    return this.animateCameraToZoomLevel(x, y, targetZ, durationSec);
+    return this.animateCameraToZoomLevel(x, y, targetZ, durationSec, easing);
   }
 
   /**
    * Animate camera to a specific zoom level while keeping fisheye disabled
    * Fisheye will only re-enable if the camera zooms back out beyond the target level
    */
-  private animateCameraToZoomLevel(x: number, y: number, targetZ: number, durationSec: number): Promise<void> {
+  /**
+   * @param easing Maps tween time (0-1) to progress; ease-in-out cubic by default.
+   *   May overshoot 1 for a settle past the target, as a CSS bezier can.
+   */
+  private animateCameraToZoomLevel(
+    x: number,
+    y: number,
+    targetZ: number,
+    durationSec: number,
+    easing: (progress: number) => number = (progress) => this.easeInOutCubic(progress)
+  ): Promise<void> {
     const generation = ++this.camMoveTweenId;
 
     return new Promise((resolve) => {
@@ -1176,7 +1192,7 @@ export class ThreeRendererService {
       }
 
       const tweenFn = this.makeTween(durationSec, (progress: number) => {
-        const eased = this.easeInOutCubic(progress);
+        const eased = easing(progress);
         this.targetCamX = this.lerp(startX, x, eased);
         this.targetCamY = this.lerp(startY, y, eased);
         this.targetCamZ = this.lerp(startZ, clampedZ, eased);

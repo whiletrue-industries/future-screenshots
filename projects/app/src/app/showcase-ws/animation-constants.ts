@@ -56,6 +56,9 @@ export const ANIMATION_CONSTANTS = {
   /** Demo mode: the single, eased flight to the focused item (seconds) */
   DEMO_ZOOM_IN_DURATION: 2.6,
 
+  /** Demo mode: easing of that flight, as CSS cubic-bezier control points – a soft settle with a hint of overshoot */
+  DEMO_FLIGHT_EASING: [0.42, 0, 0.25, 1.06] as [number, number, number, number],
+
   /**
    * Demo mode: roll the camera to the item's own tilt during the flight, so the
    * item reads upright. Off, the item keeps its tilt on screen and its string
@@ -63,8 +66,8 @@ export const ANIMATION_CONSTANTS = {
    */
   DEMO_ROLL_TO_ITEM: false,
 
-  /** Demo mode: dwell on the aligned item (seconds) */
-  DEMO_HOLD_DURATION: 4.0,
+  /** Demo mode: dwell on the highlighted item (seconds) */
+  DEMO_HOLD_DURATION: 6.0,
 
   /** Demo mode: unroll and fit the whole canvas back into view (seconds) */
   DEMO_ZOOM_OUT_DURATION: 1.6,
@@ -77,7 +80,7 @@ export const ANIMATION_CONSTANTS = {
    * headroom for its decoration – fills on arrival, in whichever dimension is
    * tighter (0-1).
    */
-  DEMO_FOCUS_FILL_RATIO: 0.62,
+  DEMO_FOCUS_FILL_RATIO: 0.72,
 
   /**
    * Demo mode: room kept above the item's top edge for its string, clips and
@@ -85,7 +88,7 @@ export const ANIMATION_CONSTANTS = {
    * everything from that width). Framed together with the item so the labels
    * never leave the viewport, portrait screens and steep tilts included.
    */
-  DEMO_DECORATION_HEADROOM: 0.45,
+  DEMO_DECORATION_HEADROOM: 0.42,
 
   /** Demo mode: unroll when the tour is cut short, quicker than a full cycle (seconds) */
   DEMO_EXIT_ROLL_DURATION: 0.4,

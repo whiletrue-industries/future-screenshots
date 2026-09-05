@@ -138,12 +138,13 @@
 
 // Entrance, replayed each time the decoration is shown: the string wipes in
 // from the left with the plausibility label appearing as the wipe passes it,
-// then the clips drop in quickly from above and pin it, and the badge follows.
-// Base styles are the settled state, so dropping `.visible` lets the whole
-// thing fade out as one.
+// then the clips drop in quickly from above and pin it, the badge arriving
+// with them. Base styles are the settled state, so dropping `.visible` lets
+// the whole thing fade out as one.
 @string-wipe: 1.2s;
 @clips-start: 1.0s;
-@clip-drop: 0.3s;
+@clip-drop: 0.35s;
+@soft-settle: cubic-bezier(0.42, 0, 0.25, 1.06); // The same curve the camera lands with
 
 .demo-focus.visible {
   .string {
@@ -156,12 +157,12 @@
   }
 
   .clip {
-    animation: demo-clip-drop @clip-drop cubic-bezier(0.2, 0.9, 0.3, 1) both;
+    animation: demo-clip-drop @clip-drop @soft-settle both;
     animation-delay: calc(@clips-start + var(--clip-index, 0) * 0.1s);
   }
 
   .favorability {
-    animation: demo-fade-in 0.3s ease-out (@clips-start + @clip-drop) both;
+    animation: demo-fade-in 0.3s ease-out @clips-start both;
   }
 }
 
