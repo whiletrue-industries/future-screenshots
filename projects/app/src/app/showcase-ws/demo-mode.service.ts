@@ -8,10 +8,10 @@ import { ThreeRendererService } from './three-renderer.service';
 /**
  * Demo mode: an unattended loop that tours the canvas.
  *
- * The items never move — the camera does. One cycle flies to an item where it
- * already sits, swapping in its high-res texture on the way, closes the last of
- * the distance (rolling the view to the item's own tilt if DEMO_ROLL_TO_ITEM is
- * on), dwells, then unrolls and fits the whole canvas back into view.
+ * The items never move — the camera does. One cycle is a single eased flight to
+ * an item where it already sits, swapping in its high-res texture on the way
+ * (and rolling the view to the item's own tilt if DEMO_ROLL_TO_ITEM is on), a
+ * dwell, then an unroll back to the whole canvas.
  *
  * While the camera holds an item it is highlighted: drawn in front of its
  * neighbours and decorated (see DemoFocusOverlayComponent), with everything
@@ -47,10 +47,9 @@ export class DemoModeService {
   readonly highlightedPhotoId = signal<string | null>(null);
 
   /**
-   * Whether the first flight to the highlighted item is over. Its decoration
+   * Whether the flight to the highlighted item has landed. Its decoration
    * (string, clips, labels) is only drawn from then on, so it does not sweep
-   * across the screen during the flight; it then rides along through the roll
-   * and the last of the zoom.
+   * across the screen during the flight.
    */
   readonly focusArrived = signal(false);
 
@@ -214,60 +213,51 @@ export class DemoModeService {
     }
 
     try {
-      // 1. Fly to the item, framing its tilted footprint
-      let target = this.focusTarget(id);
+      // 1. One flight to the item. With the camera unrolled it frames the
+      //    item's tilted footprint plus the headroom for its decoration, in
+      //    both dimensions, and centres that composition. With the roll on it
+      //    frames the item's true height and rolls to its tilt on the way.
+      const target = this.focusTarget(id);
       if (!target) {
         return;
       }
 
       this.highlight(id);
 
-      const arrivalZ = this.renderer.computeFocusZForItem(
-        target.photo,
-        ANIMATION_CONSTANTS.DEMO_FOCUS_FILL_RATIO,
-        true
-      );
-      await this.renderer.focusCameraOn(
-        target.x,
-        target.y,
-        arrivalZ,
-        ANIMATION_CONSTANTS.DEMO_ZOOM_IN_DURATION
-      );
+      const roll = ANIMATION_CONSTANTS.DEMO_ROLL_TO_ITEM;
+      const frame = roll
+        ? {
+            x: target.x,
+            y: target.y,
+            z: this.renderer.computeFocusZForItem(target.photo, ANIMATION_CONSTANTS.DEMO_FOCUS_FILL_RATIO, false)
+          }
+        : this.renderer.computeFocusFrame(
+            target.photo,
+            ANIMATION_CONSTANTS.DEMO_FOCUS_FILL_RATIO,
+            ANIMATION_CONSTANTS.DEMO_DECORATION_HEADROOM
+          );
+      if (!frame) {
+        return;
+      }
+
+      await Promise.all([
+        roll
+          ? this.renderer.animateCameraRoll(target.roll, ANIMATION_CONSTANTS.DEMO_ZOOM_IN_DURATION)
+          : Promise.resolve(),
+        this.renderer.focusCameraOn(frame.x, frame.y, frame.z, ANIMATION_CONSTANTS.DEMO_ZOOM_IN_DURATION)
+      ]);
       if (!this.isCurrentRun(runId)) {
         return;
       }
       this.focusArrived.set(true);
 
-      // 2. Close the last of the distance, rolling the view to the item's own
-      //    rotation at the same time if that is enabled. Never zooms back out.
-      target = this.focusTarget(id);
-      if (!target) {
-        return;
-      }
-
-      const roll = ANIMATION_CONSTANTS.DEMO_ROLL_TO_ITEM;
-      const alignedZ = Math.min(
-        arrivalZ,
-        // An unrolled camera frames the item's tilted footprint; a rolled one its true height
-        this.renderer.computeFocusZForItem(target.photo, ANIMATION_CONSTANTS.DEMO_ALIGNED_FILL_RATIO, !roll)
-      );
-      await Promise.all([
-        roll
-          ? this.renderer.animateCameraRoll(target.roll, ANIMATION_CONSTANTS.DEMO_ALIGN_DURATION)
-          : Promise.resolve(),
-        this.renderer.focusCameraOn(target.x, target.y, alignedZ, ANIMATION_CONSTANTS.DEMO_ALIGN_DURATION)
-      ]);
-      if (!this.isCurrentRun(runId)) {
-        return;
-      }
-
-      // 3. Dwell
+      // 2. Dwell
       await this.sleep(ANIMATION_CONSTANTS.DEMO_HOLD_DURATION * 1000);
       if (!this.isCurrentRun(runId)) {
         return;
       }
 
-      // 4. Let go of the highlight, unroll and fit the whole canvas back into view
+      // 3. Let go of the highlight, unroll and fit the whole canvas back into view
       this.highlight(null);
       await Promise.all([
         this.renderer.animateCameraRoll(0, ANIMATION_CONSTANTS.DEMO_ZOOM_OUT_DURATION),

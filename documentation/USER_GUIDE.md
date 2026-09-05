@@ -108,7 +108,7 @@ The Showcase WS view provides an interactive 3D visualization of all submitted p
 **Demo Mode Toggle:**
 - Located at the bottom-right of the screen (admin only)
 - Starts an unattended tour of the canvas, for wall displays and presentations
-- The items stay where they are and the camera visits them: it flies to an item, rotates the view to match the item's own tilt so it reads upright, holds for a few seconds, then zooms back out to the whole canvas
+- The items stay where they are and the camera visits them: it flies to an item, hangs it from its string with a clip and its labels while everything else blurs, holds for a few seconds, then zooms back out to the whole canvas
 - The item's full-resolution image is loaded on the way in, so it is sharp by the time the camera arrives
 - Newly contributed items appear on the canvas immediately and are the next ones the tour visits. An item that is currently hidden (for example, filtered out) is skipped and visited later if it reappears
 - While the tour runs, all controls come off screen and the mouse pointer is hidden. The QR code and workspace title stay visible
