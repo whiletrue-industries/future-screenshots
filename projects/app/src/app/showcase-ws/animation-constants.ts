@@ -56,8 +56,15 @@ export const ANIMATION_CONSTANTS = {
   /** Demo mode: flight to the focused item, before the view is aligned (seconds) */
   DEMO_ZOOM_IN_DURATION: 1.8,
 
-  /** Demo mode: roll to the item's rotation while closing the last of the distance (seconds) */
+  /** Demo mode: close the last of the distance (and roll, if enabled) after the first flight has landed (seconds) */
   DEMO_ALIGN_DURATION: 1.0,
+
+  /**
+   * Demo mode: roll the camera to the item's own tilt while closing in, so the
+   * item reads upright. Off, the item keeps its tilt on screen and its string
+   * and labels read along the cone's own angles.
+   */
+  DEMO_ROLL_TO_ITEM: false,
 
   /** Demo mode: dwell on the aligned item (seconds) */
   DEMO_HOLD_DURATION: 4.0,
@@ -72,7 +79,7 @@ export const ANIMATION_CONSTANTS = {
   DEMO_FOCUS_FILL_RATIO: 0.5,
 
   /**
-   * Demo mode: viewport fraction the item fills once the view matches its rotation (0-1).
+   * Demo mode: viewport fraction the item fills once the camera has closed in (0-1).
    * Leaves room above the item for its string, clip and labels (DemoFocusOverlayComponent).
    */
   DEMO_ALIGNED_FILL_RATIO: 0.62,

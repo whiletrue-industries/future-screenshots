@@ -24,6 +24,24 @@ export type DemoFocusPlausibility = 100 | 75 | 50 | 25 | 0;
 export type DemoFocusSide = 'prefer' | 'prevent';
 
 /**
+ * A handful of stable pseudo-random numbers in [-1, 1] for an item, seeded
+ * from its id, so the same item always hangs the same slightly-off way.
+ */
+export function jitterFor(seed: string, count: number): number[] {
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    hash = Math.imul(hash ^ seed.charCodeAt(i), 16777619) >>> 0;
+  }
+  const values: number[] = [];
+  for (let i = 0; i < count; i++) {
+    hash = Math.imul(hash ^ (hash >>> 15), 2246822507) >>> 0;
+    hash = Math.imul(hash ^ (hash >>> 13), 3266489909) >>> 0;
+    values.push(((hash >>> 8) / 0xffffff) * 2 - 1);
+  }
+  return values;
+}
+
+/**
  * The favorability vocabulary accepted by the API – "preferred", "prevent",
  * "mostly preferred", "yes", "unfavorable"… – folded to the four states the
  * decoration can show. A hedged verdict ("mostly …", "…-ish") gets both clips.
@@ -72,8 +90,11 @@ export function resolvePlausibility(value: unknown): DemoFocusPlausibility | nul
  * Everything is sized from the item's on-screen width and follows the item
  * every frame, so once it appears – after the first flight has landed – it
  * rolls and grows with the item through the rest of the approach, and keeps
- * the same proportions on a laptop and on a 4K wall. It is purely decorative
- * (`pointer-events: none`, `aria-hidden`).
+ * the same proportions on a laptop and on a 4K wall. The pieces come in one
+ * after another (clip, badge, then the string wiping in with the plausibility
+ * label), and the clips and string each hang a few degrees off true, seeded
+ * from the item id, so it reads as pinned by hand rather than drawn. It is
+ * purely decorative (`pointer-events: none`, `aria-hidden`).
  */
 @Component({
   selector: 'app-demo-focus-overlay',
@@ -117,6 +138,16 @@ export class DemoFocusOverlayComponent implements OnInit, OnDestroy {
   });
 
   isIsh = computed(() => this.favorability()?.endsWith('-ish') ?? false);
+
+  /** Largest tilt, in degrees, the string or a clip hangs off true. */
+  private static readonly MAX_TILT_DEG = 3;
+
+  /** Tilt of the string and of each clip for this item, in degrees. */
+  tilt = computed(() => {
+    const id = this.photo()?.id ?? '';
+    const [string, ...clips] = jitterFor(id, 3).map(v => v * DemoFocusOverlayComponent.MAX_TILT_DEG);
+    return { string, clips };
+  });
 
   private anchor = viewChild.required<ElementRef<HTMLElement>>('anchor');
 
