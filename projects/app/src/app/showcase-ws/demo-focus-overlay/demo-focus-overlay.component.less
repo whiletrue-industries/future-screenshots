@@ -50,25 +50,44 @@
   --w: 0px;
 }
 
+// Where the string meets the first clip – the pivot the string hangs from.
+@clip-left: 0.04;
+@clip-width: 0.151; // clip height 0.5w × the pin's 32:106 aspect
+@pivot-x: (@clip-left + @clip-width / 2);
+
+// The string, and the labels along it, tilt together around the first clip.
+.string-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: calc(var(--w) * @pivot-x) 0;
+  transform: rotate(var(--string-tilt, 0deg));
+}
+
 // The string runs along the item's top edge, far enough both ways to cross the
 // viewport at any tilt.
 .string {
   position: absolute;
-  left: -200vmax;
-  width: 400vmax;
+  left: -100vmax;
+  width: 200vmax;
   height: max(1.5px, calc(var(--w) * 0.009));
   top: 0;
   transform: translateY(-50%);
   background: var(--string-color);
 }
 
-// Clips hang over the top edge; the spring sits just above the string.
+// Clips hang over the top edge, each a few degrees off true, pivoting on the
+// spring – which sits just above the string.
 .clip {
   position: absolute;
   height: calc(var(--w) * 0.5);
   width: auto;
-  left: calc(var(--w) * (0.04 + 0.17 * var(--clip-index, 0)));
+  left: calc(var(--w) * (@clip-left + 0.17 * var(--clip-index, 0)));
   top: calc(var(--w) * -0.33);
+  transform-origin: 50% 66%;
+  transform: rotate(var(--clip-tilt, 0deg));
 }
 
 .labels {
@@ -115,4 +134,52 @@
   font-size: calc(var(--w) * 0.1);
   font-weight: 400;
   color: var(--string-color);
+}
+
+// Entrance, replayed each time the decoration is shown: the clip lands, the
+// badge follows, then the string wipes in from the left and the plausibility
+// label appears as the wipe passes it. Base styles are the settled state, so
+// dropping `.visible` lets the whole thing fade out as one.
+@string-start: 0.6s;
+@string-wipe: 1.2s;
+
+.demo-focus.visible {
+  .clip {
+    animation: demo-clip-in 0.35s ease-out both;
+    animation-delay: calc(var(--clip-index, 0) * 0.12s);
+  }
+
+  .favorability {
+    animation: demo-fade-in 0.3s ease-out 0.35s both;
+  }
+
+  .string {
+    animation: demo-wipe-in @string-wipe ease-in-out @string-start both;
+  }
+
+  .plausibility {
+    // The label sits near the middle of the string, where the wipe passes halfway through
+    animation: demo-fade-in 0.3s ease-out (@string-start + @string-wipe / 2) both;
+  }
+}
+
+@keyframes demo-clip-in {
+  from {
+    opacity: 0;
+    transform: rotate(var(--clip-tilt, 0deg)) translateY(-20%);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(var(--clip-tilt, 0deg));
+  }
+}
+
+@keyframes demo-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes demo-wipe-in {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
 }

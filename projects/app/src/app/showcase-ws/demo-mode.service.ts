@@ -9,9 +9,9 @@ import { ThreeRendererService } from './three-renderer.service';
  * Demo mode: an unattended loop that tours the canvas.
  *
  * The items never move — the camera does. One cycle flies to an item where it
- * already sits, swapping in its high-res texture on the way, rolls the view to
- * match the item's own tilt while closing the last of the distance, dwells, then
- * unrolls and fits the whole canvas back into view.
+ * already sits, swapping in its high-res texture on the way, closes the last of
+ * the distance (rolling the view to the item's own tilt if DEMO_ROLL_TO_ITEM is
+ * on), dwells, then unrolls and fits the whole canvas back into view.
  *
  * While the camera holds an item it is highlighted: drawn in front of its
  * neighbours and decorated (see DemoFocusOverlayComponent), with everything
@@ -238,19 +238,23 @@ export class DemoModeService {
       }
       this.focusArrived.set(true);
 
-      // 2. Roll the view to the item's own rotation, closing the last of the
-      //    distance at the same time. Never zooms back out.
+      // 2. Close the last of the distance, rolling the view to the item's own
+      //    rotation at the same time if that is enabled. Never zooms back out.
       target = this.focusTarget(id);
       if (!target) {
         return;
       }
 
+      const roll = ANIMATION_CONSTANTS.DEMO_ROLL_TO_ITEM;
       const alignedZ = Math.min(
         arrivalZ,
-        this.renderer.computeFocusZForItem(target.photo, ANIMATION_CONSTANTS.DEMO_ALIGNED_FILL_RATIO, false)
+        // An unrolled camera frames the item's tilted footprint; a rolled one its true height
+        this.renderer.computeFocusZForItem(target.photo, ANIMATION_CONSTANTS.DEMO_ALIGNED_FILL_RATIO, !roll)
       );
       await Promise.all([
-        this.renderer.animateCameraRoll(target.roll, ANIMATION_CONSTANTS.DEMO_ALIGN_DURATION),
+        roll
+          ? this.renderer.animateCameraRoll(target.roll, ANIMATION_CONSTANTS.DEMO_ALIGN_DURATION)
+          : Promise.resolve(),
         this.renderer.focusCameraOn(target.x, target.y, alignedZ, ANIMATION_CONSTANTS.DEMO_ALIGN_DURATION)
       ]);
       if (!this.isCurrentRun(runId)) {

@@ -199,10 +199,10 @@
         class='toggle-button map-button'
         [class.active]='currentLayout() === "svg"'
         (click)='switchToSvgLayout()'
-        title='Map Layout'>
+        title='Futures Cone'>
         <div class='button-content'>
-          <img src='/icon-cone.svg' alt='Map' class='button-icon'>
-          <span class='button-label'>Map</span>
+          <img src='/icon-cone.svg' alt='' class='button-icon'>
+          <span class='button-label'>Futures Cone</span>
           @if (dragAllActive()) {
             <span
               class='map-drag-counter'
@@ -224,7 +224,7 @@
         class='toggle-button tsne-button'
         [class.active]='currentLayout() === "tsne-grid"'
         (click)='switchToTsneGridLayout()'
-        title='TSNE Layout'>
+        title='Topics Map'>
         <div class='button-content'>
           <svg viewBox='0 0 24 24' class='button-icon' aria-hidden='true'>
             <circle cx='6' cy='7' r='1.8' fill='currentColor'/>
@@ -235,17 +235,17 @@
             <circle cx='13' cy='18' r='1.8' fill='currentColor'/>
             <circle cx='19' cy='15' r='1.8' fill='currentColor'/>
           </svg>
-          <span class='button-label'>TSNE</span>
+          <span class='button-label'>Topics Map</span>
         </div>
       </button>
       <button
         class='toggle-button clusters-button'
         [class.active]='currentLayout() === "circle-packing"'
         (click)='switchToCirclePackingLayout()'
-        title='Clusters Layout'>
+        title='Author Clusters'>
         <div class='button-content'>
-          <img src='/icon-clusters.svg' alt='Clusters' class='button-icon'>
-          <span class='button-label'>Clusters</span>
+          <img src='/icon-clusters.svg' alt='' class='button-icon'>
+          <span class='button-label'>Author Clusters</span>
         </div>
       </button>
     </div>

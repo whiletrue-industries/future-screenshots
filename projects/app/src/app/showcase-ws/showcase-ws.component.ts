@@ -30,12 +30,12 @@ import { TsneClusterLabel } from './tsne-clusters-overlay/tsne-cluster-label.int
 import { DemoFocusOverlayComponent } from './demo-focus-overlay/demo-focus-overlay.component';
 
 /**
- * The views the showcase can display.
- * - `svg` – Map
+ * The views the showcase can display, with the names the layout toggle gives them.
+ * - `svg` – Futures Cone (the map)
  * - `tsne` – Thematic (taxonomy-driven, see TaxonomyLayoutStrategy). Not on
  *   the layout toggle (#239); reachable only through `#view=tsne`.
- * - `tsne-grid` – TSNE (server-precalculated embedding, see TsneLayoutStrategy)
- * - `circle-packing` – Clusters
+ * - `tsne-grid` – Topics Map (server-precalculated embedding, see TsneLayoutStrategy)
+ * - `circle-packing` – Author Clusters
  */
 export type ShowcaseLayoutView = 'tsne' | 'tsne-grid' | 'svg' | 'circle-packing';
 
