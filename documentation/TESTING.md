@@ -889,7 +889,7 @@ When validating the admin image replacement dialog:
 Demo mode drives the camera and unmounts the UI, so it is checked by hand in `/showcase-ws`:
 
 1. Click the demo toggle in the toolbar and verify the controls, logo and sidebar come off screen, the cursor disappears, and the QR code, workspace title and cluster labels stay
-2. Verify one cycle: the camera flies to an item in one smooth move (the item keeps its tilt), everything else blurs, the string wipes in from the left with the plausibility label, the clip(s) drop in on top of the string, the prefer/prevent badge appears, it holds a few seconds, then everything clears and the camera zooms back out to the whole canvas
+2. Verify one cycle: the camera flies to an item in one smooth move (the item keeps its tilt), everything else blurs, the string wipes in from the left with the plausibility label, the clip(s) drop in on top of the string with the prefer/prevent badge, it holds a few seconds, then everything clears and the camera zooms back out to the whole canvas
    - Repeat in a portrait window on a steeply tilted (prevent / preposterous) item: the labels and clips must stay fully inside the viewport
 3. Verify the focused item is sharp (full-resolution) by the time the camera settles, not after
 4. Contribute an item while the tour runs: it must appear on the canvas immediately, and be the next item visited

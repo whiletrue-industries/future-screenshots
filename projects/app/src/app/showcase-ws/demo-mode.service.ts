@@ -1,6 +1,7 @@
 import { inject, Injectable, signal } from '@angular/core';
 
 import { ANIMATION_CONSTANTS } from './animation-constants';
+import { cubicBezier } from './easing';
 import { PhotoData, PhotoAnimationState } from './photo-data';
 import { PhotoDataRepository } from './photo-data-repository';
 import { ThreeRendererService } from './three-renderer.service';
@@ -244,7 +245,13 @@ export class DemoModeService {
         roll
           ? this.renderer.animateCameraRoll(target.roll, ANIMATION_CONSTANTS.DEMO_ZOOM_IN_DURATION)
           : Promise.resolve(),
-        this.renderer.focusCameraOn(frame.x, frame.y, frame.z, ANIMATION_CONSTANTS.DEMO_ZOOM_IN_DURATION)
+        this.renderer.focusCameraOn(
+          frame.x,
+          frame.y,
+          frame.z,
+          ANIMATION_CONSTANTS.DEMO_ZOOM_IN_DURATION,
+          cubicBezier(...ANIMATION_CONSTANTS.DEMO_FLIGHT_EASING)
+        )
       ]);
       if (!this.isCurrentRun(runId)) {
         return;
