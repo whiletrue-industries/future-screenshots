@@ -20,6 +20,7 @@ import { TsneLayoutStrategy } from './tsne-layout-strategy';
 import { PhotoDataRepository } from './photo-data-repository';
 import { DemoModeService } from './demo-mode.service';
 import { PHOTO_CONSTANTS } from './photo-constants';
+import { resolveEvaluation } from './evaluation';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
 import { TaxonomyClustersOverlayComponent } from './taxonomy-clusters-overlay/taxonomy-clusters-overlay.component';
@@ -422,8 +423,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           }
           const thumbnailUrl = this.deriveThumbnailUrl(screenshotUrl);
           const enhancedUrl = this.deriveEnhancedUrl(screenshotUrl);
+          // The human evaluation, or the model's where there is none
+          const evaluation = resolveEvaluation(item);
           // Generate transition_bar_position if not provided by API
-          const transitionBarPosition = item.transition_bar_position || this.getDefaultTransitionBarPosition(item);
+          const transitionBarPosition = item.transition_bar_position || this.getDefaultTransitionBarPosition({ ...item, ...evaluation });
           // Include all item fields to make search work across every string field
           const metadata: PhotoMetadata = {
             ...item,
@@ -435,8 +438,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             enhanced_url: enhancedUrl,
             layout_x: item.layout_x,
             layout_y: item.layout_y,
-            plausibility: item.plausibility,
-            favorable_future: item.favorable_future,
+            plausibility: evaluation.plausibility,
+            favorable_future: evaluation.favorable_future,
             transition_bar_position: transitionBarPosition,
             item_key: item._key ?? item.item_key ?? item._key // Prefer explicit key but keep fallbacks
           };
@@ -530,8 +533,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
             }
             const thumbnailUrl = this.deriveThumbnailUrl(screenshotUrl);
             const enhancedUrl = this.deriveEnhancedUrl(screenshotUrl);
+            // The human evaluation, or the model's where there is none
+            const evaluation = resolveEvaluation(item);
             // Generate transition_bar_position if not provided by API
-            const transitionBarPosition = item.transition_bar_position || this.getDefaultTransitionBarPosition(item);
+            const transitionBarPosition = item.transition_bar_position || this.getDefaultTransitionBarPosition({ ...item, ...evaluation });
             const metadata: PhotoMetadata = {
               ...item,
               id,
@@ -540,8 +545,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
               screenshot_url: screenshotUrl,
               thumbnail_url: thumbnailUrl,
               enhanced_url: enhancedUrl,
-              plausibility: item.plausibility,
-              favorable_future: item.favorable_future,
+              plausibility: evaluation.plausibility,
+              favorable_future: evaluation.favorable_future,
               transition_bar_position: transitionBarPosition,
               item_key: item._key ?? item.item_key ?? item._key
             };
@@ -573,10 +578,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           const photo = this.photoRepository.getPhoto(id);
           if (!photo) continue;
 
+          // Compare against the same resolved evaluation the item was loaded with
+          const resolved = { ...item, ...resolveEvaluation(item) };
           const updates: Partial<PhotoMetadata> = {};
           let hasChanges = false;
           for (const prop of SYNC_PROPERTIES) {
-            const newVal = item[prop] ?? (prop === 'transition_bar_position' ? this.getDefaultTransitionBarPosition(item) : undefined);
+            const newVal = resolved[prop] ?? (prop === 'transition_bar_position' ? this.getDefaultTransitionBarPosition(resolved) : undefined);
             if (photo.metadata[prop] !== newVal) {
               (updates as any)[prop] = newVal;
               hasChanges = true;
