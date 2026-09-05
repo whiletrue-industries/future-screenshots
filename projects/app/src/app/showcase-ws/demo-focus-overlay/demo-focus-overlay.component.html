@@ -5,13 +5,6 @@
   aria-hidden='true'>
   <!-- Origin: the item's top-left corner, rotated with the item. --w is the item's on-screen width. -->
   <div class='anchor' #anchor>
-    @for (clip of clips(); track $index) {
-      <img class='clip'
-        [src]='"/img-pin-" + clip + "-v.svg"'
-        alt=''
-        [style.--clip-index]='$index'
-        [style.--clip-tilt]='tilt().clips[$index] + "deg"'>
-    }
     <!-- The string and the labels along it hang together, a few degrees off the item's edge -->
     <div class='string-frame' [style.--string-tilt]='tilt().string + "deg"'>
       <div class='string'></div>
@@ -37,5 +30,13 @@
         }
       </div>
     </div>
+    <!-- Clips come after the string so they are drawn on top of it -->
+    @for (clip of clips(); track $index) {
+      <img class='clip'
+        [src]='"/img-pin-" + clip + "-v.svg"'
+        alt=''
+        [style.--clip-index]='$index'
+        [style.--clip-tilt]='tilt().clips[$index] + "deg"'>
+    }
   </div>
 </div>

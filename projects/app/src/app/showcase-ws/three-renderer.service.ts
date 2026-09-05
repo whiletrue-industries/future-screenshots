@@ -1082,6 +1082,63 @@ export class ThreeRendererService {
   }
 
   /**
+   * Camera target and distance that frame an item together with the headroom
+   * above it, on an unrolled camera.
+   *
+   * The item's rectangle is extended upward, in its own frame, by `headroomRatio`
+   * of its width – the room demo mode's string, clips and labels take above its
+   * top edge. The rotated rectangle's screen-aligned bounds are then fitted so
+   * they fill `fillRatio` of the viewport in whichever dimension is tighter
+   * (a steeply tilted item is nearly as wide as it is tall, which matters on a
+   * portrait screen), and the target is the centre of those bounds, so the whole
+   * composition sits centred rather than the item alone.
+   *
+   * Null if the item has no mesh yet.
+   */
+  computeFocusFrame(photoData: PhotoData, fillRatio: number, headroomRatio: number): { x: number; y: number; z: number } | null {
+    const mesh = photoData.mesh;
+    if (!mesh) {
+      return null;
+    }
+
+    const geometry = mesh.geometry;
+    if (!geometry.boundingBox) {
+      geometry.computeBoundingBox();
+    }
+    const box = geometry.boundingBox!;
+    const headroom = (box.max.x - box.min.x) * headroomRatio;
+    mesh.updateMatrixWorld(true);
+
+    const corners = [
+      [box.min.x, box.min.y],
+      [box.max.x, box.min.y],
+      [box.max.x, box.max.y + headroom],
+      [box.min.x, box.max.y + headroom],
+    ].map(([x, y]) => new THREE.Vector3(x, y, 0).applyMatrix4(mesh.matrixWorld));
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const corner of corners) {
+      minX = Math.min(minX, corner.x);
+      maxX = Math.max(maxX, corner.x);
+      minY = Math.min(minY, corner.y);
+      maxY = Math.max(maxY, corner.y);
+    }
+
+    // At distance Z the visible height is 2 * Z * tan(FOV/2) and the visible
+    // width that times the aspect; fit whichever needs the greater distance
+    const tanHalfFov = Math.tan(THREE.MathUtils.degToRad(this.FOV_DEG) / 2);
+    const fill = Math.max(0.01, fillRatio);
+    const zForHeight = (maxY - minY) / (2 * fill * tanHalfFov);
+    const zForWidth = (maxX - minX) / (2 * fill * tanHalfFov * this.camera.aspect);
+
+    return {
+      x: (minX + maxX) / 2,
+      y: (minY + maxY) / 2,
+      z: THREE.MathUtils.clamp(Math.max(zForHeight, zForWidth), this.computedMinCamZ, this.computedMaxCamZ),
+    };
+  }
+
+  /**
    * Smoothly pan and zoom the camera to a world position, keeping the fisheye
    * effect disabled for the duration. Used by the demo mode focus cycle.
    */

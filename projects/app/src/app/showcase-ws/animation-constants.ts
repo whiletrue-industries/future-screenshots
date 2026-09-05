@@ -51,16 +51,13 @@ export const ANIMATION_CONSTANTS = {
   CAMERA_BOUNDS_ANIMATION_DURATION: 3.0,
 
   // Demo mode – the camera focuses each item where it already sits on the canvas.
-  // One cycle is: fly to the item, align the view with its tilt, dwell, fly back out.
+  // One cycle is: one flight to the item, dwell, fly back out.
 
-  /** Demo mode: flight to the focused item, before the view is aligned (seconds) */
-  DEMO_ZOOM_IN_DURATION: 1.8,
-
-  /** Demo mode: close the last of the distance (and roll, if enabled) after the first flight has landed (seconds) */
-  DEMO_ALIGN_DURATION: 1.0,
+  /** Demo mode: the single, eased flight to the focused item (seconds) */
+  DEMO_ZOOM_IN_DURATION: 2.6,
 
   /**
-   * Demo mode: roll the camera to the item's own tilt while closing in, so the
+   * Demo mode: roll the camera to the item's own tilt during the flight, so the
    * item reads upright. Off, the item keeps its tilt on screen and its string
    * and labels read along the cone's own angles.
    */
@@ -75,14 +72,20 @@ export const ANIMATION_CONSTANTS = {
   /** Demo mode: rest at full view between items (seconds) */
   DEMO_PAUSE_DURATION: 1.2,
 
-  /** Demo mode: viewport fraction the item's tilted footprint fills on arrival (0-1) */
-  DEMO_FOCUS_FILL_RATIO: 0.5,
+  /**
+   * Demo mode: viewport fraction the framed composition – the item plus the
+   * headroom for its decoration – fills on arrival, in whichever dimension is
+   * tighter (0-1).
+   */
+  DEMO_FOCUS_FILL_RATIO: 0.62,
 
   /**
-   * Demo mode: viewport fraction the item fills once the camera has closed in (0-1).
-   * Leaves room above the item for its string, clip and labels (DemoFocusOverlayComponent).
+   * Demo mode: room kept above the item's top edge for its string, clips and
+   * labels, as a fraction of the item's width (DemoFocusOverlayComponent sizes
+   * everything from that width). Framed together with the item so the labels
+   * never leave the viewport, portrait screens and steep tilts included.
    */
-  DEMO_ALIGNED_FILL_RATIO: 0.62,
+  DEMO_DECORATION_HEADROOM: 0.45,
 
   /** Demo mode: unroll when the tour is cut short, quicker than a full cycle (seconds) */
   DEMO_EXIT_ROLL_DURATION: 0.4,
