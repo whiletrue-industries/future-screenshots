@@ -27,6 +27,11 @@ export class ApiService {
   item = signal<any>(null);
   api_key = signal<string | null>(null);
   workspaceId = signal<string | null>(null);
+  // Query params for "Explore the Map" links: the main page shows the map tagged with the workspace id
+  exploreMapQueryParams = computed(() => {
+    const workspaceId = this.workspaceId();
+    return workspaceId ? { tag: workspaceId } : {};
+  });
   itemId = signal<string | null>(null);
   itemKey = signal<string | null>(null);
   automatic = signal<boolean>(false);
