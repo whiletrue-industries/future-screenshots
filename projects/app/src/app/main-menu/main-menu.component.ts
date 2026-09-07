@@ -35,12 +35,6 @@ export class MainMenuComponent {
     return Number.isNaN(date.getTime()) ? null : date.toLocaleString();
   });
 
-  // "Explore the Map" opens the main page on this workspace's map (tag = workspace id)
-  exploreQueryParams = computed(() => {
-    const workspaceId = this.api.workspaceId();
-    return workspaceId ? { tag: workspaceId } : {};
-  });
-
   constructor(public api: ApiService, public state: StateService) {
     this.platform.browser(() => {
       if (this.nowTargetService.target() === undefined) {
