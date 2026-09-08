@@ -10,7 +10,8 @@ import { PHOTO_CONSTANTS } from './photo-constants';
  * The same data backs the raster tiles rendered by the Leaflet `/show` output map,
  * so this layout is a vector reproduction of that view inside the Three.js scene.
  * Items that are absent from the precalculated grid (e.g. added after the last
- * recalculation) are hidden rather than approximated.
+ * recalculation) are hidden rather than approximated. Only positions are taken
+ * from the grid; item tilt follows the current evaluation, not the set.
  */
 export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayoutStrategy {
   private workspaceConfigUrl: string;
@@ -274,17 +275,16 @@ export class TsneLayoutStrategy extends LayoutStrategy implements WebServiceLayo
     }
 
     const worldPos = this.convertTsneToWorldCoordinates(gridItem.pos, this.tsneData.dim);
-    const rotateDeg = gridItem.metadata?.rotate;
 
+    // Only the position comes from the precalculated grid. Tilt is derived by the
+    // renderer from the item's current evaluation (as in every other layout), so
+    // it reflects the latest values rather than the ones frozen into the set.
     return {
       x: worldPos.x,
       y: worldPos.y,
       gridKey: `tsne-${gridItem.pos[0]}-${gridItem.pos[1]}`,
       metadata: {
         tsnePosition: gridItem.pos,
-        // Consumed by ThreeRendererService when the layout rotation override is enabled,
-        // so item tilt matches the server-rendered tiles exactly.
-        _tsneRotateDeg: typeof rotateDeg === 'number' ? rotateDeg : undefined,
       }
     };
   }

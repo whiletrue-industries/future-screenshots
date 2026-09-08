@@ -133,7 +133,7 @@ The application uses Angular standalone components organized by feature:
      - Reads `tiles/<workspace>/config.json` for the current `set_id` and `state_hash`, then `tiles/<workspace>/<set_id>/config.json` for the grid, and refreshes whenever `state_hash` changes
      - Grid positions are used verbatim: the half-cell stagger of odd rows is already baked into the published `pos[0]` values, so no extra hex offset is applied
      - Items absent from the precalculated grid (added since the last recalculation) are hidden rather than approximated, so the view stays faithful to the tiles
-     - Per-item tilt comes from the grid's `metadata.rotate`, applied via `ThreeRendererService.setLayoutRotationOverrideEnabled()`; every other layout derives rotation from plausibility/favorable_future
+     - Only positions come from the grid. Per-item tilt is derived from the item's current plausibility/favorable_future, exactly as in every other layout, so it reflects the latest evaluation rather than the `metadata.rotate` frozen into the set (which may lag behind)
      - Cluster titles are overlaid by `TsneClustersOverlayComponent`, matching the output map: italic with a cream halo, tilted by `-average_rotation × 2`, coloured prefer-dark or prevent-dark by the sign of `average_rotation`, and sized to span the cluster so they scale with zoom
      - Titles are localized with `TaxonomyService.localizeName()`, which follows the browser language (not the `lang` URL parameter)
    - Rejected items are excluded from showcase ingestion (`_private_moderation === 0` or `status === rejected`) and are not rendered in showcase-ws or output-map loops
