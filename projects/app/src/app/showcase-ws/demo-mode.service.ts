@@ -257,6 +257,8 @@ export class DemoModeService {
         return;
       }
       this.focusArrived.set(true);
+      // Only now, with the item reached, does the rest of the map blur and fade
+      this.renderer.setDemoDimming(true);
 
       // 2. Dwell
       await this.sleep(ANIMATION_CONSTANTS.DEMO_HOLD_DURATION * 1000);
@@ -307,7 +309,8 @@ export class DemoModeService {
   }
 
   /**
-   * Bring an item to the front, sharp against a blurred canvas, or let it go.
+   * Bring an item to the front, or let it go (which also lifts the blur and
+   * fade of the rest of the map, applied on arrival).
    */
   private highlight(id: string | null): void {
     this.focusArrived.set(false);

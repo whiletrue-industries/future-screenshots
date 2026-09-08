@@ -61,9 +61,9 @@ export class ThreeRendererService {
   private renderer!: THREE.WebGLRenderer;
   private overlayRenderer: THREE.WebGLRenderer | null = null;
 
-  /** Demo mode: blur and fade applied to the main canvas while an item is highlighted. */
-  private static readonly DEMO_DIM_BLUR_PX = 8;
-  private static readonly DEMO_DIM_OPACITY = 0.75;
+  /** Demo mode: blur and fade applied to the main canvas once the camera has reached the highlighted item. */
+  private static readonly DEMO_DIM_BLUR_PX = 20;
+  private static readonly DEMO_DIM_OPACITY = 0.1;
   /** Draw order that keeps the highlighted item in front if the overlay canvas cannot be created. */
   private static readonly DEMO_FOCUS_RENDER_ORDER = 1000;
 
@@ -2241,8 +2241,9 @@ export class ThreeRendererService {
    * Highlight the item the demo tour is focused on, or clear the highlight.
    *
    * While set, the item is rendered on the overlay canvas – always in front,
-   * never hidden by a neighbour – and the main canvas, with every other item,
-   * is blurred and faded behind it. See {@link renderDemoFocus}.
+   * never hidden by a neighbour. See {@link renderDemoFocus}. The rest of the
+   * canvas is dimmed separately, through {@link setDemoDimming}, once the
+   * camera has arrived; clearing the highlight lifts the dim as well.
    */
   setDemoFocusPhotoId(photoId: string | null): void {
     if (photoId === this.demoFocusPhotoId) {
@@ -2262,16 +2263,19 @@ export class ThreeRendererService {
       mesh.renderOrder = ThreeRendererService.DEMO_FOCUS_RENDER_ORDER;
     }
 
-    this.applyDemoDimming(!!photoId);
+    if (!photoId) {
+      this.setDemoDimming(false);
+    }
     this.isSceneIdle = false; // Repaint even if the camera is at rest
   }
 
   /**
    * Blur and fade the main canvas – everything but the highlighted item – or
-   * bring it back. The CSS transition eases the change in over the flight and
-   * out over the pull-back.
+   * bring it back. The map stays fully visible during the flight; the demo
+   * tour turns this on once the camera has reached the item, and the CSS
+   * transition eases it in there and out over the pull-back.
    */
-  private applyDemoDimming(active: boolean): void {
+  setDemoDimming(active: boolean): void {
     const canvas = this.renderer?.domElement;
     if (!canvas) {
       return;
