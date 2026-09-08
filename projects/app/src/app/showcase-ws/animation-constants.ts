@@ -96,7 +96,7 @@ export const ANIMATION_CONSTANTS = {
   /** Demo mode: pointer input ignored for this long after entering, so the starting gesture cannot exit (milliseconds) */
   DEMO_EXIT_GRACE_PERIOD: 500,
 
-  /** Demo mode: blur and fade of everything but the focused item, eased in during the flight and out during the pull-back (seconds) */
+  /** Demo mode: blur and fade of everything but the focused item, eased in on arrival and out during the pull-back (seconds) */
   DEMO_DIM_TRANSITION_DURATION: 0.8
 } as const;
 
