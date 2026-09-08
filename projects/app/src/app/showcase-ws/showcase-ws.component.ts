@@ -1510,9 +1510,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       this.rendererService.removeSvgBackground();
       this.photoRepository.setSvgVisible(false);
 
-      // Use the server's per-item rotation so tilt matches the rendered tiles
-      this.rendererService.setLayoutRotationOverrideEnabled(true);
-
       await this.photoRepository.setLayoutStrategy(tsneStrategy);
       this.tsneGridStrategy = tsneStrategy;
 
@@ -1542,7 +1539,6 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   private clearTsneGridState(): void {
     this.tsneGridStrategy = null;
     this.tsneClusterLabels.set([]);
-    this.rendererService.setLayoutRotationOverrideEnabled(false);
   }
 
   /** Tear down state owned by the Thematic layout when leaving it. */
