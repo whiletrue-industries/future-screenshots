@@ -5,6 +5,16 @@ import { AuthService } from './app/auth.service';
 import { CreateOrUpdateWorkspaceRequest, Workspace } from './app/admin/workspace-metadata.interface';
 import { NOW_GLOBAL_KEY, NowTarget, parseNowTarget } from './app/shared/now-target.service';
 
+export interface MapRebuildEvent {
+  seconds: number;
+  message: string;
+  error: string | null;
+  /** The new map is published. */
+  done: boolean;
+  /** The workspace has no usable items, so no map was written. */
+  empty: boolean;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -13,6 +23,7 @@ export class AdminApiService {
   CHRONOMAPS_API_URL = 'https://chronomaps-api-qjzuw7ypfq-ez.a.run.app';
   private REPLACE_IMAGE_URL = 'https://replace-image-qjzuw7ypfq-ez.a.run.app';
   private REANALYZE_ITEM_URL = 'https://reanalyze-item-qjzuw7ypfq-ez.a.run.app';
+  private CLUSTER_SCREENSHOTS_URL = 'https://cluster-screenshots-qjzuw7ypfq-ez.a.run.app';
   public ADMIN_PAGE_SIZE = 5000;
 
   constructor(private http: HttpClient, private auth: AuthService) { }
@@ -169,6 +180,57 @@ export class AdminApiService {
       .set('item_id', itemId)
       .set('item_key', itemKey);
     return this.http.post<any>(this.REANALYZE_ITEM_URL, null, { params });
+  }
+
+  /**
+   * Rebuilds one workspace's t-SNE map now, instead of waiting for the scheduled run.
+   * Emits the clusterer's progress events as they stream in; the run takes minutes, and
+   * the stream simply ending (timeout, out of memory) is how a dead run shows up, so
+   * callers should look for `done` rather than treat completion as success.
+   */
+  rebuildMap(workspace: string, adminKey: string): Observable<MapRebuildEvent> {
+    // No title, like the scheduled run. The endpoint takes a Firebase admin login (the admin
+    // app) or the workspace's admin key (the showcase, which has no login).
+    const params = new URLSearchParams({ workspace, no_title: 'true' });
+    const token = this.auth.token();
+    const headers = { 'Authorization': token ? `Bearer ${token}` : adminKey };
+    return new Observable<MapRebuildEvent>((subscriber) => {
+      // Deliberately not aborted on unsubscribe: dropping the connection would kill the
+      // run half way, and a row can be destroyed by nothing more than a list refresh.
+      (async () => {
+        const url = `${this.CLUSTER_SCREENSHOTS_URL}?${params}`;
+        let response = await fetch(url, { method: 'POST', headers });
+        if (response.status === 403 && token && adminKey) {
+          // A login that is stale, or not on the admins list - the key is still good.
+          response = await fetch(url, { method: 'POST', headers: { 'Authorization': adminKey } });
+        }
+        if (!response.ok || !response.body) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += value;
+          const events = buffer.split('\n\n');
+          buffer = events.pop() || '';
+          for (const event of events) {
+            if (!event.startsWith('data: ')) continue;
+            const [seconds, bit] = JSON.parse(event.slice('data: '.length));
+            const message = String(bit?.msg || '');
+            subscriber.next({
+              seconds,
+              message,
+              error: bit?.error ? String(bit.error) : null,
+              done: message.startsWith('Config uploaded'),
+              empty: message.startsWith('No records found'),
+            });
+          }
+        }
+        subscriber.complete();
+      })().catch((error) => subscriber.error(error));
+    });
   }
 
 }
