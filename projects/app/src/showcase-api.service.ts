@@ -23,11 +23,13 @@ export class ShowcaseApiService {
     const mainURL = `https://storage.googleapis.com/chronomaps3-eu/tiles/${tag}/config.json`;
     this.http.get(mainURL).pipe(
       switchMap((config: any) => {
-        const set_id = config.set_id || 0;
+        // A manual rebuild publishes a set with a layout but no tiles; `tiles_set_id` is the
+        // last set that has both, and the only one a tile map can show consistently.
+        const set_id = config.tiles_set_id ?? config.set_id ?? 0;
         const setURL = `https://storage.googleapis.com/chronomaps3-eu/tiles/${tag}/${set_id}/config.json`;
         return this.http.get(setURL).pipe(
           map(setConfig => {
-            const mergedConfig = { ...config, ...setConfig };
+            const mergedConfig = { ...config, ...setConfig, set_id };
             return mergedConfig;
           })
         );

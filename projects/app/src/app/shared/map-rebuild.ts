@@ -44,7 +44,7 @@ export class MapRebuild {
       complete: () => {
         this.state.set(outcome);
         this.status.set({
-          done: 'Map rebuilt.',
+          done: 'Topics Map rebuilt. The tile map follows with the next scheduled run.',
           empty: 'No usable items yet, so no map was written.',
           failed: failure,
         }[outcome]);
