@@ -191,7 +191,9 @@ export class AdminApiService {
   rebuildMap(workspace: string, adminKey: string): Observable<MapRebuildEvent> {
     // No title, like the scheduled run. The endpoint takes a Firebase admin login (the admin
     // app) or the workspace's admin key (the showcase, which has no login).
-    const params = new URLSearchParams({ workspace, no_title: 'true' });
+    // skip_tiles: the showcase's Topics Map reads only the layout, so a manual rebuild leaves
+    // the (slow) tile cutting to the scheduled run. The tile map stays on its last tiled set.
+    const params = new URLSearchParams({ workspace, no_title: 'true', skip_tiles: 'true' });
     const token = this.auth.token();
     const headers = { 'Authorization': token ? `Bearer ${token}` : adminKey };
     return new Observable<MapRebuildEvent>((subscriber) => {
