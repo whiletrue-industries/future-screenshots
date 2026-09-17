@@ -96,6 +96,18 @@
                     <span class="label">Map</span>
                 </a>
                 
+                <button
+                    type="button"
+                    class="action-btn rebuild-map-btn"
+                    [class.busy]="mapRebuild.state() === 'running'"
+                    [disabled]="mapRebuild.state() === 'running'"
+                    aria-label="Rebuild the map now"
+                    title="Rebuild the t-SNE map now, without waiting for the scheduled run"
+                    (click)="rebuildMap($event)">
+                    <span class="icon">🔄</span>
+                    <span class="label">@if (mapRebuild.state() === 'running') { Rebuilding… } @else { Rebuild map }</span>
+                </button>
+
                 <button type="button" class="action-btn" aria-label="Generate Dropbox folder config" title="Dropbox config" (click)="openDropboxConfig($event)">
                     <span class="icon">📥</span>
                     <span class="label">Dropbox</span>
@@ -107,6 +119,11 @@
                 </a>
             </div>
         </div>
+        @if (mapRebuild.state() !== 'idle') {
+            <div [class]="'map-rebuild-status ' + mapRebuild.state()" role="status" aria-live="polite">
+                {{ mapRebuild.status() }}
+            </div>
+        }
     </article>
 
     @if (dropboxConfigOpen()) {

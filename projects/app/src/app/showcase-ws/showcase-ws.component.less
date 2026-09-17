@@ -723,6 +723,72 @@
         }
     }
 
+    // ─── Topics Map rebuild button (admin, in zoom-controls) ────────────────────
+    .map-rebuild {
+        position: relative;
+    }
+
+    .map-rebuild-toggle {
+        width: 44px;
+        height: 44px;
+        border: none;
+        background: white;
+        cursor: pointer;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        color: #666;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+        .button-icon {
+            width: 24px;
+            height: 24px;
+        }
+
+        &:hover:not(:disabled) {
+            color: #4E02B2;
+            background: rgba(78, 2, 178, 0.06);
+            transform: scale(1.05);
+            box-shadow: 0 3px 12px rgba(78, 2, 178, 0.2);
+        }
+
+        &.busy {
+            cursor: progress;
+            color: #4E02B2;
+
+            .button-icon {
+                animation: map-rebuild-spin 1.2s linear infinite;
+            }
+        }
+    }
+
+    .map-rebuild-status {
+        position: absolute;
+        top: 50%;
+        right: 52px;
+        transform: translateY(-50%);
+        max-width: 360px;
+        padding: 6px 10px;
+        border-radius: 8px;
+        background: white;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        font-size: 12px;
+        color: #666;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+
+        &.done { color: #2E7D32; }
+        &.empty { color: #B26A00; }
+        &.failed { color: #C62828; }
+    }
+
+    @keyframes map-rebuild-spin {
+        to { transform: rotate(360deg); }
+    }
+
     .filters-bar-container {
         position: absolute;
         top: 0;

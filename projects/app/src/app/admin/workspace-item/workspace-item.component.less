@@ -185,6 +185,15 @@
         box-shadow: 0 2px 4px fade(@color-purple, 8%);
     }
     
+    &.rebuild-map-btn.busy {
+        cursor: progress;
+        opacity: 0.7;
+
+        .icon {
+            animation: rebuild-map-spin 1.2s linear infinite;
+        }
+    }
+
     &.ingest-btn {
         &.active {
             background: @color-light-purple;
@@ -236,4 +245,21 @@
             border-bottom: 1px solid #F1E5F3;
         }
     }
+}
+.map-rebuild-status {
+    margin-top: 8px;
+    font-size: 12px;
+    color: @color-gray;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &.done { color: #2E7D32; }
+    &.empty { color: #B26A00; }
+    &.failed { color: #C62828; }
+}
+
+@keyframes rebuild-map-spin {
+    to { transform: rotate(360deg); }
 }

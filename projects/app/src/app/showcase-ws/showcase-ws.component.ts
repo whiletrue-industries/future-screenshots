@@ -23,6 +23,8 @@ import { PHOTO_CONSTANTS } from './photo-constants';
 import { resolveEvaluation } from './evaluation';
 import { ANIMATION_CONSTANTS } from './animation-constants';
 import { ApiService } from '../../api.service';
+import { AdminApiService } from '../../admin-api.service';
+import { MapRebuild } from '../shared/map-rebuild';
 import { TaxonomyClustersOverlayComponent } from './taxonomy-clusters-overlay/taxonomy-clusters-overlay.component';
 import { TaxonomyClusterLabel } from './taxonomy-clusters-overlay/taxonomy-label.interface';
 import { TaxonomyLabelHoverEvent } from './taxonomy-clusters-overlay/taxonomy-clusters-overlay.component';
@@ -83,6 +85,8 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   currentLayout = signal<ShowcaseLayoutView>('circle-packing');
   /** Demo mode – the unattended camera tour (see DemoModeService). */
   demoMode = inject(DemoModeService);
+  /** Admin-only: rebuild this workspace's Topics Map now rather than waiting for the scheduled run. */
+  mapRebuild = new MapRebuild(inject(AdminApiService));
 
   /** The item the demo tour is holding in front of the viewer, for its decoration. */
   demoHighlightedPhoto = computed(() => {
@@ -1123,6 +1127,17 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
     await this.photoRepository.refreshLayout();
     this.updateTsneClusterLabels(strategy);
+  }
+
+  rebuildMap(): void {
+    if (!this.isAdmin() || this.mapRebuild.state() === 'running') {
+      return;
+    }
+    if (!confirm('Rebuild the Topics Map now? This takes a few minutes.')) {
+      return;
+    }
+    // The regular poll would pick the new set up too; this just does not wait for it.
+    this.mapRebuild.start(this.workspace(), this.admin_key(), () => this.refreshTsneGridIfChanged());
   }
 
   getItems(since?: string): Observable<any[]> {

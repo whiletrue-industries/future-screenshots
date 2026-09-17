@@ -1,6 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { WorkspaceNameUtility } from '../../shared/workspace-name.utility';
+import { AdminApiService } from '../../../admin-api.service';
+import { MapRebuild } from '../../shared/map-rebuild';
 import { DropboxConfigModalComponent } from '../dropbox-config-modal/dropbox-config-modal.component';
 
 @Component({
@@ -26,6 +28,7 @@ export class WorkspaceItemComponent {
   nowEndTimeChange = output<{ workspaceId: string; endTime: string | null }>();
   ingestMenuOpen = signal(false);
   dropboxConfigOpen = signal(false);
+  mapRebuild = new MapRebuild(inject(AdminApiService));
   ingestSuffix = computed(() => {
     const w = this.workspace();
     if (w && w.id && w.keys) {
@@ -85,6 +88,19 @@ export class WorkspaceItemComponent {
     event.preventDefault();
     event.stopPropagation();
     this.dropboxConfigOpen.set(true);
+  }
+
+  rebuildMap(event: Event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const w = this.workspace();
+    if (!w?.id || !w.keys?.admin || this.mapRebuild.state() === 'running') {
+      return;
+    }
+    if (!confirm(`Rebuild the map for "${this.workspaceNameWithEmojis() || w.id}" now? This takes a few minutes.`)) {
+      return;
+    }
+    this.mapRebuild.start(w.id, w.keys.admin);
   }
 
   closeDropboxConfig() {
