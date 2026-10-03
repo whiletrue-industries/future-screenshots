@@ -12,6 +12,7 @@ Future Screenshots is an AI-powered participatory mapping platform that enables 
 - **[Extending](documentation/EXTENDING.md)** - Adding new features
 - **[Testing](documentation/TESTING.md)** - Testing strategies
 - **[DevOps](documentation/DEVOPS.md)** - Deployment and operations
+- **[Design Draft](design.md)** - Implementation-oriented design consistency draft
 
 ## Quick Start
 
