@@ -1,0 +1,105 @@
+@import '../../../common.less';
+
+:host {
+    position: fixed;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(16px, env(safe-area-inset-bottom));
+    z-index: 1001;
+    width: min(340px, calc(100vw - 32px));
+    animation: assumptions-prompt-in 0.35s ease-out;
+
+    // On phones the layout toggle owns the bottom edge: sit above it
+    @media (max-width: 768px) {
+        bottom: calc(max(8px, env(safe-area-inset-bottom)) + 72px);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+    }
+}
+
+.prompt {
+    position: relative;
+    padding: 14px 44px 14px 16px;
+    border-radius: 12px;
+    background: @color-creme;
+    border: 1px solid rgba(78, 2, 178, 0.22);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.16);
+    color: @color-darker-purple;
+    font-family: var(--showcase-font-family, "Readex Pro", sans-serif);
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+.question {
+    margin: 0 0 6px;
+}
+
+.form-link {
+    color: @color-purple;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+
+    &:hover {
+        color: @color-dark-purple;
+    }
+
+    &:focus-visible {
+        outline: 2px solid @color-purple;
+        outline-offset: 2px;
+        border-radius: 2px;
+    }
+}
+
+.close {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 32px;
+    height: 32px;
+    padding: 6px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: @color-dark-gray;
+    cursor: pointer;
+
+    svg {
+        width: 100%;
+        height: 100%;
+    }
+
+    &:hover {
+        background: @color-primary-100;
+        color: @color-purple;
+    }
+
+    &:focus-visible {
+        outline: 2px solid @color-purple;
+        outline-offset: 1px;
+    }
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+@keyframes assumptions-prompt-in {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

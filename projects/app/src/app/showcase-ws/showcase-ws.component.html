@@ -289,6 +289,18 @@
 </div>
 }
 
+<!-- After a click zooms into an item: invite the viewer to record their assumptions about it -->
+@if (assumptionsPromptItem(); as item) {
+  @if (!demoMode.active()) {
+    <app-assumptions-prompt
+      [workspaceId]='workspace()'
+      [itemId]='item.id'
+      [screenshotUrl]='item.screenshotUrl'
+      (dismiss)='dismissAssumptionsPrompt()'
+    ></app-assumptions-prompt>
+  }
+}
+
 <!-- Demo mode: a tap or click anywhere leaves the tour (Escape does too) -->
 @if (demoMode.active()) {
   <button
