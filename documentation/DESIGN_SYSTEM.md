@@ -387,6 +387,16 @@ input[type="checkbox"] {
 }
 ```
 
+### Notifications (Showcase)
+
+Floating, non-modal notices over the showcase canvas, such as the assumptions prompt (`showcase-ws/assumptions-prompt/`):
+
+- Fixed bottom-right with a 16px inset (respecting `env(safe-area-inset-*)`). On phones (≤768px), full width less the gutters, lifted above the bottom layout toggle
+- `@color-creme` background, 12px radius, a `rgba(78, 2, 178, 0.22)` border and a `0 8px 22px rgba(0, 0, 0, 0.16)` shadow, text in `@color-darker-purple` with the showcase font
+- Links use `@color-purple`, are underlined and semibold, and say when they open a new tab (visually hidden text)
+- A 32px round close button in the top-right corner with an `aria-label`
+- `role="status"` so screen readers announce the notice without moving focus. Slides in over 0.35s, with no animation under `prefers-reduced-motion`
+
 ## Layout Patterns
 
 ### Full Viewport Layouts
