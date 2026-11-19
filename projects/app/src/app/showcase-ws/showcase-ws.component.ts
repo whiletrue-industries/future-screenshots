@@ -31,6 +31,7 @@ import { TaxonomyLabelHoverEvent } from './taxonomy-clusters-overlay/taxonomy-cl
 import { TsneClustersOverlayComponent } from './tsne-clusters-overlay/tsne-clusters-overlay.component';
 import { TsneClusterLabel } from './tsne-clusters-overlay/tsne-cluster-label.interface';
 import { DemoFocusOverlayComponent } from './demo-focus-overlay/demo-focus-overlay.component';
+import { AssumptionsPromptComponent } from './assumptions-prompt/assumptions-prompt.component';
 
 /**
  * The views the showcase can display, with the names the layout toggle gives them.
@@ -52,7 +53,7 @@ const DRAG_ALL_ALLOWED_PROPERTIES = 'layout_x,layout_y,plausibility,favorable_fu
 
 @Component({
   selector: 'app-showcase-ws',
-  imports: [QrcodeComponent, EvaluationSidebarComponent, FiltersBarComponent, TaxonomyClustersOverlayComponent, TsneClustersOverlayComponent, DemoFocusOverlayComponent],
+  imports: [QrcodeComponent, EvaluationSidebarComponent, FiltersBarComponent, TaxonomyClustersOverlayComponent, TsneClustersOverlayComponent, DemoFocusOverlayComponent, AssumptionsPromptComponent],
   templateUrl: './showcase-ws.component.html',
   styleUrl: './showcase-ws.component.less'
 })
@@ -98,6 +99,10 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
   /** ?loop=true – start the tour by itself once the canvas has settled. */
   private autoStartDemoMode = false;
   enableSvgAutoPositioning = signal(true);
+  /** The item whose "record your assumptions" prompt is showing, after a click zoomed into it. */
+  assumptionsPromptItem = signal<{ id: string; screenshotUrl: string | null } | null>(null);
+  /** The item a click is zooming into; its prompt shows once the zoom lands, unless it was dismissed meanwhile. */
+  private pendingAssumptionsPromptId: string | null = null;
   fisheyeEnabled = signal(false);
   currentZoomLevel = signal(1.0); // Track current zoom level for UI display
   fisheyeTaxonomyFocusLabel = signal<string | null>(null);
@@ -696,6 +701,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
 
     // Nothing may compete with the tour for the camera or the pointer
     this.sidebarOpen.set(false);
+    this.dismissAssumptionsPrompt();
     this.selectedItemId.set(null);
     this.dragAllControlsOpen.set(false);
     this.searchActive.set(false);
@@ -1193,6 +1199,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
         if (data.type === 'show-on-map') {
           const itemId = typeof data.itemId === 'string' ? data.itemId : null;
           if (!itemId) return;
+          this.dismissAssumptionsPrompt();
           this.sidebarOpen.set(false);
           this.selectedItemId.set(null);
           this.focusOnItem(itemId, { animateFromFull: true, fromShowOnMap: true });
@@ -1224,6 +1231,12 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     if (event.key === 'Escape' && this.demoMode.active()) {
       event.preventDefault();
       this.stopDemoMode();
+      return;
+    }
+
+    // Escape also dismisses the "record your assumptions" prompt
+    if (event.key === 'Escape' && this.assumptionsPromptItem()) {
+      this.dismissAssumptionsPrompt();
       return;
     }
 
@@ -2241,15 +2254,42 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
       this.selectedItemId.set(photoId);
       this.sidebarOpen.set(true);
     } else {
-      // User does not have edit permissions - trigger zoom animation instead
-      this.focusOnItem(photoId, { animateFromFull: true, fromShowOnMap: true });
+      // User does not have edit permissions - trigger zoom animation instead,
+      // then invite the viewer to record their assumptions about the item
+      this.assumptionsPromptItem.set(null);
+      this.pendingAssumptionsPromptId = photoId;
+      this.focusOnItem(photoId, { animateFromFull: true, fromShowOnMap: true })
+        .then((focused) => {
+          if (focused && this.pendingAssumptionsPromptId === photoId) {
+            this.showAssumptionsPrompt(photoId);
+          }
+        });
     }
   }
 
+  private showAssumptionsPrompt(itemId: string): void {
+    this.pendingAssumptionsPromptId = null;
+    if (this.demoMode.active()) {
+      return;
+    }
+    // The placeholder stands in for a missing screenshot; it is no use to the form
+    const screenshotUrl = this.photoRepository.getPhoto(itemId)?.metadata.screenshot_url;
+    this.assumptionsPromptItem.set({
+      id: itemId,
+      screenshotUrl: screenshotUrl && !screenshotUrl.startsWith('data:') ? screenshotUrl : null,
+    });
+  }
+
+  dismissAssumptionsPrompt(): void {
+    this.pendingAssumptionsPromptId = null;
+    this.assumptionsPromptItem.set(null);
+  }
+
   /**
-   * Focus camera on a specific item
+   * Focus camera on a specific item.
+   * Resolves to whether the item was found and focused.
    */
-  async focusOnItem(itemId: string, options?: { animateFromFull?: boolean; fromShowOnMap?: boolean }): Promise<void> {
+  async focusOnItem(itemId: string, options?: { animateFromFull?: boolean; fromShowOnMap?: boolean }): Promise<boolean> {
     // Mark this item as the permalink target to allow high-res loading when focused
     this.rendererService.setPermalinkTarget(itemId);
     this.rendererService.setCameraMode('user-controlled');
@@ -2288,7 +2328,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
           this.rendererService.focusOnPosition(position.x, position.y, this.DEFAULT_FOCUS_ZOOM);
         }
         
-        return;
+        return true;
       }
       
       // Wait before trying again
@@ -2297,6 +2337,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
     }
     
     console.warn('[SHOWCASE_WS] Could not find photo to focus on:', itemId);
+    return false;
   }
 
   /**
@@ -2344,6 +2385,7 @@ export class ShowcaseWsComponent implements AfterViewInit, OnDestroy {
    * Handle background click - close evaluation sidebar
    */
   onBackgroundClick(): void {
+    this.dismissAssumptionsPrompt();
     this.sidebarOpen.set(false);
     this.selectedItemId.set(null);
     this.updateHashState({ itemId: null });

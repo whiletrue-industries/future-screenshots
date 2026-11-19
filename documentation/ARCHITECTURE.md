@@ -145,6 +145,10 @@ The application uses Angular standalone components organized by feature:
    - Auto-fit mode: Automatically frames all photos in view
    - Smooth camera animations with damping
    - QR code for easy mobile access
+   - **Assumptions prompt** (`AssumptionsPromptComponent`) – once a visitor's click has zoomed into an item, a notification in the bottom-right corner (above the layout toggle on phones) asks "What do you see? What makes this possible?" and links to the external Tally assumptions form (`https://tally.so/r/0V8BRZ`) in a new tab, passing `workspace_id`, `item_id` and `screenshot_url` as query parameters (`screenshot_url` is left out for items without a screenshot)
+     - Only a visitor's click shows it: admins' clicks open the evaluation sidebar, and permalink or "show on map" zooms show nothing
+     - Shown only after the zoom lands; a background click during the zoom cancels it
+     - Dismissed by its close button, `Escape`, a background click or entering demo mode. Clicking another item replaces it
    - **Demo mode** (`DemoModeService`) – an unattended camera tour of the canvas, for wall displays. Items never move; the camera goes to them:
      1. One eased flight to the item where it already sits. The camera stays level: the item keeps its tilt on screen, so its string and labels read along the cone's own angles (`DEMO_ROLL_TO_ITEM` turns the roll back on). The framing (`ThreeRendererService.computeFocusFrame()`) fits the item's tilted footprint *plus* headroom above its top edge for the decoration (`DEMO_DECORATION_HEADROOM`) to ~62% of the viewport in whichever dimension is tighter, and centres that composition – so the labels never leave the viewport, portrait screens and steep tilts included
      2. Claim its high-res texture as the flight starts (`ThreeRendererService.setHighResPriorityId()`, tracked separately from the permalink target), so the swap lands before the camera arrives
@@ -413,7 +417,7 @@ The showcase supports four levels of access:
 
 1. **Visitors** (no admin_key, no item_key)
    - Can view items in the showcase
-   - Can click items to trigger focus animation
+   - Can click items to trigger focus animation, followed by the assumptions prompt
    - Cannot drag items or edit evaluations
    - When `drag_all` mode is active, can drag any item to the SVG map
 
